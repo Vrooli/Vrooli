@@ -1,15 +1,15 @@
 import { endpointGetNoteVersion, endpointPostNoteVersion, endpointPutNoteVersion, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteForm, noteInitialValues, transformNoteValues, validateNoteValues } from "forms/NoteForm/NoteForm";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
 import { useContext, useRef } from "react";
 import { toDisplay } from "utils/display/pageTools";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { NoteVersionShape } from "utils/shape/models/noteVersion";
 import { NoteUpsertProps } from "../types";
 
@@ -19,7 +19,6 @@ export const NoteUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: NoteUpsertProps) => {
     const session = useContext(SessionContext);
     const display = toDisplay(isOpen);
@@ -53,7 +52,6 @@ export const NoteUpsert = ({
             id="note-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <Formik
                 enableReinitialize={true}
@@ -81,7 +79,6 @@ export const NoteUpsert = ({
                         onCancel={handleCancel}
                         ref={formRef}
                         versions={[]}
-                        zIndex={zIndex}
                         {...formik}
                     />
                 }

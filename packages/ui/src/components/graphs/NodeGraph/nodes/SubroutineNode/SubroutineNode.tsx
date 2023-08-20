@@ -1,12 +1,12 @@
 import { Routine } from "@local/shared";
 import { Box, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import usePress from "hooks/usePress";
 import { ActionIcon, CloseIcon, NoActionIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { multiLineEllipsis, noSelect, textShadow } from "styles";
 import { BuildAction } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import usePress from "utils/hooks/usePress";
 import { calculateNodeSize } from "..";
 import { NodeWidth } from "../..";
 import { NodeContextMenu } from "../../NodeContextMenu/NodeContextMenu";
@@ -31,7 +31,6 @@ export const SubroutineNode = ({
     handleAction,
     handleUpdate,
     language,
-    zIndex,
 }: SubroutineNodeProps) => {
     const { palette } = useTheme();
 
@@ -90,7 +89,6 @@ export const SubroutineNode = ({
                 }
                 handleClose={closeContext}
                 handleSelect={(action) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine); }}
-                zIndex={zIndex + 1}
             />
             <Box
                 sx={{

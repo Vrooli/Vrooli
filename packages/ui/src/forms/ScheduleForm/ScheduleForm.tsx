@@ -54,7 +54,6 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
     onCancel,
     touched,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -99,14 +98,12 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
                     {canSetScheduleFor && <RelationshipList
                         isEditing={true}
                         objectType={"Schedule"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />}
                     <Title
                         title="Schedule Time Frame"
                         help="This section is used to define the overall time frame for the schedule.\n\n*Start time* and *End time* specify the beginning and the end of the period during which the schedule is active.\n\nThe *Timezone* is used to set the time zone for the entire schedule."
                         variant="subheader"
-                        zIndex={zIndex}
                     />
                     <Stack direction="column" spacing={2}>
                         <DateInput
@@ -119,14 +116,13 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
                             label="End time"
                             type="datetime-local"
                         />
-                        <TimezoneSelector name="timezone" label="Timezone" zIndex={zIndex} />
+                        <TimezoneSelector name="timezone" label="Timezone" />
                     </Stack>
                     {/* Set up recurring events */}
                     <Title
                         title="Recurring events"
                         help="Recurring events are used to set up repeated occurrences of the event in the schedule, such as daily, weekly, monthly, or yearly. *Recurrence type* determines the frequency of the repetition. *Interval* is the number of units between repetitions (e.g., every 2 weeks). Depending on the recurrence type, you may need to specify additional information such as *Day of week*, *Day of month*, or *Month of year*. Optionally, you can set an *End date* for the recurrence."
                         variant="subheader"
-                        zIndex={zIndex}
                     />
                     {recurrencesField.value.length ? <Box>
                         {recurrencesField.value.map((recurrence, index) => (
@@ -250,7 +246,6 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

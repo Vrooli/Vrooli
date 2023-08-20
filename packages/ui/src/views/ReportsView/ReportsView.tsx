@@ -1,11 +1,11 @@
 import { endpointGetReports, Report, ReportSearchInput, ReportSearchResult } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useFetch } from "hooks/useFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getLastUrlPart } from "route";
 import { toDisplay } from "utils/display/pageTools";
-import { useFetch } from "utils/hooks/useFetch";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { ReportsViewProps } from "../types";
 
@@ -25,7 +25,6 @@ const objectTypeToIdField = {
 export const ReportsView = ({
     isOpen,
     onClose,
-    zIndex,
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -50,7 +49,6 @@ export const ReportsView = ({
                 help={t("ReportsHelp")}
                 onClose={onClose}
                 title={t("Report", { count: 2 })}
-                zIndex={zIndex}
             />
             {reports.map((report, i) => {
                 return <Box

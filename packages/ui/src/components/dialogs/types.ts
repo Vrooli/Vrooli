@@ -3,12 +3,12 @@ import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
+import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
 import { DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObject } from "utils/display/listTools";
-import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
 import { CommentShape } from "utils/shape/models/comment";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
@@ -30,7 +30,6 @@ export interface CookieSettingsDialogProps {
 export interface DeleteAccountDialogProps {
     handleClose: (wasDeleted: boolean) => unknown;
     isOpen: boolean;
-    zIndex: number;
 }
 
 export interface DeleteDialogProps {
@@ -39,7 +38,6 @@ export interface DeleteDialogProps {
     objectId: string;
     objectName: string;
     objectType: DeleteType;
-    zIndex: number;
 }
 
 export interface DialogTitleProps extends Omit<TitleProps, "sxs" | "variant"> {
@@ -91,7 +89,6 @@ export interface FindObjectDialogProps<Find extends FindObjectDialogType, Object
     /** Forces selection to be a version, and removes unversioned items from limitTo */
     onlyVersioned?: boolean;
     where?: { [key: string]: object };
-    zIndex: number;
 }
 
 export interface FindSubroutineDialogProps {
@@ -100,7 +97,6 @@ export interface FindSubroutineDialogProps {
     isOpen: boolean;
     nodeId: string;
     routineVersionId: string | null | undefined;
-    zIndex: number;
 }
 
 export interface ListMenuItemData<T> {
@@ -124,7 +120,6 @@ export interface ListMenuProps<T> {
     onSelect: (value: T) => unknown;
     onClose: () => unknown;
     title?: string;
-    zIndex: number;
 }
 
 export interface MenuTitleProps {
@@ -132,7 +127,6 @@ export interface MenuTitleProps {
     helpText?: string;
     onClose: () => unknown;
     title?: string;
-    zIndex: number;
 }
 
 export enum ObjectDialogAction {
@@ -151,14 +145,12 @@ export interface ReorderInputDialogProps {
     isInput: boolean;
     listLength: number;
     startIndex: number;
-    zIndex: number;
 }
 
 export interface ShareObjectDialogProps extends DialogProps {
     object: NavigableObject | null | undefined;
     open: boolean;
     onClose: () => unknown;
-    zIndex: number;
 }
 
 export interface TranscriptDialogProps {
@@ -166,12 +158,10 @@ export interface TranscriptDialogProps {
     isListening: boolean;
     showHint: boolean;
     transcript: string;
-    zIndex: number;
 }
 
 export type ObjectActionDialogsProps = UseObjectActionsReturn & {
     object: ListObject | null | undefined;
-    zIndex: number;
 }
 
 export interface ObjectActionMenuProps {
@@ -180,7 +170,6 @@ export interface ObjectActionMenuProps {
     exclude?: ObjectAction[];
     object: ListObject | null | undefined;
     onClose: () => unknown;
-    zIndex: number;
 }
 
 export interface LinkDialogProps {
@@ -193,7 +182,6 @@ export interface LinkDialogProps {
     nodeFrom?: NodeShape | null; // Initial "from" node
     nodeTo?: NodeShape | null; // Initial "to" node
     routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
-    zIndex: number;
 }
 
 export interface SubroutineInfoDialogProps {
@@ -205,7 +193,6 @@ export interface SubroutineInfoDialogProps {
     isEditing: boolean;
     open: boolean;
     onClose: () => unknown;
-    zIndex: number;
 }
 
 export interface UnlinkedNodesDialogProps {
@@ -215,7 +202,6 @@ export interface UnlinkedNodesDialogProps {
     language: string;
     nodes: Node[];
     open: boolean;
-    zIndex: number;
 }
 
 export interface RunStepsDialogProps {
@@ -226,14 +212,12 @@ export interface RunStepsDialogProps {
     /** Out of 100 */
     percentComplete: number;
     rootStep: RoutineListStep | DirectoryStep | null;
-    zIndex: number;
 }
 
 export interface DeleteBookmarkListDialogProps {
     bookmarkDeleteOptions: Bookmark[];
     onClose: () => unknown;
     onDelete: (bookmarks: Bookmark[]) => unknown;
-    zIndex: number;
 }
 
 export interface SelectBookmarkListDialogProps {
@@ -242,7 +226,6 @@ export interface SelectBookmarkListDialogProps {
     onClose: (inList: boolean) => unknown;
     isCreate: boolean;
     isOpen: boolean;
-    zIndex: number;
 }
 
 export interface SelectLanguageMenuProps {
@@ -258,7 +241,6 @@ export interface SelectLanguageMenuProps {
     /** Languages that currently have a translation */
     languages: string[];
     sxs?: { root: SxType; };
-    zIndex: number;
 }
 
 export interface RunPickerMenuProps {
@@ -268,7 +250,6 @@ export interface RunPickerMenuProps {
     onDelete: (run: RunProject | RunRoutine) => unknown;
     onSelect: (run: RunProject | RunRoutine | null) => unknown;
     runnableObject?: Partial<RoutineVersion | ProjectVersion> | null;
-    zIndex: number;
 }
 
 export interface LargeDialogProps {
@@ -277,7 +258,6 @@ export interface LargeDialogProps {
     isOpen: boolean;
     onClose: () => unknown;
     titleId?: string;
-    zIndex: number;
     sxs?: { paper?: SxType; }
 }
 
@@ -289,14 +269,12 @@ export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "onClose">
 export interface WalletInstallDialogProps {
     onClose: () => unknown;
     open: boolean;
-    zIndex: number;
 }
 
 export interface WalletSelectDialogProps {
     handleOpenInstall: () => unknown;
     onClose: (selectedKey: string | null) => unknown;
     open: boolean;
-    zIndex: number;
 }
 
 export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx"> {
@@ -310,7 +288,6 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx">
         content?: SxType;
         paper?: SxType;
     }
-    zIndex: number;
 }
 
 

@@ -10,17 +10,17 @@ import { TranslatedTextField } from "components/inputs/TranslatedTextField/Trans
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
+import { SessionContext } from "contexts/SessionContext";
 import { Field } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ApiFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CompleteIcon } from "icons";
 import { forwardRef, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion";
 
@@ -77,7 +77,6 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -118,7 +117,6 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                     <RelationshipList
                         isEditing={true}
                         objectType={"Api"}
-                        zIndex={zIndex}
                     />
                     <FormSection>
                         <LanguageInput
@@ -127,7 +125,6 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -142,7 +139,6 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                             minRows={4}
                             maxRows={8}
                             placeholder={t("Summary")}
-                            zIndex={zIndex}
                         />
                         <TranslatedMarkdownInput
                             language={language}
@@ -151,7 +147,6 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                             minRows={4}
                             maxRows={8}
                             placeholder={t("Details")}
-                            zIndex={zIndex}
                         />
                     </FormSection>
                     <FormSection>
@@ -169,7 +164,6 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                                 title="Use URL for schema?"
                                 help={"Is your API's [OpenAPI](https://swagger.io/specification/) or [GraphQL](https://graphql.org/) schema available at a URL? If so, select \"Yes\" and enter the URL below. If not, select \"No\" and enter the schema text below.\n\n*This field is not required, but recommended.*"}
                                 variant="subheader"
-                                zIndex={zIndex}
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
@@ -206,7 +200,6 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                                     disabled={false}
                                     limitTo={[StandardLanguage.Json, StandardLanguage.Graphql]}
                                     name="schemaText"
-                                    zIndex={zIndex}
                                 />
                             )
                         }
@@ -214,11 +207,9 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                     <ResourceListHorizontalInput
                         isCreate={true}
                         parent={{ __typename: "ApiVersion", id: values.id }}
-                        zIndex={zIndex}
                     />
                     <TagSelector
                         name="root.tags"
-                        zIndex={zIndex}
                     />
                     <VersionInput
                         fullWidth
@@ -233,7 +224,6 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
-                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

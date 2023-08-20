@@ -9,16 +9,16 @@ import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInp
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { StandardFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { InputTypeOptions } from "utils/consts";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { shapeStandardVersion, StandardVersionShape } from "utils/shape/models/standardVersion";
 
@@ -82,7 +82,6 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -116,7 +115,6 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                     <RelationshipList
                         isEditing={true}
                         objectType={"Standard"}
-                        zIndex={zIndex}
                     />
                     <FormSection>
                         <LanguageInput
@@ -125,7 +123,6 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -140,22 +137,14 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                             minRows={4}
                             maxRows={8}
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
                     </FormSection>
-                    <StandardInput
-                        fieldName="preview"
-                        zIndex={zIndex}
-                    />
+                    <StandardInput fieldName="preview" />
                     <ResourceListHorizontalInput
                         isCreate={true}
                         parent={{ __typename: "StandardVersion", id: values.id }}
-                        zIndex={zIndex}
                     />
-                    <TagSelector
-                        name="root.tags"
-                        zIndex={zIndex}
-                    />
+                    <TagSelector name="root.tags" />
                     <VersionInput
                         fullWidth
                         versions={versions}
@@ -170,7 +159,6 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

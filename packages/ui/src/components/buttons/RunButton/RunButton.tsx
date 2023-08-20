@@ -26,7 +26,6 @@ export const RunButton = ({
     isBuildGraphOpen,
     isEditing,
     runnableObject,
-    zIndex,
 }: RunButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -121,14 +120,12 @@ export const RunButton = ({
             <PopoverWithArrow
                 anchorEl={errorAnchorEl}
                 handleClose={closeError}
-                zIndex={zIndex + 1}
             >{t("RoutineCannotRunInvalid", { ns: "error" })}</PopoverWithArrow>
             {/* Run dialog */}
             {runnableObject && <RunView
                 isOpen={isRunOpen}
                 onClose={runStop}
                 runnableObject={runnableObject}
-                zIndex={zIndex + 3}
             />}
             {/* Chooses which run to use */}
             <RunPickerMenu
@@ -138,7 +135,6 @@ export const RunButton = ({
                 onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
                 runnableObject={runnableObject}
-                zIndex={zIndex + 2}
             />
             {/* Run button */}
             <Tooltip title="Run Routine" placement="top">

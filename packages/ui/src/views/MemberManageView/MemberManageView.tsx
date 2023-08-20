@@ -7,11 +7,11 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useField } from "formik";
+import { useTabs } from "hooks/useTabs";
 import { AddIcon, LockIcon, SearchIcon, UnlockIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { useTabs } from "utils/hooks/useTabs";
 import { MemberManagePageTabOption, SearchType } from "utils/search/objectToSearch";
 import { MemberManageViewProps } from "../types";
 
@@ -34,7 +34,6 @@ export const MemberManageView = ({
     onClose,
     organizationId,
     isOpen,
-    zIndex,
 }: MemberManageViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -66,7 +65,6 @@ export const MemberManageView = ({
             id="member-manage-dialog"
             isOpen={isOpen ?? false}
             onClose={onClose}
-            zIndex={zIndex}
             sxs={{
                 paper: {
                     minHeight: "min(100vh - 64px, 600px)",
@@ -80,7 +78,6 @@ export const MemberManageView = ({
                     isOpen={isInviteDialogOpen}
                     onCompleted={handleCreated}
                     onCancel={handleCreateClose}
-                    zIndex={zIndex + 2}
                 /> */}
             {/* Main dialog */}
             <TopBar
@@ -93,7 +90,6 @@ export const MemberManageView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{t(searchType as CommonKey, { count: 2, defaultValue: searchType })}</Typography>
@@ -126,13 +122,11 @@ export const MemberManageView = ({
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                zIndex={zIndex}
                 where={where(organizationId)}
                 sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionButtons
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >

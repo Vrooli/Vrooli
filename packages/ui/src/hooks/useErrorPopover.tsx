@@ -1,12 +1,11 @@
 import { exists, uppercaseFirstLetter } from "@local/shared";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { useCallback, useMemo, useState } from "react";
-import { MarkdownDisplay } from "../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 
 interface UsePopoverMenuOptions {
     errors: Record<string, string | string[] | null | undefined> | null | undefined;
     onSetSubmitting?: (isSubmitting: boolean) => void;
-    zIndex: number;
 }
 
 interface UsePopoverMenuReturn {
@@ -20,7 +19,6 @@ interface UsePopoverMenuReturn {
 export const useErrorPopover = ({
     errors,
     onSetSubmitting,
-    zIndex,
 }: UsePopoverMenuOptions): UsePopoverMenuReturn => {
     // Errors popup
     const [errorAnchorEl, setErrorAnchorEl] = useState<any | null>(null);
@@ -69,12 +67,11 @@ export const useErrorPopover = ({
                         },
                     },
                 }}
-                zIndex={zIndex + 1}
             >
-                <MarkdownDisplay content={errorMessage} zIndex={zIndex} sx={{ minHeight: "unset"}} />
+                <MarkdownDisplay content={errorMessage} sx={{ minHeight: "unset" }} />
             </PopoverWithArrow>
         );
-    }, [closePopover, errorAnchorEl, errorMessage, zIndex]);
+    }, [closePopover, errorAnchorEl, errorMessage]);
 
     return { errorMessage, openPopover, closePopover, hasErrors, Popover };
 };

@@ -10,5 +10,4 @@ export interface ReminderListProps {
     listId?: string | null | undefined;
     loading: boolean;
     reminders: Reminder[];
-    zIndex: number;
 }

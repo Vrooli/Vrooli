@@ -77,7 +77,6 @@ export const displaySettingsData: SettingsData[] = [
 export const SettingsView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -94,13 +93,11 @@ export const SettingsView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Settings")}
-                zIndex={zIndex}
             />
             <Box p={2}>
                 <Title
                     title={t("Account")}
                     variant="header"
-                    zIndex={zIndex}
                 />
                 <CardGrid minWidth={300}>
                     {accountSettingsData.map(({ title, titleVariables, description, link, Icon }, index) => (
@@ -118,7 +115,6 @@ export const SettingsView = ({
                     title={t("Display")}
                     sxs={{ text: { paddingTop: 2 } }}
                     variant="header"
-                    zIndex={zIndex}
                 />
                 <CardGrid minWidth={300} sx={{ paddingBottom: "64px" }}>
                     {displaySettingsData.map(({ title, titleVariables, description, link, Icon }, index) => (

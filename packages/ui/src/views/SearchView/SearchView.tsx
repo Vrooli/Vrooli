@@ -5,17 +5,17 @@ import { SideActionButtons } from "components/buttons/SideActionButtons/SideActi
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { SessionContext } from "contexts/SessionContext";
+import { useTabs } from "hooks/useTabs";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
-import { useTabs } from "utils/hooks/useTabs";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
 import { SearchViewProps } from "../types";
 
 // Data for each tab
@@ -87,7 +87,6 @@ export const searchViewTabParams = [{
 export const SearchView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SearchViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -169,7 +168,6 @@ export const SearchView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             {searchType && <SearchList
                 id="main-search-page-list"
@@ -177,13 +175,11 @@ export const SearchView = ({
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                zIndex={zIndex}
                 where={where()}
                 sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionButtons
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >

@@ -5,13 +5,13 @@ import { Box, Button } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
+import { useFindMany } from "hooks/useFindMany";
 import { PlusIcon } from "icons";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { NavigableObject } from "types";
 import { ListObject } from "utils/display/listTools";
-import { useFindMany } from "utils/hooks/useFindMany";
 import { openObject } from "utils/navigation/openObject";
 import { ObjectList } from "../ObjectList/ObjectList";
 import { SearchListProps } from "../types";
@@ -31,7 +31,6 @@ export function SearchList<DataType extends NavigableObject>({
     sxs,
     onItemClick,
     where,
-    zIndex,
 }: SearchListProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -139,7 +138,6 @@ export function SearchList<DataType extends NavigableObject>({
                     onChange={handleSearch}
                     onInputChange={onInputSelect}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                    zIndex={zIndex}
                 />
             </Box>
             <SearchButtons
@@ -156,7 +154,6 @@ export function SearchList<DataType extends NavigableObject>({
                     ...sxs?.buttons,
                 }}
                 timeFrame={timeFrame}
-                zIndex={zIndex}
             />
             <ListContainer
                 ref={containerRef}
@@ -172,7 +169,6 @@ export function SearchList<DataType extends NavigableObject>({
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
                     onClick={onItemClick}
-                    zIndex={zIndex}
                 />
             </ListContainer>
             {/* Add new button */}

@@ -3,16 +3,16 @@ import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, Auto
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
 import { Dimensions } from "components/graphs/types";
+import { SessionContext } from "contexts/SessionContext";
+import { useDebounce } from "hooks/useDebounce";
+import { useDimensions } from "hooks/useDimensions";
 import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { ChangeEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AutocompleteOption, SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { useDebounce } from "utils/hooks/useDebounce";
-import { useDimensions } from "utils/hooks/useDimensions";
 import { getLocalStorageKeys } from "utils/localStorage";
 import { performAction } from "utils/navigation/quickActions";
-import { SessionContext } from "utils/SessionContext";
 import { SiteSearchBarProps } from "../types";
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
@@ -140,7 +140,6 @@ export function SiteSearchBar({
     loading = false,
     showSecondaryLabel = false,
     sxs,
-    zIndex,
     ...props
 }: SiteSearchBarProps) {
     const session = useContext(SessionContext);
@@ -359,7 +358,6 @@ export function SiteSearchBar({
                             bookmarkFor={option.__typename as unknown as BookmarkFor}
                             bookmarks={option.bookmarks}
                             sxs={{ root: { marginRight: 1 } }}
-                            zIndex={zIndex}
                         />}
                         {/* If history, show delete icon */}
                         {option.isFromHistory && <Tooltip placement='right' title='Remove'>
@@ -425,7 +423,7 @@ export function SiteSearchBar({
                             // }
                         }}
                     />
-                    <MicrophoneButton onTranscriptChange={handleChange} zIndex={zIndex} />
+                    <MicrophoneButton onTranscriptChange={handleChange} />
                     <IconButton sx={{
                         width: "48px",
                         height: "48px",

@@ -1,8 +1,8 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
+import usePress from "hooks/usePress";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
-import usePress from "utils/hooks/usePress";
 import { calculateNodeSize, NodeContextMenu, NodeWidth } from "../..";
 import { nodeLabel } from "../styles";
 import { StartNodeProps } from "../types";
@@ -15,7 +15,6 @@ export const StartNode = ({
     label = "Start",
     labelVisible = true,
     linksOut,
-    zIndex,
 }: StartNodeProps) => {
     const { palette } = useTheme();
 
@@ -67,7 +66,6 @@ export const StartNode = ({
                 availableActions={[BuildAction.AddOutgoingLink]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option as BuildAction.AddOutgoingLink, node.id); }}
-                zIndex={zIndex + 1}
             />
             <Tooltip placement={"top"} title={label ?? ""}>
                 <Box

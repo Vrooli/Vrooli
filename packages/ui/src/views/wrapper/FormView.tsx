@@ -9,7 +9,6 @@ interface Props {
     display?: ViewDisplayType;
     maxWidth?: string | number;
     title: string;
-    zIndex: number;
 }
 
 export const FormView = ({
@@ -18,7 +17,6 @@ export const FormView = ({
     display = "page",
     maxWidth = "90%",
     title,
-    zIndex,
 }: Props) => {
     const { palette } = useTheme();
 
@@ -27,7 +25,6 @@ export const FormView = ({
             <TopBar
                 display={display}
                 title={title}
-                zIndex={zIndex}
             />
             <Box sx={{
                 backgroundColor: palette.background.paper,

@@ -1,7 +1,7 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { PageTabsProps } from "components/types";
+import { useWindowSize } from "hooks/useWindowSize";
 import { createRef, useCallback, useEffect, useRef } from "react";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 
 export const PageTabs = <T, S extends boolean = true>({
     ariaLabel,

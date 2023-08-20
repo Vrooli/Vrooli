@@ -1,6 +1,6 @@
+import { SessionContext } from "contexts/SessionContext";
 import { useContext, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { SessionContext } from "utils/SessionContext";
 
 /**
  * Displays a banner ad the bottom of the screen, above the BottomNav. 

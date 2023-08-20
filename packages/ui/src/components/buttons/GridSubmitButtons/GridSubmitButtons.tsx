@@ -3,12 +3,12 @@
  */
 import { exists } from "@local/shared";
 import { Box, Button, CircularProgress, Grid, useTheme } from "@mui/material";
+import { useErrorPopover } from "hooks/useErrorPopover";
+import { useWindowSize } from "hooks/useWindowSize";
 import { CancelIcon, CreateIcon, SaveIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
-import { useErrorPopover } from "utils/hooks/useErrorPopover";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { GridActionButtons } from "../GridActionButtons/GridActionButtons";
 import { SideActionButtons } from "../SideActionButtons/SideActionButtons";
 import { GridSubmitButtonsProps } from "../types";
@@ -25,7 +25,6 @@ export const GridSubmitButtons = ({
     onSetSubmitting,
     onSubmit,
     sideActionButtons,
-    zIndex,
 }: GridSubmitButtonsProps) => {
     const { t } = useTranslation();
     const { breakpoints } = useTheme();
@@ -33,7 +32,7 @@ export const GridSubmitButtons = ({
     const iconStyle = useMemo<SxType>(() => (hideTextOnMobile && isMobile ? { marginLeft: 0, marginRight: 0 } : {}) as SxType, [hideTextOnMobile, isMobile]);
 
     // Errors popup
-    const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting, zIndex });
+    const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting });
 
     const hasErrors = useMemo(() => Object.values(errors ?? {}).some((value) => exists(value)), [errors]);
     const isSubmitDisabled = useMemo(() => loading || hasErrors || (disabledSubmit === true), [disabledSubmit, hasErrors, loading]);

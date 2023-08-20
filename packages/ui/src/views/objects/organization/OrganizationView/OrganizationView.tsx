@@ -14,6 +14,10 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
+import { SessionContext } from "contexts/SessionContext";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useTabs } from "hooks/useTabs";
 import { EditIcon, EllipsisIcon, OrganizationIcon, SearchIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,13 +26,10 @@ import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, Overvie
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor, YouInflated } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useTabs } from "utils/hooks/useTabs";
 import { PubSub } from "utils/pubsub";
 import { OrganizationPageTabOption, SearchType } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
 import { OrganizationViewProps } from "../types";
 
 type TabWhereParams = {
@@ -59,7 +60,6 @@ const tabParams = [{
 export const OrganizationView = ({
     isOpen,
     onClose,
-    zIndex,
 }: OrganizationViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -106,9 +106,8 @@ export const OrganizationView = ({
             loading={isLoading}
             mutate={true}
             parent={{ __typename: "Organization", id: organization?.id ?? "" }}
-            zIndex={zIndex}
         />
-    ) : null, [isLoading, organization, permissions.canUpdate, resourceList, setOrganization, zIndex]);
+    ) : null, [isLoading, organization, permissions.canUpdate, resourceList, setOrganization]);
 
     const {
         currTab,
@@ -158,7 +157,6 @@ export const OrganizationView = ({
                 display={display}
                 onClose={onClose}
                 tabTitle={handle ? `${name} (@${handle})` : name}
-                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -166,7 +164,6 @@ export const OrganizationView = ({
                 anchorEl={moreMenuAnchor}
                 object={organization as any}
                 onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
             />
             <BannerImageContainer sx={{
                 backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
@@ -182,7 +179,6 @@ export const OrganizationView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
-                        zIndex={zIndex}
                     />}
                 </Box>
             </BannerImageContainer>
@@ -217,7 +213,6 @@ export const OrganizationView = ({
                         isBookmarked={organization?.you?.isBookmarked ?? false}
                         bookmarks={organization?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
-                        zIndex={zIndex}
                     />
                 </OverviewProfileStack>
                 <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
@@ -235,7 +230,6 @@ export const OrganizationView = ({
                                 Icon: EditIcon,
                                 onClick: () => { actionData.onActionStart("Edit"); },
                             }] : []}
-                            zIndex={zIndex}
                             sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
                         />
                     }
@@ -264,8 +258,7 @@ export const OrganizationView = ({
                             <MarkdownDisplay
                                 variant="body1"
                                 sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
-                                content={bio ?? "No bio set"}
-                                zIndex={zIndex}
+                                content={firstString(bio, "No bio set")}
                             />
                         )
                     }
@@ -278,7 +271,6 @@ export const OrganizationView = ({
                             showIcon={true}
                             textBeforeDate="Created"
                             timestamp={organization?.created_at}
-                            zIndex={zIndex}
                         />
                         <ReportsLink object={organization} />
                     </Stack>
@@ -319,7 +311,6 @@ export const OrganizationView = ({
                                 }}
                                 take={20}
                                 where={where({ organizationId: organization?.id ?? "", permissions })}
-                                zIndex={zIndex}
                             />
                         )
                     }
@@ -327,7 +318,6 @@ export const OrganizationView = ({
             </Box>
             <SideActionButtons
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 {/* Toggle search filters */}

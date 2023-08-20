@@ -21,7 +21,6 @@ export const NodeColumn = ({
     links,
     nodes,
     scale = 1,
-    zIndex,
 }: NodeColumnProps) => {
     // Padding between cells
     const padding = useMemo(() => calculateNodeSize(50, scale), [scale]);
@@ -64,7 +63,6 @@ export const NodeColumn = ({
                 labelVisible,
                 isEditing,
                 canDrag: isEditing,
-                zIndex,
             };
             // Determine node to display based on nodeType
             switch (node.nodeType) {
@@ -101,7 +99,7 @@ export const NodeColumn = ({
                     return null;
             }
         });
-    }, [columnIndex, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, nodes, scale, zIndex]);
+    }, [columnIndex, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, nodes, scale]);
 
     return (
         <Stack

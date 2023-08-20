@@ -2,13 +2,13 @@ import { LINKS } from "@local/shared";
 import { Box, Button, Dialog, IconButton, MobileStepper, Paper, Stack, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { SessionContext } from "contexts/SessionContext";
 import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import Draggable from "react-draggable";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { TutorialDialogProps } from "../types";
 
@@ -313,13 +313,11 @@ export const TutorialDialog = ({
                         title={"Wrong Page"}
                         onClose={onClose}
                         variant="subheader"
-                        zIndex={zIndex}
                     />
                     <Stack direction="column" spacing={2} p={2}>
                         <MarkdownDisplay
                             variant="body1"
                             content={"Please return to the correct page to continue the tutorial."}
-                            zIndex={zIndex}
                         />
                         <Button
                             fullWidth
@@ -345,13 +343,11 @@ export const TutorialDialog = ({
                         // Can move dialog, but not popper
                         root: { cursor: getCurrentElement() ? "auto" : "move" },
                     }}
-                    zIndex={zIndex}
                 />
                 <Box sx={{ padding: "16px" }}>
                     <MarkdownDisplay
                         variant="body1"
                         content={currentStep.text}
-                        zIndex={zIndex}
                     />
                 </Box>
                 <MobileStepper
@@ -417,7 +413,6 @@ export const TutorialDialog = ({
                     },
                     content: { padding: 0 },
                 }}
-                zIndex={zIndex}
             >
                 {content}
             </PopoverWithArrow>

@@ -10,19 +10,19 @@ import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CompleteIcon, RoutineIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
@@ -93,7 +93,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -186,12 +185,10 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Routine"}
-                        zIndex={zIndex}
                     />
                     <ResourceListHorizontalInput
                         isCreate={true}
                         parent={{ __typename: "RoutineVersion", id: values.id }}
-                        zIndex={zIndex}
                     />
                     <FormSection>
                         <LanguageInput
@@ -200,7 +197,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -215,7 +211,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             maxRows={4}
                             minRows={2}
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
                         <TranslatedMarkdownInput
                             language={language}
@@ -223,13 +218,9 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             maxChars={8192}
                             minRows={4}
                             placeholder={t("Instructions")}
-                            zIndex={zIndex}
                         />
                         <br />
-                        <TagSelector
-                            name="root.tags"
-                            zIndex={zIndex}
-                        />
+                        <TagSelector name="root.tags" />
                         <VersionInput
                             fullWidth
                             versions={versions}
@@ -261,7 +252,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                                 title="Use subroutines?"
                                 help={helpTextSubroutines}
                                 variant="subheader"
-                                zIndex={zIndex}
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
@@ -305,7 +295,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                                             handleDeleteLanguage,
                                             languages,
                                         }}
-                                        zIndex={zIndex + 2300}
                                     />
                                     {/* Button to display graph */}
                                     <Grid item xs={12} mb={4}>
@@ -332,7 +321,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                                             isInput={true}
                                             language={language}
                                             list={inputsField.value}
-                                            zIndex={zIndex}
                                         />
                                     </Grid>
                                     <Grid item xs={12} mb={4}>
@@ -342,7 +330,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                                             isInput={false}
                                             language={language}
                                             list={outputsField.value}
-                                            zIndex={zIndex}
                                         />
                                     </Grid>
                                 </>
@@ -359,7 +346,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

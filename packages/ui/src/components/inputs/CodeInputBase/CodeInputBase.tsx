@@ -15,12 +15,12 @@ import { jsonToString } from "utils/shape/general";
 import { redo, undo } from "@codemirror/commands";
 import { Extension, StateField } from "@codemirror/state";
 import { BlockInfo, Decoration, EditorView, gutter, GutterMarker, showTooltip } from "@codemirror/view";
+import { SessionContext } from "contexts/SessionContext";
 import { ErrorIcon, MagicIcon, OpenThreadIcon, RedoIcon, UndoIcon, WarningIcon } from "icons";
 import ReactDOMServer from "react-dom/server";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { assistantChatInfo, ChatView } from "views/ChatView/ChatView";
 import { ChatViewProps } from "views/types";
 import { CodeInputBaseProps } from "../types";
@@ -416,7 +416,6 @@ export const CodeInputBase = ({
     format,
     limitTo,
     variables,
-    zIndex,
 }: CodeInputBaseProps) => {
     console.log("codeinputbase", limitTo);
     const { palette } = useTheme();
@@ -519,7 +518,6 @@ export const CodeInputBase = ({
         task: "standard",
         onClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
         // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        zIndex: zIndex + 1,
     });
     const openAssistantDialog = useCallback(() => {
         if (disabled) return;
@@ -660,7 +658,6 @@ export const CodeInputBase = ({
                             <HelpButton
                                 markdown={t(help, { ns: "langs" })}
                                 sx={{ fill: palette.secondary.contrastText }}
-                                zIndex={zIndex}
                             />
                             {supportsValidation && <StatusButton
                                 status={errors.length === 0 ? Status.Valid : Status.Invalid}
@@ -669,7 +666,6 @@ export const CodeInputBase = ({
                                     marginRight: "auto",
                                     height: "fit-content",
                                 }}
-                                zIndex={zIndex}
                             />}
                         </Box>
                     </Grid>

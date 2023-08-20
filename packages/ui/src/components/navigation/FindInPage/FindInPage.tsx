@@ -1,12 +1,12 @@
 import { Box, Dialog, DialogContent, IconButton, Palette, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useHotkeys } from "hooks/useHotkeys";
 import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keyComboToString } from "utils/display/device";
 import { getTextNodes, normalizeText, removeHighlights, wrapMatches } from "utils/display/documentTools";
-import { useHotkeys } from "utils/hooks/useHotkeys";
 import { PubSub } from "utils/pubsub";
 
 const commonButtonSx = (palette: Palette) => ({

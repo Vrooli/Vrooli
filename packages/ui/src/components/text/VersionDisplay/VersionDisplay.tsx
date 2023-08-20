@@ -1,8 +1,8 @@
 import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import usePress from "hooks/usePress";
 import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
-import usePress from "utils/hooks/usePress";
 import { VersionDisplayProps } from "../types";
 
 /**
@@ -16,7 +16,6 @@ export const VersionDisplay = ({
     loading = false,
     prefix = "",
     versions = [],
-    zIndex,
     ...props
 }: VersionDisplayProps) => {
     const { palette } = useTheme();
@@ -52,7 +51,7 @@ export const VersionDisplay = ({
     }), [currentVersion, openVersion, versions]);
 
     // Versions popup
-    const [anchorEl, setAnchorEl] = useState<any | null>(null);
+    const [anchorEl, setAnchorEl] = useState<EventTarget | null>(null);
     const open = useCallback((target: EventTarget) => {
         if (versions.length > 1) {
             setAnchorEl(target);
@@ -94,7 +93,6 @@ export const VersionDisplay = ({
                         maxHeight: "120px",
                     },
                 }}
-                zIndex={zIndex + 1}
             >
                 {/* Versions list */}
                 <List>

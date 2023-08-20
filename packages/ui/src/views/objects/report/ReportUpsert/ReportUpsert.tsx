@@ -3,18 +3,18 @@ import { Link, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NewReportShape, ReportForm, reportInitialValues, transformReportValues, validateReportValues } from "forms/ReportForm/ReportForm";
 import { formNavLink } from "forms/styles";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
 import { useCallback, useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
 import { toDisplay } from "utils/display/pageTools";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { ReportShape } from "utils/shape/models/report";
 import { ReportUpsertProps } from "../types";
 
@@ -24,7 +24,6 @@ export const ReportUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: ReportUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -66,14 +65,12 @@ export const ReportUpsert = ({
             id="report-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t("Report", { count: 1 })}
                 help={t("ReportsHelp")}
-                zIndex={zIndex}
             />
             <Link onClick={toExistingReports}>
                 <Typography sx={{
@@ -109,7 +106,6 @@ export const ReportUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

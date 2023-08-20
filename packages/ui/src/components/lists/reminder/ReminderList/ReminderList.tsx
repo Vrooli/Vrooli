@@ -5,12 +5,12 @@ import { endpointPostReminder, endpointPutReminder, GqlModelType, LINKS, Reminde
 import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon, OpenInNewIcon, ReminderIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderCrud } from "views/objects/reminder";
@@ -23,7 +23,6 @@ export const ReminderList = ({
     listId,
     loading,
     reminders,
-    zIndex,
 }: ReminderListProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -118,7 +117,6 @@ export const ReminderList = ({
                 onCompleted={handleCompleted}
                 onDeleted={handleDeleted}
                 overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : { __typename: "Reminder", reminderList: { id: listId ?? "" } }}
-                zIndex={zIndex}
             />
             {/* List */}
             <TitleContainer
@@ -134,7 +132,6 @@ export const ReminderList = ({
                     label: t("Create"),
                     onClick: openDialog,
                 }]}
-                zIndex={zIndex}
             >
                 <>
                     {/* Empty text */}
@@ -152,7 +149,6 @@ export const ReminderList = ({
                                 objectType={GqlModelType.Reminder}
                                 onAction={onAction}
                                 onClick={openUpdateDialog}
-                                zIndex={zIndex}
                             />
                         ))}
                     </List>

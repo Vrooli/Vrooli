@@ -15,7 +15,6 @@ import { FocusModeButtonProps } from "../types";
 export function FocusModeButton({
     isEditing,
     objectType,
-    zIndex,
 }: FocusModeButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -83,7 +82,6 @@ export function FocusModeButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"

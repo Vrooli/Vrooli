@@ -1,12 +1,12 @@
 import { IconButton, List, SwipeableDrawer, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
+import { SessionContext } from "contexts/SessionContext";
+import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useWindowSize } from "hooks/useWindowSize";
 import { CloseIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { noSelect } from "styles";
-import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 
 export const ChatSideMenu = () => {
     const session = useContext(SessionContext);

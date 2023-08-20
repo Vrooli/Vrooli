@@ -3,18 +3,18 @@ import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleForm, scheduleInitialValues, transformScheduleValues, validateScheduleValues } from "forms/ScheduleForm/ScheduleForm";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useTabs } from "hooks/useTabs";
+import { useUpsertActions } from "hooks/useUpsertActions";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useTabs } from "utils/hooks/useTabs";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
 import { ScheduleShape } from "utils/shape/models/schedule";
 import { calendarTabParams } from "views/CalendarView/CalendarView";
 import { ScheduleUpsertProps } from "../types";
@@ -33,7 +33,6 @@ export const ScheduleUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: ScheduleUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -90,7 +89,6 @@ export const ScheduleUpsert = ({
             id="schedule-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
@@ -104,7 +102,6 @@ export const ScheduleUpsert = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -139,7 +136,6 @@ export const ScheduleUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

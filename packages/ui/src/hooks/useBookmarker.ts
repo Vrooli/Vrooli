@@ -1,10 +1,10 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, exists, Success, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { shapeBookmark } from "utils/shape/models/bookmark";
 import { useLazyFetch } from "./useLazyFetch";
 

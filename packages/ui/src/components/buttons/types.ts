@@ -12,7 +12,6 @@ export interface AdvancedSearchButtonProps {
     advancedSearchSchema: FormSchema | null | undefined;
     searchType: SearchType | `${SearchType}`;
     setAdvancedSearchParams: (params: object | null) => unknown;
-    zIndex: number;
 }
 
 export interface BuildEditButtonsProps {
@@ -26,7 +25,6 @@ export interface BuildEditButtonsProps {
     isEditing: boolean;
     loading: boolean;
     scale: number;
-    zIndex: number;
 }
 
 export type CameraButtonProps = {
@@ -72,7 +70,6 @@ export interface GridSubmitButtonsProps {
     onSetSubmitting?: (isSubmitting: boolean) => unknown;
     onSubmit?: () => unknown;
     sideActionButtons?: Omit<SideActionButtonsProps, "hasGridActions">;
-    zIndex: number;
 }
 
 export interface HelpButtonProps extends ButtonProps {
@@ -85,13 +82,11 @@ export interface HelpButtonProps extends ButtonProps {
     sxRoot?: object;
     /** Style applied to the question mark icon */
     sx?: SvgProps;
-    zIndex: number;
 }
 
 export type MicrophoneButtonProps = {
     disabled?: boolean;
     onTranscriptChange: (result: string) => unknown;
-    zIndex: number;
 }
 
 export interface PopupMenuProps extends ButtonProps {
@@ -102,7 +97,6 @@ export interface PopupMenuProps extends ButtonProps {
 export interface ReportButtonProps {
     forId: string;
     reportFor: ReportFor;
-    zIndex: number;
 }
 
 export interface ReportsButtonProps {
@@ -121,7 +115,6 @@ export interface RunButtonProps {
     isBuildGraphOpen: boolean;
     isEditing: boolean;
     runnableObject: PartialWithType<ProjectVersion | RoutineVersion> | null;
-    zIndex: number;
 }
 
 export interface SearchButtonsProps {
@@ -135,12 +128,10 @@ export interface SearchButtonsProps {
     sortByOptions: any; // No way to specify generic enum
     sx?: SxType;
     timeFrame: TimeFrame | undefined;
-    zIndex: number;
 }
 
 export interface ShareButtonProps {
     object: NavigableObject | null | undefined;
-    zIndex: number;
 }
 
 export interface SideActionButtonsProps {
@@ -150,7 +141,6 @@ export interface SideActionButtonsProps {
     hasGridActions?: boolean;
     isLeftHanded?: boolean;
     sx?: SxType;
-    zIndex: number;
 }
 
 export interface SortButtonProps {
@@ -168,7 +158,6 @@ export interface BookmarkButtonProps {
     bookmarkFor: BookmarkFor;
     bookmarks?: number | null; // Defaults to 0
     sxs?: { root?: SxType };
-    zIndex: number;
 }
 
 export interface StatusMessageArray {
@@ -179,7 +168,6 @@ export interface StatusMessageArray {
 export interface StatusButtonProps extends ButtonProps {
     status: Status;
     messages: string[];
-    zIndex: number;
 }
 
 export type TimeFrame = {
@@ -190,7 +178,6 @@ export type TimeFrame = {
 export interface TimeButtonProps {
     setTimeFrame: (timeFrame: TimeFrame | undefined) => unknown;
     timeFrame: TimeFrame | undefined;
-    zIndex: number;
 }
 
 export interface VoteButtonProps {

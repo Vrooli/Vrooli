@@ -2,8 +2,8 @@ import { CommonKey, RunStatus } from "@local/shared";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { useTabs } from "hooks/useTabs";
 import { toDisplay } from "utils/display/pageTools";
-import { useTabs } from "utils/hooks/useTabs";
 import { HistoryPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 
@@ -35,7 +35,6 @@ const tabParams = [{
 export const HistoryView = ({
     isOpen,
     onClose,
-    zIndex,
 }: HistoryViewProps) => {
     const display = toDisplay(isOpen);
     const {
@@ -60,7 +59,6 @@ export const HistoryView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             {searchType && <SearchList
                 id="history-page-list"
@@ -68,7 +66,6 @@ export const HistoryView = ({
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                zIndex={zIndex}
                 sxs={{
                     search: {
                         marginTop: 2,

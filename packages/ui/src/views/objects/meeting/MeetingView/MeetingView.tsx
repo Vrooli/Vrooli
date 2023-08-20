@@ -2,6 +2,9 @@ import { endpointGetMeeting, Meeting } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -9,15 +12,11 @@ import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
 import { MeetingViewProps } from "../types";
 
 export const MeetingView = ({
     isOpen,
     onClose,
-    zIndex,
 }: MeetingViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -56,9 +55,7 @@ export const MeetingView = ({
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

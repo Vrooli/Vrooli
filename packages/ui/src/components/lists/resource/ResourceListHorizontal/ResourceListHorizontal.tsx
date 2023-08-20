@@ -5,7 +5,11 @@ import { Box, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import { SessionContext } from "contexts/SessionContext";
 import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
+import { useDebounce } from "hooks/useDebounce";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import usePress from "hooks/usePress";
 import { DeleteIcon, EditIcon, LinkIcon } from "icons";
 import { forwardRef, useCallback, useContext, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
@@ -16,12 +20,8 @@ import { getResourceIcon } from "utils/display/getResourceIcon";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useDebounce } from "utils/hooks/useDebounce";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import usePress from "utils/hooks/usePress";
 import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { updateArray } from "utils/shape/general";
 import { ResourceUpsert } from "views/objects/resource";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
@@ -198,7 +198,6 @@ export const ResourceListHorizontal = ({
     mutate = true,
     parent,
     title,
-    zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -296,9 +295,8 @@ export const ResourceListHorizontal = ({
                     index: 0,
                     list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
                 }) as NewResourceShape}
-            zIndex={zIndex + 1}
         /> : null
-    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id, zIndex]);
+    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id]);
 
     return (
         <>
@@ -330,7 +328,6 @@ export const ResourceListHorizontal = ({
                     }
                 }}
                 resource={selectedResource}
-                zIndex={zIndex + 1}
             />
             {title && <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>}
             <DragDropContext onDragEnd={onDragEnd}>

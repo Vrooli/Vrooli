@@ -2,16 +2,16 @@ import { endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRouti
 import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RoutineForm, routineInitialValues, transformRoutineValues, validateRoutineValues } from "forms/RoutineForm/RoutineForm";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { RoutineShape } from "utils/shape/models/routine";
 import { RoutineVersionShape } from "utils/shape/models/routineVersion";
 import { RoutineUpsertProps } from "../types";
@@ -23,7 +23,6 @@ export const RoutineUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: RoutineUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -58,13 +57,11 @@ export const RoutineUpsert = ({
             id="routine-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateRoutine" : "UpdateRoutine")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -92,7 +89,6 @@ export const RoutineUpsert = ({
                     onCancel={handleCancel}
                     ref={formRef}
                     versions={(existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? []}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

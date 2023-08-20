@@ -2,20 +2,20 @@ import { DeleteOneInput, DeleteType, endpointGetReminder, endpointPostDeleteOne,
 import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm/ReminderForm";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
 import { DeleteIcon } from "icons";
 import { useCallback, useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { ReminderShape } from "utils/shape/models/reminder";
 import { ReminderCrudProps } from "../types";
 
@@ -26,7 +26,6 @@ export const ReminderCrud = ({
     onCompleted,
     onDeleted,
     overrideObject,
-    zIndex,
 }: ReminderCrudProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -101,7 +100,6 @@ export const ReminderCrud = ({
             id="reminder-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
@@ -113,7 +111,6 @@ export const ReminderCrud = ({
                     label: t("Delete"),
                     onClick: handleDelete as () => void,
                 }] : []}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -139,7 +136,6 @@ export const ReminderCrud = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

@@ -1,8 +1,8 @@
 import { exists } from "@local/shared";
 import { Form } from "formik";
 import { BaseFormProps } from "forms/types";
+import { usePromptBeforeUnload } from "hooks/usePromptBeforeUnload";
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
-import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 
 export type BaseFormRef = {
     handleClose: (onClose: () => void, closeAnyway?: boolean) => void

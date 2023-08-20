@@ -1,11 +1,11 @@
 import { Button, Stack, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { SessionContext } from "contexts/SessionContext";
 import { routineVersionIOInitialValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
 import { AddIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "utils/SessionContext";
 import { updateArray } from "utils/shape/general";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
@@ -18,7 +18,6 @@ export const InputOutputContainer = ({
     isInput,
     language,
     list,
-    zIndex,
 }: InputOutputContainerProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -116,7 +115,6 @@ export const InputOutputContainer = ({
                             fill: palette.mode === "light" ? palette.secondary.light : palette.secondary.dark,
                         },
                     }}
-                    zIndex={zIndex}
                 >
                     <Droppable droppableId="inputOutputItems">
                         {(provided) => (
@@ -150,7 +148,6 @@ export const InputOutputContainer = ({
                                                 handleDelete={onItemDelete}
                                                 handleUpdate={onItemUpdate}
                                                 language={language}
-                                                zIndex={zIndex}
                                             />
                                         )}
                                     </Draggable>

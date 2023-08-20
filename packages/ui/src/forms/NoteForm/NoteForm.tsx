@@ -6,14 +6,14 @@ import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInp
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { NoteVersionShape, shapeNoteVersion } from "utils/shape/models/noteVersion";
 import { OwnerShape } from "utils/shape/models/types";
@@ -42,7 +42,10 @@ export const noteInitialValues = (
         language: getUserLanguages(session)[0],
         description: "",
         name: "New Note",
-        text: "",
+        pages: [{
+            __typename: "NotePage" as const,
+            text: "",
+        }],
     }]),
 });
 
@@ -64,7 +67,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -91,7 +93,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                     name="name"
                     placeholder={t("Name")}
                 />}
-                zIndex={zIndex}
             />
             <BaseForm
                 dirty={dirty}
@@ -137,7 +138,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                             } : {}),
                         },
                     }}
-                    zIndex={zIndex}
                 />
             </BaseForm>
             <GridSubmitButtons
@@ -150,18 +150,15 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                 onSubmit={props.handleSubmit}
                 sideActionButtons={{
                     display,
-                    zIndex: zIndex + 1,
                     children: (
                         <EllipsisActionButton>
                             <RelationshipList
                                 isEditing={true}
                                 objectType={"Note"}
-                                zIndex={zIndex}
                             />
                         </EllipsisActionButton>
                     ),
                 }}
-                zIndex={zIndex}
             />
         </>
     );

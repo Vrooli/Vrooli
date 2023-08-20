@@ -8,7 +8,6 @@ import { SettingsDataViewProps } from "../types";
 export const SettingsDataView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsDataViewProps) => {
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
@@ -19,7 +18,6 @@ export const SettingsDataView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Data")}
-                zIndex={zIndex}
             />
             <Stack direction="row" mt={2}>
                 <SettingsList />

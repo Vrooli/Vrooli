@@ -8,7 +8,6 @@ import { CodeStandardInputProps } from "../types";
 export const CodeStandardInput = ({
     isEditing,
     fieldName,
-    zIndex,
     ...props
 }: CodeStandardInputProps) => {
     console.log("rendering code input", props);
@@ -18,7 +17,6 @@ export const CodeStandardInput = ({
                 <CodeInput
                     disabled={!isEditing}
                     name={fieldName}
-                    zIndex={zIndex}
                     {...props}
                 />
             </Grid>

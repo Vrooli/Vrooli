@@ -1,9 +1,9 @@
 import { Stack, useTheme } from "@mui/material";
+import { SessionContext } from "contexts/SessionContext";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { ChatListItemProps } from "../types";
 

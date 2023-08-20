@@ -8,7 +8,11 @@ import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHan
 import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
 import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
 import { ContactInfo } from "components/navigation/ContactInfo/ContactInfo";
+import { SessionContext } from "contexts/SessionContext";
 import { useFormik } from "formik";
+import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useWindowSize } from "hooks/useWindowSize";
 import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,12 +20,8 @@ import { useLocation } from "route";
 import { noSelect } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
-import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
 import { shapeProfile } from "utils/shape/models/profile";
 
 // Maximum accounts to sign in with. 

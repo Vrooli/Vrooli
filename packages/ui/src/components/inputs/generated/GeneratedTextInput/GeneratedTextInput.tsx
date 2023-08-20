@@ -8,7 +8,6 @@ export const GeneratedTextInput = ({
     disabled,
     fieldData,
     index,
-    zIndex,
 }: GeneratedInputComponentProps) => {
     console.log("rendering markdown input");
     const props = useMemo(() => fieldData.props as TextProps, [fieldData.props]);
@@ -22,7 +21,6 @@ export const GeneratedTextInput = ({
                 maxChars={props.maxChars}
                 maxRows={props.maxRows}
                 minRows={props.minRows}
-                zIndex={zIndex}
             />
         );
     }

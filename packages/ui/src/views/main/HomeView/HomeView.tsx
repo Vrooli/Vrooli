@@ -1,6 +1,6 @@
+import { SessionContext } from "contexts/SessionContext";
 import { useContext, useMemo } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
-import { SessionContext } from "utils/SessionContext";
 import { DashboardView, LandingView } from "..";
 import { HomeViewProps } from "../types";
 

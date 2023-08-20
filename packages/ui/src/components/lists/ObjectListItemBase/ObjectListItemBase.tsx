@@ -7,6 +7,10 @@ import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { SessionContext } from "contexts/SessionContext";
+import { useObjectActions } from "hooks/useObjectActions";
+import usePress from "hooks/usePress";
+import { useWindowSize } from "hooks/useWindowSize";
 import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,11 +22,7 @@ import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import usePress from "utils/hooks/usePress";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { getObjectEditUrl, getObjectUrl } from "utils/navigation/openObject";
-import { SessionContext } from "utils/SessionContext";
 import { smallHorizontalScrollbar } from "../styles";
 import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
@@ -54,7 +54,6 @@ export function ObjectListItemBase<T extends ListObject>({
     subtitleOverride,
     titleOverride,
     toTheRight,
-    zIndex,
 }: ObjectListItemProps<T>) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -229,7 +228,6 @@ export function ObjectListItemBase<T extends ListObject>({
                     bookmarkFor={bookmarkFor}
                     isBookmarked={isBookmarked}
                     bookmarks={getCounts(object).bookmarks}
-                    zIndex={zIndex}
                 />}
                 {canComment && (<CommentsButton
                     commentsCount={getCounts(object).comments}
@@ -242,7 +240,7 @@ export function ObjectListItemBase<T extends ListObject>({
                 />}
             </Stack>
         );
-    }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, zIndex, canComment]);
+    }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
     const actionData = useObjectActions({
         canNavigate,
@@ -261,7 +259,6 @@ export function ObjectListItemBase<T extends ListObject>({
                 exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={object}
                 onClose={closeContextMenu}
-                zIndex={zIndex + 1}
             />
             {/* List item */}
             <ListItem
@@ -311,7 +308,6 @@ export function ObjectListItemBase<T extends ListObject>({
                     {loading ? <TextLoading /> : <MarkdownDisplay
                         content={subtitleOverride ?? subtitle}
                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
-                        zIndex={zIndex}
                     />}
                     {/* Any custom components to display below the subtitle */}
                     {belowSubtitle}

@@ -1,11 +1,11 @@
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeRoutineListForm, nodeRoutineListInitialValues, validateNodeRoutineListValues } from "forms/NodeRoutineListForm/NodeRoutineListForm";
 import { useContext, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "utils/SessionContext";
 import { NodeRoutineListDialogProps } from "../types";
 
 const titleId = "routine-list-node-dialog-title";
@@ -16,7 +16,6 @@ export const NodeRoutineListDialog = ({
     isOpen,
     node,
     language,
-    zIndex,
 }: NodeRoutineListDialogProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -30,14 +29,12 @@ export const NodeRoutineListDialog = ({
             onClose={() => { handleClose(); }}
             isOpen={isOpen}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={handleClose}
                 title={t(isEditing ? "NodeRoutineListEdit" : "NodeRoutineListInfo")}
                 titleId={titleId}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -55,7 +52,6 @@ export const NodeRoutineListDialog = ({
                     isOpen={isOpen}
                     onCancel={handleClose}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

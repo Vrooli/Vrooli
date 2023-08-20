@@ -4,15 +4,15 @@ import { ContentCollapse } from "components/containers/ContentCollapse/ContentCo
 import { AwardCard } from "components/lists/AwardCard/AwardCard";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useFetch } from "hooks/useFetch";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AwardDisplay } from "types";
 import { awardToDisplay } from "utils/display/awardsDisplay";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useFetch } from "utils/hooks/useFetch";
-import { SessionContext } from "utils/SessionContext";
 import { AwardsViewProps } from "views/types";
 
 // Category array for sorting
@@ -24,7 +24,6 @@ const categoryList = Object.values(AwardCategory);
 export const AwardsView = ({
     isOpen,
     onClose,
-    zIndex,
 }: AwardsViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -60,7 +59,6 @@ export const AwardsView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Award", { count: 2 })}
-                zIndex={zIndex}
             />
             <Stack direction="column" spacing={2} sx={{ margin: 2, padding: 1 }} >
                 {/* Display earned awards as a list of tags. Press or hover to see description */}
@@ -68,7 +66,6 @@ export const AwardsView = ({
                     isOpen={true}
                     title={t("Earned") + "🏆"}
                     sxs={{ titleContainer: { marginBottom: 2 } }}
-                    zIndex={zIndex}
                 >
                     <CardGrid minWidth={200} disableMargin={true}>
                         {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
@@ -85,7 +82,6 @@ export const AwardsView = ({
                     isOpen={true}
                     title={t("InProgress") + "🏃‍♂️"}
                     sxs={{ titleContainer: { marginBottom: 2 } }}
-                    zIndex={zIndex}
                 >
                     <CardGrid minWidth={200} disableMargin={true}>
                         {awards.map((award) => (

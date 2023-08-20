@@ -44,7 +44,6 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -87,7 +86,6 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                 isOpen={searchOpen}
                 handleCancel={closeSearch}
                 handleComplete={closeSearch}
-                zIndex={zIndex + 1}
             />
             <BaseForm
                 dirty={dirty}
@@ -139,7 +137,6 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                                     <MarkdownDisplay
                                         content={getDisplay(bookmark as Bookmark).subtitle}
                                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
-                                        zIndex={zIndex}
                                     />
                                 </Stack>
                                 <IconButton
@@ -172,7 +169,6 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

@@ -14,15 +14,15 @@ import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeR
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { NodeWithRoutineListShape } from "forms/types";
+import { useHotkeys } from "hooks/useHotkeys";
+import { usePromptBeforeUnload } from "hooks/usePromptBeforeUnload";
+import { useStableObject } from "hooks/useStableObject";
 import { CloseIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
 import { BuildAction, Status } from "utils/consts";
 import { toDisplay } from "utils/display/pageTools";
-import { useHotkeys } from "utils/hooks/useHotkeys";
-import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
-import { useStableObject } from "utils/hooks/useStableObject";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
@@ -59,7 +59,6 @@ export const BuildView = ({
     onClose,
     routineVersion,
     translationData,
-    zIndex,
 }: BuildViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -977,7 +976,6 @@ export const BuildView = ({
                 handleDelete={translationData.handleDeleteLanguage}
                 handleCurrent={translationData.setLanguage}
                 languages={translationData.languages}
-                zIndex={zIndex}
             />
         );
         return (
@@ -985,10 +983,9 @@ export const BuildView = ({
                 currentLanguage={translationData.language}
                 handleCurrent={translationData.setLanguage}
                 languages={translationData.languages}
-                zIndex={zIndex}
             />
         );
-    }, [translationData, isEditing, zIndex]);
+    }, [translationData, isEditing]);
 
     return (
         <MaybeLargeDialog
@@ -996,7 +993,6 @@ export const BuildView = ({
             id="build-dialog"
             isOpen={isOpen ?? false}
             onClose={handleClose}
-            zIndex={zIndex}
             sxs={{ paper: { display: "contents" } }}
         >
             <Box sx={{
@@ -1013,7 +1009,6 @@ export const BuildView = ({
                     isOpen={Boolean(addSubroutineNode)}
                     nodeId={addSubroutineNode}
                     routineVersionId={routineVersion?.id}
-                    zIndex={zIndex + 3}
                 />}
                 {/* Popup for "Add after" dialog */}
                 {addAfterLinkNode && <AddAfterLinkDialog
@@ -1023,7 +1018,6 @@ export const BuildView = ({
                     nodes={changedRoutineVersion.nodes}
                     links={changedRoutineVersion.nodeLinks}
                     nodeId={addAfterLinkNode}
-                    zIndex={zIndex + 3}
                 />}
                 {/* Popup for "Add before" dialog */}
                 {addBeforeLinkNode && <AddBeforeLinkDialog
@@ -1033,7 +1027,6 @@ export const BuildView = ({
                     nodes={changedRoutineVersion.nodes}
                     links={changedRoutineVersion.nodeLinks}
                     nodeId={addBeforeLinkNode}
-                    zIndex={zIndex + 3}
                 />}
                 {/* Popup for creating new links */}
                 {changedRoutineVersion ? <LinkDialog
@@ -1046,7 +1039,6 @@ export const BuildView = ({
                     nodeFrom={linkDialogFrom as NodeShape}
                     nodeTo={linkDialogTo as NodeShape}
                     routineVersion={changedRoutineVersion}
-                    zIndex={zIndex + 3}
                 // partial={ }
                 /> : null}
                 {/* Popup for moving nodes */}
@@ -1056,7 +1048,6 @@ export const BuildView = ({
                     language={translationData.language}
                     node={moveNode}
                     routineVersion={changedRoutineVersion as RoutineVersion}
-                    zIndex={zIndex + 3}
                 />}
                 {/* Displays routine information when you click on a routine list item*/}
                 <SubroutineInfoDialog
@@ -1068,7 +1059,6 @@ export const BuildView = ({
                     handleViewFull={handleSubroutineViewFull}
                     open={Boolean(openedSubroutine)}
                     onClose={closeSubroutineDialog}
-                    zIndex={zIndex + 3}
                 />
                 {/* Displays routine information when you click on a routine list*/}
                 <NodeRoutineListDialog
@@ -1077,7 +1067,6 @@ export const BuildView = ({
                     isOpen={Boolean(openedRoutineList)}
                     language={translationData.language}
                     node={openedRoutineList}
-                    zIndex={zIndex + 3}
                 />
                 {/* Navbar */}
                 <Stack
@@ -1100,11 +1089,11 @@ export const BuildView = ({
                         },
                     }}
                 >
-                    <StatusButton status={status.status} messages={status.messages} zIndex={zIndex} />
+                    <StatusButton status={status.status} messages={status.messages} />
                     {/* Language */}
                     {languageComponent}
                     {/* Help button */}
-                    <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} zIndex={zIndex} />
+                    <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} />
                     {/* Close Icon */}
                     <IconButton
                         edge="start"
@@ -1131,7 +1120,6 @@ export const BuildView = ({
                     isEditing={isEditing}
                     language={translationData.language}
                     nodesOffGraph={nodesOffGraph}
-                    zIndex={zIndex}
                 />
                 <Box sx={{
                     background: palette.background.default,
@@ -1158,7 +1146,6 @@ export const BuildView = ({
                         links={changedRoutineVersion.nodeLinks}
                         nodesById={nodesById}
                         scale={scale}
-                        zIndex={zIndex}
                     />
                 </Box>
                 <BuildEditButtons
@@ -1175,7 +1162,6 @@ export const BuildView = ({
                     isEditing={isEditing}
                     loading={loading}
                     scale={scale}
-                    zIndex={zIndex}
                 />
             </Box>
         </MaybeLargeDialog>

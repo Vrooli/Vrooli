@@ -4,10 +4,10 @@ import { Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource } fr
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { updateArray } from "utils/shape/general";
 import { ResourceUpsert } from "views/objects/resource";
 import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
@@ -21,7 +21,6 @@ export const ResourceListVertical = ({
     loading,
     mutate,
     parent,
-    zIndex,
 }: ResourceListVerticalProps) => {
     const { t } = useTranslation();
     console.log("resourcelistvertical", list);
@@ -105,9 +104,8 @@ export const ResourceListVertical = ({
                     index: 0,
                     list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
                 }) as NewResourceShape}
-            zIndex={zIndex + 1}
         />;
-    }, [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id, zIndex]);
+    }, [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id]);
 
     return (
         <>
@@ -137,7 +135,6 @@ export const ResourceListVertical = ({
                     }
                 }}
                 resource={selectedResource}
-                zIndex={zIndex + 1}
             />
             {/* Add resource dialog */}
             {dialog}

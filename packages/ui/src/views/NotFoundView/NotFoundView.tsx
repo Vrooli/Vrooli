@@ -12,7 +12,6 @@ export const NotFoundView = () => {
             <TopBar
                 display="page"
                 title={t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" })}
-                zIndex={200}
             />
             <Box
                 sx={{

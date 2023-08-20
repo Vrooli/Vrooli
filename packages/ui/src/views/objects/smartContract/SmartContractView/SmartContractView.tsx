@@ -8,6 +8,9 @@ import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/Select
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
+import { SessionContext } from "contexts/SessionContext";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon, EllipsisIcon, SmartContractIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,15 +20,11 @@ import { placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
 import { SmartContractViewProps } from "../types";
 
 export const SmartContractView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SmartContractViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -55,7 +54,7 @@ export const SmartContractView = ({
     }, [language, smartContractVersion]);
 
     // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
+    const [moreMenuAnchor, setMoreMenuAnchor] = useState<HTMLElement | null>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
         setMoreMenuAnchor(ev.currentTarget);
         ev.preventDefault();
@@ -120,7 +119,6 @@ export const SmartContractView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
-                        zIndex={zIndex}
                     />
                 }
                 {/* Joined date */}
@@ -130,7 +128,6 @@ export const SmartContractView = ({
                     textBeforeDate="Joined"
                     timestamp={smartContractVersion?.created_at}
                     width={"33%"}
-                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -144,7 +141,7 @@ export const SmartContractView = ({
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <ShareButton object={smartContractVersion} zIndex={zIndex} />
+                    <ShareButton object={smartContractVersion} />
                     <ReportsLink object={smartContractVersion} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
@@ -153,12 +150,11 @@ export const SmartContractView = ({
                         isBookmarked={smartContractVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={smartContractVersion?.root?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
-                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, smartContractVersion, description, zIndex, actionData]);
+    ), [actionData, palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, smartContractVersion, description]);
 
     return (
         <>
@@ -166,7 +162,6 @@ export const SmartContractView = ({
                 display={display}
                 onClose={onClose}
                 title={firstString(name, t("SmartContract"))}
-                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -174,7 +169,6 @@ export const SmartContractView = ({
                 anchorEl={moreMenuAnchor}
                 object={smartContractVersion as any}
                 onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
             />
             <Box sx={{
                 background: palette.mode === "light" ? "#b2b3b3" : "#303030",
@@ -193,7 +187,6 @@ export const SmartContractView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
-                        zIndex={zIndex}
                     />}
                 </Box>
                 {overviewComponent}

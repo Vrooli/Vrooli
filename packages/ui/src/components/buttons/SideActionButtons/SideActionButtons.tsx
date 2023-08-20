@@ -1,4 +1,5 @@
 import { Stack } from "@mui/material";
+import { useZIndex } from "hooks/useZIndex";
 import { SideActionButtonsProps } from "../types";
 
 /**
@@ -10,10 +11,12 @@ export const SideActionButtons = ({
     hasGridActions = false,
     isLeftHanded,
     sx,
-    zIndex,
 }: SideActionButtonsProps) => {
+    const zIndex = useZIndex();
+
     const gridActionsHeight = hasGridActions ? "70px" : "0px";
     const bottomNavHeight = display === "page" ? "56px" : "0px";
+
     return (
         <Stack direction="row" spacing={2} sx={{
             position: "absolute",

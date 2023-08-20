@@ -17,7 +17,6 @@ export const MoveNodeMenu = ({
     language,
     node,
     routineVersion,
-    zIndex,
 }: MoveNodeMenuProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -172,14 +171,12 @@ export const MoveNodeMenu = ({
             isOpen={isOpen}
             onClose={() => { handleClose(); }}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 help={t("NodeMoveDialogHelp")}
                 onClose={onClose}
                 title={t("NodeMove")}
-                zIndex={zIndex}
             />
             <DialogContent>
                 {formContent}
@@ -190,7 +187,6 @@ export const MoveNodeMenu = ({
                         isCreate={false}
                         onCancel={closeDialog}
                         onSubmit={moveNode}
-                        zIndex={zIndex}
                     />
                 </Grid>
             </DialogContent>

@@ -3,19 +3,19 @@ import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "components/inputs/search";
+import { SessionContext } from "contexts/SessionContext";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { parseData } from "hooks/useFindMany";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { AutocompleteOption, ShortcutOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { parseData } from "utils/hooks/useFindMany";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 
 /**
  * Strips URL for comparison against the current URL.
@@ -115,14 +115,12 @@ export const CommandPalette = () => {
             isOpen={open}
             onClose={close}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 help={t("CommandPaletteHelp")}
                 title={t("CommandPaletteTitle")}
                 onClose={close}
-                zIndex={zIndex}
             />
             <DialogContent sx={{
                 background: palette.background.default,
@@ -147,7 +145,6 @@ export const CommandPalette = () => {
                         },
                         paper: { background: palette.background.paper },
                     }}
-                    zIndex={zIndex}
                 />
             </DialogContent>
         </LargeDialog>

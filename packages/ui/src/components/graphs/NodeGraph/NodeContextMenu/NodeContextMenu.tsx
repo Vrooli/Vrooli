@@ -32,7 +32,6 @@ export const NodeContextMenu = ({
     availableActions,
     handleClose,
     handleSelect,
-    zIndex,
 }: NodeContextMenuProps) => {
     const availableOptions = useMemo(() => listOptions.filter(o => availableActions.includes(o.value)), [availableActions]);
 
@@ -43,7 +42,6 @@ export const NodeContextMenu = ({
             data={availableOptions}
             onSelect={handleSelect}
             onClose={handleClose}
-            zIndex={zIndex}
         />
     );
 };

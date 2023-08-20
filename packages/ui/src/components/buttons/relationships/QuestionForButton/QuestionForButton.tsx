@@ -31,7 +31,6 @@ const questionForTypeIcons: Record<QuestionForType, SvgComponent> = {
 export function QuestionForButton({
     isEditing,
     objectType,
-    zIndex,
 }: QuestionForButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -99,7 +98,6 @@ export function QuestionForButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={Object.keys(QuestionForType) as SelectOrCreateObjectType[]}
-                zIndex={zIndex + 1}
             />
             <Stack
                 direction="column"

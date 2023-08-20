@@ -18,7 +18,6 @@ import { RunProjectButtonProps } from "../types";
 export function RunProjectButton({
     isEditing,
     objectType,
-    zIndex,
 }: RunProjectButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -86,7 +85,6 @@ export function RunProjectButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"

@@ -6,9 +6,9 @@
  */
 import { Node, NodeType } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
+import { usePinchZoom } from "hooks/usePinchZoom";
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firstString } from "utils/display/stringTools";
-import { usePinchZoom } from "utils/hooks/usePinchZoom";
 import { PubSub } from "utils/pubsub";
 import { NodeEdge } from "../edges";
 import { NodeColumn } from "../NodeColumn/NodeColumn";
@@ -37,7 +37,6 @@ export const NodeGraph = ({
     links,
     nodesById,
     scale,
-    zIndex,
 }: NodeGraphProps) => {
     const { palette } = useTheme();
 
@@ -333,9 +332,8 @@ export const NodeGraph = ({
             links={links}
             nodes={col}
             scale={scale}
-            zIndex={zIndex}
         />);
-    }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
+    }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale]);
 
     // Positive modulo function
     const mod = (n: number, m: number) => ((n % m) + m) % m;

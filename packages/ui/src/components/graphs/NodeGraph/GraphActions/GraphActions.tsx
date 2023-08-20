@@ -4,9 +4,9 @@
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { UnlinkedNodesDialog } from "components/dialogs/UnlinkedNodesDialog/UnlinkedNodesDialog";
+import { useWindowSize } from "hooks/useWindowSize";
 import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { GraphActionsProps } from "../types";
 
 export const GraphActions = ({
@@ -20,7 +20,6 @@ export const GraphActions = ({
     isEditing,
     language,
     nodesOffGraph,
-    zIndex,
 }: GraphActionsProps) => {
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
@@ -94,7 +93,6 @@ export const GraphActions = ({
                 language={language}
                 nodes={nodesOffGraph}
                 open={unlinkedNodesOpen}
-                zIndex={zIndex + 3}
             />}
         </Stack>
     );

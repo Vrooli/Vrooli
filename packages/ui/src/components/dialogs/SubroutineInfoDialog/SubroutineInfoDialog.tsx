@@ -1,9 +1,9 @@
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { SubroutineForm, subroutineInitialValues, validateSubroutineValues } from "forms/SubroutineForm/SubroutineForm";
 import { useContext, useMemo, useRef } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { SessionContext } from "utils/SessionContext";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { SubroutineInfoDialogProps } from "../types";
 
@@ -20,7 +20,6 @@ export const SubroutineInfoDialog = ({
     isEditing,
     open,
     onClose,
-    zIndex,
 }: SubroutineInfoDialogProps) => {
     const session = useContext(SessionContext);
 
@@ -43,7 +42,6 @@ export const SubroutineInfoDialog = ({
             onClose={onClose}
             isOpen={open}
             titleId={""}
-            zIndex={zIndex}
         >
             <Formik
                 enableReinitialize={true}
@@ -69,7 +67,6 @@ export const SubroutineInfoDialog = ({
                     onCancel={onClose}
                     ref={formRef}
                     versions={[]}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

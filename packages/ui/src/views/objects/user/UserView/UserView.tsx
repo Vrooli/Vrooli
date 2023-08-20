@@ -13,6 +13,11 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
+import { SessionContext } from "contexts/SessionContext";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useTabs } from "hooks/useTabs";
 import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,14 +31,9 @@ import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getYou, placeholderColor, YouInflated } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useTabs } from "utils/hooks/useTabs";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SearchType, UserPageTabOption } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
 import { UserViewProps } from "../types";
 
 type TabWhereParams = {
@@ -67,7 +67,6 @@ const tabParams = [{
 export const UserView = ({
     isOpen,
     onClose,
-    zIndex,
 }: UserViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -192,7 +191,6 @@ export const UserView = ({
                 display={display}
                 onClose={onClose}
                 tabTitle={handle ? `${name} (@${handle})` : name}
-                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -200,7 +198,6 @@ export const UserView = ({
                 anchorEl={moreMenuAnchor}
                 object={user}
                 onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
             />
             {/* Popup menu for adding/inviting to an organization/meeting/chat */}
             {/* TODO */}
@@ -218,7 +215,6 @@ export const UserView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
-                        zIndex={zIndex}
                     />}
                 </Box>
             </BannerImageContainer>
@@ -258,7 +254,6 @@ export const UserView = ({
                         isBookmarked={user?.you?.isBookmarked ?? false}
                         bookmarks={user?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
-                        zIndex={zIndex}
                     />
                 </OverviewProfileStack>
                 <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
@@ -276,7 +271,6 @@ export const UserView = ({
                                 Icon: EditIcon,
                                 onClick: () => { actionData.onActionStart("Edit"); },
                             }] : []}
-                            zIndex={zIndex}
                             sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
                         />
                     }
@@ -306,7 +300,6 @@ export const UserView = ({
                                 variant="body1"
                                 sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
                                 content={bio ?? "No bio set"}
-                                zIndex={zIndex}
                             />
                         )
                     }
@@ -319,7 +312,6 @@ export const UserView = ({
                             showIcon={true}
                             textBeforeDate="Joined"
                             timestamp={user?.created_at}
-                            zIndex={zIndex}
                         />
                         <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
                     </Stack>
@@ -475,13 +467,11 @@ export const UserView = ({
                         }}
                         take={20}
                         where={where({ userId: user?.id ?? "", permissions })}
-                        zIndex={zIndex}
                     />
                 </Box>}
             </Box>
             <SideActionButtons
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 {/* Toggle search filters */}
