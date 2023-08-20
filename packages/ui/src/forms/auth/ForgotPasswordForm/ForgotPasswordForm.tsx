@@ -4,11 +4,11 @@ import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
 import { ForgotPasswordFormProps } from "../../types";
 

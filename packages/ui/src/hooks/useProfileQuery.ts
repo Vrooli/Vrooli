@@ -1,7 +1,7 @@
 import { endpointGetProfile, User } from "@local/shared";
+import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { SessionContext } from "utils/SessionContext";
 import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 

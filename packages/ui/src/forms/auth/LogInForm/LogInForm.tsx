@@ -5,12 +5,12 @@ import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordT
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, useLocation } from "route";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
 import { LogInFormProps } from "../../types";

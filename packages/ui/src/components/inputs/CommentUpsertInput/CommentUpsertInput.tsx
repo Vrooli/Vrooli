@@ -2,13 +2,13 @@ import { Comment, CommentCreateInput, CommentUpdateInput, endpointPostComment, e
 import { useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { CommentForm, commentInitialValues, transformCommentValues, validateCommentValues } from "forms/CommentForm/CommentForm";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useWindowSize } from "hooks/useWindowSize";
 import { useContext, useMemo, useRef } from "react";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { useWindowSize } from "utils/hooks/useWindowSize";
-import { SessionContext } from "utils/SessionContext";
 import { CommentUpsertInputProps } from "../types";
 
 /**

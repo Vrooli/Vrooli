@@ -8,16 +8,16 @@ import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { OwnerLabel } from "components/text/OwnerLabel/OwnerLabel";
+import { SessionContext } from "contexts/SessionContext";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { DeleteIcon, ReplyIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { getYou } from "utils/display/listTools";
 import { displayDate } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { CommentThreadItemProps } from "../types";
 
 export function CommentThreadItem({

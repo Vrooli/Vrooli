@@ -1,7 +1,7 @@
 import { ChatMessage, User } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
+import { PageTab } from "hooks/useTabs";
 import { SxType } from "types";
-import { PageTab } from "utils/hooks/useTabs";
 
 export interface ChatBubbleProps {
     message: ChatMessage & { isUnsent?: boolean }

@@ -1,11 +1,11 @@
 import { Button, Checkbox, FormControlLabel, Grid, Tooltip, Typography } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { SessionContext } from "contexts/SessionContext";
 import { AddIcon, CompleteIcon } from "icons";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
 import { StandardInput } from "../standards/StandardInput/StandardInput";
 import { StandardVersionSelectSwitchProps } from "../types";
 

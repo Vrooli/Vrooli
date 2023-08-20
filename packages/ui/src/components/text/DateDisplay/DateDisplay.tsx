@@ -1,10 +1,10 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import usePress from "hooks/usePress";
 import { ScheduleIcon } from "icons";
 import { useCallback, useState } from "react";
 import { displayDate } from "utils/display/stringTools";
-import usePress from "utils/hooks/usePress";
 import { DateDisplayProps } from "../types";
 
 /**

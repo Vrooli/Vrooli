@@ -1,11 +1,11 @@
 import { LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useStripe } from "hooks/useStripe";
 import { CompleteIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { stringifySearchParams, useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
-import { useStripe } from "utils/hooks/useStripe";
 import { PremiumViewProps } from "../types";
 
 // Features comparison table data

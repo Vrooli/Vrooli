@@ -1,11 +1,11 @@
 import { endpointGetReports, Report, ReportSearchInput, ReportSearchResult } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useFetch } from "hooks/useFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getLastUrlPart } from "route";
 import { toDisplay } from "utils/display/pageTools";
-import { useFetch } from "utils/hooks/useFetch";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { ReportsViewProps } from "../types";
 

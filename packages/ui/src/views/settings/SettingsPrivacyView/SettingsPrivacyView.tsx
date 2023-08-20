@@ -5,10 +5,10 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsPrivacyForm } from "forms/settings";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useProfileQuery } from "hooks/useProfileQuery";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { SettingsPrivacyViewProps } from "../types";
 

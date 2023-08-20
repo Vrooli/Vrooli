@@ -1,6 +1,6 @@
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
 import { LineGraph } from "components/graphs/LineGraph/LineGraph";
-import { useDimensions } from "utils/hooks/useDimensions";
+import { useDimensions } from "hooks/useDimensions";
 import { LineGraphCardProps } from "../types";
 
 export const LineGraphCard = ({

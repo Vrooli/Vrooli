@@ -1,11 +1,11 @@
 import { LINKS, PaymentType } from "@local/shared";
 import { loadStripe } from "@stripe/stripe-js";
 import { fetchData } from "api";
+import { SessionContext } from "contexts/SessionContext";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { parseSearchParams, removeSearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { useDisplayServerError } from "./useDisplayServerError";
 import { useFetch } from "./useFetch";
 

@@ -6,9 +6,9 @@
  */
 import { Node, NodeType } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
+import { usePinchZoom } from "hooks/usePinchZoom";
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firstString } from "utils/display/stringTools";
-import { usePinchZoom } from "utils/hooks/usePinchZoom";
 import { PubSub } from "utils/pubsub";
 import { NodeEdge } from "../edges";
 import { NodeColumn } from "../NodeColumn/NodeColumn";

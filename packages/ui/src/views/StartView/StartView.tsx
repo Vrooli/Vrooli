@@ -8,17 +8,17 @@ import { EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@lo
 import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from "forms/auth";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useReactSearch } from "hooks/useReactSearch";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { Forms } from "utils/consts";
 import { toDisplay } from "utils/display/pageTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useReactSearch } from "utils/hooks/useReactSearch";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { StartViewProps } from "../types";
 
 export const StartView = ({

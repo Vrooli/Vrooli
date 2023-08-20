@@ -1,6 +1,6 @@
 import { Box, ClickAwayListener, Popper, PopperPlacementType, useTheme } from "@mui/material";
+import { useHotkeys } from "hooks/useHotkeys";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useHotkeys } from "utils/hooks/useHotkeys";
 import { PopoverWithArrowProps } from "../types";
 
 export const PopoverWithArrow = ({

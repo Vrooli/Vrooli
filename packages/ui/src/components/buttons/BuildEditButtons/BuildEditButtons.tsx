@@ -1,6 +1,6 @@
 import { Box, Grid, Slider } from "@mui/material";
+import { useThrottle } from "hooks/useThrottle";
 import { useCallback } from "react";
-import { useThrottle } from "utils/hooks/useThrottle";
 import { GridSubmitButtons } from "../GridSubmitButtons/GridSubmitButtons";
 import { BuildEditButtonsProps } from "../types";
 

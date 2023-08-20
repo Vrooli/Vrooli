@@ -13,17 +13,18 @@ import { FindInPage } from "components/navigation/FindInPage/FindInPage";
 import { Footer } from "components/navigation/Footer/Footer";
 import { PullToRefresh } from "components/PullToRefresh/PullToRefresh";
 import { SnackStack } from "components/snacks";
+import { SessionContext } from "contexts/SessionContext";
+import { ZIndexProvider } from "contexts/ZIndexContext";
+import { useHotkeys } from "hooks/useHotkeys";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useReactHash } from "hooks/useReactHash";
 import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "utils/cookies";
 import { themes } from "utils/display/theme";
-import { useHotkeys } from "utils/hooks/useHotkeys";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useReactHash } from "utils/hooks/useReactHash";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { CI_MODE } from "./i18n";
 
 /**
@@ -420,61 +421,63 @@ export function App() {
             <CssBaseline />
             <ThemeProvider theme={theme}>
                 <SessionContext.Provider value={session}>
-                    <Box id="App" component="main" sx={{
-                        background: theme.palette.background.default,
-                        color: theme.palette.background.textPrimary,
-                        // Style visited, active, and hovered links
-                        "& span, p": {
-                            "& a": {
-                                color: theme.palette.mode === "light" ? "#001cd3" : "#dd86db",
-                                "&:visited": {
-                                    color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
+                    <ZIndexProvider>
+                        <Box id="App" component="main" sx={{
+                            background: theme.palette.background.default,
+                            color: theme.palette.background.textPrimary,
+                            // Style visited, active, and hovered links
+                            "& span, p": {
+                                "& a": {
+                                    color: theme.palette.mode === "light" ? "#001cd3" : "#dd86db",
+                                    "&:visited": {
+                                        color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
+                                    },
+                                    "&:active": {
+                                        color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
+                                    },
+                                    "&:hover": {
+                                        color: theme.palette.mode === "light" ? "#5a6ff6" : "#f3d4f2",
+                                    },
+                                    // Remove underline on links
+                                    textDecoration: "none",
                                 },
-                                "&:active": {
-                                    color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
-                                },
-                                "&:hover": {
-                                    color: theme.palette.mode === "light" ? "#5a6ff6" : "#f3d4f2",
-                                },
-                                // Remove underline on links
-                                textDecoration: "none",
                             },
-                        },
-                    }}>
-                        {/* Pull-to-refresh for PWAs */}
-                        <PullToRefresh />
-                        {/* Command palette */}
-                        <CommandPalette />
-                        {/* Find in page */}
-                        <FindInPage />
-                        {/* Celebratory confetti. To be used sparingly */}
-                        {isCelebrating && <AsyncConfetti />}
-                        <AlertDialog />
-                        <SnackStack />
-                        <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
-                        <Box id="content-wrap" sx={{
-                            background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
-                            minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },
                         }}>
+                            {/* Pull-to-refresh for PWAs */}
+                            <PullToRefresh />
+                            {/* Command palette */}
+                            <CommandPalette />
+                            {/* Find in page */}
+                            <FindInPage />
+                            {/* Celebratory confetti. To be used sparingly */}
+                            {isCelebrating && <AsyncConfetti />}
+                            <AlertDialog />
+                            <SnackStack />
+                            <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
+                            <Box id="content-wrap" sx={{
+                                background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
+                                minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },
+                            }}>
 
-                            {/* Progress bar */}
-                            {
-                                isLoading && <Box sx={{
-                                    position: "absolute",
-                                    top: "50%",
-                                    left: "50%",
-                                    transform: "translate(-50%, -50%)",
-                                    zIndex: 100000,
-                                }}>
-                                    <DiagonalWaveLoader size={100} />
-                                </Box>
-                            }
-                            <Routes sessionChecked={session !== undefined} />
+                                {/* Progress bar */}
+                                {
+                                    isLoading && <Box sx={{
+                                        position: "absolute",
+                                        top: "50%",
+                                        left: "50%",
+                                        transform: "translate(-50%, -50%)",
+                                        zIndex: 100000,
+                                    }}>
+                                        <DiagonalWaveLoader size={100} />
+                                    </Box>
+                                }
+                                <Routes sessionChecked={session !== undefined} />
+                            </Box>
+                            <BottomNav />
+                            <BannerChicken />
+                            <Footer />
                         </Box>
-                        <BottomNav />
-                        <BannerChicken />
-                        <Footer />
-                    </Box>
+                    </ZIndexProvider>
                 </SessionContext.Provider>
             </ThemeProvider>
         </StyledEngineProvider>

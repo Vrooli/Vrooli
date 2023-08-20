@@ -1,14 +1,14 @@
 import { Bookmark, BookmarkFor, uuidValidate } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { SelectBookmarkListDialog } from "components/dialogs/SelectBookmarkListDialog/SelectBookmarkListDialog";
+import { SessionContext } from "contexts/SessionContext";
+import { useBookmarker } from "hooks/useBookmarker";
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { useBookmarker } from "utils/hooks/useBookmarker";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { BookmarkButtonProps } from "../types";
 
 export const BookmarkButton = ({

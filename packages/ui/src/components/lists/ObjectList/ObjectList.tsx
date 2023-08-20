@@ -1,9 +1,9 @@
 import { Bookmark, GqlModelType, isOfType, Reaction, View } from "@local/shared";
+import { useStableCallback } from "hooks/useStableCallback";
+import { useStableObject } from "hooks/useStableObject";
 import { memo, useMemo } from "react";
 import { NavigableObject } from "types";
 import { ListObject } from "utils/display/listTools";
-import { useStableCallback } from "utils/hooks/useStableCallback";
-import { useStableObject } from "utils/hooks/useStableObject";
 import { ObjectListItem } from "../ObjectListItem/ObjectListItem";
 import { ActionsType, ListActions, ObjectListItemProps } from "../types";
 

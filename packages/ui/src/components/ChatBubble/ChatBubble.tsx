@@ -6,11 +6,11 @@ import { ChatBubbleStatus } from "components/ChatBubbleStatus/ChatBubbleStatus";
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
+import { SessionContext } from "contexts/SessionContext";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { BotIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { SessionContext } from "utils/SessionContext";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
 
 export const ChatBubble = ({

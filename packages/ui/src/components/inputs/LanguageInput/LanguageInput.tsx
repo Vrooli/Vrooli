@@ -3,9 +3,9 @@
  */
 import { Stack, Typography } from "@mui/material";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext } from "react";
 import { getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
 import { LanguageInputProps } from "../types";
 
 export const LanguageInput = ({

@@ -1,11 +1,11 @@
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeRoutineListForm, nodeRoutineListInitialValues, validateNodeRoutineListValues } from "forms/NodeRoutineListForm/NodeRoutineListForm";
 import { useContext, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "utils/SessionContext";
 import { NodeRoutineListDialogProps } from "../types";
 
 const titleId = "routine-list-node-dialog-title";

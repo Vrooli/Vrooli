@@ -2,15 +2,15 @@ import { endpointDeleteUser, LINKS, Session, UserDeleteInput, userDeleteOneSchem
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { DeleteIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { DeleteAccountDialogProps } from "../types";

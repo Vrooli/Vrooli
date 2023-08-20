@@ -2,8 +2,8 @@ import { CommonKey, RunStatus } from "@local/shared";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { useTabs } from "hooks/useTabs";
 import { toDisplay } from "utils/display/pageTools";
-import { useTabs } from "utils/hooks/useTabs";
 import { HistoryPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 

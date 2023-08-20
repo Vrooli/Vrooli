@@ -1,12 +1,12 @@
 import { BUSINESS_NAME, LINKS } from "@local/shared";
 import { AppBar, Box, Stack, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
+import { useDimensions } from "hooks/useDimensions";
+import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useWindowSize } from "hooks/useWindowSize";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";
 import { useLocation } from "route";
 import { noSelect } from "styles";
-import { useDimensions } from "utils/hooks/useDimensions";
-import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { HideOnScroll } from "../HideOnScroll/HideOnScroll";
 import { NavbarLogo } from "../NavbarLogo/NavbarLogo";
 import { NavList } from "../NavList/NavList";

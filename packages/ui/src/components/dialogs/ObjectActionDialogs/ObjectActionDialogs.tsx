@@ -1,8 +1,8 @@
 import { BookmarkFor, DeleteType, ReportFor } from "@local/shared";
+import { SessionContext } from "contexts/SessionContext";
 import { useContext } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
 import { ReportUpsert } from "views/objects/report";
 import { StatsObjectView } from "views/StatsObjectView/StatsObjectView";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";

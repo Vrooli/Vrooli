@@ -5,12 +5,12 @@ import { endpointPostReminder, endpointPutReminder, GqlModelType, LINKS, Reminde
 import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon, OpenInNewIcon, ReminderIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderCrud } from "views/objects/reminder";

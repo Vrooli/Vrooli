@@ -5,6 +5,7 @@ import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObject
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemProjectVersion } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { ProjectIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -13,7 +14,6 @@ import { useLocation } from "route";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
-import { SessionContext } from "utils/SessionContext";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { ProjectButtonProps } from "../types";
 

@@ -1,9 +1,9 @@
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { TranscriptDialog } from "components/dialogs/TranscriptDialog/TranscriptDialog";
+import { useSpeech } from "hooks/useSpeech";
 import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSpeech } from "utils/hooks/useSpeech";
 import { PubSub } from "utils/pubsub";
 import { MicrophoneButtonProps } from "../types";
 

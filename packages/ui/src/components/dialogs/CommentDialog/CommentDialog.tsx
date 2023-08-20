@@ -3,13 +3,13 @@ import { Box, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { CommentDialogProps } from "../types";
 

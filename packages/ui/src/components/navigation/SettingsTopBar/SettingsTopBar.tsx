@@ -1,9 +1,9 @@
 import { Box } from "@mui/material";
 import { SettingsSearchBar } from "components/inputs/search";
+import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useLocation } from "route";
 import { PreSearchItem, translateSearchItems } from "utils/search/siteToSearch";
-import { SessionContext } from "utils/SessionContext";
 import { TopBar } from "../TopBar/TopBar";
 import { SettingsTopBarProps } from "../types";
 

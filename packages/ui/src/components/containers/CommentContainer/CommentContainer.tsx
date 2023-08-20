@@ -6,11 +6,11 @@ import { Button, Palette, Stack, useTheme } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
 import { CommentThread } from "components/lists/comment";
+import { useFindMany } from "hooks/useFindMany";
+import { useWindowSize } from "hooks/useWindowSize";
 import { CreateIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useFindMany } from "utils/hooks/useFindMany";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { CommentContainerProps } from "../types";
 

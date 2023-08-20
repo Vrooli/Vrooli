@@ -6,10 +6,10 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ResetPasswordFormProps } from "forms/types";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, useLocation } from "route";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { formPaper, formSubmit } from "../../styles";
 

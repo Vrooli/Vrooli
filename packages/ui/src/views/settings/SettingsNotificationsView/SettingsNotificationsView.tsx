@@ -5,11 +5,11 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsNotificationForm } from "forms/settings/SettingsNotificationsForm/SettingsNotificationsForm";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useFetch } from "hooks/useFetch";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useFetch } from "utils/hooks/useFetch";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({

@@ -1,8 +1,8 @@
 import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import usePress from "hooks/usePress";
 import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
-import usePress from "utils/hooks/usePress";
 import { VersionDisplayProps } from "../types";
 
 /**

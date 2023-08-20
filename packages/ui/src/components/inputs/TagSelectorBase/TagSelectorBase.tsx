@@ -1,9 +1,9 @@
 import { BookmarkFor, endpointGetTags, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { useFetch } from "hooks/useFetch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useFetch } from "utils/hooks/useFetch";
 import { PubSub } from "utils/pubsub";
 import { TagShape } from "utils/shape/models/tag";
 import { TagSelectorBaseProps } from "../types";

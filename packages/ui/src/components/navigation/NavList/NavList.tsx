@@ -2,16 +2,16 @@ import { LINKS } from "@local/shared";
 import { Avatar, Button, Container, Palette, useTheme } from "@mui/material";
 import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
 import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
+import { SessionContext } from "contexts/SessionContext";
+import { useWindowSize } from "hooks/useWindowSize";
 import { LogInIcon, ProfileIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { ContactInfo } from "../ContactInfo/ContactInfo";
 
 const navItemStyle = (palette: Palette) => ({
