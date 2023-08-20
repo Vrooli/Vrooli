@@ -24,9 +24,16 @@ import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { shapeProfile } from "utils/shape/models/profile";
 
+export const sideMenuDisplayData = {
+    persistentOnDesktop: true,
+    sideForRightHanded: "right",
+} as const;
+
 // Maximum accounts to sign in with. 
 // Limited by cookie size (4kb)
 const MAX_ACCOUNTS = 10;
+
+const zIndex = 1300;
 
 export const SideMenu = () => {
     const session = useContext(SessionContext);
@@ -41,14 +48,22 @@ export const SideMenu = () => {
     // Handle opening and closing
     const [isOpen, setIsOpen] = useState(false);
     useEffect(() => {
-        const sideMenuSub = PubSub.get().subscribeSideMenu((open) => {
-            setIsOpen(o => open ?? !o);
+        const sideMenuSub = PubSub.get().subscribeSideMenu((data) => {
+            if (data.id !== "side-menu") return;
+            setIsOpen(data.isOpen);
         });
         return (() => {
             PubSub.get().unsubscribe(sideMenuSub);
         });
     }, []);
-    const close = useCallback(() => { setIsOpen(false); }, []);
+    const close = useCallback(() => {
+        setIsOpen(false);
+        PubSub.get().publishSideMenu({ id: "side-menu", isOpen: false });
+    }, []);
+    // When moving between mobile/desktop, publish current state
+    useEffect(() => {
+        PubSub.get().publishSideMenu({ id: "side-menu", isOpen });
+    }, [breakpoints, isOpen]);
 
     // Display settings collapse
     const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
@@ -197,11 +212,18 @@ export const SideMenu = () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function
             onOpen={() => { }}
             onClose={handleClose}
+            variant={isMobile ? "temporary" : "persistent"}
             sx={{
-                zIndex: 20000,
+                zIndex,
                 "& .MuiDrawer-paper": {
                     background: palette.background.default,
                     overflowY: "auto",
+                    borderLeft: "none",
+                },
+                "& > .MuiDialog-container": {
+                    "& > .MuiPaper-root": {
+                        zIndex,
+                    },
                 },
             }}
         >

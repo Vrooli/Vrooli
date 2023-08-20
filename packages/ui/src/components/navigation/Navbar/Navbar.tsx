@@ -91,7 +91,7 @@ export const Navbar = forwardRef(({
                     display: "none",
                 },
             }}>
-            <HideOnScroll>
+            <HideOnScroll forceVisible={!isMobile}>
                 <AppBar
                     onClick={scrollToTop}
                     ref={dimRef}

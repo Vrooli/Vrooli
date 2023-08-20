@@ -23,7 +23,7 @@ export const DateDisplay = ({
     // Full date popup
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = useCallback((target: EventTarget) => {
-        setAnchorEl(target);
+        setAnchorEl(target as HTMLElement);
     }, []);
     const close = useCallback(() => setAnchorEl(null), []);
 

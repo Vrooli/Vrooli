@@ -1,7 +1,6 @@
 import { LINKS } from "@local/shared";
 import { Avatar, Button, Container, Palette, useTheme } from "@mui/material";
 import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
-import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
 import { SessionContext } from "contexts/SessionContext";
 import { useWindowSize } from "hooks/useWindowSize";
 import { LogInIcon, ProfileIcon } from "icons";
@@ -34,7 +33,7 @@ export const NavList = () => {
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
-    const toggleSideMenu = useCallback(() => { PubSub.get().publishSideMenu(); }, []);
+    const toggleSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); }, []);
 
     return (
         <Container sx={{
@@ -53,8 +52,6 @@ export const NavList = () => {
             >
                 <ContactInfo />
             </PopupMenu>}
-            {/* Side menu */}
-            <SideMenu />
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({
                 actions: nav_actions,

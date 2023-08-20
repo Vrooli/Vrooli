@@ -148,7 +148,7 @@ const CustomLink = ({ children, href }) => {
     // Popover to display more info
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = useCallback((target: EventTarget) => {
-        setAnchorEl(target);
+        setAnchorEl(target as HTMLElement);
         const urlParams = parseSingleItemUrl({ url: href });
         if (exists(urlParams.handle)) getData({ handle: urlParams.handle });
         else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });

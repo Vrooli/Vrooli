@@ -51,10 +51,10 @@ export const VersionDisplay = ({
     }), [currentVersion, openVersion, versions]);
 
     // Versions popup
-    const [anchorEl, setAnchorEl] = useState<EventTarget | null>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = useCallback((target: EventTarget) => {
         if (versions.length > 1) {
-            setAnchorEl(target);
+            setAnchorEl(target as HTMLElement);
         }
     }, [versions.length]);
     const close = useCallback(() => setAnchorEl(null), []);

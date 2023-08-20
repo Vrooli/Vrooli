@@ -8,6 +8,13 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { noSelect } from "styles";
 import { PubSub } from "utils/pubsub";
 
+export const chatSideMenuDisplayData = {
+    persistentOnDesktop: true,
+    sideForRightHanded: "left",
+} as const;
+
+const zIndex = 1300;
+
 export const ChatSideMenu = () => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -17,14 +24,22 @@ export const ChatSideMenu = () => {
     // Handle opening and closing
     const [isOpen, setIsOpen] = useState(false);
     useEffect(() => {
-        const sideMenuSub = PubSub.get().subscribeChatSideMenu((open) => {
-            setIsOpen(o => open ?? !o);
+        const sideMenuSub = PubSub.get().subscribeSideMenu((data) => {
+            if (data.id !== "chat-side-menu") return;
+            setIsOpen(data.isOpen);
         });
         return (() => {
             PubSub.get().unsubscribe(sideMenuSub);
         });
     }, []);
-    const close = useCallback(() => { setIsOpen(false); }, []);
+    const close = useCallback(() => {
+        setIsOpen(false);
+        PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: false });
+    }, []);
+    // When moving between mobile/desktop, publish current state
+    useEffect(() => {
+        PubSub.get().publishSideMenu({ id: "side-menu", isOpen });
+    }, [breakpoints, isOpen]);
 
     const handleClose = useCallback((event: React.MouseEvent<HTMLElement>) => {
         close();
@@ -38,11 +53,18 @@ export const ChatSideMenu = () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function
             onOpen={() => { }}
             onClose={handleClose}
+            variant={isMobile ? "temporary" : "persistent"}
             sx={{
-                zIndex: 20000,
+                zIndex,
                 "& .MuiDrawer-paper": {
                     background: palette.background.default,
                     overflowY: "auto",
+                    borderLeft: "none",
+                },
+                "& > .MuiDialog-container": {
+                    "& > .MuiPaper-root": {
+                        zIndex,
+                    },
                 },
             }}
         >

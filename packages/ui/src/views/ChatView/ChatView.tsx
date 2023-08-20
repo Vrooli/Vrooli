@@ -47,7 +47,7 @@ export const ChatView = ({
     task,
 }: ChatViewProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
@@ -273,7 +273,13 @@ export const ChatView = ({
                         title={firstString(title, botSettings ? "AI Chat" : "Chat")}
                     />
                     {/* TODO add ChatSideMenu component */}
-                    <Stack direction="column" spacing={4}>
+                    <Stack
+                        direction="column"
+                        spacing={4}
+                        sx={{
+                            margin: "auto",
+                        }}
+                    >
                         <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
                             {messages.map((message: ChatMessage, index) => {
                                 const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;

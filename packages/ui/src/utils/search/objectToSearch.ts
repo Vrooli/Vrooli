@@ -196,8 +196,7 @@ export enum CalendarPageTabOption {
 }
 
 export enum InboxPageTabOption {
-    Dm = "Dm",
-    GroupChat = "GroupChat",
+    Message = "Message",
     Notification = "Notification",
 }
 

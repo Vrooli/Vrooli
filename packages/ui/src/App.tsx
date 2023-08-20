@@ -6,6 +6,8 @@ import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
+import { chatSideMenuDisplayData } from "components/dialogs/ChatSideMenu/ChatSideMenu";
+import { SideMenu, sideMenuDisplayData } from "components/dialogs/SideMenu/SideMenu";
 import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
@@ -18,18 +20,17 @@ import { ZIndexProvider } from "contexts/ZIndexContext";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useReactHash } from "hooks/useReactHash";
+import { useWindowSize } from "hooks/useWindowSize";
 import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "utils/cookies";
 import { themes } from "utils/display/theme";
-import { PubSub } from "utils/pubsub";
+import { PubSub, SideMenuPub } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
 
-/**
- * Adds font size to theme
- */
+/** Adds font size to theme */
 const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
     ...theme,
     typography: {
@@ -37,17 +38,13 @@ const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
     },
 });
 
-/**
- * Sets "isLeftHanded" property on theme
- */
+/** Sets "isLeftHanded" property on theme */
 const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => createTheme({
     ...theme,
     isLeftHanded,
 });
 
-/**
- * Attempts to find theme without using session, defaulting to light
- */
+/** Attempts to find theme without using session */
 const findThemeWithoutSession = (): Theme => {
     // Get font size from cookie
     const fontSize = getCookieFontSize(14);
@@ -107,6 +104,11 @@ const useStyles = makeStyles(() => ({
     },
 }));
 
+const menusDisplayData: { [key in SideMenuPub["id"]]: { persistentOnDesktop: boolean, sideForRightHanded: "left" | "right" } } = {
+    "side-menu": sideMenuDisplayData,
+    "chat-side-menu": chatSideMenuDisplayData,
+};
+
 export function App() {
     useStyles();
     // Session cookie should automatically expire in time determined by server,
@@ -123,6 +125,8 @@ export function App() {
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
+    const [contentMargins, setContentMargins] = useState<{ paddingLeft?: string, paddingRight?: string }>({}); // Used to add margins to content when drawer is open
+    const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
 
     // Applies language change
     useEffect(() => {
@@ -160,9 +164,7 @@ export function App() {
         setCookieTheme(theme.palette.mode);
     }, [fontSize, isLeftHanded]);
 
-    /**
-     * Sets up google adsense
-     */
+    /** Sets up google adsense */
     useEffect(() => {
         ((window as { adsbygoogle?: object[] }).adsbygoogle = (window as { adsbygoogle?: object[] }).adsbygoogle || []).push({});
     }, []);
@@ -386,6 +388,21 @@ export function App() {
         const tutorialSub = PubSub.get().subscribeTutorial(() => {
             setIsTutorialOpen(true);
         });
+        // Handle content margins when drawer(s) open/close
+        const sideMenuPub = PubSub.get().subscribeSideMenu((data) => {
+            const { persistentOnDesktop, sideForRightHanded } = menusDisplayData[data.id];
+            console.log("sideMenuPub", data, menusDisplayData[data.id], isMobile);
+            // Ignore if dialog is not persistent on desktop
+            if (!persistentOnDesktop) return;
+            // Flip side when in left-handed mode
+            const side = isLeftHanded ? (sideForRightHanded === "left" ? "right" : "left") : sideForRightHanded;
+            // Only set on desktop
+            if (side === "left") {
+                setContentMargins(data.isOpen && !isMobile ? { paddingLeft: "272px" } : {});
+            } else if (side === "right") {
+                setContentMargins(data.isOpen && !isMobile ? { paddingRight: "272px" } : {});
+            }
+        });
         // On unmount, unsubscribe from all PubSub topics
         return (() => {
             PubSub.get().unsubscribe(loadingSub);
@@ -397,8 +414,9 @@ export function App() {
             PubSub.get().unsubscribe(languageSub);
             PubSub.get().unsubscribe(isLeftHandedSub);
             PubSub.get().unsubscribe(tutorialSub);
+            PubSub.get().unsubscribe(sideMenuPub);
         });
-    }, [checkSession, setActiveFocusMode, setThemeAndMeta]);
+    }, [checkSession, isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
 
     // Handle websocket connection for tracking notifications
     useEffect(() => {
@@ -445,18 +463,18 @@ export function App() {
                         }}>
                             {/* Pull-to-refresh for PWAs */}
                             <PullToRefresh />
-                            {/* Command palette */}
                             <CommandPalette />
-                            {/* Find in page */}
                             <FindInPage />
-                            {/* Celebratory confetti. To be used sparingly */}
                             {isCelebrating && <AsyncConfetti />}
                             <AlertDialog />
                             <SnackStack />
                             <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
+                            <SideMenu />
                             <Box id="content-wrap" sx={{
                                 background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
                                 minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },
+                                ...(contentMargins),
+                                transition: "margin 0.225s cubic-bezier(0, 0, 0.2, 1) 0s",
                             }}>
 
                                 {/* Progress bar */}

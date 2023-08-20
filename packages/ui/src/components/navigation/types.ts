@@ -28,11 +28,6 @@ export interface NavbarLogoProps {
     state: NavbarLogoState;
 }
 
-export interface HideOnScrollProps {
-    target?: any;
-    children: JSX.Element;
-}
-
 export type SettingsTopBarProps = Omit<TopBarProps, "below">
 
 export interface TopBarProps extends Omit<TitleProps, "variant"> {
