@@ -31,7 +31,6 @@ export function SearchList<DataType extends NavigableObject>({
     sxs,
     onItemClick,
     where,
-    zIndex,
 }: SearchListProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -139,7 +138,6 @@ export function SearchList<DataType extends NavigableObject>({
                     onChange={handleSearch}
                     onInputChange={onInputSelect}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                    zIndex={zIndex}
                 />
             </Box>
             <SearchButtons
@@ -156,7 +154,6 @@ export function SearchList<DataType extends NavigableObject>({
                     ...sxs?.buttons,
                 }}
                 timeFrame={timeFrame}
-                zIndex={zIndex}
             />
             <ListContainer
                 ref={containerRef}
@@ -172,7 +169,6 @@ export function SearchList<DataType extends NavigableObject>({
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
                     onClick={onItemClick}
-                    zIndex={zIndex}
                 />
             </ListContainer>
             {/* Add new button */}

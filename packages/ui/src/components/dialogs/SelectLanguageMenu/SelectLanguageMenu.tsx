@@ -3,6 +3,7 @@ import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, u
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useZIndex } from "hooks/useZIndex";
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -58,7 +59,6 @@ export const SelectLanguageMenu = ({
     isEditing = false,
     languages,
     sxs,
-    zIndex,
 }: SelectLanguageMenuProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -158,6 +158,7 @@ export const SelectLanguageMenu = ({
     // Popup for selecting language
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
+    const zIndex = useZIndex(open);
     const onOpen = useCallback((event: MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
@@ -185,7 +186,6 @@ export const SelectLanguageMenu = ({
                 data={translateSourceOptions}
                 onSelect={handleTranslateSourceSelect}
                 onClose={closeTranslateSource}
-                zIndex={zIndex + 2}
             />
             {/* Language select popover */}
             <Popover
@@ -194,7 +194,7 @@ export const SelectLanguageMenu = ({
                 onClose={onClose}
                 aria-labelledby={titleId}
                 sx={{
-                    zIndex: zIndex + 1,
+                    zIndex,
                     "& .MuiPopover-paper": {
                         background: "transparent",
                         border: "none",
@@ -215,7 +215,6 @@ export const SelectLanguageMenu = ({
                     ariaLabel={titleId}
                     title={t("LanguageSelect")}
                     onClose={onClose}
-                    zIndex={zIndex + 1}
                 />
                 {/* Search bar and list of languages */}
                 <Stack direction="column" spacing={2} sx={{

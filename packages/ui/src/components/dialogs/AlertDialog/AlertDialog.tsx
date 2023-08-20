@@ -1,4 +1,5 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, useTheme } from "@mui/material";
+import { useZIndex } from "hooks/useZIndex";
 import i18next from "i18next";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,7 +24,6 @@ const defaultState = (): AlertDialogState => ({
 
 const titleId = "alert-dialog-title";
 const descriptionAria = "alert-dialog-description";
-const zIndex = 30000;
 
 export const AlertDialog = () => {
     const { t } = useTranslation();
@@ -31,6 +31,7 @@ export const AlertDialog = () => {
 
     const [state, setState] = useState<AlertDialogState>(defaultState());
     const [open, setOpen] = useState(false);
+    const zIndex = useZIndex(open);
 
     useEffect(() => {
         const dialogSub = PubSub.get().subscribeAlertDialog((o) => {
@@ -76,7 +77,6 @@ export const AlertDialog = () => {
                 id={titleId}
                 title={state.title}
                 onClose={resetState}
-                zIndex={zIndex}
             />}
             <DialogContent>
                 <DialogContentText id={descriptionAria} sx={{

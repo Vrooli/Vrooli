@@ -21,7 +21,6 @@ export const MeetingUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: MeetingUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -56,13 +55,11 @@ export const MeetingUpsert = ({
             id="meeting-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateMeeting" : "UpdateMeeting")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -88,7 +85,6 @@ export const MeetingUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

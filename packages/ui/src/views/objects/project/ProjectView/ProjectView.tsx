@@ -27,7 +27,6 @@ import { ProjectViewProps } from "../types";
 export const ProjectView = ({
     isOpen,
     onClose,
-    zIndex,
 }: ProjectViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -77,7 +76,6 @@ export const ProjectView = ({
                 display={display}
                 onClose={onClose}
                 tabTitle={handle ? `${name} (@${handle})` : name}
-                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -85,7 +83,6 @@ export const ProjectView = ({
                 anchorEl={moreMenuAnchor}
                 object={existing as any}
                 onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
             />
             <OverviewContainer>
                 <Stack direction="row" mr={2}>
@@ -109,7 +106,6 @@ export const ProjectView = ({
                         isBookmarked={existing?.root?.you?.isBookmarked ?? false}
                         bookmarks={existing?.root?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
-                        zIndex={zIndex}
                     />
                 </Stack>
                 <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
@@ -127,7 +123,6 @@ export const ProjectView = ({
                                 Icon: EditIcon,
                                 onClick: () => { actionData.onActionStart("Edit"); },
                             }] : []}
-                            zIndex={zIndex}
                             sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
                         />
                     }
@@ -157,7 +152,6 @@ export const ProjectView = ({
                                 variant="body1"
                                 sx={{ color: description ? palette.background.textPrimary : palette.background.textSecondary }}
                                 content={description ?? "No description set"}
-                                zIndex={zIndex}
                             />
                         )
                     }
@@ -170,7 +164,6 @@ export const ProjectView = ({
                             showIcon={true}
                             textBeforeDate="Created"
                             timestamp={existing?.created_at}
-                            zIndex={zIndex}
                         />
                         <ReportsLink object={existing} />
                     </Stack>
@@ -192,14 +185,12 @@ export const ProjectView = ({
                     searchPlaceholder={placeholder}
                     take={20}
                     where={where}
-                    zIndex={zIndex}
                 /> */}
             </Box>
             {/* Edit button (if canUpdate) */}
             <SideActionButtons
                 // Treat as a dialog when build view is open
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 {permissions.canUpdate ? (

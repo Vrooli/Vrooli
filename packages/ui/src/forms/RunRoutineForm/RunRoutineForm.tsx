@@ -50,7 +50,6 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -86,7 +85,6 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
                 onCancel={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
-                zIndex={zIndex + 1001}
             />
             <BaseForm
                 dirty={dirty}
@@ -178,7 +176,6 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

@@ -56,7 +56,6 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -90,14 +89,12 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                     <RelationshipList
                         isEditing={true}
                         objectType={"Organization"}
-                        zIndex={zIndex}
                     />
                     <ProfilePictureInput
                         onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
                         onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
                         profile={{ ...values }}
-                        zIndex={zIndex}
                     />
                     <FormSection>
                         <LanguageInput
@@ -106,7 +103,6 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -120,18 +116,13 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                             minRows={4}
                             name="bio"
                             placeholder={t("Bio")}
-                            zIndex={zIndex}
                         />
                         <br />
-                        <TagSelector
-                            name="tags"
-                            zIndex={zIndex}
-                        />
+                        <TagSelector name="tags" />
                     </FormSection>
                     <ResourceListHorizontalInput
                         isCreate={true}
                         parent={{ __typename: "Organization", id: values.id }}
-                        zIndex={zIndex}
                     />
                 </FormContainer>
             </BaseForm>
@@ -143,7 +134,6 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

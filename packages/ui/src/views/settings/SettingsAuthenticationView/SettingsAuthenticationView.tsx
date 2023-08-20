@@ -23,7 +23,6 @@ import { SettingsAuthenticationViewProps } from "../types";
 export const SettingsAuthenticationView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsAuthenticationViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -78,13 +77,11 @@ export const SettingsAuthenticationView = ({
             <DeleteAccountDialog
                 isOpen={deleteOpen}
                 handleClose={closeDelete}
-                zIndex={zIndex + 1}
             />
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
                 title={t("Authentication")}
-                zIndex={zIndex}
             />
             <Stack direction="row" pt={2} pb={2}>
                 <SettingsList />
@@ -95,13 +92,11 @@ export const SettingsAuthenticationView = ({
                             Icon={WalletIcon}
                             title={t("Wallet", { count: 2 })}
                             variant="subheader"
-                            zIndex={zIndex}
                         />
                         <WalletList
                             handleUpdate={updateWallets}
                             list={profile?.wallets ?? []}
                             numVerifiedEmails={numVerifiedEmails}
-                            zIndex={zIndex}
                         />
                     </Box>
                     <Box>
@@ -110,7 +105,6 @@ export const SettingsAuthenticationView = ({
                             Icon={EmailIcon}
                             title={t("Email", { count: 2 })}
                             variant="subheader"
-                            zIndex={zIndex}
                         />
                         <EmailList
                             handleUpdate={updateEmails}
@@ -123,7 +117,6 @@ export const SettingsAuthenticationView = ({
                             help={t("PasswordChangeHelp")}
                             title={t("ChangePassword")}
                             variant="subheader"
-                            zIndex={zIndex}
                         />
                         <Formik
                             enableReinitialize={true}
@@ -153,7 +146,6 @@ export const SettingsAuthenticationView = ({
                                 display={display}
                                 isLoading={isProfileLoading || isUpdating}
                                 onCancel={formik.resetForm}
-                                zIndex={zIndex}
                                 {...formik}
                             />}
                         </Formik>

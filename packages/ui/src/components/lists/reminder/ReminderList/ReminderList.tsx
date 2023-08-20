@@ -23,7 +23,6 @@ export const ReminderList = ({
     listId,
     loading,
     reminders,
-    zIndex,
 }: ReminderListProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -118,7 +117,6 @@ export const ReminderList = ({
                 onCompleted={handleCompleted}
                 onDeleted={handleDeleted}
                 overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : { __typename: "Reminder", reminderList: { id: listId ?? "" } }}
-                zIndex={zIndex}
             />
             {/* List */}
             <TitleContainer
@@ -134,7 +132,6 @@ export const ReminderList = ({
                     label: t("Create"),
                     onClick: openDialog,
                 }]}
-                zIndex={zIndex}
             >
                 <>
                     {/* Empty text */}
@@ -152,7 +149,6 @@ export const ReminderList = ({
                                 objectType={GqlModelType.Reminder}
                                 onAction={onAction}
                                 onClick={openUpdateDialog}
-                                zIndex={zIndex}
                             />
                         ))}
                     </List>

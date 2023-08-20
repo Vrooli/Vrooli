@@ -21,7 +21,6 @@ export const WalletList = ({
     handleUpdate,
     numVerifiedEmails,
     list,
-    zIndex,
 }: WalletListProps) => {
     const { t } = useTranslation();
 
@@ -167,13 +166,11 @@ export const WalletList = ({
                 handleOpenInstall={openWalletInstallDialog}
                 open={connectOpen}
                 onClose={closeWalletConnectDialog}
-                zIndex={zIndex + 1}
             />
             {/* Install dialog for downloading wallet extension */}
             <WalletInstallDialog
                 open={installOpen}
                 onClose={closeWalletInstallDialog}
-                zIndex={zIndex + (connectOpen ? 1 : 0)}
             />
             <ListContainer
                 emptyText={t("NoWallets", { ns: "error" })}

@@ -25,7 +25,6 @@ const objectTypeToIdField = {
 export const ReportsView = ({
     isOpen,
     onClose,
-    zIndex,
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -50,7 +49,6 @@ export const ReportsView = ({
                 help={t("ReportsHelp")}
                 onClose={onClose}
                 title={t("Report", { count: 2 })}
-                zIndex={zIndex}
             />
             {reports.map((report, i) => {
                 return <Box

@@ -16,7 +16,6 @@ export const DeleteDialog = ({
     objectId,
     objectName,
     objectType,
-    zIndex,
 }: DeleteDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -53,13 +52,11 @@ export const DeleteDialog = ({
             id="delete-dialog"
             isOpen={isOpen}
             onClose={() => { close(); }}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={() => { close(); }}
                 title={t("Delete")}
-                zIndex={zIndex}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} mt={2}>

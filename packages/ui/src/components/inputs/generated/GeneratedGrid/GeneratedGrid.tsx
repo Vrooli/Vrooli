@@ -45,7 +45,6 @@ export const GeneratedGrid = ({
     layout,
     onUpload,
     theme,
-    zIndex,
 }: GeneratedGridProps) => {
     console.log('rendering grid', fields, childContainers);
     const { containers, splitFields } = useMemo(() => {
@@ -90,7 +89,6 @@ export const GeneratedGrid = ({
                     fieldData={fieldData}
                     index={index}
                     onUpload={onUpload}
-                    zIndex={zIndex}
                 />
                 return inputComponent ? generateGridItem(inputComponent, index) : null;
             });
@@ -119,7 +117,6 @@ export const GeneratedGrid = ({
                         helpText={currLayout.description ?? undefined}
                         title={currLayout.title}
                         titleComponent="legend"
-                        zIndex={zIndex}
                     >
                         {itemsContainer}
                     </ContentCollapse> : itemsContainer}
@@ -127,7 +124,7 @@ export const GeneratedGrid = ({
             )
         }
         return grids;
-    }, [containers, onUpload, splitFields, theme.palette.background.textPrimary, zIndex]);
+    }, [containers, onUpload, splitFields, theme.palette.background.textPrimary]);
 
     return (
         <Stack

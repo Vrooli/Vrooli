@@ -19,7 +19,6 @@ export const DecisionView = ({
     isOpen,
     handleDecisionSelect,
     routineList,
-    zIndex,
 }: DecisionViewProps) => {
     const { palette } = useTheme();
     const display = toDisplay(isOpen);

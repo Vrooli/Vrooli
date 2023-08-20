@@ -18,7 +18,6 @@ export const ChatBubble = ({
     isOwn,
     message,
     onUpdated,
-    zIndex,
 }: ChatBubbleProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -139,7 +138,6 @@ export const ChatBubble = ({
                             whiteSpace: "pre-wrap",
                             wordWrap: "break-word",
                         }}
-                        zIndex={zIndex}
                     /> : <>
                         <MarkdownInputBase
                             fullWidth
@@ -148,7 +146,6 @@ export const ChatBubble = ({
                             name="edit-message"
                             onChange={(updatedText) => setEditingText(updatedText)}
                             value={editingText ?? ""}
-                            zIndex={zIndex}
                         />
                         <Grid container spacing={1} mt={2}>
                             <GridSubmitButtons
@@ -163,7 +160,6 @@ export const ChatBubble = ({
                                 onSubmit={() => {
                                     finishEditing();
                                 }}
-                                zIndex={zIndex}
                             />
                         </Grid>
                     </>

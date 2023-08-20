@@ -22,7 +22,6 @@ export const ProjectUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: ProjectUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -57,13 +56,11 @@ export const ProjectUpsert = ({
             id="project-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateProject" : "UpdateProject")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -90,7 +87,6 @@ export const ProjectUpsert = ({
                     onCancel={handleCancel}
                     ref={formRef}
                     versions={(existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? []}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

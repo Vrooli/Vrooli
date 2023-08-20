@@ -1,5 +1,6 @@
 import { Avatar, Box, Stack, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useZIndex } from "hooks/useZIndex";
 import { BotIcon, DeleteIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
 import { useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -50,9 +51,9 @@ export const ProfilePictureInput = ({
     onBannerImageChange,
     onProfileImageChange,
     profile,
-    zIndex,
 }: ProfilePictureInputProps) => {
     const { palette } = useTheme();
+    const zIndex = useZIndex();
 
     const [bannerImageUrl, setBannerImageUrl] = useState(extractImageUrl(profile?.bannerImage, profile?.updated_at, BANNER_TARGET_SIZE));
     const [profileImageUrl, setProfileImageUrl] = useState(extractImageUrl(profile?.profileImage, profile?.updated_at, PROFILE_TARGET_SIZE));

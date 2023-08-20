@@ -83,7 +83,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -120,7 +119,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Project"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
                     <FormSection>
@@ -130,7 +128,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -145,7 +142,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                             minRows={4}
                             maxRows={8}
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
                     </FormSection>
                     <DirectoryListHorizontal
@@ -154,7 +150,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                         handleUpdate={directoryHelpers.setValue}
                         loading={isLoading}
                         mutate={false}
-                        zIndex={zIndex}
                     />
                     <VersionInput
                         fullWidth
@@ -170,7 +165,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

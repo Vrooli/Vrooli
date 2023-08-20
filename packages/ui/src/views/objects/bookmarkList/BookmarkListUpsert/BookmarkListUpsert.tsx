@@ -21,7 +21,6 @@ export const BookmarkListUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: BookmarkListUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -56,13 +55,11 @@ export const BookmarkListUpsert = ({
             id="bookmark-list-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateBookmarkList" : "UpdateBookmarkList")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -88,7 +85,6 @@ export const BookmarkListUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

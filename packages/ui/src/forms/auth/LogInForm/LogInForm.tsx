@@ -18,7 +18,6 @@ import { LogInFormProps } from "../../types";
 export const LogInForm = ({
     onClose,
     onFormChange = () => { },
-    zIndex,
 }: LogInFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -42,7 +41,6 @@ export const LogInForm = ({
                 display="dialog"
                 onClose={onClose}
                 title={t("LogIn")}
-                zIndex={zIndex}
             />
             <Formik
                 initialValues={{

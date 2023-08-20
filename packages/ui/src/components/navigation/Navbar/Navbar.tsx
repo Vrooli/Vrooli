@@ -120,7 +120,6 @@ export const Navbar = forwardRef(({
                             options={options}
                             title={title}
                             variant="header"
-                            zIndex={zIndex}
                         />}
                         {isMobile && titleComponent}
                         {(isMobile && isLeftHanded) ? logo : <Box sx={{
@@ -140,7 +139,6 @@ export const Navbar = forwardRef(({
                 options={options}
                 title={title}
                 variant="header"
-                zIndex={zIndex}
             />}
             {!isMobile && !shouldHideTitle && titleComponent}
             {/* "below" and title displayered here on desktop */}

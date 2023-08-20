@@ -26,7 +26,6 @@ export const ReminderCrud = ({
     onCompleted,
     onDeleted,
     overrideObject,
-    zIndex,
 }: ReminderCrudProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -101,7 +100,6 @@ export const ReminderCrud = ({
             id="reminder-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
@@ -113,7 +111,6 @@ export const ReminderCrud = ({
                     label: t("Delete"),
                     onClick: handleDelete as () => void,
                 }] : []}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -139,7 +136,6 @@ export const ReminderCrud = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

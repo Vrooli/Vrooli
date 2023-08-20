@@ -1,4 +1,4 @@
-import { createContext, useState } from "react";
+import { createContext, useRef } from "react";
 
 type ZIndexContextType = {
     getZIndex: () => number;
@@ -8,16 +8,16 @@ type ZIndexContextType = {
 export const ZIndexContext = createContext<ZIndexContextType | undefined>(undefined);
 
 export const ZIndexProvider = ({ children }) => {
-    const [stack, setStack] = useState<number[]>([]);
+    const stack = useRef<number[]>([]);
 
     const getZIndex = () => {
-        const newZIndex = (stack.length > 0 ? stack[stack.length - 1] : 1000) + 1;
-        setStack(prevStack => [...prevStack, newZIndex]);
+        const newZIndex = (stack.current.length > 0 ? stack.current[stack.current.length - 1] : 1000) + 1;
+        stack.current.push(newZIndex);
         return newZIndex;
     };
 
     const releaseZIndex = () => {
-        setStack(prevStack => prevStack.slice(0, prevStack.length - 1));
+        stack.current.pop();
     };
 
     return (

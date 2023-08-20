@@ -381,14 +381,13 @@ export const RunView = ({
     isOpen,
     onClose,
     runnableObject,
-    zIndex = 400,
 }: RunViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const display = toDisplay(isOpen);
-    console.log("run view", zIndex);
+    console.log("run view");
 
     // Find data in URL (e.g. current step, runID, whether or not this is a test run)
     const params = useReactSearch(null);
@@ -959,7 +958,6 @@ export const RunView = ({
                     routineVersion={(currentStep as SubroutineStep).routineVersion}
                     run={run as RunRoutine}
                     loading={subroutinesLoading}
-                    zIndex={zIndex}
                 />;
             case ProjectStepType.Directory:
                 return null; //TODO
@@ -972,10 +970,9 @@ export const RunView = ({
                     routineList={stepFromLocation(locationFromRoutineVersionId(currentStep.parentRoutineVersionId, steps) ?? [], steps) as unknown as RoutineListStep}
                     // eslint-disable-next-line @typescript-eslint/no-empty-function
                     onClose={() => { }}
-                    zIndex={zIndex}
                 />;
         }
-    }, [currentStep, handleUserInputsUpdate, run, saveProgress, steps, subroutinesLoading, toDecision, zIndex]);
+    }, [currentStep, handleUserInputsUpdate, run, saveProgress, steps, subroutinesLoading, toDecision]);
 
     return (
         <MaybeLargeDialog
@@ -983,7 +980,6 @@ export const RunView = ({
             id="run-dialog"
             isOpen={isOpen ?? false}
             onClose={onClose}
-            zIndex={zIndex}
         >
             <Box sx={{ minHeight: "100vh" }}>
                 <Box sx={{
@@ -1021,7 +1017,7 @@ export const RunView = ({
                                     <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
                                     : null}
                                 {/* Help icon */}
-                                {instructions && <HelpButton markdown={instructions} zIndex={zIndex} />}
+                                {instructions && <HelpButton markdown={instructions} />}
                             </Stack>
                             {/* Steps explorer drawer */}
                             <RunStepsDialog
@@ -1031,7 +1027,6 @@ export const RunView = ({
                                 history={progress}
                                 percentComplete={progressPercentage}
                                 rootStep={steps}
-                                zIndex={zIndex + 3}
                             />
                         </Box>
                         {/* Progress bar */}

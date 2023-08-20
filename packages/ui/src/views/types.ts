@@ -12,7 +12,6 @@ export type ViewProps = {
     /** Treated as a dialog when provided */
     isOpen?: boolean;
     onClose?: () => unknown;
-    zIndex: number;
 }
 
 export type ObjectViewProps<T extends ListObject> = ViewProps & {
@@ -46,7 +45,6 @@ export type ChatViewProps = ViewProps & {
     chatInfo?: Partial<Chat>;
     context?: string | null | undefined;
     task?: AssistantTask;
-    zIndex: number;
 }
 
 export type HistorySearchViewProps = ViewProps

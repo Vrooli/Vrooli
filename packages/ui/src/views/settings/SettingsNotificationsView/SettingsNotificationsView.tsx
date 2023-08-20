@@ -15,7 +15,6 @@ import { SettingsNotificationsViewProps } from "../types";
 export const SettingsNotificationsView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsNotificationsViewProps) => {
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
@@ -32,7 +31,6 @@ export const SettingsNotificationsView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Notification", { count: 2 })}
-                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />
@@ -62,7 +60,6 @@ export const SettingsNotificationsView = ({
                             display={display}
                             isLoading={isLoading || isUpdating}
                             onCancel={formik.resetForm}
-                            zIndex={zIndex}
                             {...formik}
                         />}
                     </Formik>

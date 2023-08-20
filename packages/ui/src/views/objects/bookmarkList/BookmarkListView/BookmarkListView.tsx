@@ -27,7 +27,6 @@ import { BookmarkListViewProps } from "../types";
 export const BookmarkListView = ({
     isOpen,
     onClose,
-    zIndex,
 }: BookmarkListViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -101,7 +100,6 @@ export const BookmarkListView = ({
                 isOpen={searchOpen}
                 handleCancel={closeSearch}
                 handleComplete={closeSearch}
-                zIndex={zIndex + 1}
             />
             <TopBar
                 display={display}
@@ -124,13 +122,11 @@ export const BookmarkListView = ({
                         onInputChange={onBookmarkSelect}
                         options={autocompleteOptions}
                         sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                        zIndex={zIndex}
                     />
                 </Box>}
-                zIndex={zIndex}
             />
             <>
-                <SideActionButtons display={display} zIndex={zIndex + 1}>
+                <SideActionButtons display={display} >
                     {/* Edit button */}
                     <ColorIconButton aria-label="Edit list" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
@@ -149,7 +145,6 @@ export const BookmarkListView = ({
                         items={bookmarks}
                         keyPrefix="bookmark-list-item"
                         loading={isLoading}
-                        zIndex={zIndex}
                     />
                 </ListContainer>
             </>

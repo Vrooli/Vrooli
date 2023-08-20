@@ -20,7 +20,6 @@ export const SubroutineInfoDialog = ({
     isEditing,
     open,
     onClose,
-    zIndex,
 }: SubroutineInfoDialogProps) => {
     const session = useContext(SessionContext);
 
@@ -43,7 +42,6 @@ export const SubroutineInfoDialog = ({
             onClose={onClose}
             isOpen={open}
             titleId={""}
-            zIndex={zIndex}
         >
             <Formik
                 enableReinitialize={true}
@@ -69,7 +67,6 @@ export const SubroutineInfoDialog = ({
                     onCancel={onClose}
                     ref={formRef}
                     versions={[]}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

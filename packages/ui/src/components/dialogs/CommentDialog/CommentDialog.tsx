@@ -28,7 +28,6 @@ export const CommentDialog = ({
     onCancel,
     parent,
     ref,
-    zIndex,
     ...props
 }: CommentDialogProps) => {
     const session = useContext(SessionContext);
@@ -53,14 +52,12 @@ export const CommentDialog = ({
             isOpen={isOpen}
             onClose={onCancel}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={onCancel}
                 title={t(isCreate ? "AddComment" : "EditComment")}
                 titleId={titleId}
-                zIndex={zIndex}
             />
             <BaseForm
                 dirty={dirty}
@@ -98,7 +95,6 @@ export const CommentDialog = ({
                             border: "none",
                         },
                     }}
-                    zIndex={zIndex}
                 />
                 {/* Display parent underneath */}
                 {parent && (
@@ -117,7 +113,6 @@ export const CommentDialog = ({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
-                    zIndex={zIndex}
                 />
             </BaseForm>
         </LargeDialog>

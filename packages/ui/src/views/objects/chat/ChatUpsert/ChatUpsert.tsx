@@ -21,7 +21,6 @@ export const ChatUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: ChatUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -56,13 +55,11 @@ export const ChatUpsert = ({
             id="chat-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateChat" : "UpdateChat")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -88,7 +85,6 @@ export const ChatUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

@@ -77,7 +77,6 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -111,7 +110,6 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                     <RelationshipList
                         isEditing={true}
                         objectType={"SmartContract"}
-                        zIndex={zIndex}
                     />
                     <FormSection>
                         <LanguageInput
@@ -120,7 +118,6 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -135,24 +132,18 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                             minRows={4}
                             maxRows={8}
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
                     </FormSection>
                     <CodeInput
                         disabled={false}
                         limitTo={[StandardLanguage.Solidity, StandardLanguage.Haskell]}
                         name="content"
-                        zIndex={zIndex}
                     />
                     <ResourceListHorizontalInput
                         isCreate={true}
                         parent={{ __typename: "SmartContractVersion", id: values.id }}
-                        zIndex={zIndex}
                     />
-                    <TagSelector
-                        name="root.tags"
-                        zIndex={zIndex}
-                    />
+                    <TagSelector name="root.tags" />
                     <VersionInput
                         fullWidth
                         versions={versions}
@@ -167,7 +158,6 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

@@ -31,7 +31,6 @@ import { QuestionViewProps } from "../types";
 export const QuestionView = ({
     isOpen,
     onClose,
-    zIndex,
 }: QuestionViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -76,10 +75,9 @@ export const QuestionView = ({
                 objectId={existing?.id ?? ""}
                 objectType={CommentFor.Question}
                 onAddCommentClose={closeAddCommentDialog}
-                zIndex={zIndex}
             />
         </Box>
-    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette, zIndex]);
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette]);
 
     return (
         <>
@@ -91,9 +89,7 @@ export const QuestionView = ({
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -109,7 +105,6 @@ export const QuestionView = ({
                     <RelationshipList
                         isEditing={false}
                         objectType={"Question"}
-                        zIndex={zIndex}
                     />
                     {/* Date and tags */}
                     <Stack direction="row" spacing={1} mt={2} mb={1}>
@@ -118,7 +113,6 @@ export const QuestionView = ({
                             loading={isLoading}
                             showIcon={true}
                             timestamp={existing?.created_at}
-                            zIndex={zIndex}
                         />
                         {exists(tags) && tags.length > 0 && <TagList
                             maxCharacters={30}
@@ -127,22 +121,19 @@ export const QuestionView = ({
                             sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                         />}
                     </Stack>
-                    <MarkdownDisplay content={subtitle} zIndex={zIndex} />
+                    <MarkdownDisplay content={subtitle} />
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}
                         exclude={[ObjectAction.Edit]} // Handled elsewhere
                         object={existing}
-                        zIndex={zIndex}
                     />
                     {/* Comments */}
                     {comments}
                 </Stack>}
             </Formik>
-            {/* Edit button (if canUpdate)*/}
             <SideActionButtons
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 {/* Edit button */}

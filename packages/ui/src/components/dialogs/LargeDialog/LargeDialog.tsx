@@ -1,4 +1,5 @@
 import { Dialog, useTheme } from "@mui/material";
+import { useZIndex } from "hooks/useZIndex";
 import { UpTransition } from "../../transitions";
 import { LargeDialogProps, MaybeLargeDialogProps } from "../types";
 
@@ -8,10 +9,11 @@ export const LargeDialog = ({
     isOpen,
     onClose,
     titleId,
-    zIndex,
     sxs,
 }: LargeDialogProps) => {
     const { palette, spacing } = useTheme();
+    const zIndex = useZIndex(isOpen);
+    console.log("largedialog zIndex", zIndex);
 
     return (
         <Dialog
@@ -22,10 +24,10 @@ export const LargeDialog = ({
             aria-labelledby={titleId}
             TransitionComponent={UpTransition}
             sx={{
-                zIndex: zIndex + 999,
+                zIndex,
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
-                        zIndex: zIndex + 999,
+                        zIndex,
                         margin: { xs: 0, sm: 2, md: 4 },
                         minWidth: { xs: "100vw", sm: "unset" },
                         maxWidth: { xs: "100vw", sm: "calc(100vw - 64px)" },

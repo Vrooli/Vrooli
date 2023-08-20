@@ -58,21 +58,19 @@ export const CookieSettingsDialog = ({
             isOpen={isOpen}
             onClose={onCancel}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={onCancel}
                 title={t("CookieSettings")}
                 titleId={titleId}
-                zIndex={zIndex}
             />
             <form onSubmit={formik.handleSubmit} style={{ padding: "16px" }}>
                 {/* Strictly necessary */}
                 <Stack direction="column" spacing={2} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t("CookieStrictlyNecessary")}</Typography>
-                        <HelpButton markdown={t("CookieStrictlyNecessaryDescription")} zIndex={zIndex} />
+                        <HelpButton markdown={t("CookieStrictlyNecessaryDescription")} />
                         <ToggleSwitch
                             checked={formik.values.strictlyNecessary}
                             onChange={formik.handleChange}
@@ -92,7 +90,7 @@ export const CookieSettingsDialog = ({
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t("Performance")}</Typography>
-                        <HelpButton markdown={t("CookiePerformanceDescription")} zIndex={zIndex} />
+                        <HelpButton markdown={t("CookiePerformanceDescription")} />
                         <ToggleSwitch
                             checked={formik.values.performance}
                             name="performance"
@@ -111,7 +109,7 @@ export const CookieSettingsDialog = ({
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t("Functional")}</Typography>
-                        <HelpButton markdown={t("CookieFunctionalDescription")} zIndex={zIndex} />
+                        <HelpButton markdown={t("CookieFunctionalDescription")} />
                         <ToggleSwitch
                             checked={formik.values.functional}
                             name="functional"
@@ -130,7 +128,7 @@ export const CookieSettingsDialog = ({
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 4 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t("Targeting")}</Typography>
-                        <HelpButton markdown={t("CookieTargetingDescription")} zIndex={zIndex} />
+                        <HelpButton markdown={t("CookieTargetingDescription")} />
                         <ToggleSwitch
                             checked={formik.values.targeting}
                             name="targeting"

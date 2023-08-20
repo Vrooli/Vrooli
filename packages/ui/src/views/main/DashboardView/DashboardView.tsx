@@ -35,7 +35,6 @@ import { DashboardViewProps } from "../types";
 export const DashboardView = ({
     isOpen,
     onClose,
-    zIndex,
 }: DashboardViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -235,7 +234,6 @@ export const DashboardView = ({
                 onCancel={closeCreateNote}
                 onCompleted={onNoteCreated}
                 overrideObject={{ __typename: "NoteVersion" }}
-                zIndex={zIndex + 1001}
             />
             {/* Main content */}
             <TopBar
@@ -252,7 +250,6 @@ export const DashboardView = ({
                         tabs={tabs}
                     />
                 )}
-                zIndex={zIndex}
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: "5vh", sm: "20vh" } }}>
@@ -267,7 +264,6 @@ export const DashboardView = ({
                     onInputChange={onInputSelect}
                     showSecondaryLabel={true}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                    zIndex={zIndex}
                 />
             </Stack>
             {/* Result feeds */}
@@ -287,7 +283,6 @@ export const DashboardView = ({
                     loading={loading}
                     mutate={true}
                     parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
-                    zIndex={zIndex}
                 />
                 {/* Events */}
                 <ListTitleContainer
@@ -300,7 +295,6 @@ export const DashboardView = ({
                         label: t("Open"),
                         onClick: openSchedule,
                     }]}
-                    zIndex={zIndex}
                 >
                     <ObjectList
                         dummyItems={new Array(5).fill("Event")}
@@ -308,7 +302,6 @@ export const DashboardView = ({
                         keyPrefix="event-list-item"
                         loading={loading}
                         onClick={onClick}
-                        zIndex={zIndex}
                     />
                 </ListTitleContainer>
                 {/* Reminders */}
@@ -318,7 +311,6 @@ export const DashboardView = ({
                     loading={loading}
                     listId={reminderListId}
                     reminders={reminders}
-                    zIndex={zIndex}
                 />
                 {/* Notes */}
                 <ListTitleContainer
@@ -335,7 +327,6 @@ export const DashboardView = ({
                         label: t("Create"),
                         onClick: openCreateNote,
                     }]}
-                    zIndex={zIndex}
                 >
                     <ObjectList
                         dummyItems={new Array(5).fill("Note")}
@@ -343,7 +334,6 @@ export const DashboardView = ({
                         keyPrefix="note-list-item"
                         loading={loading}
                         onClick={onClick}
-                        zIndex={zIndex}
                     />
                 </ListTitleContainer>
             </Box>

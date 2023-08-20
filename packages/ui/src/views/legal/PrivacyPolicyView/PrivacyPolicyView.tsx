@@ -51,7 +51,6 @@ export const policyTabParams = [
 export const PrivacyPolicyView = ({
     isOpen,
     onClose,
-    zIndex,
 }: PrivacyPolicyViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -81,10 +80,9 @@ export const PrivacyPolicyView = ({
                 onChange={handleTabChange}
                 tabs={tabs}
             />}
-            zIndex={zIndex}
         />
         <Box m={2}>
-            <MarkdownDisplay content={privacy} zIndex={zIndex} />
+            <MarkdownDisplay content={privacy} />
         </Box>
     </>;
 };

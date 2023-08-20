@@ -13,7 +13,6 @@ export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
     object: T | null | undefined;
-    zIndex: number;
 }
 
 
@@ -43,7 +42,6 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     subtitleOverride?: string;
     titleOverride?: string;
     toTheRight?: React.ReactNode;
-    zIndex: number;
 }
 export type ObjectListItemProps<T extends ListObject, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
 
@@ -95,7 +93,6 @@ export interface DateRangeMenuProps {
      * matches.
      */
     strictIntervalRange?: number;
-    zIndex: number;
 }
 
 export type RelationshipItemFocusMode = Pick<FocusMode, "id" | "name"> &
@@ -143,7 +140,6 @@ export interface RelationshipListProps {
     isEditing: boolean;
     isFormDirty?: boolean;
     objectType: ObjectType;
-    zIndex: number;
     sx?: SxType;
 }
 
@@ -192,7 +188,6 @@ export interface SearchListProps {
     onItemClick?: (item: any) => unknown;
     /** Additional where clause to pass to the query */
     where?: { [key: string]: object };
-    zIndex: number;
 }
 
 export interface SearchQueryVariablesInput<SortBy> {

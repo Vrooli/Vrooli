@@ -111,7 +111,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     limitTo,
     onlyVersioned,
     where,
-    zIndex,
 }: FindObjectDialogProps<Find, ObjectType>) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -295,7 +294,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 onCompleted={handleCreated}
                 onCancel={handleCreateClose}
                 overrideObject={{ __typename: createObjectType }}
-                zIndex={zIndex + 2}
             />}
             {/* Menu for selecting create object type */}
             {!CreateView && <Menu
@@ -324,7 +322,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 isOpen={isOpen}
                 onClose={() => { handleCancel(); }}
                 titleId={searchTitleId}
-                zIndex={zIndex}
             >
                 <TopBar
                     display="dialog"
@@ -339,7 +336,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}
-                    zIndex={zIndex}
                 />
                 <Box sx={{
                     minHeight: "500px",
@@ -355,7 +351,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         onItemClick={onInputSelect}
                         take={20}
                         searchType={searchType}
-                        zIndex={zIndex}
                         where={where}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
@@ -386,7 +381,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         </Stack>
                     )}
                 </Box>
-                <SideActionButtons display="dialog" zIndex={zIndex + 1001}>
+                <SideActionButtons display="dialog">
                     <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >
                         <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>

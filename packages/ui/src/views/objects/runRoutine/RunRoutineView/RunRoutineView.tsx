@@ -14,7 +14,6 @@ import { RunRoutineViewProps } from "../types";
 export const RunRoutineView = ({
     isOpen,
     onClose,
-    zIndex,
 }: RunRoutineViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -41,7 +40,6 @@ export const RunRoutineView = ({
                 display={display}
                 onClose={onClose}
                 title={firstString(title, t("Run", { count: 1 }))}
-                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

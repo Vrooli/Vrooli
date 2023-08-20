@@ -70,7 +70,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -143,14 +142,12 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                 <Title
                     variant="header"
                     title={nameField.value}
-                    zIndex={zIndex}
                 />
                 {/* Version */}
                 <VersionDisplay
                     currentVersion={{ versionLabel: versionlabelField.value }}
                     prefix={" - "}
                     versions={versionsField.value ?? []}
-                    zIndex={zIndex}
                 />
                 {/* Position */}
                 {isEditing ? <Box sx={{ margin: "auto" }}>
@@ -200,7 +197,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                         isEditing={isEditing}
                         isFormDirty={dirty}
                         objectType={"Routine"}
-                        zIndex={zIndex}
                     />
                     {
                         (canUpdateRoutineVersion || (exists(resourceListField.value) && Array.isArray(resourceListField.value.resources) && resourceListField.value.resources.length > 0)) && <Grid item xs={12} mb={2}>
@@ -210,7 +206,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                 handleUpdate={(newList) => { resourceListHelpers.setValue(newList); }}
                                 mutate={false}
                                 parent={{ __typename: "RoutineVersion", id: values.id }}
-                                zIndex={zIndex}
                             />
                         </Grid>
                     }
@@ -223,12 +218,10 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                     handleDelete={handleDeleteLanguage}
                                     handleCurrent={setLanguage}
                                     languages={languages}
-                                    zIndex={zIndex}
                                 /> : <SelectLanguageMenu
                                     currentLanguage={language}
                                     handleCurrent={setLanguage}
                                     languages={languages}
-                                    zIndex={zIndex}
                                 />}
                             </Grid>
                             {/* Name */}
@@ -242,7 +235,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                         language,
                                     }}
                                     title={t("Name")}
-                                    zIndex={zIndex}
                                 />
                             </Grid>
                             {/* Description */}
@@ -259,7 +251,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                         placeholder: "Description",
                                     }}
                                     title={t("Description")}
-                                    zIndex={zIndex}
                                 />
                             </Grid>
                             {/* Instructions */}
@@ -276,12 +267,11 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                         minRows: 4,
                                     }}
                                     title={t("Instructions")}
-                                    zIndex={zIndex}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 {
-                                    canUpdateRoutineVersion ? <TagSelector name='routineVersion.root.tags' zIndex={zIndex} /> :
+                                    canUpdateRoutineVersion ? <TagSelector name='routineVersion.root.tags' /> :
                                         <TagList parentId={""} tags={(tagsField.value ?? []) as any[]} />
                                 }
                             </Grid>
@@ -305,7 +295,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                 isInput={true}
                                 language={language}
                                 list={inputsField.value}
-                                zIndex={zIndex}
                             />
                         </Grid>}
                         {/* Outputs */}
@@ -316,7 +305,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                 isInput={false}
                                 language={language}
                                 list={outputsField.value}
-                                zIndex={zIndex}
                             />
                         </Grid>}
                     </Grid>
@@ -330,7 +318,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />}
         </>
     );

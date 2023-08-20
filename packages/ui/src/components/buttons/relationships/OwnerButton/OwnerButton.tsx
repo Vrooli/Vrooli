@@ -34,7 +34,6 @@ const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
 export function OwnerButton({
     isEditing,
     objectType,
-    zIndex,
 }: OwnerButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -130,7 +129,6 @@ export function OwnerButton({
                 data={ownerTypes}
                 onSelect={handleOwnerDialogSelect}
                 onClose={closeOwnerDialog}
-                zIndex={zIndex + 1}
             />
             {/* Popup for selecting organization or user */}
             {findType && <FindObjectDialog
@@ -139,7 +137,6 @@ export function OwnerButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"

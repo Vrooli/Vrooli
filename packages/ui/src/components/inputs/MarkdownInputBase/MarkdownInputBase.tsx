@@ -212,7 +212,6 @@ export const MarkdownInputBase = ({
     tabIndex,
     value,
     sxs,
-    zIndex,
 }: MarkdownInputBaseProps) => {
     const { palette, typography } = useTheme();
     const session = useContext(SessionContext);
@@ -320,7 +319,6 @@ export const MarkdownInputBase = ({
         task: "note",
         onClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
         // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        zIndex: zIndex + 1,
     });
     const openAssistantDialog = useCallback(() => {
         if (!checkIfCanEdit()) return;
@@ -924,7 +922,6 @@ export const MarkdownInputBase = ({
                                     content={internalValue}
                                     isEditable={!disabled}
                                     onChange={handleChange}
-                                    zIndex={zIndex}
                                 />
                             </Box>
                         ) :

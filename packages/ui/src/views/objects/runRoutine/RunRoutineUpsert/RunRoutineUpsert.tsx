@@ -21,7 +21,6 @@ export const RunRoutineUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: RunRoutineUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -56,13 +55,11 @@ export const RunRoutineUpsert = ({
             id="run-routine-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateRun" : "UpdateRun")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -88,7 +85,6 @@ export const RunRoutineUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

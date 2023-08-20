@@ -12,7 +12,6 @@ export const HelpButton = ({
     onClick,
     sxRoot,
     sx,
-    zIndex,
 }: HelpButtonProps) => {
     const { palette } = useTheme();
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -67,9 +66,9 @@ export const HelpButton = ({
                             },
                         }}
                     >
-                        <MenuTitle onClose={closeMenu} zIndex={zIndex} />
+                        <MenuTitle onClose={closeMenu} />
                         <Box sx={{ padding: 2, ...linkColors(palette), ...noSelect }}>
-                            <MarkdownDisplay content={markdown} zIndex={zIndex} />
+                            <MarkdownDisplay content={markdown} />
                         </Box>
                     </Menu>
                 </IconButton>

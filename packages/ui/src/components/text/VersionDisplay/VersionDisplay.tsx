@@ -16,7 +16,6 @@ export const VersionDisplay = ({
     loading = false,
     prefix = "",
     versions = [],
-    zIndex,
     ...props
 }: VersionDisplayProps) => {
     const { palette } = useTheme();
@@ -52,7 +51,7 @@ export const VersionDisplay = ({
     }), [currentVersion, openVersion, versions]);
 
     // Versions popup
-    const [anchorEl, setAnchorEl] = useState<any | null>(null);
+    const [anchorEl, setAnchorEl] = useState<EventTarget | null>(null);
     const open = useCallback((target: EventTarget) => {
         if (versions.length > 1) {
             setAnchorEl(target);
@@ -94,7 +93,6 @@ export const VersionDisplay = ({
                         maxHeight: "120px",
                     },
                 }}
-                zIndex={zIndex + 1}
             >
                 {/* Versions list */}
                 <List>

@@ -18,7 +18,6 @@ import { RunRoutineButtonProps } from "../types";
 export function RunRoutineButton({
     isEditing,
     objectType,
-    zIndex,
 }: RunRoutineButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -86,7 +85,6 @@ export function RunRoutineButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"

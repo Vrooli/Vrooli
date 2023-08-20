@@ -26,7 +26,6 @@ export const EndNode = ({
     linksIn,
     node,
     scale = 1,
-    zIndex,
 }: EndNodeProps) => {
 
     /**
@@ -94,7 +93,6 @@ export const EndNode = ({
                 availableActions={[BuildAction.AddListBeforeNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.DeleteNode]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id); }}
-                zIndex={zIndex + 1}
             />
             {/* Normal-click menu */}
             <NodeEndDialog
@@ -103,7 +101,6 @@ export const EndNode = ({
                 isOpen={editDialogOpen}
                 language={language}
                 node={node}
-                zIndex={zIndex + 1}
             />
             <DraggableNode
                 className="handle"

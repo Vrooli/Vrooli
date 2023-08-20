@@ -64,7 +64,6 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -113,10 +112,9 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                         handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
                         languages={languages}
-                        zIndex={zIndex + 1}
                     />
                     {/* Enter link or search for object */}
-                    <LinkInput onObjectData={foundLinkData} zIndex={zIndex} />
+                    <LinkInput onObjectData={foundLinkData} />
                     <Selector
                         name="usedFor"
                         options={Object.keys(ResourceUsedFor)}
@@ -149,7 +147,6 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

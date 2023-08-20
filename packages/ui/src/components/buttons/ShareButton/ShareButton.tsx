@@ -7,7 +7,6 @@ import { ShareButtonProps } from "../types";
 
 export const ShareButton = ({
     object,
-    zIndex,
 }: ShareButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -22,7 +21,6 @@ export const ShareButton = ({
                 object={object}
                 open={open}
                 onClose={closeDialog}
-                zIndex={zIndex + 1}
             />
             <Tooltip title={t("Share")}>
                 <IconButton aria-label={t("Share")} size="small" onClick={openDialog}>

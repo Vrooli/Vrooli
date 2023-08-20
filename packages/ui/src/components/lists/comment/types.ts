@@ -11,7 +11,6 @@ export interface CommentThreadProps {
     canOpen: boolean;
     data: CommentThread | null;
     language: string;
-    zIndex: number;
 }
 
 export interface CommentThreadItemProps {
@@ -21,9 +20,6 @@ export interface CommentThreadItemProps {
     isOpen: boolean;
     language: string;
     loading: boolean;
-    /**
-     * Object which has a comment, not the comment itself or the comment thread
-     */
+    /** Object which has a comment, not the comment itself or the comment thread */
     object: NavigableObject | null | undefined;
-    zIndex: number;
 }

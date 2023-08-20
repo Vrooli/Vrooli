@@ -16,7 +16,6 @@ import { StandardInputProps } from "../types";
 export const StandardInput = ({
     disabled = false,
     fieldName,
-    zIndex,
 }: StandardInputProps) => {
     const { palette } = useTheme();
 
@@ -60,7 +59,6 @@ export const StandardInput = ({
                         fieldData={field.value}
                         // eslint-disable-next-line @typescript-eslint/no-empty-function
                         onUpload={() => { }}
-                        zIndex={zIndex}
                     /> :
                         <Typography
                             variant="body2"
@@ -87,7 +85,6 @@ export const StandardInput = ({
                             inputType={inputType.value}
                             isEditing={true}
                             storageKey={schemaKey}
-                            zIndex={zIndex}
                         />
                     </Box>
             }

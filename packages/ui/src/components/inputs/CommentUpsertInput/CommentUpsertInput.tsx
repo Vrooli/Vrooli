@@ -23,7 +23,6 @@ export const CommentUpsertInput = ({
     onCancel,
     onCompleted,
     parent,
-    zIndex,
 }: CommentUpsertInputProps) => {
     const session = useContext(SessionContext);
     const { breakpoints } = useTheme();
@@ -76,7 +75,6 @@ export const CommentUpsertInput = ({
                     onCancel={handleCancel}
                     parent={parent}
                     ref={formRef}
-                    zIndex={zIndex + 1}
                     {...formik}
                 />;
                 return <CommentForm
@@ -86,7 +84,6 @@ export const CommentUpsertInput = ({
                     isOpen={isOpen}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />;
             }}

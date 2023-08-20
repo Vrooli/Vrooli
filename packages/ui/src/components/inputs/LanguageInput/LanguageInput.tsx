@@ -15,7 +15,6 @@ export const LanguageInput = ({
     handleDelete,
     handleCurrent,
     languages,
-    zIndex,
 }: LanguageInputProps) => {
     const session = useContext(SessionContext);
 
@@ -64,7 +63,6 @@ export const LanguageInput = ({
                 sxs={{
                     root: { marginLeft: 0.5, marginRight: 0.5 },
                 }}
-                zIndex={zIndex + 1}
             />
             {/* Display how many translations there are, besides currently selected */}
             {

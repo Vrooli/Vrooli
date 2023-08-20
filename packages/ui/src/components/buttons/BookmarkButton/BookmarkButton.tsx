@@ -20,7 +20,6 @@ export const BookmarkButton = ({
     bookmarkFor,
     bookmarks,
     sxs,
-    zIndex,
 }: BookmarkButtonProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -99,7 +98,6 @@ export const BookmarkButton = ({
                 onClose={(inList: boolean) => { closeSelect(); closeBookmarkDialog(); }}
                 isCreate={!isBookmarkDialogOpen} // Hook only sets bookmark dialog when updating
                 isOpen={isSelectOpen || isBookmarkDialogOpen}
-                zIndex={zIndex + 1}
             />
             {/* Main content */}
             <Tooltip title={t("Bookmark", { count: 1 })}>

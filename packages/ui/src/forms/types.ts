@@ -55,18 +55,15 @@ export interface BaseObjectFormProps<T> extends FormikProps<T> {
     isOpen: boolean;
     onCancel: () => unknown;
     ref: React.RefObject<any>;
-    zIndex: number;
 }
 
 export interface BaseGeneratedFormProps {
     schema: FormSchema;
     onSubmit: (values: any) => void;
-    zIndex: number;
 }
 
 export interface FormProps {
     onFormChange?: (form: Forms) => unknown;
-    zIndex: number;
 }
 
 export interface ForgotPasswordFormProps extends FormProps {

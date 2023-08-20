@@ -87,7 +87,6 @@ export const searchViewTabParams = [{
 export const SearchView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SearchViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -169,7 +168,6 @@ export const SearchView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             {searchType && <SearchList
                 id="main-search-page-list"
@@ -177,13 +175,11 @@ export const SearchView = ({
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                zIndex={zIndex}
                 where={where()}
                 sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionButtons
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >

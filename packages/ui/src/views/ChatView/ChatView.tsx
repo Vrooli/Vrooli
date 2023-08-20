@@ -45,7 +45,6 @@ export const ChatView = ({
     isOpen,
     onClose,
     task,
-    zIndex,
 }: ChatViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -199,7 +198,6 @@ export const ChatView = ({
             id="chat-dialog"
             isOpen={isOpen ?? false}
             onClose={onClose}
-            zIndex={zIndex}
         >
             <Formik
                 enableReinitialize={true}
@@ -273,7 +271,6 @@ export const ChatView = ({
                         }}
                         // TODO change title so that when pressed, you can switch chats or add a new chat
                         title={firstString(title, botSettings ? "AI Chat" : "Chat")}
-                        zIndex={zIndex}
                     />
                     {/* TODO add ChatSideMenu component */}
                     <Stack direction="column" spacing={4}>
@@ -291,7 +288,6 @@ export const ChatView = ({
                                             updatedMessage,
                                         ));
                                     }}
-                                    zIndex={zIndex}
                                 />;
                             })}
                         </Box>
@@ -333,7 +329,6 @@ export const ChatView = ({
                                     bar: { borderRadius: 0 },
                                     textArea: { paddingRight: 4, border: "none" },
                                 }}
-                                zIndex={zIndex}
                             />
                         </Box>
                     </Stack>

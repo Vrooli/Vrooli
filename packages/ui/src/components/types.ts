@@ -8,7 +8,6 @@ export interface ChatBubbleProps {
     index: number;
     isOwn: boolean;
     onUpdated: (message: ChatMessage & { isUnsent: boolean }) => unknown;
-    zIndex: number;
 }
 
 export interface ChatBubbleStatusProps {

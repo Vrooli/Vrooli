@@ -28,7 +28,6 @@ export function CommentThreadItem({
     language,
     loading,
     object,
-    zIndex,
 }: CommentThreadItemProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -165,7 +164,6 @@ export function CommentThreadItem({
                             bookmarkFor={BookmarkFor.Comment}
                             isBookmarked={isBookmarked ?? false}
                             showBookmarks={false}
-                            zIndex={zIndex}
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton
@@ -174,11 +172,10 @@ export function CommentThreadItem({
                                 <ReplyIcon fill={palette.background.textSecondary} />
                             </IconButton>
                         </Tooltip>}
-                        <ShareButton object={object} zIndex={zIndex} />
+                        <ShareButton object={object} />
                         {canReport && <ReportButton
                             forId={data?.id ?? ""}
                             reportFor={objectType as any as ReportFor}
-                            zIndex={zIndex}
                         />}
                         {canDelete && <Tooltip title="Delete" placement='top'>
                             <IconButton
@@ -200,7 +197,6 @@ export function CommentThreadItem({
                             onCancel={handleUpsertCommentClose}
                             onCompleted={handleCommentUpsert}
                             parent={(object as any) ?? null}
-                            zIndex={zIndex}
                         />
                     }
                 </Stack>

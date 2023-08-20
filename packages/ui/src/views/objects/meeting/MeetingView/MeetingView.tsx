@@ -17,7 +17,6 @@ import { MeetingViewProps } from "../types";
 export const MeetingView = ({
     isOpen,
     onClose,
-    zIndex,
 }: MeetingViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -56,9 +55,7 @@ export const MeetingView = ({
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

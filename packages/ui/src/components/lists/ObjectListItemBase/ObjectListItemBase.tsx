@@ -54,7 +54,6 @@ export function ObjectListItemBase<T extends ListObject>({
     subtitleOverride,
     titleOverride,
     toTheRight,
-    zIndex,
 }: ObjectListItemProps<T>) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -229,7 +228,6 @@ export function ObjectListItemBase<T extends ListObject>({
                     bookmarkFor={bookmarkFor}
                     isBookmarked={isBookmarked}
                     bookmarks={getCounts(object).bookmarks}
-                    zIndex={zIndex}
                 />}
                 {canComment && (<CommentsButton
                     commentsCount={getCounts(object).comments}
@@ -242,7 +240,7 @@ export function ObjectListItemBase<T extends ListObject>({
                 />}
             </Stack>
         );
-    }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, zIndex, canComment]);
+    }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
     const actionData = useObjectActions({
         canNavigate,
@@ -261,7 +259,6 @@ export function ObjectListItemBase<T extends ListObject>({
                 exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={object}
                 onClose={closeContextMenu}
-                zIndex={zIndex + 1}
             />
             {/* List item */}
             <ListItem
@@ -311,7 +308,6 @@ export function ObjectListItemBase<T extends ListObject>({
                     {loading ? <TextLoading /> : <MarkdownDisplay
                         content={subtitleOverride ?? subtitle}
                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
-                        zIndex={zIndex}
                     />}
                     {/* Any custom components to display below the subtitle */}
                     {belowSubtitle}

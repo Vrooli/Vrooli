@@ -16,13 +16,12 @@ export const DateDisplay = ({
     showIcon = true,
     textBeforeDate = "",
     timestamp,
-    zIndex,
     ...props
 }: DateDisplayProps) => {
     const { palette } = useTheme();
 
     // Full date popup
-    const [anchorEl, setAnchorEl] = useState<any | null>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = useCallback((target: EventTarget) => {
         setAnchorEl(target);
     }, []);
@@ -44,7 +43,6 @@ export const DateDisplay = ({
             <PopoverWithArrow
                 anchorEl={anchorEl}
                 handleClose={close}
-                zIndex={(zIndex ?? 100000) + 1}
             >
                 <Typography variant="body2" color={palette.background.textPrimary}>
                     {displayDate(timestamp, true)}

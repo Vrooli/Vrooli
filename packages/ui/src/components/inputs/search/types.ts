@@ -17,7 +17,6 @@ export type SiteSearchBarProps = Omit<InputProps, "onChange" | "onInputChange"> 
         paper?: SxType;
         root?: SxType;
     };
-    zIndex: number;
 }
 
 export type SettingsSearchBarProps = InputProps & {

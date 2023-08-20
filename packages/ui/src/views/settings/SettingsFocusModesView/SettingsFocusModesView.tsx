@@ -20,7 +20,6 @@ import { SettingsFocusModesViewProps } from "../types";
 export const SettingsFocusModesView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsFocusModesViewProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -161,13 +160,11 @@ export const SettingsFocusModesView = ({
                 onCancel={handleCloseDialog}
                 onCompleted={handleCompleted}
                 overrideObject={editingFocusMode ?? { __typename: "FocusMode" }}
-                zIndex={zIndex + 2}
             />
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
                 title={t("FocusMode", { count: 2 })}
-                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />

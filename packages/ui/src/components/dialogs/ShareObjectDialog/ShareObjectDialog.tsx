@@ -38,7 +38,6 @@ export const ShareObjectDialog = ({
     object,
     open,
     onClose,
-    zIndex,
 }: ShareObjectDialogProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -88,14 +87,12 @@ export const ShareObjectDialog = ({
             isOpen={open}
             onClose={onClose}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={onClose}
                 title={t("Share")}
                 titleId={titleId}
-                zIndex={zIndex}
             />
             <Stack direction="column" spacing={2} p={2} sx={{ justifyContent: "center", alignItems: "center" }}>
                 <Box

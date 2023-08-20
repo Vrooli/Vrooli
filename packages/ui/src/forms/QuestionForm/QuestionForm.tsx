@@ -55,7 +55,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -89,7 +88,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                     <RelationshipList
                         isEditing={true}
                         objectType={"Question"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
                     <FormSection>
@@ -99,7 +97,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -125,13 +122,9 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                                     background: palette.background.paper,
                                 },
                             }}
-                            zIndex={zIndex}
                         />
                     </FormSection>
-                    <TagSelector
-                        name="tags"
-                        zIndex={zIndex}
-                    />
+                    <TagSelector name="tags" />
                 </FormContainer>
             </BaseForm>
             <GridSubmitButtons
@@ -142,7 +135,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

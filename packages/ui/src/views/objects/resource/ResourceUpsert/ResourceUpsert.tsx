@@ -22,7 +22,6 @@ export const ResourceUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: ResourceUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -63,14 +62,12 @@ export const ResourceUpsert = ({
             id="resource-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={isCreate ? t("CreateResource") : t("UpdateResource")}
                 help={t("ResourceHelp")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -105,7 +102,6 @@ export const ResourceUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

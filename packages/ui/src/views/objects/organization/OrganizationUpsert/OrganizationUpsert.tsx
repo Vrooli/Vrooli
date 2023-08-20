@@ -21,7 +21,6 @@ export const OrganizationUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: OrganizationUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -55,13 +54,11 @@ export const OrganizationUpsert = ({
             id="organization-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateOrganization" : "UpdateOrganization")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -87,7 +84,6 @@ export const OrganizationUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

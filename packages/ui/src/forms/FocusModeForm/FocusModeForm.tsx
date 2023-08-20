@@ -57,7 +57,6 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -93,7 +92,6 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                 onCancel={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
-                zIndex={zIndex + 1001}
             />
             <BaseForm
                 dirty={dirty}
@@ -190,30 +188,21 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                     <ResourceListHorizontalInput
                         isCreate={true}
                         parent={{ __typename: "FocusMode", id: values.id }}
-                        zIndex={zIndex}
                     />
                     <Title
                         Icon={HeartFilledIcon}
                         title={t("TopicsFavorite")}
                         help={t("TopicsFavoriteHelp")}
                         variant="subheader"
-                        zIndex={zIndex}
                     />
-                    <TagSelector
-                        name="favorites"
-                        zIndex={zIndex}
-                    />
+                    <TagSelector name="favorites" />
                     <Title
                         Icon={InvisibleIcon}
                         title={t("TopicsHidden")}
                         help={t("TopicsHiddenHelp")}
                         variant="subheader"
-                        zIndex={zIndex}
                     />
-                    <TagSelector
-                        name="hidden"
-                        zIndex={zIndex}
-                    />
+                    <TagSelector name="hidden" />
                 </Stack>
             </BaseForm>
             <GridSubmitButtons
@@ -224,7 +213,6 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

@@ -84,7 +84,6 @@ const MIN_DATE = new Date(2023, 1, 1);
 export const StatsSiteView = ({
     isOpen,
     onClose,
-    zIndex,
 }: StatsSiteViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -166,12 +165,11 @@ export const StatsSiteView = ({
                         index={index}
                         lineColor='white'
                         title={title}
-                        zIndex={zIndex}
                     />
                 </Box>
             );
         })
-    ), [t, visual, zIndex]);
+    ), [t, visual]);
 
     return (
         <>
@@ -185,7 +183,6 @@ export const StatsSiteView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             {/* Date range picker */}
             <DateRangeMenu
@@ -196,7 +193,6 @@ export const StatsSiteView = ({
                 onSubmit={handleDateRangeSubmit}
                 range={period}
                 strictIntervalRange={tabPeriods[currTab.tabType]}
-                zIndex={zIndex}
             />
             {/* Date range diplay */}
             <Typography
@@ -218,7 +214,6 @@ export const StatsSiteView = ({
                         justifyContent: "center",
                     },
                 }}
-                zIndex={zIndex}
             >
                 <List sx={{
                     background: palette.background.paper,
@@ -255,7 +250,6 @@ export const StatsSiteView = ({
                         justifyContent: "center",
                     },
                 }}
-                zIndex={zIndex}
             >
                 <CardGrid minWidth={275}>
                     {cards}

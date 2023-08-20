@@ -25,7 +25,6 @@ export const GridSubmitButtons = ({
     onSetSubmitting,
     onSubmit,
     sideActionButtons,
-    zIndex,
 }: GridSubmitButtonsProps) => {
     const { t } = useTranslation();
     const { breakpoints } = useTheme();
@@ -33,7 +32,7 @@ export const GridSubmitButtons = ({
     const iconStyle = useMemo<SxType>(() => (hideTextOnMobile && isMobile ? { marginLeft: 0, marginRight: 0 } : {}) as SxType, [hideTextOnMobile, isMobile]);
 
     // Errors popup
-    const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting, zIndex });
+    const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting });
 
     const hasErrors = useMemo(() => Object.values(errors ?? {}).some((value) => exists(value)), [errors]);
     const isSubmitDisabled = useMemo(() => loading || hasErrors || (disabledSubmit === true), [disabledSubmit, hasErrors, loading]);

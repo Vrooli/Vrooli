@@ -17,7 +17,6 @@ export function ContentCollapse({
     titleComponent,
     titleKey,
     titleVariables,
-    zIndex,
 }: ContentCollapseProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -54,7 +53,6 @@ export function ContentCollapse({
                 {helpText && <HelpButton
                     markdown={helpText}
                     sx={sxs?.helpButton ?? {}}
-                    zIndex={zIndex}
                 />}
                 <IconButton
                     id={`toggle-expand-icon-button-${title}`}

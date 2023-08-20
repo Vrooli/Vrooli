@@ -5,8 +5,7 @@ import { ViewDisplayType } from "views/types";
 interface SettingsFormBaseProps {
     display: ViewDisplayType;
     isLoading: boolean;
-    onCancel: () => void;
-    zIndex: number;
+    onCancel: () => unknown;
 }
 
 export interface SettingsAuthenticationFormProps extends FormikProps<ProfileEmailUpdateInput>, SettingsFormBaseProps { }

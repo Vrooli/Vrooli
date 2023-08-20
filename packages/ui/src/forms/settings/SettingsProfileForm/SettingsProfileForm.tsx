@@ -21,7 +21,6 @@ export const SettingsProfileForm = ({
     numVerifiedWallets,
     onCancel,
     values,
-    zIndex,
     ...props
 }: SettingsProfileFormProps) => {
     const session = useContext(SessionContext);
@@ -54,7 +53,6 @@ export const SettingsProfileForm = ({
                     onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                     name="profileImage"
                     profile={{ __typename: "User", ...values }}
-                    zIndex={zIndex}
                 />
                 <FormSection sx={{ marginTop: 2 }}>
                     <LanguageInput
@@ -63,7 +61,6 @@ export const SettingsProfileForm = ({
                         handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
                         languages={languages}
-                        zIndex={zIndex}
                     />
                     <Field fullWidth name="name" label={t("Name")} as={TextField} />
                     <Field fullWidth name="handle" label={t("Handle")} as={TextField} />
@@ -73,7 +70,6 @@ export const SettingsProfileForm = ({
                         minRows={4}
                         name="bio"
                         placeholder={t("Bio")}
-                        zIndex={zIndex}
                     />
                 </FormSection>
             </BaseForm>
@@ -85,7 +81,6 @@ export const SettingsProfileForm = ({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

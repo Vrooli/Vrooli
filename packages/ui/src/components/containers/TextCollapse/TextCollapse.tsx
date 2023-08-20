@@ -12,7 +12,6 @@ export function TextCollapse({
     onOpenChange,
     title,
     text,
-    zIndex,
 }: TextCollapseProps) {
     const lines = useMemo(() => {
         if (!loading) return null;
@@ -35,9 +34,8 @@ export function TextCollapse({
             isOpen={isOpen}
             onOpenChange={onOpenChange}
             title={title}
-            zIndex={zIndex}
         >
-            {text ? <MarkdownDisplay sx={{ marginTop: 0 }} content={text} zIndex={zIndex} /> : lines}
+            {text ? <MarkdownDisplay sx={{ marginTop: 0 }} content={text} /> : lines}
         </ContentCollapse>
     );
 }

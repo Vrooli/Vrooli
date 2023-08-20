@@ -22,7 +22,6 @@ export function ParentButton({
     isEditing,
     isFormDirty,
     objectType,
-    zIndex,
 }: ParentButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -119,7 +118,6 @@ export function ParentButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"

@@ -46,7 +46,6 @@ export const RoutineListNode = ({
     isEditing,
     node,
     scale = 1,
-    zIndex,
 }: RoutineListNodeProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -227,9 +226,8 @@ export const RoutineListNode = ({
             labelVisible={labelVisible}
             language={language}
             scale={scale}
-            zIndex={zIndex}
         />
-    )), [node.routineList.items, handleSubroutineAction, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale, zIndex]);
+    )), [node.routineList.items, handleSubroutineAction, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale]);
 
     /**
      * Border color indicates status of node.
@@ -293,7 +291,6 @@ export const RoutineListNode = ({
                 availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id); }}
-                zIndex={zIndex + 1}
             />
             <DraggableNode
                 className="handle"

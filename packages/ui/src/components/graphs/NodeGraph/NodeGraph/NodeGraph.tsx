@@ -37,7 +37,6 @@ export const NodeGraph = ({
     links,
     nodesById,
     scale,
-    zIndex,
 }: NodeGraphProps) => {
     const { palette } = useTheme();
 
@@ -333,9 +332,8 @@ export const NodeGraph = ({
             links={links}
             nodes={col}
             scale={scale}
-            zIndex={zIndex}
         />);
-    }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
+    }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale]);
 
     // Positive modulo function
     const mod = (n: number, m: number) => ((n % m) + m) % m;

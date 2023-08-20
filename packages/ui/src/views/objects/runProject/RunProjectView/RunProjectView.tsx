@@ -14,7 +14,6 @@ import { RunProjectViewProps } from "../types";
 export const RunProjectView = ({
     isOpen,
     onClose,
-    zIndex,
 }: RunProjectViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -41,7 +40,6 @@ export const RunProjectView = ({
                 display={display}
                 onClose={onClose}
                 title={firstString(title, t("Run", { count: 1 }))}
-                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

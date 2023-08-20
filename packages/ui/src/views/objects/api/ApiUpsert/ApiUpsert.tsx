@@ -21,7 +21,6 @@ export const ApiUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: ApiUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -56,13 +55,11 @@ export const ApiUpsert = ({
             id="api-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateApi" : "UpdateApi")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -89,7 +86,6 @@ export const ApiUpsert = ({
                     onCancel={handleCancel}
                     ref={formRef}
                     versions={[]}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

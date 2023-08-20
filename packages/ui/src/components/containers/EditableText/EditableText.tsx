@@ -14,7 +14,6 @@ export function EditableText<T extends EditTextComponent>({
     props,
     showOnNoText,
     variant,
-    zIndex,
 }: EditableTextProps<T>) {
     const [field] = useField(component.startsWith("Translated") ? `translations.${name}` : name);
 
@@ -22,12 +21,12 @@ export function EditableText<T extends EditTextComponent>({
     return (
         <>
             {/* Editing components */}
-            {isEditing && component === "Markdown" && <MarkdownInput name="name" zIndex={zIndex} {...(props as PropsByComponentType["Markdown"])} />}
-            {isEditing && component === "TranslatedMarkdown" && <TranslatedMarkdownInput name="name" zIndex={zIndex} {...(props as PropsByComponentType["TranslatedMarkdown"])} />}
+            {isEditing && component === "Markdown" && <MarkdownInput name="name" {...(props as PropsByComponentType["Markdown"])} />}
+            {isEditing && component === "TranslatedMarkdown" && <TranslatedMarkdownInput name="name" {...(props as PropsByComponentType["TranslatedMarkdown"])} />}
             {isEditing && component === "TranslatedTextField" && <TranslatedTextField name={name} {...(props as PropsByComponentType["TranslatedTextField"])} />}
             {isEditing && component === "TextField" && <Field name={name} as={TextField} {...(props as PropsByComponentType["TextField"])} />}
             {/* Display components */}
-            {!isEditing && isOfType(component, "Markdown", "TranslatedMarkdown") && <MarkdownDisplay variant={variant} content={field.value} zIndex={zIndex} />}
+            {!isEditing && isOfType(component, "Markdown", "TranslatedMarkdown") && <MarkdownDisplay variant={variant} content={field.value} />}
             {!isEditing && isOfType("TextField", "TranslatedTextField") && <Typography variant={variant}>{field.value}</Typography>}
         </>
     );

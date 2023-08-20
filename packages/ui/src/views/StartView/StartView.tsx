@@ -24,7 +24,6 @@ import { StartViewProps } from "../types";
 export const StartView = ({
     isOpen,
     onClose,
-    zIndex,
 }: StartViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -158,12 +157,10 @@ export const StartView = ({
                 handleOpenInstall={openWalletInstallDialog}
                 open={connectOpen}
                 onClose={closeWalletConnectDialog}
-                zIndex={zIndex + 1}
             />
             <WalletInstallDialog
                 open={installOpen}
                 onClose={closeWalletInstallDialog}
-                zIndex={connectOpen ? 201 : 200}
             /> */}
             {/* App bar */}
             <TopBar
@@ -171,7 +168,6 @@ export const StartView = ({
                 onClose={onClose}
                 title={t("Start")}
                 hideTitleOnDesktop
-                zIndex={zIndex}
             />
             {/* Main content */}
             <Box sx={{
@@ -224,7 +220,6 @@ export const StartView = ({
                     </Stack> */}
                     <Form
                         onFormChange={handleFormChange}
-                        zIndex={zIndex}
                     />
                 </Box>
             </Box>

@@ -15,7 +15,6 @@ import { formPaper, formSubmit } from "../../styles";
 
 export const ResetPasswordForm = ({
     onClose,
-    zIndex,
 }: ResetPasswordFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -36,7 +35,6 @@ export const ResetPasswordForm = ({
                 display="dialog"
                 onClose={onClose}
                 title={t("ResetPassword")}
-                zIndex={zIndex}
             />
             <Formik
                 initialValues={{

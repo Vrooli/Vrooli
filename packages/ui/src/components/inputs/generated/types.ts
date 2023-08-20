@@ -7,7 +7,6 @@ export interface GeneratedGridProps {
     layout?: GridContainer | GridContainerBase;
     onUpload: (fieldName: string, files: string[]) => void;
     theme: Theme;
-    zIndex: number;
 }
 
 export interface GeneratedInputComponentProps {
@@ -15,7 +14,6 @@ export interface GeneratedInputComponentProps {
     fieldData: FieldData;
     index?: number;
     onUpload: (fieldName: string, files: string[]) => void;
-    zIndex: number;
 }
 
 export interface GeneratedInputComponentWithLabelProps extends GeneratedInputComponentProps {

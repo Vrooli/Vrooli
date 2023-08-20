@@ -19,7 +19,6 @@ export const NoteUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: NoteUpsertProps) => {
     const session = useContext(SessionContext);
     const display = toDisplay(isOpen);
@@ -53,7 +52,6 @@ export const NoteUpsert = ({
             id="note-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <Formik
                 enableReinitialize={true}
@@ -81,7 +79,6 @@ export const NoteUpsert = ({
                         onCancel={handleCancel}
                         ref={formRef}
                         versions={[]}
-                        zIndex={zIndex}
                         {...formik}
                     />
                 }

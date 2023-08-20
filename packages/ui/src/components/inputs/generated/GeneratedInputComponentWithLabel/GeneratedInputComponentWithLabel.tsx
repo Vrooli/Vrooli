@@ -13,7 +13,6 @@ export const GeneratedInputComponentWithLabel = ({
     index,
     onUpload,
     textPrimary,
-    zIndex,
 }: GeneratedInputComponentWithLabelProps) => {
     console.log('rendering input component with label');
     const { t } = useTranslation();
@@ -24,9 +23,8 @@ export const GeneratedInputComponentWithLabel = ({
             disabled={false}
             index={index}
             onUpload={() => { }}
-            zIndex={zIndex}
         />
-    }, [fieldData, index, zIndex])
+    }, [fieldData, index])
 
     return (
         <Box key={index} sx={{
@@ -43,7 +41,7 @@ export const GeneratedInputComponentWithLabel = ({
                         </IconButton>
                     </Tooltip>
                     <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? t(`Input`)}</Typography>
-                    {fieldData.helpText && <HelpButton markdown={fieldData.helpText} zIndex={zIndex} />}
+                    {fieldData.helpText && <HelpButton markdown={fieldData.helpText} />}
                 </Stack>
                 {inputComponent}
             </>

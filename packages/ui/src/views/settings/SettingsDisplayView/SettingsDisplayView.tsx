@@ -20,7 +20,6 @@ import { SettingsDisplayViewProps } from "../types";
 export const SettingsDisplayView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsDisplayViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -37,7 +36,6 @@ export const SettingsDisplayView = ({
                 help={t("DisplaySettingsDescription")}
                 onClose={onClose}
                 title={t("Display")}
-                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />
@@ -68,7 +66,6 @@ export const SettingsDisplayView = ({
                             display={display}
                             isLoading={isProfileLoading || isUpdating}
                             onCancel={formik.resetForm}
-                            zIndex={zIndex}
                             {...formik}
                         />}
                     </Formik>

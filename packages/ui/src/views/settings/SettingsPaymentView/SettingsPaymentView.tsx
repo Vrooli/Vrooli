@@ -12,7 +12,6 @@ import { SettingsPaymentViewProps } from "../types";
 export const SettingsPaymentView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsPaymentViewProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -32,7 +31,6 @@ export const SettingsPaymentView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Payment", { count: 1 })}
-                zIndex={zIndex}
             />
             <Stack direction="row" mt={2}>
                 <SettingsList />

@@ -416,7 +416,6 @@ export const CodeInputBase = ({
     format,
     limitTo,
     variables,
-    zIndex,
 }: CodeInputBaseProps) => {
     console.log("codeinputbase", limitTo);
     const { palette } = useTheme();
@@ -519,7 +518,6 @@ export const CodeInputBase = ({
         task: "standard",
         onClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
         // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        zIndex: zIndex + 1,
     });
     const openAssistantDialog = useCallback(() => {
         if (disabled) return;
@@ -660,7 +658,6 @@ export const CodeInputBase = ({
                             <HelpButton
                                 markdown={t(help, { ns: "langs" })}
                                 sx={{ fill: palette.secondary.contrastText }}
-                                zIndex={zIndex}
                             />
                             {supportsValidation && <StatusButton
                                 status={errors.length === 0 ? Status.Valid : Status.Invalid}
@@ -669,7 +666,6 @@ export const CodeInputBase = ({
                                     marginRight: "auto",
                                     height: "fit-content",
                                 }}
-                                zIndex={zIndex}
                             />}
                         </Box>
                     </Grid>

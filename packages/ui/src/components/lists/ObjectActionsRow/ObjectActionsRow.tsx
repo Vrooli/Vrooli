@@ -29,7 +29,6 @@ export const ObjectActionsRow = <T extends ListObject>({
     actionData,
     exclude,
     object,
-    zIndex,
 }: ObjectActionsRowProps<T>) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -103,7 +102,6 @@ export const ObjectActionsRow = <T extends ListObject>({
             <ObjectActionDialogs
                 {...actionData}
                 object={object}
-                zIndex={zIndex + 1}
             />
             {/* Displayed actions */}
             {actions}
@@ -114,7 +112,6 @@ export const ObjectActionsRow = <T extends ListObject>({
                 exclude={[...(exclude ?? []), ...actionsDisplayed]}
                 object={object}
                 onClose={closeOverflowMenu}
-                zIndex={zIndex + 1}
             />}
         </Stack>
     );

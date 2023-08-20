@@ -59,7 +59,6 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -100,7 +99,6 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                     <RelationshipList
                         isEditing={true}
                         objectType={"Chat"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
                     <FormSection sx={{
@@ -112,7 +110,6 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <Field
                             fullWidth
@@ -126,14 +123,13 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                             minRows={4}
                             name="description"
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
                     </FormSection>
                     {/* Invite link */}
                     <Stack direction="column" spacing={1}>
                         <Stack direction="row" sx={{ alignItems: "center" }}>
                             <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
-                            <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} zIndex={zIndex} />
+                            <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
                         </Stack>
                         <Stack direction="row" spacing={0}>
                             {/* Enable/disable */}
@@ -188,7 +184,6 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

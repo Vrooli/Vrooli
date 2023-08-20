@@ -3,6 +3,7 @@
  */
 import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
 import { alpha, Box, Checkbox, IconButton, Palette, styled, SwipeableDrawer, Typography, useTheme } from "@mui/material";
+import { useZIndex } from "hooks/useZIndex";
 import { ListNumberIcon, OpenInNewIcon, StepListCloseIcon, StepListEndIcon, StepListOpenIcon } from "icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
@@ -116,11 +117,11 @@ export const RunStepsDialog = ({
     history,
     percentComplete,
     rootStep,
-    zIndex,
 }: RunStepsDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [isOpen, setIsOpen] = useState(false);
+    const zIndex = useZIndex(isOpen);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
     const closeDialog = () => { setIsOpen(false); };
 
@@ -279,7 +280,6 @@ export const RunStepsDialog = ({
                 <MenuTitle
                     onClose={closeDialog}
                     title={`Steps (${Math.floor(percentComplete)}% Complete)`}
-                    zIndex={zIndex}
                 />
                 {/* Tree display of steps */}
                 <TreeView

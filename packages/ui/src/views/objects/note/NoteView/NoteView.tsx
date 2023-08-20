@@ -20,7 +20,6 @@ import { NoteViewProps } from "../types";
 export const NoteView = ({
     isOpen,
     onClose,
-    zIndex,
 }: NoteViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -66,17 +65,14 @@ export const NoteView = ({
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <>
-                <SideActionButtons display={display} zIndex={zIndex + 1}>
+                <SideActionButtons display={display}>
                     <EllipsisActionButton>
                         <ObjectActionsRow
                             actionData={actionData}
                             object={noteVersion}
-                            zIndex={zIndex}
                         />
                     </EllipsisActionButton>
                 </SideActionButtons>
@@ -116,7 +112,6 @@ export const NoteView = ({
                             } : {}),
                         },
                     }}
-                    zIndex={zIndex}
                 />
             </>
         </>

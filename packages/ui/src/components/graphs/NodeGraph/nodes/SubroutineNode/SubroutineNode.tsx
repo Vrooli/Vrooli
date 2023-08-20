@@ -31,7 +31,6 @@ export const SubroutineNode = ({
     handleAction,
     handleUpdate,
     language,
-    zIndex,
 }: SubroutineNodeProps) => {
     const { palette } = useTheme();
 
@@ -90,7 +89,6 @@ export const SubroutineNode = ({
                 }
                 handleClose={closeContext}
                 handleSelect={(action) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine); }}
-                zIndex={zIndex + 1}
             />
             <Box
                 sx={{

@@ -15,7 +15,6 @@ import { ScheduleViewProps } from "../types";
 export const ScheduleView = ({
     isOpen,
     onClose,
-    zIndex,
 }: ScheduleViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -70,7 +69,6 @@ export const ScheduleView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Schedule", { count: 1 })}
-                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -78,7 +76,6 @@ export const ScheduleView = ({
                 anchorEl={moreMenuAnchor}
                 object={schedule as any}
                 onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
             />
             <Box sx={{
                 background: palette.mode === "light" ? "#b2b3b3" : "#303030",

@@ -24,7 +24,6 @@ export const ReportUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: ReportUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -66,14 +65,12 @@ export const ReportUpsert = ({
             id="report-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t("Report", { count: 1 })}
                 help={t("ReportsHelp")}
-                zIndex={zIndex}
             />
             <Link onClick={toExistingReports}>
                 <Typography sx={{
@@ -109,7 +106,6 @@ export const ReportUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

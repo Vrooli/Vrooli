@@ -1,6 +1,7 @@
 import { CommentFor, endpointGetStandardVersion, StandardVersion } from "@local/shared";
 import { Box, Palette, Stack, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
@@ -43,7 +44,6 @@ const containerProps = (palette: Palette) => ({
 export const StandardView = ({
     isOpen,
     onClose,
-    zIndex,
 }: StandardViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -94,9 +94,7 @@ export const StandardView = ({
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <Box sx={{
                 marginLeft: "auto",
@@ -104,36 +102,10 @@ export const StandardView = ({
                 width: "min(100%, 700px)",
                 padding: 2,
             }}>
-                {/* Edit button, positioned at bottom corner of screen */}
-                <Stack direction="row" spacing={2} sx={{
-                    position: "fixed",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: zIndex + 2,
-                    bottom: 0,
-                    right: 0,
-                    // Accounts for BottomNav
-                    marginBottom: {
-                        xs: "calc(56px + 16px + env(safe-area-inset-bottom))",
-                        md: "calc(16px + env(safe-area-inset-bottom))",
-                    },
-                    marginLeft: "calc(16px + env(safe-area-inset-left))",
-                    marginRight: "calc(16px + env(safe-area-inset-right))",
-                    height: "calc(64px + env(safe-area-inset-bottom))",
-                }}>
-                    {/* Edit button */}
-                    {permissions.canUpdate ? (
-                        <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
-                            <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </ColorIconButton>
-                    ) : null}
-                </Stack>
                 {/* Relationships */}
                 <RelationshipList
                     isEditing={false}
                     objectType={"Routine"}
-                    zIndex={zIndex}
                 />
                 {/* Resources */}
                 {Array.isArray(resourceList?.resources) && resourceList!.resources.length > 0 && <ResourceListHorizontal
@@ -144,7 +116,6 @@ export const StandardView = ({
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
                     parent={{ __typename: "StandardVersion", id: existing?.id ?? "" }}
-                    zIndex={zIndex}
                 />}
                 {/* Box with description */}
                 <Box sx={containerProps(palette)}>
@@ -153,7 +124,6 @@ export const StandardView = ({
                         text={description}
                         loading={isLoading}
                         loadingLines={2}
-                        zIndex={zIndex}
                     />
                 </Box>
                 {/* Box with standard */}
@@ -161,7 +131,6 @@ export const StandardView = ({
                     <StandardInput
                         disabled={true}
                         fieldName="preview"
-                        zIndex={zIndex}
                     />
                 </Stack>
                 {/* Tags */}
@@ -178,13 +147,11 @@ export const StandardView = ({
                         loading={isLoading}
                         showIcon={true}
                         timestamp={existing?.created_at}
-                        zIndex={zIndex}
                     />
                     <VersionDisplay
                         currentVersion={existing}
                         prefix={" - "}
                         versions={existing?.root?.versions}
-                        zIndex={zIndex}
                     />
                 </Stack>
                 {/* Votes, reports, and other basic stats */}
@@ -198,7 +165,6 @@ export const StandardView = ({
                     actionData={actionData}
                     exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                     object={existing}
-                    zIndex={zIndex}
                 />
                 {/* Comments */}
                 <Box sx={containerProps(palette)}>
@@ -208,10 +174,20 @@ export const StandardView = ({
                         objectId={existing?.id ?? ""}
                         objectType={CommentFor.StandardVersion}
                         onAddCommentClose={closeAddCommentDialog}
-                        zIndex={zIndex}
                     />
                 </Box>
             </Box>
+            <SideActionButtons
+                display={display}
+                sx={{ position: "fixed" }}
+            >
+                {/* Edit button */}
+                {permissions.canUpdate ? (
+                    <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                ) : null}
+            </SideActionButtons>
         </>
     );
 };

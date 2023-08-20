@@ -15,7 +15,6 @@ import { SettingsPrivacyViewProps } from "../types";
 export const SettingsPrivacyView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsPrivacyViewProps) => {
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
@@ -29,7 +28,6 @@ export const SettingsPrivacyView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Authentication")}
-                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />
@@ -64,7 +62,6 @@ export const SettingsPrivacyView = ({
                             display={display}
                             isLoading={isProfileLoading || isUpdating}
                             onCancel={formik.resetForm}
-                            zIndex={zIndex}
                             {...formik}
                         />}
                     </Formik>

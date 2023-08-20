@@ -152,7 +152,6 @@ const DayColumnHeader = ({ label }) => {
 export const CalendarView = ({
     isOpen,
     onClose,
-    zIndex,
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -304,13 +303,11 @@ export const CalendarView = ({
                 onCancel={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
-                zIndex={zIndex + 2}
             />
             {/* Add event button */}
             <SideActionButtons
                 // Treat as a dialog when build view is open
                 display={display}
-                zIndex={zIndex + 1}
             >
                 <ColorIconButton
                     aria-label="create event"
@@ -337,7 +334,6 @@ export const CalendarView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             <Calendar
                 localizer={localizer}

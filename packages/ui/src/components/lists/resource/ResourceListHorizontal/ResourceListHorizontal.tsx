@@ -198,7 +198,6 @@ export const ResourceListHorizontal = ({
     mutate = true,
     parent,
     title,
-    zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -296,9 +295,8 @@ export const ResourceListHorizontal = ({
                     index: 0,
                     list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
                 }) as NewResourceShape}
-            zIndex={zIndex + 1}
         /> : null
-    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id, zIndex]);
+    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id]);
 
     return (
         <>
@@ -330,7 +328,6 @@ export const ResourceListHorizontal = ({
                     }
                 }}
                 resource={selectedResource}
-                zIndex={zIndex + 1}
             />
             {title && <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>}
             <DragDropContext onDragEnd={onDragEnd}>

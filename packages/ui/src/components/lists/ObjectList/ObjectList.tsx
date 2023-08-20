@@ -29,7 +29,6 @@ export type ObjectListProps<T extends keyof ListActions | undefined> = {
     /** Whether the list is loading */
     loading: boolean,
     onClick?: (item: NavigableObject) => void,
-    zIndex: number,
 } & (T extends keyof ListActions ? ActionsType<ListActions[T & keyof ListActions]> : object);
 
 export const ObjectList = <T extends keyof ListActions | undefined>({
@@ -40,7 +39,6 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
     items,
     loading,
     onClick,
-    zIndex,
 }: ObjectListProps<T>) => {
     const stableItems = useStableObject(items);
     const stableOnClick = useStableCallback(onClick);
@@ -61,11 +59,10 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
                     loading={false}
                     objectType={curr.__typename}
                     onClick={stableOnClick}
-                    zIndex={zIndex}
                 />
             );
         });
-    }, [stableItems, canNavigate, hideUpdateButton, stableOnClick, keyPrefix, zIndex]);
+    }, [stableItems, canNavigate, hideUpdateButton, stableOnClick, keyPrefix]);
 
     // Generate dummy items
     const dummyListItems = useMemo(() => {
@@ -77,12 +74,11 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
                     hideUpdateButton={hideUpdateButton}
                     loading={true}
                     objectType={dummy}
-                    zIndex={zIndex}
                 />
             ));
         }
         return [];
-    }, [loading, dummyItems, keyPrefix, hideUpdateButton, zIndex]);
+    }, [loading, dummyItems, keyPrefix, hideUpdateButton]);
 
     return (
         <>

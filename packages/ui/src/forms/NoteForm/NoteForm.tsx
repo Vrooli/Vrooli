@@ -42,7 +42,10 @@ export const noteInitialValues = (
         language: getUserLanguages(session)[0],
         description: "",
         name: "New Note",
-        text: "",
+        pages: [{
+            __typename: "NotePage" as const,
+            text: "",
+        }],
     }]),
 });
 
@@ -64,7 +67,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -91,7 +93,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                     name="name"
                     placeholder={t("Name")}
                 />}
-                zIndex={zIndex}
             />
             <BaseForm
                 dirty={dirty}
@@ -137,7 +138,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                             } : {}),
                         },
                     }}
-                    zIndex={zIndex}
                 />
             </BaseForm>
             <GridSubmitButtons
@@ -150,18 +150,15 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                 onSubmit={props.handleSubmit}
                 sideActionButtons={{
                     display,
-                    zIndex: zIndex + 1,
                     children: (
                         <EllipsisActionButton>
                             <RelationshipList
                                 isEditing={true}
                                 objectType={"Note"}
-                                zIndex={zIndex}
                             />
                         </EllipsisActionButton>
                     ),
                 }}
-                zIndex={zIndex}
             />
         </>
     );

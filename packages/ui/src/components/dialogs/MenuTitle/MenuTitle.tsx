@@ -9,7 +9,6 @@ export const MenuTitle = ({
     helpText,
     onClose,
     title,
-    zIndex,
 }: MenuTitleProps) => {
     const { palette } = useTheme();
 
@@ -41,7 +40,6 @@ export const MenuTitle = ({
                     marginTop: "auto",
                     marginBottom: "auto",
                 }}
-                zIndex={zIndex}
             />}
             <IconButton
                 aria-label="close"

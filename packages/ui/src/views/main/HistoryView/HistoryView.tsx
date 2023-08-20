@@ -35,7 +35,6 @@ const tabParams = [{
 export const HistoryView = ({
     isOpen,
     onClose,
-    zIndex,
 }: HistoryViewProps) => {
     const display = toDisplay(isOpen);
     const {
@@ -60,7 +59,6 @@ export const HistoryView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             {searchType && <SearchList
                 id="history-page-list"
@@ -68,7 +66,6 @@ export const HistoryView = ({
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                zIndex={zIndex}
                 sxs={{
                     search: {
                         marginTop: 2,

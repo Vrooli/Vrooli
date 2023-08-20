@@ -21,7 +21,6 @@ export const BotUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: BotUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -56,13 +55,11 @@ export const BotUpsert = ({
             id="bot-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateBot" : "UpdateBot")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -89,7 +86,6 @@ export const BotUpsert = ({
                         isOpen={true}
                         onCancel={handleCancel}
                         ref={formRef}
-                        zIndex={zIndex}
                         {...formik}
                     />
                 }

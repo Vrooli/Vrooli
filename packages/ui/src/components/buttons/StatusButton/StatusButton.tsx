@@ -32,7 +32,6 @@ export const StatusButton = ({
     status,
     messages,
     sx,
-    zIndex,
 }: StatusButtonProps) => {
     const { palette } = useTheme();
 
@@ -69,10 +68,10 @@ export const StatusButton = ({
                 </IconButton>
             </Box>
             <Box sx={{ padding: 1 }}>
-                <MarkdownDisplay content={statusMarkdown} zIndex={zIndex} />
+                <MarkdownDisplay content={statusMarkdown} />
             </Box>
         </Box>
-    ), [palette.primary.dark, palette.primary.contrastText, statusMarkdown, zIndex]);
+    ), [palette.primary.dark, palette.primary.contrastText, statusMarkdown]);
 
     return (
         <>

@@ -24,7 +24,6 @@ export const SelectBookmarkListDialog = ({
     onClose,
     isCreate,
     isOpen,
-    zIndex,
 }: SelectBookmarkListDialogProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -128,7 +127,6 @@ export const SelectBookmarkListDialog = ({
                 onCancel={closeCreate}
                 onCompleted={onCreated}
                 overrideObject={{ __typename: "BookmarkList" }}
-                zIndex={zIndex + 1001}
             />
             {/* Main dialog */}
             <LargeDialog
@@ -136,7 +134,6 @@ export const SelectBookmarkListDialog = ({
                 isOpen={isOpen}
                 onClose={() => onClose(selectedLists.length > 0)}
                 titleId={titleId}
-                zIndex={zIndex}
             >
                 {/* Top bar with title and add list button */}
                 <DialogTitle id={titleId} sx={{ display: "flex" }}>
@@ -166,7 +163,6 @@ export const SelectBookmarkListDialog = ({
                     loading={isFindLoading || isCreateLoading || isDeleteLoading}
                     onCancel={onCancel}
                     onSubmit={handleSubmit}
-                    zIndex={zIndex}
                 />
             </LargeDialog>
         </>

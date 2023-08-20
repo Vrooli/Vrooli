@@ -21,7 +21,6 @@ export const StandardUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: StandardUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -56,13 +55,11 @@ export const StandardUpsert = ({
             id="standard-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateStandard" : "UpdateStandard")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -89,7 +86,6 @@ export const StandardUpsert = ({
                     onCancel={handleCancel}
                     ref={formRef}
                     versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

@@ -82,7 +82,6 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -116,7 +115,6 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                     <RelationshipList
                         isEditing={true}
                         objectType={"Standard"}
-                        zIndex={zIndex}
                     />
                     <FormSection>
                         <LanguageInput
@@ -125,7 +123,6 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -140,22 +137,14 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                             minRows={4}
                             maxRows={8}
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
                     </FormSection>
-                    <StandardInput
-                        fieldName="preview"
-                        zIndex={zIndex}
-                    />
+                    <StandardInput fieldName="preview" />
                     <ResourceListHorizontalInput
                         isCreate={true}
                         parent={{ __typename: "StandardVersion", id: values.id }}
-                        zIndex={zIndex}
                     />
-                    <TagSelector
-                        name="root.tags"
-                        zIndex={zIndex}
-                    />
+                    <TagSelector name="root.tags" />
                     <VersionInput
                         fullWidth
                         versions={versions}
@@ -170,7 +159,6 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

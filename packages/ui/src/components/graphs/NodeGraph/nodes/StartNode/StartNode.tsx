@@ -15,7 +15,6 @@ export const StartNode = ({
     label = "Start",
     labelVisible = true,
     linksOut,
-    zIndex,
 }: StartNodeProps) => {
     const { palette } = useTheme();
 
@@ -67,7 +66,6 @@ export const StartNode = ({
                 availableActions={[BuildAction.AddOutgoingLink]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option as BuildAction.AddOutgoingLink, node.id); }}
-                zIndex={zIndex + 1}
             />
             <Tooltip placement={"top"} title={label ?? ""}>
                 <Box

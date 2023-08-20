@@ -313,13 +313,11 @@ export const TutorialDialog = ({
                         title={"Wrong Page"}
                         onClose={onClose}
                         variant="subheader"
-                        zIndex={zIndex}
                     />
                     <Stack direction="column" spacing={2} p={2}>
                         <MarkdownDisplay
                             variant="body1"
                             content={"Please return to the correct page to continue the tutorial."}
-                            zIndex={zIndex}
                         />
                         <Button
                             fullWidth
@@ -345,13 +343,11 @@ export const TutorialDialog = ({
                         // Can move dialog, but not popper
                         root: { cursor: getCurrentElement() ? "auto" : "move" },
                     }}
-                    zIndex={zIndex}
                 />
                 <Box sx={{ padding: "16px" }}>
                     <MarkdownDisplay
                         variant="body1"
                         content={currentStep.text}
-                        zIndex={zIndex}
                     />
                 </Box>
                 <MobileStepper
@@ -417,7 +413,6 @@ export const TutorialDialog = ({
                     },
                     content: { padding: 0 },
                 }}
-                zIndex={zIndex}
             >
                 {content}
             </PopoverWithArrow>

@@ -64,7 +64,7 @@ const Fallback = <Box>
     <Box sx={{
         background: (t) => t.palette.primary.dark,
         height: "64px!important",
-        zIndex: 100,
+        zIndex: 1000,
         position: "fixed",
         top: 0,
         left: 0,
@@ -89,18 +89,11 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
     );
 };
 
-const zIndex = 200;
-
 /** Style for pages that don't use left/right padding */
 const noSidePadding = {
     paddingLeft: 0,
     paddingRight: 0,
 };
-
-const viewProps = ({
-    display: "page" as const,
-    zIndex,
-});
 
 export const Routes = (props: { sessionChecked: boolean }) => {
     const { palette } = useTheme();
@@ -117,31 +110,31 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sx={{ background: palette.background.paper }}
                     {...props}
                 >
-                    <AboutView {...viewProps} />
+                    <AboutView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/add`} mustBeLoggedIn={true} {...props}>
-                    <ApiUpsert {...viewProps} isCreate={true} />
+                    <ApiUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <ApiUpsert {...viewProps} isCreate={false} />
+                    <ApiUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/:rootId/:versionId?`} {...props}>
-                    <ApiView {...viewProps} />
+                    <ApiView />
                 </NavRoute>
                 <NavRoute path={LINKS.Awards} {...props}>
-                    <AwardsView {...viewProps} />
+                    <AwardsView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.BookmarkList}/add`} mustBeLoggedIn={true} {...props}>
-                    <BookmarkListUpsert {...viewProps} isCreate={true} />
+                    <BookmarkListUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.BookmarkList}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <BookmarkListUpsert {...viewProps} isCreate={false} />
+                    <BookmarkListUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.BookmarkList}/:id`} {...props}>
-                    <BookmarkListView {...viewProps} />
+                    <BookmarkListView />
                 </NavRoute>
                 <NavRoute path={LINKS.Calendar} excludePageContainer {...props}>
-                    <CalendarView {...viewProps} />
+                    <CalendarView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Create}
@@ -151,10 +144,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     mustBeLoggedIn={true}
                     {...props}
                 >
-                    <CreateView {...viewProps} />
+                    <CreateView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Chat}/:id`} {...props}>
-                    <ChatView {...viewProps} />
+                    <ChatView />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ForgotPassword}/:code?`}
@@ -163,12 +156,12 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Forgot Password" maxWidth="700px" zIndex={zIndex} {...props}>
-                        <ForgotPasswordForm zIndex={zIndex} />
+                    <FormView title="Forgot Password" maxWidth="700px" {...props}>
+                        <ForgotPasswordForm />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
-                    <HistoryView {...viewProps} />
+                    <HistoryView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Home}
@@ -178,19 +171,19 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     excludePageContainer
                     {...props}
                 >
-                    <HomeView {...viewProps} />
+                    <HomeView />
                 </NavRoute>
                 <NavRoute path={LINKS.MyStuff} mustBeLoggedIn={true} {...props}>
-                    <MyStuffView {...viewProps} />
+                    <MyStuffView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/add`} excludePageContainer mustBeLoggedIn={true} {...props}>
-                    <NoteUpsert {...viewProps} isCreate={true} />
+                    <NoteUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/edit/:rootId/:versionId`} excludePageContainer mustBeLoggedIn={true} {...props}>
-                    <NoteUpsert {...viewProps} isCreate={false} />
+                    <NoteUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/:rootId/:versionId?`} excludePageContainer {...props}>
-                    <NoteView {...viewProps} />
+                    <NoteView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Inbox}
@@ -200,16 +193,16 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     mustBeLoggedIn={true}
                     {...props}
                 >
-                    <InboxView {...viewProps} />
+                    <InboxView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationUpsert {...viewProps} isCreate={true} />
+                    <OrganizationUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/edit/:id`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationUpsert {...viewProps} isCreate={false} />
+                    <OrganizationUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/:id`} sx={noSidePadding} {...props}>
-                    <OrganizationView {...viewProps} />
+                    <OrganizationView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Premium}
@@ -218,7 +211,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="weekly"
                     {...props}
                 >
-                    <PremiumView {...viewProps} />
+                    <PremiumView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Privacy}
@@ -228,43 +221,43 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sx={{ background: palette.background.paper }}
                     {...props}
                 >
-                    <PrivacyPolicyView {...viewProps} />
+                    <PrivacyPolicyView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Profile}/add`} mustBeLoggedIn={true} {...props}>
-                    <BotUpsert {...viewProps} isCreate={true} />
+                    <BotUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Profile}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <BotUpsert {...viewProps} isCreate={false} />
+                    <BotUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Profile}/:id?`} sx={noSidePadding} {...props}>
-                    <UserView {...viewProps} />
+                    <UserView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
-                    <ProjectUpsert {...viewProps} isCreate={true} />
+                    <ProjectUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <ProjectUpsert {...viewProps} isCreate={false} />
+                    <ProjectUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/:rootId/:versionId?`} {...props}>
-                    <ProjectView {...viewProps} />
+                    <ProjectView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
-                    <QuestionUpsert {...viewProps} isCreate={true} />
+                    <QuestionUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <QuestionUpsert {...viewProps} isCreate={false} />
+                    <QuestionUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/:id`} {...props}>
-                    <QuestionView {...viewProps} />
+                    <QuestionView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
-                    <ReminderCrud {...viewProps} isCreate={true} />
+                    <ReminderCrud isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ReminderCrud {...viewProps} isCreate={false} />
+                    <ReminderCrud isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
-                    <ReminderCrud {...viewProps} isCreate={false} />
+                    <ReminderCrud isCreate={false} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ResetPassword}/:params*`}
@@ -273,18 +266,18 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Reset Password" maxWidth="700px" zIndex={zIndex} {...props}>
-                        <ResetPasswordForm zIndex={zIndex} />
+                    <FormView title="Reset Password" maxWidth="700px" {...props}>
+                        <ResetPasswordForm />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>
-                    <RoutineUpsert {...viewProps} isCreate={true} />
+                    <RoutineUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <RoutineUpsert {...viewProps} isCreate={false} />
+                    <RoutineUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/:rootId/:versionId?`} {...props}>
-                    <RoutineView {...viewProps} />
+                    <RoutineView />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.Search}/:params*`}
@@ -293,55 +286,55 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="monthly"
                     {...props}
                 >
-                    <SearchView {...viewProps} />
+                    <SearchView />
                 </NavRoute>
                 <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
-                    <SettingsView {...viewProps} />
+                    <SettingsView />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsApi} mustBeLoggedIn={true} {...props}>
-                    <SettingsApiView {...viewProps} />
+                    <SettingsApiView />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsAuthentication} mustBeLoggedIn={true} {...props}>
-                    <SettingsAuthenticationView {...viewProps} />
+                    <SettingsAuthenticationView />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsData} mustBeLoggedIn={true} {...props}>
-                    <SettingsDataView {...viewProps} />
+                    <SettingsDataView />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsDisplay} mustBeLoggedIn={true} {...props}>
-                    <SettingsDisplayView {...viewProps} />
+                    <SettingsDisplayView />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsNotifications} mustBeLoggedIn={true} {...props}>
-                    <SettingsNotificationsView {...viewProps} />
+                    <SettingsNotificationsView />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsPayments} mustBeLoggedIn={true} {...props}>
-                    <SettingsPaymentView {...viewProps} />
+                    <SettingsPaymentView />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsProfile} mustBeLoggedIn={true} {...props}>
-                    <SettingsProfileView {...viewProps} />
+                    <SettingsProfileView />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsPrivacy} mustBeLoggedIn={true} {...props}>
-                    <SettingsPrivacyView {...viewProps} />
+                    <SettingsPrivacyView />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsFocusModes} mustBeLoggedIn={true} {...props}>
-                    <SettingsFocusModesView {...viewProps} />
+                    <SettingsFocusModesView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractUpsert {...viewProps} isCreate={true} />
+                    <SmartContractUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractUpsert {...viewProps} isCreate={false} />
+                    <SmartContractUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/:rootId/:versionId?`} {...props}>
-                    <SmartContractView {...viewProps} />
+                    <SmartContractView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
-                    <StandardUpsert {...viewProps} isCreate={true} />
+                    <StandardUpsert isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <StandardUpsert {...viewProps} isCreate={false} />
+                    <StandardUpsert isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/:rootId/:versionId?`} {...props}>
-                    <StandardView {...viewProps} />
+                    <StandardView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Start}
@@ -350,7 +343,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <StartView {...viewProps} />
+                    <StartView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Stats}
@@ -359,7 +352,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="weekly"
                     {...props}
                 >
-                    <StatsView {...viewProps} />
+                    <StatsView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Terms}
@@ -369,7 +362,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sx={{ background: palette.background.paper }}
                     {...props}
                 >
-                    <TermsView {...viewProps} />
+                    <TermsView />
                 </NavRoute>
                 <NavRoute {...props}>
                     <NotFoundView />

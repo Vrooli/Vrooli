@@ -29,7 +29,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
     handleDelete,
     handleUpdate,
     language,
-    zIndex,
 }, ref) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -164,7 +163,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 isEditing={isEditing}
                                 name='name'
                                 props={{ label: t("Identifier"), fullWidth: true }}
-                                zIndex={zIndex}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -178,7 +176,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                     language,
                                     fullWidth: true,
                                 }}
-                                zIndex={zIndex}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -187,7 +184,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 isEditing={isEditing}
                                 name='helpText'
                                 props={{ placeholder: t("DetailsOptional"), language }}
-                                zIndex={zIndex}
                             />
                         </Grid>
                         {isInput && <Grid item xs={12}>
@@ -218,7 +214,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                     translations: standardVersion.translations ?? [{ __typename: "StandardVersionTranslation" as const, language: getUserLanguages(session)[0], name: "" }],
                                 } as any : null}
                                 onChange={onSwitchChange}
-                                zIndex={zIndex}
                             />
                         </Grid>
                     </Grid>

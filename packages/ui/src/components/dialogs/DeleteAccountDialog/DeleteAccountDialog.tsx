@@ -24,7 +24,6 @@ const titleId = "delete-object-dialog-title";
 export const DeleteAccountDialog = ({
     handleClose,
     isOpen,
-    zIndex,
 }: DeleteAccountDialogProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -40,13 +39,11 @@ export const DeleteAccountDialog = ({
             isOpen={isOpen}
             onClose={() => { handleClose(false); }}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 title={`Delete "${name}"`}
                 onClose={() => { handleClose(false); }}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

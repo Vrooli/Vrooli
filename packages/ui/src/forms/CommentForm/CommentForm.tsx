@@ -49,7 +49,6 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -79,7 +78,6 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
                         name="text"
                         placeholder={t("PleaseBeNice")}
                         minRows={3}
-                        zIndex={zIndex}
                     />
                 </FormContainer>
                 <GridSubmitButtons
@@ -90,7 +88,6 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
-                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

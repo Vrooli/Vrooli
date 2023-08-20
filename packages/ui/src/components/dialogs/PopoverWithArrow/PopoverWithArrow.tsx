@@ -1,5 +1,6 @@
 import { Box, ClickAwayListener, Popper, PopperPlacementType, useTheme } from "@mui/material";
 import { useHotkeys } from "hooks/useHotkeys";
+import { useZIndex } from "hooks/useZIndex";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PopoverWithArrowProps } from "../types";
 
@@ -10,11 +11,11 @@ export const PopoverWithArrow = ({
     handleClose,
     placement = "top",
     sxs,
-    zIndex,
     ...props
 }: PopoverWithArrowProps) => {
     const { palette } = useTheme();
     const isOpen = Boolean(anchorEl);
+    const zIndex = useZIndex(isOpen);
     const [canTouch, setCanTouch] = useState(false);
     const [actualPlacement, setActualPlacement] = useState(placement);
 

@@ -22,7 +22,6 @@ export const SmartContractUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: SmartContractUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -57,13 +56,11 @@ export const SmartContractUpsert = ({
             id="smart-contract-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateSmartContract" : "UpdateSmartContract")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -90,7 +87,6 @@ export const SmartContractUpsert = ({
                     onCancel={handleCancel}
                     ref={formRef}
                     versions={(existing?.root as SmartContractShape)?.versions?.map(v => v.versionLabel) ?? []}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

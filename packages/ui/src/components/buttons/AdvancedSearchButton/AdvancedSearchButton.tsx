@@ -24,13 +24,11 @@ const AdvancedSearchDialog = ({
     handleSearch,
     isOpen,
     searchType,
-    zIndex,
 }: {
     handleClose: () => unknown;
     handleSearch: (searchQuery: SearchQuery) => unknown;
     isOpen: boolean;
     searchType: SearchType | `${SearchType}`;
-    zIndex: number;
 }) => {
     const theme = useTheme();
     const { t } = useTranslation();
@@ -70,7 +68,6 @@ const AdvancedSearchDialog = ({
             isOpen={isOpen}
             onClose={handleClose}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <Formik
                 enableReinitialize={true}
@@ -95,7 +92,6 @@ const AdvancedSearchDialog = ({
                             label: t("Reset"),
                             onClick: () => { formik.resetForm(); },
                         }]}
-                        zIndex={zIndex}
                     />
                     <Box sx={{
                         margin: "auto",
@@ -112,7 +108,6 @@ const AdvancedSearchDialog = ({
                             // eslint-disable-next-line @typescript-eslint/no-empty-function
                             onUpload={() => { }}
                             theme={theme}
-                            zIndex={zIndex}
                         />}
                     </Box>
                     {/* Search/Cancel buttons */}
@@ -146,7 +141,6 @@ export const AdvancedSearchButton = ({
     advancedSearchSchema,
     searchType,
     setAdvancedSearchParams,
-    zIndex,
 }: AdvancedSearchButtonProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -197,7 +191,6 @@ export const AdvancedSearchButton = ({
                 handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
                 searchType={searchType}
-                zIndex={zIndex + 1}
             />
             {advancedSearchParams && <Tooltip title={t("SeeAllSearchSettings")} placement="top">
                 <Box

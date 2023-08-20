@@ -36,7 +36,6 @@ export function RelationshipList(props: RelationshipListProps) {
                 borderRadius: 2,
                 background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
                 overflowX: "auto",
-                zIndex: props.zIndex,
                 ...noSelect,
                 ...(props.sx ?? {}),
                 "@media print": {

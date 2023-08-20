@@ -62,7 +62,6 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -100,7 +99,6 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                             multiline: true,
                         }}
                         title={t("Label")}
-                        zIndex={zIndex}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
@@ -113,7 +111,6 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                             maxRows: 8,
                         }}
                         title={t("Description")}
-                        zIndex={zIndex}
                     />
                     <Tooltip placement={"top"} title={t("NodeWasSuccessfulHelp")}>
                         <FormControlLabel
@@ -141,7 +138,6 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

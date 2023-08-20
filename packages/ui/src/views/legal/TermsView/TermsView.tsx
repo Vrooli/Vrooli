@@ -15,7 +15,6 @@ import { TermsViewProps } from "../types";
 export const TermsView = ({
     isOpen,
     onClose,
-    zIndex,
 }: TermsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -41,10 +40,9 @@ export const TermsView = ({
                 onChange={handleTabChange}
                 tabs={tabs}
             />}
-            zIndex={zIndex}
         />
         <Box m={2}>
-            <MarkdownDisplay content={terms} zIndex={zIndex} />
+            <MarkdownDisplay content={terms} />
         </Box>
     </>;
 };

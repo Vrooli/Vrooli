@@ -140,7 +140,6 @@ export function SiteSearchBar({
     loading = false,
     showSecondaryLabel = false,
     sxs,
-    zIndex,
     ...props
 }: SiteSearchBarProps) {
     const session = useContext(SessionContext);
@@ -359,7 +358,6 @@ export function SiteSearchBar({
                             bookmarkFor={option.__typename as unknown as BookmarkFor}
                             bookmarks={option.bookmarks}
                             sxs={{ root: { marginRight: 1 } }}
-                            zIndex={zIndex}
                         />}
                         {/* If history, show delete icon */}
                         {option.isFromHistory && <Tooltip placement='right' title='Remove'>
@@ -425,7 +423,7 @@ export function SiteSearchBar({
                             // }
                         }}
                     />
-                    <MicrophoneButton onTranscriptChange={handleChange} zIndex={zIndex} />
+                    <MicrophoneButton onTranscriptChange={handleChange} />
                     <IconButton sx={{
                         width: "48px",
                         height: "48px",

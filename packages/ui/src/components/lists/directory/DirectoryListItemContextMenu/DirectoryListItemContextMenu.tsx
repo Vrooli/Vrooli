@@ -37,7 +37,6 @@ export const DirectoryListItemContextMenu = ({
     index,
     onClose,
     onDelete,
-    zIndex,
 }: DirectoryListItemContextMenuProps) => {
     const session = useContext(SessionContext);
 
@@ -74,7 +73,6 @@ export const DirectoryListItemContextMenu = ({
             data={listOptionsFiltered}
             onSelect={onMenuItemSelect}
             onClose={onClose}
-            zIndex={zIndex}
         />
     );
 };

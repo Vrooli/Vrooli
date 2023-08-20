@@ -14,5 +14,4 @@ export interface LineGraphProps {
     lineWidth?: number;
     /** Label for the y-axis of the line graph */
     yAxisLabel?: string;
-    zIndex: number;
 }

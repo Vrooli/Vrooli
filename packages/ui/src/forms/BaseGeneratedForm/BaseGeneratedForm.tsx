@@ -13,7 +13,6 @@ import { BaseGeneratedFormProps } from "../types";
 export const BaseGeneratedForm = ({
     schema,
     onSubmit,
-    zIndex,
 }: BaseGeneratedFormProps) => {
     const theme = useTheme();
 
@@ -64,7 +63,6 @@ export const BaseGeneratedForm = ({
                 layout={schema.formLayout}
                 onUpload={onUpload}
                 theme={theme}
-                zIndex={zIndex}
             />}
         </form>
     );

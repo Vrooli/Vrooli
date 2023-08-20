@@ -56,7 +56,6 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -92,7 +91,6 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                     <RelationshipList
                         isEditing={true}
                         objectType={"User"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
                     <ProfilePictureInput
@@ -100,7 +98,6 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
                         profile={{ ...values }}
-                        zIndex={zIndex}
                     />
                     <FormSection sx={{
                         overflowX: "hidden",
@@ -111,7 +108,6 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <Field
                             fullWidth
@@ -131,7 +127,6 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                             minRows={4}
                             name="bio"
                             placeholder={t("Bio")}
-                            zIndex={zIndex}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -254,7 +249,6 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

@@ -19,7 +19,6 @@ import { MeetingButtonProps } from "../types";
 export function MeetingButton({
     isEditing,
     objectType,
-    zIndex,
 }: MeetingButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -89,7 +88,6 @@ export function MeetingButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"

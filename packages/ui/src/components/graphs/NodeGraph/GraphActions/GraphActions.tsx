@@ -20,7 +20,6 @@ export const GraphActions = ({
     isEditing,
     language,
     nodesOffGraph,
-    zIndex,
 }: GraphActionsProps) => {
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
@@ -94,7 +93,6 @@ export const GraphActions = ({
                 language={language}
                 nodes={nodesOffGraph}
                 open={unlinkedNodesOpen}
-                zIndex={zIndex + 3}
             />}
         </Stack>
     );

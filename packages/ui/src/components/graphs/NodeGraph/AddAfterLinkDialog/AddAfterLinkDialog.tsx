@@ -21,7 +21,6 @@ export const AddAfterLinkDialog = ({
     nodeId,
     nodes,
     links,
-    zIndex,
 }: AddAfterLinkDialogProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -50,14 +49,12 @@ export const AddAfterLinkDialog = ({
             onClose={handleClose}
             isOpen={isOpen}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={handleClose}
                 title={t("LinkSelect")}
                 titleId={titleId}
-                zIndex={zIndex}
             />
             <DialogContent>
                 <List>

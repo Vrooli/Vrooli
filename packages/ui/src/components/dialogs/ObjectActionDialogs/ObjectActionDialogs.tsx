@@ -39,7 +39,6 @@ export const ObjectActionDialogs = ({
     closeReportDialog,
     object,
     objectType,
-    zIndex,
 }: ObjectActionDialogsProps) => {
     const session = useContext(SessionContext);
 
@@ -54,7 +53,6 @@ export const ObjectActionDialogs = ({
                 onClose={closeBookmarkDialog}
                 isCreate={true}
                 isOpen={isBookmarkDialogOpen}
-                zIndex={zIndex + 1}
             />}
             {object?.id && hasDeletingSupport && <DeleteDialog
                 isOpen={isDeleteDialogOpen}
@@ -62,7 +60,6 @@ export const ObjectActionDialogs = ({
                 objectType={objectType as unknown as DeleteType}
                 objectName={getDisplay(object, getUserLanguages(session)).title}
                 handleClose={closeDeleteDialog}
-                zIndex={zIndex + 1}
             />}
             {object?.id && hasReportingSupport && <ReportUpsert
                 isCreate={true}
@@ -70,20 +67,17 @@ export const ObjectActionDialogs = ({
                 onCancel={closeReportDialog}
                 onCompleted={closeReportDialog}
                 overrideObject={{ createdFor: { __typename: objectType as unknown as ReportFor, id: object.id } }}
-                zIndex={zIndex + 1}
             />}
             {hasSharingSupport && <ShareObjectDialog
                 object={object}
                 open={isShareDialogOpen}
                 onClose={closeShareDialog}
-                zIndex={zIndex + 1}
             />}
             {hasStatsSupport && <StatsObjectView
                 handleObjectUpdate={() => { }} //TODO
                 isOpen={isStatsDialogOpen}
                 object={object as any}
                 onClose={closeStatsDialog}
-                zIndex={zIndex + 1}
             />}
         </>
     );

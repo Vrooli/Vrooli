@@ -21,7 +21,6 @@ export interface ResourceListHorizontalProps {
     loading?: boolean;
     mutate?: boolean;
     parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
-    zIndex: number;
 }
 
 export interface ResourceListVerticalProps {
@@ -31,7 +30,6 @@ export interface ResourceListVerticalProps {
     loading: boolean;
     mutate: boolean;
     parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
-    zIndex: number;
 }
 
 export interface ResourceListItemProps {
@@ -56,5 +54,4 @@ export interface ResourceListItemContextMenuProps {
     onDelete: (index: number) => void;
     onMove: (index: number) => void;
     resource: Resource | null;
-    zIndex: number;
 }

@@ -33,7 +33,6 @@ export const ScheduleUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: ScheduleUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -90,7 +89,6 @@ export const ScheduleUpsert = ({
             id="schedule-upsert-dialog"
             isOpen={isOpen ?? false}
             onClose={handleCancel}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
@@ -104,7 +102,6 @@ export const ScheduleUpsert = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -139,7 +136,6 @@ export const ScheduleUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

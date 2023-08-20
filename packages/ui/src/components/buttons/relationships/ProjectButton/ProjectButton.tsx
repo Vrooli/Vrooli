@@ -20,7 +20,6 @@ import { ProjectButtonProps } from "../types";
 export function ProjectButton({
     isEditing,
     objectType,
-    zIndex,
 }: ProjectButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -95,7 +94,6 @@ export function ProjectButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"

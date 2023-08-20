@@ -18,7 +18,6 @@ export const InputOutputContainer = ({
     isInput,
     language,
     list,
-    zIndex,
 }: InputOutputContainerProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -116,7 +115,6 @@ export const InputOutputContainer = ({
                             fill: palette.mode === "light" ? palette.secondary.light : palette.secondary.dark,
                         },
                     }}
-                    zIndex={zIndex}
                 >
                     <Droppable droppableId="inputOutputItems">
                         {(provided) => (
@@ -150,7 +148,6 @@ export const InputOutputContainer = ({
                                                 handleDelete={onItemDelete}
                                                 handleUpdate={onItemUpdate}
                                                 language={language}
-                                                zIndex={zIndex}
                                             />
                                         )}
                                     </Draggable>

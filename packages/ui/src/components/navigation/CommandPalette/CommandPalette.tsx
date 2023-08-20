@@ -115,14 +115,12 @@ export const CommandPalette = () => {
             isOpen={open}
             onClose={close}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 help={t("CommandPaletteHelp")}
                 title={t("CommandPaletteTitle")}
                 onClose={close}
-                zIndex={zIndex}
             />
             <DialogContent sx={{
                 background: palette.background.default,
@@ -147,7 +145,6 @@ export const CommandPalette = () => {
                         },
                         paper: { background: palette.background.paper },
                     }}
-                    zIndex={zIndex}
                 />
             </DialogContent>
         </LargeDialog>

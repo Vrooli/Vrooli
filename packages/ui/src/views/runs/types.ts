@@ -6,7 +6,6 @@ export interface DecisionViewProps extends ViewProps {
     data: DecisionStep;
     handleDecisionSelect: (step: RoutineStep | EndStep) => void;
     routineList: RoutineListStep;
-    zIndex: number;
 }
 
 export interface RunViewProps extends ViewProps {
@@ -24,5 +23,4 @@ export interface SubroutineViewProps extends ViewProps {
     owner: RoutineVersion["root"]["owner"] | null | undefined;
     routineVersion: RoutineVersion | null | undefined;
     run: RunRoutine | null | undefined;
-    zIndex: number;
 }

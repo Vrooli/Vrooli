@@ -46,7 +46,6 @@ type InboxObject = Chat | Notification;
 export const InboxView = ({
     isOpen,
     onClose,
-    zIndex,
 }: InboxViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -184,7 +183,6 @@ export const InboxView = ({
                 onCancel={closeCreateChat}
                 onCompleted={onChatCreated}
                 overrideObject={{ __typename: "Chat" }}
-                zIndex={zIndex + 1001}
             />
             {/* Main content */}
             <TopBar
@@ -201,7 +199,6 @@ export const InboxView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
@@ -214,13 +211,11 @@ export const InboxView = ({
                     loading={loading}
                     onAction={onAction}
                     onClick={(item) => onClick(item as InboxObject)}
-                    zIndex={zIndex}
                 />
             </ListContainer>
             {/* New Chat button */}
             <SideActionButtons
                 display={display}
-                zIndex={zIndex + 1}
                 sx={{ position: "fixed" }}
             >
                 <Tooltip title={t(actionTooltip)}>
