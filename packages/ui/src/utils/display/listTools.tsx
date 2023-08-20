@@ -283,7 +283,6 @@ export const getDisplay = (
     languages?: readonly string[],
 ): { title: string, subtitle: string } => {
     if (!object) return { title: "", subtitle: "" };
-    console.log("in getDisplay", object);
     // If a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getDisplay((object as Partial<Bookmark | Reaction | View>).to as ListObject);
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);

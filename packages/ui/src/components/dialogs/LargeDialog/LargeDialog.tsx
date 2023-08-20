@@ -12,14 +12,14 @@ export const LargeDialog = ({
     sxs,
 }: LargeDialogProps) => {
     const { palette, spacing } = useTheme();
-    const zIndex = useZIndex(isOpen);
-    console.log("largedialog zIndex", zIndex);
+    const [zIndex, handleTransitionExit] = useZIndex(isOpen, true);
 
     return (
         <Dialog
             id={id}
             open={isOpen}
             onClose={onClose}
+            onTransitionExited={handleTransitionExit}
             scroll="paper"
             aria-labelledby={titleId}
             TransitionComponent={UpTransition}

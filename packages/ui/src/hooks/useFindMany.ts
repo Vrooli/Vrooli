@@ -122,7 +122,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 before: new Date((searchParams.time as any).before),
             };
         }
-        console.log("got url params", result);
         return result;
     }, [controlsUrl, searchType]);
 
@@ -155,7 +154,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
     });
     // Store params for the last search
     const lastParams = useRef<FullSearchParams>(deepClone(params.current));
-    console.log("searchString isssssss....", params.current.searchString);
 
     /**
      * Cursor for pagination. Resets when search params change.

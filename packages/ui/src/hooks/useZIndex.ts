@@ -1,28 +1,51 @@
-import { ZIndexContext } from "contexts/ZIndexContext";
-import { useContext, useEffect, useState } from "react";
+import { DEFAULT_Z_INDEX, ZIndexContext } from "contexts/ZIndexContext";
+import { useContext, useEffect, useRef, useState } from "react";
 
-const DEFAULT_Z_INDEX = 200;
+type UseZIndexReturn<HasTransition extends boolean> = HasTransition extends true ? [number, (() => unknown)] : number;
 
-export const useZIndex = (visible?: boolean) => {
+export const useZIndex = <
+    HasTransition extends boolean = false
+>(
+    visible?: boolean,
+    hasTransition?: HasTransition,
+): UseZIndexReturn<HasTransition> => {
     const context = useContext(ZIndexContext);
     const [zIndex, setZIndex] = useState<number>(DEFAULT_Z_INDEX);
+    const hasCalledGetZIndex = useRef(false);
 
+    // Update the zIndex depending on the visibility of the component   
     useEffect(() => {
-        // When the component becomes visible or is always visible
+        // Set zIndex if component is visible
         if (visible === undefined || visible) {
+            hasCalledGetZIndex.current = true;
             setZIndex(context?.getZIndex() ?? DEFAULT_Z_INDEX);
-        } else {
-            setZIndex(DEFAULT_Z_INDEX);
-            context?.releaseZIndex();
         }
+        // Remove zIndex if component is not visible, and we're not 
+        // waiting for a transition to finish
+        else if (!hasTransition) {
+            setZIndex(DEFAULT_Z_INDEX);
+            if (hasCalledGetZIndex.current) context?.releaseZIndex();
+            hasCalledGetZIndex.current = false;
+        }
+    }, [hasTransition, visible, context]);
 
-        // Cleanup when component is unmounted
+    // Cleanup on component unmount
+    useEffect(() => {
         return () => {
-            if (visible === undefined || visible) {
-                context?.releaseZIndex();
-            }
+            if (hasCalledGetZIndex.current) context?.releaseZIndex();
+            hasCalledGetZIndex.current = false;
         };
-    }, [visible, context]);
+    }, [context]);
 
-    return zIndex;
+    const handleTransitionExit = () => {
+        if (!visible && context) {
+            console.log("handleTransitionExit");
+            setZIndex(DEFAULT_Z_INDEX);
+            if (hasCalledGetZIndex.current) context?.releaseZIndex();
+            hasCalledGetZIndex.current = false;
+        }
+    };
+
+    if (hasTransition) return [zIndex, handleTransitionExit] as UseZIndexReturn<HasTransition>;
+    return zIndex as UseZIndexReturn<HasTransition>;
 };
