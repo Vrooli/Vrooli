@@ -2,9 +2,10 @@ import { IconButton, List, SwipeableDrawer, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { SessionContext } from "contexts/SessionContext";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
 import { CloseIcon } from "icons";
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect } from "react";
 import { noSelect } from "styles";
 import { PubSub } from "utils/pubsub";
 
@@ -22,23 +23,10 @@ export const ChatSideMenu = () => {
     const isLeftHanded = useIsLeftHanded();
 
     // Handle opening and closing
-    const [isOpen, setIsOpen] = useState(false);
-    useEffect(() => {
-        const sideMenuSub = PubSub.get().subscribeSideMenu((data) => {
-            if (data.id !== "chat-side-menu") return;
-            setIsOpen(data.isOpen);
-        });
-        return (() => {
-            PubSub.get().unsubscribe(sideMenuSub);
-        });
-    }, []);
-    const close = useCallback(() => {
-        setIsOpen(false);
-        PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: false });
-    }, []);
+    const { isOpen, close } = useSideMenu("chat-side-menu", isMobile);
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
-        PubSub.get().publishSideMenu({ id: "side-menu", isOpen });
+        PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen });
     }, [breakpoints, isOpen]);
 
     const handleClose = useCallback((event: React.MouseEvent<HTMLElement>) => {

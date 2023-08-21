@@ -22,6 +22,7 @@ export const Cookies = {
     IsLeftHanded: "isLeftHanded",
     FocusModeActive: "focusModeActive",
     FocusModeAll: "focusModeAll",
+    SideMenuState: "sideMenuState",
 };
 export type Cookies = ValueOf<typeof Cookies>;
 
@@ -150,6 +151,20 @@ export const getCookieAllFocusModes = <T extends FocusMode[]>(fallback?: T): T =
         fallback,
     );
 export const setCookieAllFocusModes = (modes: FocusMode[]) => ifAllowed("functional", () => setCookie(Cookies.FocusModeAll, modes));
+
+export const getSideMenuState = <T extends boolean | undefined>(id: string, fallback?: T): T =>
+    ifAllowed("functional",
+        () => {
+            const allMenus = getOrSetCookie(Cookies.SideMenuState, (value: unknown): value is Record<string, boolean> => typeof value === "object" && value !== null, {});
+            return allMenus?.[id] ?? fallback;
+        },
+        fallback,
+    );
+
+export const setSideMenuState = (id: string, state: boolean) => ifAllowed("functional", () => {
+    const allMenus = getOrSetCookie(Cookies.SideMenuState, (value: unknown): value is Record<string, boolean> => typeof value === "object" && value !== null, {});
+    setCookie(Cookies.SideMenuState, allMenus ? { ...allMenus, [id]: state } : { [id]: state });
+});
 
 /** Supports ID data from URL params, as well as partial object */
 type PartialData = {

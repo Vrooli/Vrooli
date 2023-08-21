@@ -1,5 +1,5 @@
 import { endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, userValidation } from "@local/shared";
-import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, SwipeableDrawer, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
@@ -12,14 +12,17 @@ import { SessionContext } from "contexts/SessionContext";
 import { useFormik } from "formik";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
 import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { noSelect } from "styles";
+import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
+import { getUserActions, NavAction, NAV_ACTION_TAGS } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { shapeProfile } from "utils/shape/models/profile";
@@ -35,6 +38,20 @@ const MAX_ACCOUNTS = 10;
 
 const zIndex = 1300;
 
+const NavListItem = ({ label, Icon, onClick, palette }: {
+    label: string;
+    Icon: SvgComponent;
+    onClick: (event: React.MouseEvent<HTMLElement>) => unknown;
+    palette: Palette;
+}) => (
+    <ListItem button onClick={onClick}>
+        <ListItemIcon>
+            <Icon fill={palette.background.textPrimary} />
+        </ListItemIcon>
+        <ListItemText primary={label} />
+    </ListItem>
+);
+
 export const SideMenu = () => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -42,24 +59,12 @@ export const SideMenu = () => {
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
+    const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     // Handle opening and closing
-    const [isOpen, setIsOpen] = useState(false);
-    useEffect(() => {
-        const sideMenuSub = PubSub.get().subscribeSideMenu((data) => {
-            if (data.id !== "side-menu") return;
-            setIsOpen(data.isOpen);
-        });
-        return (() => {
-            PubSub.get().unsubscribe(sideMenuSub);
-        });
-    }, []);
-    const close = useCallback(() => {
-        setIsOpen(false);
-        PubSub.get().publishSideMenu({ id: "side-menu", isOpen: false });
-    }, []);
+    const { isOpen, close } = useSideMenu("side-menu", isMobile);
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
         PubSub.get().publishSideMenu({ id: "side-menu", isOpen });
@@ -156,29 +161,10 @@ export const SideMenu = () => {
         setLocation(LINKS.Home);
     }, [handleClose, session, logOut, setLocation]);
 
-    const handleOpen = useCallback((event: React.MouseEvent<HTMLElement>, link: string) => {
+    const handleOpen = (event: React.MouseEvent<HTMLElement>, link: string) => {
         setLocation(link);
         handleClose(event);
-    }, [handleClose, setLocation]);
-    const handleOpenSettings = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, LINKS.Settings);
-    }, [handleOpen]);
-    const handleOpenBookmarks = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`);
-    }, [handleOpen]);
-    const handleOpenHistory = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, LINKS.History);
-    }, [handleOpen]);
-    const handleOpenRuns = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`);
-    }, [handleOpen]);
-    const handleOpenAwards = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, LINKS.Awards);
-    }, [handleOpen]);
-    const handleOpenPremium = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, LINKS.Premium);
-    }, [handleOpen]);
-
+    };
 
     const accounts = useMemo(() => session?.users ?? [], [session?.users]);
     const profileListItems = accounts.map((account) => (
@@ -207,7 +193,7 @@ export const SideMenu = () => {
 
     return (
         <SwipeableDrawer
-            anchor={(isMobile && isLeftHanded) ? "left" : "right"}
+            anchor={isLeftHanded ? "left" : "right"}
             open={isOpen}
             // eslint-disable-next-line @typescript-eslint/no-empty-function
             onOpen={() => { }}
@@ -308,48 +294,22 @@ export const SideMenu = () => {
             <Divider sx={{ background: palette.background.textSecondary }} />
             {/* List of quick links */}
             <List id="side-menu-quick-links">
-                {/* Settings page */}
-                <ListItem button onClick={handleOpenSettings}>
-                    <ListItemIcon>
-                        <SettingsIcon fill={palette.background.textPrimary} />
-                    </ListItemIcon>
-                    <ListItemText primary={t("Settings")} />
-                </ListItem>
-                {/* Bookmarked */}
-                <ListItem button onClick={handleOpenBookmarks}>
-                    <ListItemIcon>
-                        <BookmarkFilledIcon fill={palette.background.textPrimary} />
-                    </ListItemIcon>
-                    <ListItemText primary={t("Bookmark", { count: 2 })} />
-                </ListItem>
-                {/* History */}
-                <ListItem button onClick={handleOpenHistory}>
-                    <ListItemIcon>
-                        <HistoryIcon fill={palette.background.textPrimary} />
-                    </ListItemIcon>
-                    <ListItemText primary={t("History")} />
-                </ListItem>
-                {/* Runs */}
-                <ListItem button onClick={handleOpenRuns}>
-                    <ListItemIcon>
-                        <RoutineActiveIcon fill={palette.background.textPrimary} />
-                    </ListItemIcon>
-                    <ListItemText primary={t("Run", { count: 2 })} />
-                </ListItem>
-                {/* Awards */}
-                <ListItem button onClick={handleOpenAwards}>
-                    <ListItemIcon>
-                        <AwardIcon fill={palette.background.textPrimary} />
-                    </ListItemIcon>
-                    <ListItemText primary={t("Award", { count: 2 })} />
-                </ListItem>
-                {/* Premium */}
-                <ListItem button onClick={handleOpenPremium}>
-                    <ListItemIcon>
-                        <PremiumIcon fill={palette.background.textPrimary} />
-                    </ListItemIcon>
-                    <ListItemText primary={t("Premium")} />
-                </ListItem>
+                {/* Main navigation links, if not mobile */}
+                {!isMobile && navActions.map((action) => (
+                    <NavListItem
+                        key={action.value}
+                        label={t(action.label, { count: action.numNotifications })}
+                        Icon={action.Icon}
+                        onClick={(event) => handleOpen(event, action.link)}
+                        palette={palette}
+                    />
+                ))}
+                <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
+                <NavListItem label={t("Bookmark", { count: 2 })} Icon={BookmarkFilledIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`)} palette={palette} />
+                <NavListItem label={t("History")} Icon={HistoryIcon} onClick={(event) => handleOpen(event, LINKS.History)} palette={palette} />
+                <NavListItem label={t("Run", { count: 2 })} Icon={RoutineActiveIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`)} palette={palette} />
+                <NavListItem label={t("Award", { count: 2 })} Icon={AwardIcon} onClick={(event) => handleOpen(event, LINKS.Awards)} palette={palette} />
+                <NavListItem label={t("Premium")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Premium)} palette={palette} />
             </List>
             <Divider sx={{ background: palette.background.textSecondary }} />
             {/* Additional Resources */}

@@ -1,7 +1,8 @@
 import { LINKS } from "@local/shared";
-import { Avatar, Button, Container, Palette, useTheme } from "@mui/material";
+import { Avatar, Box, Button, Container, Palette, useTheme } from "@mui/material";
 import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
 import { SessionContext } from "contexts/SessionContext";
+import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useWindowSize } from "hooks/useWindowSize";
 import { LogInIcon, ProfileIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
@@ -9,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from "utils/navigation/userActions";
+import { actionsToMenu, getUserActions, NavAction, NAV_ACTION_TAGS } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
 import { ContactInfo } from "../ContactInfo/ContactInfo";
 
@@ -26,12 +27,13 @@ const navItemStyle = (palette: Palette) => ({
 export const NavList = () => {
     const session = useContext(SessionContext);
     const user = useMemo(() => getCurrentUser(session), [session]);
+    const isLeftHanded = useIsLeftHanded();
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
+    const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
 
     const toggleSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); }, []);
 
@@ -42,6 +44,8 @@ export const NavList = () => {
             paddingBottom: "0",
             paddingRight: "0 !important",
             right: "0",
+            // Reverse order on left handed mode
+            flexDirection: isLeftHanded ? "row-reverse" : "row",
         }}>
             {/* Contact menu */}
             {!isMobile && !getCurrentUser(session).id && <PopupMenu
@@ -53,11 +57,13 @@ export const NavList = () => {
                 <ContactInfo />
             </PopupMenu>}
             {/* List items displayed when on wide screen */}
-            {!isMobile && actionsToMenu({
-                actions: nav_actions,
-                setLocation,
-                sx: navItemStyle(palette),
-            })}
+            <Box>
+                {!isMobile && actionsToMenu({
+                    actions: navActions,
+                    setLocation,
+                    sx: navItemStyle(palette),
+                })}
+            </Box>
             {/* Enter button displayed when not logged in */}
             {!checkIfLoggedIn(session) && (
                 <Button
