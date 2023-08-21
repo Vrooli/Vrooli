@@ -1,16 +1,18 @@
 import { Chat, ChatCreateInput, ChatInvite, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon } from "icons";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { AddIcon, ListIcon } from "icons";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
@@ -191,155 +193,181 @@ export const ChatView = ({
     }, [chat, lng, t, task]);
 
     console.log("context in chatview", messages, chat?.messages);
+    const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: true }); }, []);
+    const closeSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: false }); }, []);
+    useEffect(() => {
+        return () => {
+            closeSideMenu();
+        };
+    }, [closeSideMenu]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="chat-dialog"
-            isOpen={isOpen ?? false}
-            onClose={onClose}
-        >
-            <Formik
-                enableReinitialize={true}
-                initialValues={{
-                    editingMessage: "",
-                    newMessage: context ?? "",
-                }}
-                onSubmit={(values, helpers) => {
-                    if (!chat) return;
-                    const isEditing = values.editingMessage.trim().length > 0;
-                    if (isEditing) {
-                        //TODO
-                    } else {
-                        //TODO
-                        const text = values.newMessage.trim();
-                        if (text.length === 0) return;
-                        // for now, just add the message to the list
-                        const newMessage: ChatMessage & { isUnsent?: boolean } = {
-                            __typename: "ChatMessage" as const,
-                            id: uuid(),
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                            isUnsent: true,
-                            chat: {
-                                __typename: "Chat" as const,
-                                id: chat.id,
-                            } as any,
-                            translations: [{
-                                __typename: "ChatMessageTranslation" as const,
-                                id: DUMMY_ID,
-                                language: lng,
-                                text,
-                            }],
-                            user: {
-                                __typename: "User" as const,
-                                id: getCurrentUser(session).id,
-                                isBot: false,
-                                name: getCurrentUser(session).name,
-                            },
-                            you: {
-                                canDelete: true,
-                                canUpdate: true,
-                                canReply: true,
-                                canReport: true,
-                                canReact: true,
-                                reaction: null,
-                            },
-                        } as any;
-                        console.log("creating message 0", newMessage);
-                        setMessages([...messages, newMessage]);
-                        helpers.setFieldValue("newMessage", "");
-                    }
-                }}
-            // validate={async (values) => await validateNoteValues(values, existing)}
+        <>
+            <MaybeLargeDialog
+                display={display}
+                id="chat-dialog"
+                isOpen={isOpen ?? false}
+                onClose={onClose}
             >
-                {(formik) => <>
-                    <TopBar
-                        display={display}
-                        onClose={() => {
-                            if (formik.values.editingMessage.trim().length > 0) {
-                                PubSub.get().publishAlertDialog({
-                                    messageKey: "UnsavedChangesBeforeCancel",
-                                    buttons: [
-                                        { labelKey: "Yes", onClick: () => { tryOnClose(onClose, setLocation); } },
-                                        { labelKey: "No" },
-                                    ],
-                                });
-                            } else {
-                                tryOnClose(onClose, setLocation);
-                            }
-                        }}
-                        // TODO change title so that when pressed, you can switch chats or add a new chat
-                        title={firstString(title, botSettings ? "AI Chat" : "Chat")}
-                    />
-                    {/* TODO add ChatSideMenu component */}
-                    <Stack
-                        direction="column"
-                        spacing={4}
-                        sx={{
-                            margin: "auto",
-                        }}
-                    >
-                        <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
-                            {messages.map((message: ChatMessage, index) => {
-                                const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;
-                                return <ChatBubble
-                                    key={index}
-                                    message={message}
-                                    index={index}
-                                    isOwn={isOwn}
-                                    onUpdated={(updatedMessage) => {
-                                        setMessages(updateArray(messages,
-                                            messages.findIndex(m => m.id === updatedMessage.id),
-                                            updatedMessage,
-                                        ));
+                <Formik
+                    enableReinitialize={true}
+                    initialValues={{
+                        editingMessage: "",
+                        newMessage: context ?? "",
+                    }}
+                    onSubmit={(values, helpers) => {
+                        if (!chat) return;
+                        const isEditing = values.editingMessage.trim().length > 0;
+                        if (isEditing) {
+                            //TODO
+                        } else {
+                            //TODO
+                            const text = values.newMessage.trim();
+                            if (text.length === 0) return;
+                            // for now, just add the message to the list
+                            const newMessage: ChatMessage & { isUnsent?: boolean } = {
+                                __typename: "ChatMessage" as const,
+                                id: uuid(),
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString(),
+                                isUnsent: true,
+                                chat: {
+                                    __typename: "Chat" as const,
+                                    id: chat.id,
+                                } as any,
+                                translations: [{
+                                    __typename: "ChatMessageTranslation" as const,
+                                    id: DUMMY_ID,
+                                    language: lng,
+                                    text,
+                                }],
+                                user: {
+                                    __typename: "User" as const,
+                                    id: getCurrentUser(session).id,
+                                    isBot: false,
+                                    name: getCurrentUser(session).name,
+                                },
+                                you: {
+                                    canDelete: true,
+                                    canUpdate: true,
+                                    canReply: true,
+                                    canReport: true,
+                                    canReact: true,
+                                    reaction: null,
+                                },
+                            } as any;
+                            console.log("creating message 0", newMessage);
+                            setMessages([...messages, newMessage]);
+                            helpers.setFieldValue("newMessage", "");
+                        }
+                    }}
+                // validate={async (values) => await validateNoteValues(values, existing)}
+                >
+                    {(formik) => <>
+                        <TopBar
+                            display={display}
+                            hideTitleOnDesktop={true}
+                            onClose={() => {
+                                if (formik.values.editingMessage.trim().length > 0) {
+                                    PubSub.get().publishAlertDialog({
+                                        messageKey: "UnsavedChangesBeforeCancel",
+                                        buttons: [
+                                            { labelKey: "Yes", onClick: () => { tryOnClose(onClose, setLocation); } },
+                                            { labelKey: "No" },
+                                        ],
+                                    });
+                                } else {
+                                    tryOnClose(onClose, setLocation);
+                                }
+                            }}
+                            startComponent={<ColorIconButton
+                                aria-label="Open chat menu"
+                                background={palette.secondary.main}
+                                onClick={openSideMenu}
+                                sx={{
+                                    borderRadius: 2,
+                                    width: "48px",
+                                    height: "48px",
+                                    marginLeft: 1,
+                                    marginRight: 1,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
+                            </ColorIconButton>}
+                            // TODO change title so that when pressed, you can switch chats or add a new chat
+                            title={firstString(title, botSettings ? "AI Chat" : "Chat")}
+                        />
+                        {/* TODO add ChatSideMenu component */}
+                        <Stack
+                            direction="column"
+                            spacing={4}
+                            sx={{
+                                margin: "auto",
+                            }}
+                        >
+                            <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
+                                {messages.map((message: ChatMessage, index) => {
+                                    const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;
+                                    return <ChatBubble
+                                        key={index}
+                                        message={message}
+                                        index={index}
+                                        isOwn={isOwn}
+                                        onUpdated={(updatedMessage) => {
+                                            setMessages(updateArray(messages,
+                                                messages.findIndex(m => m.id === updatedMessage.id),
+                                                updatedMessage,
+                                            ));
+                                        }}
+                                    />;
+                                })}
+                            </Box>
+                            <Box sx={{
+                                background: palette.primary.dark,
+                                color: palette.primary.contrastText,
+                            }}>
+                                <MarkdownInput
+                                    actionButtons={[{
+                                        Icon: AddIcon,
+                                        onClick: () => {
+                                            if (!chat) {
+                                                PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
+                                                return;
+                                            }
+                                            formik.handleSubmit();
+                                        },
+                                    }]}
+                                    disabled={!chat}
+                                    disableAssistant={true}
+                                    fullWidth
+                                    getTaggableItems={async (searchString) => {
+                                        // Find all users in the chat, plus @Everyone
+                                        let users = [
+                                            //TODO handle @Everyone
+                                            ...(chat?.participants?.map(p => p.user) ?? []),
+                                        ];
+                                        // Filter out current user
+                                        users = users.filter(p => p.id !== getCurrentUser(session).id);
+                                        // Filter out users that don't match the search string
+                                        users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
+                                        return users;
                                     }}
-                                />;
-                            })}
-                        </Box>
-                        <Box sx={{
-                            background: palette.primary.dark,
-                            color: palette.primary.contrastText,
-                        }}>
-                            <MarkdownInput
-                                actionButtons={[{
-                                    Icon: AddIcon,
-                                    onClick: () => {
-                                        if (!chat) {
-                                            PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
-                                            return;
-                                        }
-                                        formik.handleSubmit();
-                                    },
-                                }]}
-                                disabled={!chat}
-                                disableAssistant={true}
-                                fullWidth
-                                getTaggableItems={async (searchString) => {
-                                    // Find all users in the chat, plus @Everyone
-                                    let users = [
-                                        //TODO handle @Everyone
-                                        ...(chat?.participants?.map(p => p.user) ?? []),
-                                    ];
-                                    // Filter out current user
-                                    users = users.filter(p => p.id !== getCurrentUser(session).id);
-                                    // Filter out users that don't match the search string
-                                    users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
-                                    return users;
-                                }}
-                                maxChars={1500}
-                                minRows={4}
-                                maxRows={15}
-                                name="newMessage"
-                                sxs={{
-                                    bar: { borderRadius: 0 },
-                                    textArea: { paddingRight: 4, border: "none" },
-                                }}
-                            />
-                        </Box>
-                    </Stack>
-                </>}
-            </Formik>
-        </MaybeLargeDialog>
+                                    maxChars={1500}
+                                    minRows={4}
+                                    maxRows={15}
+                                    name="newMessage"
+                                    sxs={{
+                                        bar: { borderRadius: 0 },
+                                        textArea: { paddingRight: 4, border: "none" },
+                                    }}
+                                />
+                            </Box>
+                        </Stack>
+                    </>}
+                </Formik>
+            </MaybeLargeDialog>
+            <SideMenu />
+        </>
     );
 };

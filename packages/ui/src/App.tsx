@@ -6,8 +6,8 @@ import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
-import { chatSideMenuDisplayData } from "components/dialogs/ChatSideMenu/ChatSideMenu";
-import { SideMenu, sideMenuDisplayData } from "components/dialogs/SideMenu/SideMenu";
+import { ChatSideMenu, chatSideMenuDisplayData } from "components/dialogs/ChatSideMenu/ChatSideMenu";
+import { sideMenuDisplayData } from "components/dialogs/SideMenu/SideMenu";
 import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
@@ -396,11 +396,13 @@ export function App() {
             if (!persistentOnDesktop) return;
             // Flip side when in left-handed mode
             const side = isLeftHanded ? (sideForRightHanded === "left" ? "right" : "left") : sideForRightHanded;
+            const menuElement = document.getElementById(data.id);
+            const padding = data.isOpen && !isMobile ? `${menuElement?.clientWidth ?? 0}px` : "0px";
             // Only set on desktop
             if (side === "left") {
-                setContentMargins(data.isOpen && !isMobile ? { paddingLeft: "272px" } : {});
+                setContentMargins(existing => ({ ...existing, paddingLeft: padding }));
             } else if (side === "right") {
-                setContentMargins(data.isOpen && !isMobile ? { paddingRight: "272px" } : {});
+                setContentMargins(existing => ({ ...existing, paddingRight: padding }));
             }
         });
         // On unmount, unsubscribe from all PubSub topics
@@ -417,6 +419,7 @@ export function App() {
             PubSub.get().unsubscribe(sideMenuPub);
         });
     }, [checkSession, isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
+    console.log("contentMargins", contentMargins);
 
     // Handle websocket connection for tracking notifications
     useEffect(() => {
@@ -469,7 +472,7 @@ export function App() {
                             <AlertDialog />
                             <SnackStack />
                             <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
-                            <SideMenu />
+                            <ChatSideMenu />
                             <Box id="content-wrap" sx={{
                                 background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
                                 minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },

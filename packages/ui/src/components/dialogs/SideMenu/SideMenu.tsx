@@ -37,6 +37,7 @@ export const sideMenuDisplayData = {
 const MAX_ACCOUNTS = 10;
 
 const zIndex = 1300;
+const id = "side-menu";
 
 const NavListItem = ({ label, Icon, onClick, palette }: {
     label: string;
@@ -64,10 +65,10 @@ export const SideMenu = () => {
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     // Handle opening and closing
-    const { isOpen, close } = useSideMenu("side-menu", isMobile);
+    const { isOpen, close } = useSideMenu(id, isMobile);
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
-        PubSub.get().publishSideMenu({ id: "side-menu", isOpen });
+        PubSub.get().publishSideMenu({ id, isOpen });
     }, [breakpoints, isOpen]);
 
     // Display settings collapse
@@ -198,13 +199,14 @@ export const SideMenu = () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function
             onOpen={() => { }}
             onClose={handleClose}
+            PaperProps={{ id }}
             variant={isMobile ? "temporary" : "persistent"}
             sx={{
                 zIndex,
                 "& .MuiDrawer-paper": {
                     background: palette.background.default,
                     overflowY: "auto",
-                    borderLeft: "none",
+                    borderLeft: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
                 },
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {

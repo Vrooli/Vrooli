@@ -200,6 +200,12 @@ export enum InboxPageTabOption {
     Notification = "Notification",
 }
 
+export enum ChatPageTabOption {
+    Chat = "Chat",
+    Routine = "Routine",
+    Prompt = "Prompt",
+}
+
 /**
  * Maps search types to values needed to query and display results
  */

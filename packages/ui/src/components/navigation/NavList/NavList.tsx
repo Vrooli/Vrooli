@@ -35,7 +35,7 @@ export const NavList = () => {
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
 
-    const toggleSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); }, []);
+    const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); }, []);
 
     return (
         <Container sx={{
@@ -89,7 +89,7 @@ export const NavList = () => {
                 <Avatar
                     id="side-menu-profile-icon"
                     src={extractImageUrl(user.profileImage, user.updated_at, 50)}
-                    onClick={toggleSideMenu}
+                    onClick={openSideMenu}
                     sx={{
                         background: palette.primary.contrastText,
                         width: "40px",

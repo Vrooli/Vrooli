@@ -15,17 +15,12 @@ export type NavbarProps = {
         onClick: (e?: any) => void;
     }[];
     shouldHideTitle?: boolean;
+    startComponent?: JSX.Element;
     /** Sets tab title, if different than the Navbar title */
     tabTitle?: string;
     title?: string | undefined;
     /** Replaces title if provided */
     titleComponent?: JSX.Element;
-}
-
-export type NavbarLogoState = "full" | "icon" | "none";
-export interface NavbarLogoProps {
-    onClick: () => void;
-    state: NavbarLogoState;
 }
 
 export type SettingsTopBarProps = Omit<TopBarProps, "below">
@@ -35,6 +30,7 @@ export interface TopBarProps extends Omit<TitleProps, "variant"> {
     onClose?: () => void,
     below?: JSX.Element | boolean
     hideTitleOnDesktop?: boolean,
+    startComponent?: JSX.Element;
     tabTitle?: string,
     titleId?: string
 }

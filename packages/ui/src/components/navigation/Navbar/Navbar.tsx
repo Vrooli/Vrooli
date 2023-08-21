@@ -1,35 +1,92 @@
 import { BUSINESS_NAME, LINKS } from "@local/shared";
-import { AppBar, Box, Stack, useTheme } from "@mui/material";
+import { AppBar, Box, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
 import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
+import { VrooliIcon } from "icons";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";
 import { useLocation } from "route";
 import { noSelect } from "styles";
 import { HideOnScroll } from "../HideOnScroll/HideOnScroll";
-import { NavbarLogo } from "../NavbarLogo/NavbarLogo";
 import { NavList } from "../NavList/NavList";
 import { NavbarProps } from "../types";
 
 const zIndex = 300;
 
-const LogoComponent = ({ isLeftHanded, isMobile, logoState, toHome }) => (
-    <Box
-        onClick={toHome}
-        sx={{
-            padding: 0,
-            paddingTop: "4px",
-            display: "flex",
-            alignItems: "center",
-            marginRight: isLeftHanded ? 1 : "auto",
-            marginLeft: isLeftHanded ? "auto" : 1,
-        }}
-    >
-        <NavbarLogo onClick={toHome} state={logoState} />
-    </Box>
-);
+const LogoComponent = ({
+    isLeftHanded,
+    onClick,
+    state,
+}: {
+    isLeftHanded: boolean;
+    onClick: () => void;
+    state: "full" | "icon" | "none";
+}) => {
+    const { palette } = useTheme();
+    // Logo isn't always shown
+    if (state === "none") return null;
+    return (
+        <Box
+            onClick={onClick}
+            sx={{
+                padding: 0,
+                paddingTop: "4px",
+                display: "flex",
+                alignItems: "center",
+                marginRight: isLeftHanded ? 1 : "auto",
+                marginLeft: isLeftHanded ? "auto" : 1,
+            }}
+        >
+            <Box
+                onClick={onClick}
+                sx={{
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                }}
+            >
+                {/* Logo */}
+                <IconButton
+                    aria-label="Go to home page"
+                    sx={{
+                        display: "flex",
+                        padding: 0,
+                        margin: "5px",
+                        marginLeft: "max(-5px, -5vw)",
+                        width: "48px",
+                        height: "48px",
+                    }}>
+                    <VrooliIcon fill={palette.primary.contrastText} width="100%" height="100%" />
+                </IconButton>
+                {/* Business name */}
+                {state === "full" && <Typography
+                    variant="h6"
+                    noWrap
+                    sx={{
+                        position: "relative",
+                        cursor: "pointer",
+                        lineHeight: "1.3",
+                        fontSize: "2.5em",
+                        fontFamily: "SakBunderan",
+                        color: palette.primary.contrastText,
+                    }}
+                >{BUSINESS_NAME}</Typography>}
+                {/* Alpha indicator */}
+                <Typography
+                    variant="body2"
+                    noWrap
+                    sx={{
+                        color: palette.error.main,
+                        paddingLeft: state === "full" ? 1 : 0,
+                    }}
+                >Alpha</Typography>
+
+            </Box>
+        </Box>
+    );
+};
 
 const TitleDisplay = ({ isMobile, title, titleComponent, help, options, shouldHideTitle, showOnMobile }) => {
     // Check if title should be displayed here, based on screen size
@@ -82,6 +139,7 @@ export const Navbar = forwardRef(({
     help,
     options,
     shouldHideTitle = false,
+    startComponent,
     tabTitle,
     title,
     titleComponent,
@@ -131,7 +189,8 @@ export const Navbar = forwardRef(({
                         // TODO Reverse order on left-handed mobile
                         flexDirection: isLeftHanded ? "row-reverse" : "row",
                     }}>
-                        <LogoComponent {...{ isLeftHanded, isMobile, logoState, toHome }} />
+                        {startComponent}
+                        <LogoComponent {...{ isLeftHanded, isMobile, state: logoState, onClick: toHome }} />
                         {/* Title displayed here on mobile */}
                         <TitleDisplay {...{ isMobile, title, titleComponent, help, options, shouldHideTitle, showOnMobile: true }} />
                         <NavListComponent {...{ isLeftHanded, isSideMenuOpen }} />
