@@ -1,8 +1,51 @@
-import { Box, ClickAwayListener, Popper, PopperPlacementType, useTheme } from "@mui/material";
+import { Box, ClickAwayListener, Palette, Popper, PopperPlacementType, useTheme } from "@mui/material";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useZIndex } from "hooks/useZIndex";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PopoverWithArrowProps } from "../types";
+
+type Direction = "top" | "bottom" | "left" | "right";
+
+/** Style for each arrow direction */
+const ArrowStyles: Record<Direction, (palette: Palette) => React.CSSProperties> = {
+    top: (palette: Palette) => ({
+        borderLeft: "10px solid transparent",
+        borderRight: "10px solid transparent",
+        borderTop: `10px solid ${palette.background.paper}`,
+        bottom: "-10px",
+    }),
+    bottom: (palette: Palette) => ({
+        borderLeft: "10px solid transparent",
+        borderRight: "10px solid transparent",
+        borderBottom: `10px solid ${palette.background.paper}`,
+        top: "-10px",
+    }),
+    left: (palette: Palette) => ({
+        borderTop: "10px solid transparent",
+        borderBottom: "10px solid transparent",
+        borderLeft: `10px solid ${palette.background.paper}`,
+        right: "-10px",
+    }),
+    right: (palette: Palette) => ({
+        borderTop: "10px solid transparent",
+        borderBottom: "10px solid transparent",
+        borderRight: `10px solid ${palette.background.paper}`,
+        left: "-10px",
+    }),
+};
+
+const getOffsetModifier = (placement: string) => {
+    switch (placement) {
+        case "top":
+        case "bottom":
+            return { offset: [0, 10] };  // Adjust the Y-offset
+        case "left":
+        case "right":
+            return { offset: [10, 0] };  // Adjust the X-offset
+        default:
+            return { offset: [0, 0] };
+    }
+};
 
 export const PopoverWithArrow = ({
     anchorEl,
@@ -20,7 +63,6 @@ export const PopoverWithArrow = ({
     const [actualPlacement, setActualPlacement] = useState(placement);
 
     const handlePopperState = useCallback((popperState: { placement: PopperPlacementType }) => {
-        console.log("popperState", popperState);
         if (popperState) {
             const { placement } = popperState;
             // Limit to top, bottom, left, right
@@ -58,51 +100,8 @@ export const PopoverWithArrow = ({
 
     useHotkeys([{ keys: ["Escape"], callback: onClose }], isOpen);
 
-    let arrowStyles;
-    switch (actualPlacement) {
-        case "top":
-            arrowStyles = {
-                borderLeft: "10px solid transparent",
-                borderRight: "10px solid transparent",
-                borderTop: `10px solid ${palette.background.paper}`,
-                bottom: "-10px",
-                left: "50%",
-                transform: "translateX(-50%)",
-            };
-            break;
-        case "bottom":
-            arrowStyles = {
-                borderLeft: "10px solid transparent",
-                borderRight: "10px solid transparent",
-                borderBottom: `10px solid ${palette.background.paper}`,
-                top: "-10px",
-                left: "50%",
-                transform: "translateX(-50%)",
-            };
-            break;
-        case "left":
-            arrowStyles = {
-                borderTop: "10px solid transparent",
-                borderBottom: "10px solid transparent",
-                borderLeft: `10px solid ${palette.background.paper}`,
-                right: "-10px",
-                top: "50%",
-                transform: "translateY(-50%)",
-            };
-            break;
-        case "right":
-            arrowStyles = {
-                borderTop: "10px solid transparent",
-                borderBottom: "10px solid transparent",
-                borderRight: `10px solid ${palette.background.paper}`,
-                left: "-10px",
-                top: "50%",
-                transform: "translateY(-50%)",
-            };
-            break;
-        default:
-            throw new Error(`Unknown placement: ${placement}`);
-    }
+    const arrowStyle = useMemo(() => ArrowStyles[actualPlacement](palette), [actualPlacement, palette]);
+    const offsetModifier = getOffsetModifier(actualPlacement);
 
     return (
         <Popper
@@ -112,33 +111,16 @@ export const PopoverWithArrow = ({
             placement={placement}
             popperOptions={{
                 modifiers: [
-                    {
-                        name: "flip",
-                        options: {
-                            altBoundary: true,
-                            fallbackPlacements: ["top", "right", "bottom", "left"],
-                        },
-                    },
-                    {
-                        name: "preventOverflow",
-                        options: {
-                            altAxis: true,
-                            tether: false,
-                            padding: 10,
-                            boundary: "viewport",
-                        },
-                    },
-                    {
-                        name: "onUpdate",
-                        enabled: true,
-                        phase: "write",
-                        fn: ({ state }) => handlePopperState(state),
-                    },
+                    { name: "flip", options: { altBoundary: true, fallbackPlacements: ["top", "right", "bottom", "left"] } },
+                    { name: "preventOverflow", options: { altAxis: true, tether: false, padding: 10, boundary: "viewport" } },
+                    { name: "onUpdate", enabled: true, phase: "write", fn: ({ state }) => handlePopperState(state) },
+                    { name: "offset", options: offsetModifier },
+                    { name: "arrow", options: { element: "[data-popper-arrow]" } },
                 ],
             }}
             style={{
-                ...sxs?.root,
                 zIndex: zIndex + 1000,
+                ...sxs?.root,
             }}
         >
             <ClickAwayListener onClickAway={onClose}>
@@ -164,12 +146,13 @@ export const PopoverWithArrow = ({
                         {children}
                     </Box>
                     {/* Triangle placed accordingly to the popper */}
-                    <Box sx={{
+                    <Box data-popper-arrow sx={{
                         width: "0",
                         height: "0",
-                        ...arrowStyles,
+                        ...arrowStyle,
                         position: "absolute",
                         margin: "10px",
+                        transform: actualPlacement === "top" || actualPlacement === "bottom" ? "translateX(-50%)" : "translateY(-50%)",
                     }} />
                 </Box>
             </ClickAwayListener>

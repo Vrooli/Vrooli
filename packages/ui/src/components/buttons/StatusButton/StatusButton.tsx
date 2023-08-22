@@ -52,6 +52,7 @@ export const StatusButton = ({
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const openPopover = useCallback((event: any) => {
+        console.log("openPopover anchor", event.currentTarget);
         if (!anchorEl) setAnchorEl(event.currentTarget);
     }, [anchorEl]);
     const closePopover = () => {
