@@ -1,21 +1,75 @@
-import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, useTheme } from "@mui/material";
+import { LINKS } from "@local/shared";
+import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, PopperProps, useTheme } from "@mui/material";
+import { SessionContext } from "contexts/SessionContext";
 import { SearchIcon } from "icons";
-import { ChangeEvent, useCallback, useState } from "react";
+import { ChangeEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { findSearchResults, SearchItem, shapeSearchText } from "utils/search/siteToSearch";
+import { findSearchResults, PreSearchItem, SearchItem, shapeSearchText, translateSearchItems } from "utils/search/siteToSearch";
 import { SettingsSearchBarProps } from "../types";
 
-const FullWidthPopper = function (props) {
-    return <Popper {...props} style={{
-        width: "fit-content",
+const searchItems: PreSearchItem[] = [
+    {
+        label: "Profile",
+        keywords: ["Bio", "Handle", "Name"],
+        value: LINKS.SettingsProfile,
+    },
+    {
+        label: "Privacy",
+        keywords: ["History", "Private"],
+        value: LINKS.SettingsPrivacy,
+    },
+    {
+        label: "Data",
+        keywords: [],
+        value: LINKS.SettingsData,
+    },
+    {
+        label: "Authentication",
+        keywords: [{ key: "Wallet", count: 1 }, { key: "Wallet", count: 2 }, { key: "Email", count: 1 }, { key: "Email", count: 2 }, "LogOut", "Security"],
+        value: LINKS.SettingsAuthentication,
+    },
+    {
+        label: "Payment",
+        labelArgs: { count: 2 },
+        keywords: [],
+        value: LINKS.SettingsPayments,
+    },
+    {
+        label: "Api",
+        keywords: [{ key: "Api", count: 2 }],
+        value: LINKS.SettingsApi,
+    },
+    {
+        label: "Display",
+        keywords: ["Theme", "Light", "Dark", "Interests", "Hidden", { key: "Tag", count: 1 }, { key: "Tag", count: 2 }, "History"],
+        value: LINKS.SettingsDisplay,
+    },
+    {
+        label: "Notification",
+        labelArgs: { count: 2 },
+        keywords: [{ key: "Alert", count: 1 }, { key: "Alert", count: 2 }, { key: "PushNotification", count: 1 }, { key: "PushNotification", count: 2 }],
+        value: LINKS.SettingsNotifications,
+    },
+    {
+        label: "FocusMode",
+        labelArgs: { count: 2 },
+        keywords: [{ key: "Schedule", count: 1 }, { key: "Schedule", count: 2 }, { key: "FocusMode", count: 1 }],
+        value: LINKS.SettingsFocusModes,
+    },
+];
+
+const FullWidthPopper = function (props: PopperProps) {
+    const parentWidth = props.anchorEl && (props.anchorEl as HTMLElement).parentElement ? (props.anchorEl as HTMLElement).parentElement?.clientWidth : null;
+    return <Popper {...props} sx={{
+        left: "-12px!important",
+        minWidth: parentWidth ?? (props.anchorEl as HTMLElement)?.clientWidth ?? "fit-content",
         maxWidth: "100%",
-    }} placement="bottom-start" />;
+    }} placement="bottom-start" /> as JSX.Element;
 };
 
 export const SettingsSearchBar = ({
     debounce = 200,
     id = "search-bar",
-    options = [],
     onChange,
     onInputChange,
     placeholder,
@@ -24,6 +78,9 @@ export const SettingsSearchBar = ({
 }: SettingsSearchBarProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const session = useContext(SessionContext);
+
+    const options = useMemo(() => translateSearchItems(searchItems, session), [session]);
 
     // Input internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value);
@@ -158,24 +215,24 @@ export const SettingsSearchBar = ({
                         fullWidth={params.fullWidth}
                         value={internalValue}
                         onChange={handleChange}
-                        placeholder={placeholder ?? t("SearchEllipsis")}
+                        placeholder={t(`${placeholder ?? "Search"}`) + "..."}
                         autoFocus={props.autoFocus ?? false}
                         // {...params.InputLabelProps}
                         inputProps={params.inputProps}
                         ref={params.InputProps.ref}
                         size={params.size}
                         sx={{
+                            width: "100vw",
                             ml: 1,
                             flex: 1,
-                            // Drop down/up icon
-                            "& .MuiAutocomplete-endAdornment": {
-                                width: "48px",
-                                height: "48px",
-                                top: "0",
-                                position: "relative",
-                                "& .MuiButtonBase-root": {
-                                    width: "48px",
-                                    height: "48px",
+                            // Drop down should be as large as the full width of the screen
+                            "& .MuiAutocomplete-popper": {
+                                width: "100vw!important",
+                                left: "0",
+                                right: "0",
+                                // The drop down should be below the search bar
+                                "& .MuiPaper-root": {
+                                    marginTop: "0",
                                 },
                             },
                         }}
@@ -192,6 +249,10 @@ export const SettingsSearchBar = ({
             sx={{
                 "& .MuiAutocomplete-inputRoot": {
                     paddingRight: "0 !important",
+                },
+                // Make sure menu is at least as wide as the search bar
+                "& .MuiAutocomplete-popper": {
+                    minWidth: "100vw",
                 },
             }}
         />

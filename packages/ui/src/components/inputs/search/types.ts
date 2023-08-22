@@ -22,7 +22,6 @@ export type SiteSearchBarProps = Omit<InputProps, "onChange" | "onInputChange"> 
 export type SettingsSearchBarProps = InputProps & {
     debounce?: number;
     id?: string;
-    options?: SearchItem[];
     onChange: (updatedText: string) => unknown;
     onInputChange: (newValue: SearchItem) => unknown;
     placeholder?: CommonKey;

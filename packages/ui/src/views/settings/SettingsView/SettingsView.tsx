@@ -5,13 +5,11 @@ import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
-import { SessionContext } from "contexts/SessionContext";
 import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, VisibleIcon, WalletIcon } from "icons";
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
-import { translateSearchItems } from "utils/search/siteToSearch";
 import { SettingsData, SettingsViewProps } from "../types";
 
 export const accountSettingsData: SettingsData[] = [
@@ -77,48 +75,12 @@ export const displaySettingsData: SettingsData[] = [
     },
 ];
 
-/** Search bar options */
-const searchItems: PreSearchItem[] = [
-    {
-        label: "Profile",
-        keywords: ["Bio", "Handle", "Name"],
-        value: "Profile",
-    },
-    {
-        label: "Privacy",
-        keywords: ["History"],
-        value: "Privacy",
-    },
-    {
-        label: "Authentication",
-        keywords: [{ key: "Wallet", count: 1 }, { key: "Wallet", count: 2 }, { key: "Email", count: 1 }, { key: "Email", count: 2 }, "LogOut", "Security"],
-        value: "authentication",
-    },
-    {
-        label: "Display",
-        keywords: ["Theme", "Light", "Dark", "Interests", "Hidden", { key: "Tag", count: 1 }, { key: "Tag", count: 2 }, "History"],
-        value: "Display",
-    },
-    {
-        label: "Notification",
-        labelArgs: { count: 2 },
-        keywords: [{ key: "Alert", count: 1 }, { key: "Alert", count: 2 }, { key: "PushNotification", count: 1 }, { key: "PushNotification", count: 2 }],
-        value: "Notification",
-    },
-    {
-        label: "Schedule",
-        keywords: [],
-        value: "Schedule",
-    },
-];
-
 export const SettingsView = ({
     isOpen,
     onClose,
 }: SettingsViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const session = useContext(SessionContext);
     const display = toDisplay(isOpen);
 
     const onSelect = useCallback((link: LINKS) => {
@@ -130,11 +92,10 @@ export const SettingsView = ({
 
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
     const onInputSelect = useCallback((newValue: any) => {
+        console.log("selected value", newValue);
         if (!newValue) return;
-        setLocation(newValue);
+        setLocation(newValue?.value);
     }, [setLocation]);
-
-    const searchOptions = useMemo(() => translateSearchItems(searchItems, session), [session]);
 
     return (
         <>
@@ -151,7 +112,6 @@ export const SettingsView = ({
                         value={searchString}
                         onChange={updateSearch}
                         onInputChange={onInputSelect}
-                        options={searchOptions}
                     />
                 </Box>}
                 display={display}
