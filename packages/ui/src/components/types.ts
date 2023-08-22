@@ -24,6 +24,12 @@ export interface ChatBubbleStatusProps {
 export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {
     isLoading?: boolean;
     showLabel?: boolean;
+    sxs?: {
+        root?: SxType;
+        bar?: SxType;
+        barBox?: SxType;
+        label?: SxType;
+    }
     value: number;
 }
 

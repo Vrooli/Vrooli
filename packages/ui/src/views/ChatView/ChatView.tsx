@@ -1,10 +1,9 @@
 import { Chat, ChatCreateInput, ChatInvite, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
-import { Box, Stack, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
+import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
@@ -280,12 +279,10 @@ export const ChatView = ({
                                     tryOnClose(onClose, setLocation);
                                 }
                             }}
-                            startComponent={<ColorIconButton
+                            startComponent={<IconButton
                                 aria-label="Open chat menu"
-                                background={palette.secondary.main}
                                 onClick={openSideMenu}
                                 sx={{
-                                    borderRadius: 2,
                                     width: "48px",
                                     height: "48px",
                                     marginLeft: 1,
@@ -294,7 +291,7 @@ export const ChatView = ({
                                 }}
                             >
                                 <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
-                            </ColorIconButton>}
+                            </IconButton>}
                             // TODO change title so that when pressed, you can switch chats or add a new chat
                             title={firstString(title, botSettings ? "AI Chat" : "Chat")}
                         />
@@ -367,7 +364,7 @@ export const ChatView = ({
                     </>}
                 </Formik>
             </MaybeLargeDialog>
-            <SideMenu />
+            <ChatSideMenu />
         </>
     );
 };

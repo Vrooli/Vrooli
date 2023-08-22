@@ -1,8 +1,9 @@
 /**
  * Shows valid/invalid/incomplete status of some object
  */
-import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "icons";
+import { Stack, Tooltip, Typography } from "@mui/material";
+import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { Status } from "utils/consts";
@@ -33,8 +34,6 @@ export const StatusButton = ({
     messages,
     sx,
 }: StatusButtonProps) => {
-    const { palette } = useTheme();
-
     /**
      * List of status messages converted to markdown. 
      * If one message, no bullet points. If multiple, bullet points.
@@ -52,26 +51,12 @@ export const StatusButton = ({
     const StatusIcon = useMemo(() => STATUS_ICON[status], [status]);
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const open = Boolean(anchorEl);
-    const openMenu = useCallback((event: any) => {
+    const openPopover = useCallback((event: any) => {
         if (!anchorEl) setAnchorEl(event.currentTarget);
     }, [anchorEl]);
-    const closeMenu = () => {
+    const closePopover = () => {
         setAnchorEl(null);
     };
-
-    const menu = useMemo(() => (
-        <Box>
-            <Box sx={{ background: palette.primary.dark }}>
-                <IconButton edge="end" color="inherit" onClick={closeMenu} aria-label="close">
-                    <CloseIcon fill={palette.primary.contrastText} />
-                </IconButton>
-            </Box>
-            <Box sx={{ padding: 1 }}>
-                <MarkdownDisplay content={statusMarkdown} />
-            </Box>
-        </Box>
-    ), [palette.primary.dark, palette.primary.contrastText, statusMarkdown]);
 
     return (
         <>
@@ -79,7 +64,7 @@ export const StatusButton = ({
                 <Stack
                     direction="row"
                     spacing={1}
-                    onClick={openMenu}
+                    onClick={openPopover}
                     sx={{
                         ...noSelect,
                         display: "flex",
@@ -102,32 +87,21 @@ export const StatusButton = ({
                         }}>{STATUS_LABEL[status]}</Typography>
                 </Stack>
             </Tooltip>
-            <Menu
-                id='status-menu'
-                open={open}
-                disableScrollLock={true}
+            <PopoverWithArrow
                 anchorEl={anchorEl}
-                onClose={closeMenu}
-                anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "center",
-                }}
-                transformOrigin={{
-                    vertical: "top",
-                    horizontal: "center",
-                }}
-                sx={{
-                    "& .MuiPopover-paper": {
-                        background: palette.background.default,
-                        maxWidth: "min(100vw, 400px)",
-                    },
-                    "& .MuiMenu-list": {
-                        padding: 0,
+                handleClose={closePopover}
+                sxs={{
+                    root: {
+                        // Remove horizontal spacing for list items
+                        "& ul": {
+                            paddingInlineStart: "20px",
+                            margin: "8px",
+                        },
                     },
                 }}
             >
-                {menu}
-            </Menu>
+                <MarkdownDisplay content={statusMarkdown} sx={{ minHeight: "unset" }} />
+            </PopoverWithArrow>
         </>
     );
 };

@@ -70,6 +70,7 @@ export const SideMenu = () => {
     useEffect(() => {
         PubSub.get().publishSideMenu({ id, isOpen });
     }, [breakpoints, isOpen]);
+    console.log("is side menu open", isOpen, isMobile, isLeftHanded);
 
     // Display settings collapse
     const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
@@ -125,8 +126,8 @@ export const SideMenu = () => {
 
     const [switchCurrentAccount] = useLazyFetch<SwitchCurrentAccountInput, Session>(endpointPostAuthSwitchCurrentAccount);
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
-        // Close menu
-        handleClose(event);
+        // Close menu if not persistent
+        if (isMobile) handleClose(event);
         // If already selected, go to profile page
         if (userId === user.id) {
             setLocation(LINKS.Profile);
@@ -140,16 +141,16 @@ export const SideMenu = () => {
                 onSuccess: (data) => { PubSub.get().publishSession(data); },
             });
         }
-    }, [handleClose, userId, setLocation, switchCurrentAccount]);
+    }, [handleClose, isMobile, userId, setLocation, switchCurrentAccount]);
 
     const handleAddAccount = useCallback((event: React.MouseEvent<HTMLElement>) => {
         setLocation(LINKS.Start);
-        handleClose(event);
-    }, [handleClose, setLocation]);
+        if (isMobile) handleClose(event);
+    }, [handleClose, isMobile, setLocation]);
 
     const [logOut] = useLazyFetch<LogOutInput, Session>(endpointPostAuthLogout);
     const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleClose(event);
+        if (isMobile) handleClose(event);
         const user = getCurrentUser(session);
         fetchLazyWrapper<LogOutInput, Session>({
             fetch: logOut,
@@ -160,11 +161,11 @@ export const SideMenu = () => {
             onError: () => { PubSub.get().publishSession(guestSession); },
         });
         setLocation(LINKS.Home);
-    }, [handleClose, session, logOut, setLocation]);
+    }, [handleClose, isMobile, session, logOut, setLocation]);
 
     const handleOpen = (event: React.MouseEvent<HTMLElement>, link: string) => {
         setLocation(link);
-        handleClose(event);
+        if (isMobile) handleClose(event);
     };
 
     const accounts = useMemo(() => session?.users ?? [], [session?.users]);

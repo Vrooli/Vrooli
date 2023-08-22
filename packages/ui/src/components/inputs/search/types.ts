@@ -25,6 +25,6 @@ export type SettingsSearchBarProps = InputProps & {
     options?: SearchItem[];
     onChange: (updatedText: string) => unknown;
     onInputChange: (newValue: SearchItem) => unknown;
-    placeholder?: string;
+    placeholder?: CommonKey;
     value: string;
 }

@@ -6,8 +6,8 @@ import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
-import { ChatSideMenu, chatSideMenuDisplayData } from "components/dialogs/ChatSideMenu/ChatSideMenu";
-import { sideMenuDisplayData } from "components/dialogs/SideMenu/SideMenu";
+import { chatSideMenuDisplayData } from "components/dialogs/ChatSideMenu/ChatSideMenu";
+import { SideMenu, sideMenuDisplayData } from "components/dialogs/SideMenu/SideMenu";
 import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
@@ -472,7 +472,7 @@ export function App() {
                             <AlertDialog />
                             <SnackStack />
                             <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
-                            <ChatSideMenu />
+                            <SideMenu />
                             <Box id="content-wrap" sx={{
                                 background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
                                 minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },

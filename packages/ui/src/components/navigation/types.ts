@@ -23,9 +23,9 @@ export type NavbarProps = {
     titleComponent?: JSX.Element;
 }
 
-export type SettingsTopBarProps = Omit<TopBarProps, "below">
+export type SettingsTopBarProps = TopBarProps
 
-export interface TopBarProps extends Omit<TitleProps, "variant"> {
+export interface TopBarProps extends TitleProps {
     display: ViewDisplayType
     onClose?: () => void,
     below?: JSX.Element | boolean

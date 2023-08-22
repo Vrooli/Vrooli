@@ -3,7 +3,6 @@ import { AppBar, Box, IconButton, Stack, Typography, useTheme } from "@mui/mater
 import { Title } from "components/text/Title/Title";
 import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
-import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
 import { VrooliIcon } from "icons";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";
@@ -105,9 +104,7 @@ const TitleDisplay = ({ isMobile, title, titleComponent, help, options, shouldHi
     return null;
 };
 
-const NavListComponent = ({ isLeftHanded, isSideMenuOpen }) => {
-    // Don't display nav list if side menu is open
-    if (isSideMenuOpen) return null;
+const NavListComponent = ({ isLeftHanded }) => {
     return <Box sx={{
         marginLeft: isLeftHanded ? 0 : "auto",
         marginRight: isLeftHanded ? "auto" : 0,
@@ -150,9 +147,13 @@ export const Navbar = forwardRef(({
 
     // Determine display texts and states
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const logoState = useMemo(() => (isMobile && (title || titleComponent)) ? "icon" : "full", [isMobile, title, titleComponent]);
+    const logoState = useMemo(() => {
+        if (isMobile && startComponent) return "none";
+        if (isMobile && (title || titleComponent)) return "icon";
+        return "full";
+    }, [isMobile, startComponent, title, titleComponent]);
     const isLeftHanded = useIsLeftHanded();
-    const { isOpen: isSideMenuOpen } = useSideMenu("side-menu", isMobile);
+
 
     const toHome = useCallback(() => setLocation(LINKS.Home), [setLocation]);
     const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: "smooth" }), []);
@@ -189,11 +190,15 @@ export const Navbar = forwardRef(({
                         // TODO Reverse order on left-handed mobile
                         flexDirection: isLeftHanded ? "row-reverse" : "row",
                     }}>
-                        {startComponent}
+                        {startComponent ? <Box sx={isMobile ? {
+                            marginRight: isLeftHanded ? 1 : "auto",
+                            marginLeft: isLeftHanded ? "auto" : 1,
+                        } : {}}>{startComponent}</Box> : null}
+                        {/* Logo */}
                         <LogoComponent {...{ isLeftHanded, isMobile, state: logoState, onClick: toHome }} />
                         {/* Title displayed here on mobile */}
                         <TitleDisplay {...{ isMobile, title, titleComponent, help, options, shouldHideTitle, showOnMobile: true }} />
-                        <NavListComponent {...{ isLeftHanded, isSideMenuOpen }} />
+                        <NavListComponent {...{ isLeftHanded }} />
                     </Stack>
                     {/* "below" displayed inside AppBar on mobile */}
                     {isMobile && below}

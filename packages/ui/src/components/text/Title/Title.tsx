@@ -9,7 +9,7 @@ export const Title = ({
     sxs,
     title,
     titleComponent,
-    variant,
+    variant = "header",
 }: TitleProps) => {
     const { palette } = useTheme();
 

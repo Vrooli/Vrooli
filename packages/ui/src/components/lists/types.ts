@@ -2,7 +2,7 @@ import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization
 import { LineGraphProps } from "components/graphs/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
-import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
+import { NavigableObject, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { ListObject } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
@@ -214,11 +214,6 @@ export interface TagListProps {
     parentId: string;
     sx?: SxType;
     tags: Partial<Tag>[];
-}
-
-export interface AwardCardProps {
-    award: AwardDisplay;
-    isEarned: boolean;
 }
 
 export interface CardGridProps {

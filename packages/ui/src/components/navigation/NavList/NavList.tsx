@@ -3,6 +3,7 @@ import { Avatar, Box, Button, Container, Palette, useTheme } from "@mui/material
 import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
 import { SessionContext } from "contexts/SessionContext";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
 import { LogInIcon, ProfileIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
@@ -35,6 +36,7 @@ export const NavList = () => {
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
 
+    const { isOpen: isSideMenuOpen } = useSideMenu("side-menu", isMobile);
     const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); }, []);
 
     return (
@@ -48,7 +50,7 @@ export const NavList = () => {
             flexDirection: isLeftHanded ? "row-reverse" : "row",
         }}>
             {/* Contact menu */}
-            {!isMobile && !getCurrentUser(session).id && <PopupMenu
+            {!isMobile && !getCurrentUser(session).id && !isSideMenuOpen && <PopupMenu
                 text={t("Contact")}
                 variant="text"
                 size="large"
@@ -58,7 +60,7 @@ export const NavList = () => {
             </PopupMenu>}
             {/* List items displayed when on wide screen */}
             <Box>
-                {!isMobile && actionsToMenu({
+                {!isMobile && !isSideMenuOpen && actionsToMenu({
                     actions: navActions,
                     setLocation,
                     sx: navItemStyle(palette),
