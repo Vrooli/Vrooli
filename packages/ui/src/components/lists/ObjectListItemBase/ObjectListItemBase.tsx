@@ -23,7 +23,6 @@ import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectEditUrl, getObjectUrl } from "utils/navigation/openObject";
-import { smallHorizontalScrollbar } from "../styles";
 import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
 import { ObjectListItemProps } from "../types";
@@ -290,9 +289,7 @@ export function ObjectListItemBase<T extends ListObject>({
                     {/* Title */}
                     {loading ? <TextLoading /> :
                         (
-                            <Stack id={`${LIST_PREFIX}title-stack-${id}`} direction="row" spacing={1} sx={{
-                                ...smallHorizontalScrollbar(palette),
-                            }}>
+                            <Stack id={`${LIST_PREFIX}title-stack-${id}`} direction="row" spacing={1}>
                                 <ListItemText
                                     primary={titleOverride ?? title}
                                     sx={{
@@ -343,7 +340,6 @@ export function ObjectListItemBase<T extends ListObject>({
                             <TagList
                                 parentId={data?.id ?? ""}
                                 tags={(data as any).tags}
-                                sx={{ ...smallHorizontalScrollbar(palette) }}
                             />}
                         {/* Any custom components to display below tags */}
                         {belowTags}

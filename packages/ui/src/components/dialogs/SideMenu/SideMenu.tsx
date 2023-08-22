@@ -246,94 +246,99 @@ export const SideMenu = () => {
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
             </Box>
-            {/* List of logged/in accounts and authentication-related actions */}
-            <List id="side-menu-account-list" sx={{ paddingTop: 0, paddingBottom: 0 }}>
-                {profileListItems}
+            <Box sx={{
+                overflow: "auto",
+                display: "grid",
+            }}>
+                {/* List of logged/in accounts and authentication-related actions */}
+                <List id="side-menu-account-list" sx={{ paddingTop: 0, paddingBottom: 0 }}>
+                    {profileListItems}
+                    <Divider sx={{ background: palette.background.textSecondary }} />
+                    {/* Buttons to add account and log out */}
+                    {accounts.length < MAX_ACCOUNTS && <ListItem button onClick={handleAddAccount}>
+                        <ListItemIcon>
+                            <PlusIcon fill={palette.background.textPrimary} />
+                        </ListItemIcon>
+                        <ListItemText primary={t("AddAccount")} />
+                    </ListItem>}
+                    {accounts.length > 0 && <ListItem button onClick={handleLogOut}>
+                        <ListItemIcon>
+                            <LogOutIcon fill={palette.background.textPrimary} />
+                        </ListItemIcon>
+                        <ListItemText primary={t("LogOut")} />
+                    </ListItem>}
+                </List>
                 <Divider sx={{ background: palette.background.textSecondary }} />
-                {/* Buttons to add account and log out */}
-                {accounts.length < MAX_ACCOUNTS && <ListItem button onClick={handleAddAccount}>
-                    <ListItemIcon>
-                        <PlusIcon fill={palette.background.textPrimary} />
-                    </ListItemIcon>
-                    <ListItemText primary={t("AddAccount")} />
-                </ListItem>}
-                {accounts.length > 0 && <ListItem button onClick={handleLogOut}>
-                    <ListItemIcon>
-                        <LogOutIcon fill={palette.background.textPrimary} />
-                    </ListItemIcon>
-                    <ListItemText primary={t("LogOut")} />
-                </ListItem>}
-            </List>
-            <Divider sx={{ background: palette.background.textSecondary }} />
-            {/* Display Settings */}
-            <Stack direction="row" spacing={1} onClick={toggleDisplaySettings} sx={{
-                display: "flex",
-                alignItems: "center",
-                textAlign: "left",
-                paddingLeft: 2,
-                paddingRight: 2,
-                paddingTop: 1,
-                paddingBottom: 1,
-            }}>
-                <Box sx={{ minWidth: "56px", display: "flex", alignItems: "center" }}>
-                    <DisplaySettingsIcon fill={palette.background.textPrimary} />
-                </Box>
-                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: "0 !important" }}>{t("Display")}</Typography>
-                {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
-            </Stack>
-            <Collapse in={isDisplaySettingsOpen} sx={{ display: "inline-block", minHeight: "auto!important" }}>
-                <Stack id="side-menu-display-settings" direction="column" spacing={2} sx={{
-                    minWidth: "fit-content",
-                    height: "fit-content",
-                    padding: 1,
+                {/* Display Settings */}
+                <Stack direction="row" spacing={1} onClick={toggleDisplaySettings} sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    textAlign: "left",
+                    paddingLeft: 2,
+                    paddingRight: 2,
+                    paddingTop: 1,
+                    paddingBottom: 1,
                 }}>
-                    <ThemeSwitch />
-                    <TextSizeButtons />
-                    <LeftHandedCheckbox />
-                    <LanguageSelector />
-                    <FocusModeSelector />
+                    <Box sx={{ minWidth: "56px", display: "flex", alignItems: "center" }}>
+                        <DisplaySettingsIcon fill={palette.background.textPrimary} />
+                    </Box>
+                    <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: "0 !important" }}>{t("Display")}</Typography>
+                    {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
                 </Stack>
-            </Collapse>
-            <Divider sx={{ background: palette.background.textSecondary }} />
-            {/* List of quick links */}
-            <List id="side-menu-quick-links">
-                {/* Main navigation links, if not mobile */}
-                {!isMobile && navActions.map((action) => (
-                    <NavListItem
-                        key={action.value}
-                        label={t(action.label, { count: action.numNotifications })}
-                        Icon={action.Icon}
-                        onClick={(event) => handleOpen(event, action.link)}
-                        palette={palette}
-                    />
-                ))}
-                <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
-                <NavListItem label={t("Bookmark", { count: 2 })} Icon={BookmarkFilledIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`)} palette={palette} />
-                <NavListItem label={t("History")} Icon={HistoryIcon} onClick={(event) => handleOpen(event, LINKS.History)} palette={palette} />
-                <NavListItem label={t("Run", { count: 2 })} Icon={RoutineActiveIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`)} palette={palette} />
-                <NavListItem label={t("Award", { count: 2 })} Icon={AwardIcon} onClick={(event) => handleOpen(event, LINKS.Awards)} palette={palette} />
-                <NavListItem label={t("Premium")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Premium)} palette={palette} />
-            </List>
-            <Divider sx={{ background: palette.background.textSecondary }} />
-            {/* Additional Resources */}
-            <Stack direction="row" spacing={1} onClick={toggleAdditionalResources} sx={{
-                display: "flex",
-                alignItems: "center",
-                textAlign: "left",
-                paddingLeft: 2,
-                paddingRight: 2,
-                paddingTop: 1,
-                paddingBottom: 1,
-            }}>
-                <Box sx={{ minWidth: "56px", display: "flex", alignItems: "center" }}>
-                    <HelpIcon fill={palette.background.textPrimary} />
-                </Box>
-                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: "0 !important" }}>{t("AdditionalResources")}</Typography>
-                {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
-            </Stack>
-            <Collapse in={isAdditionalResourcesOpen} sx={{ display: "inline-block" }}>
-                <ContactInfo />
-            </Collapse>
+                <Collapse in={isDisplaySettingsOpen} sx={{ display: "inline-block", minHeight: "auto!important" }}>
+                    <Stack id="side-menu-display-settings" direction="column" spacing={2} sx={{
+                        minWidth: "fit-content",
+                        height: "fit-content",
+                        padding: 1,
+                    }}>
+                        <ThemeSwitch />
+                        <TextSizeButtons />
+                        <LeftHandedCheckbox />
+                        <LanguageSelector />
+                        <FocusModeSelector />
+                    </Stack>
+                </Collapse>
+                <Divider sx={{ background: palette.background.textSecondary }} />
+                {/* List of quick links */}
+                <List id="side-menu-quick-links">
+                    {/* Main navigation links, if not mobile */}
+                    {!isMobile && navActions.map((action) => (
+                        <NavListItem
+                            key={action.value}
+                            label={t(action.label, { count: action.numNotifications })}
+                            Icon={action.Icon}
+                            onClick={(event) => handleOpen(event, action.link)}
+                            palette={palette}
+                        />
+                    ))}
+                    <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
+                    <NavListItem label={t("Bookmark", { count: 2 })} Icon={BookmarkFilledIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`)} palette={palette} />
+                    <NavListItem label={t("History")} Icon={HistoryIcon} onClick={(event) => handleOpen(event, LINKS.History)} palette={palette} />
+                    <NavListItem label={t("Run", { count: 2 })} Icon={RoutineActiveIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`)} palette={palette} />
+                    <NavListItem label={t("Award", { count: 2 })} Icon={AwardIcon} onClick={(event) => handleOpen(event, LINKS.Awards)} palette={palette} />
+                    <NavListItem label={t("Premium")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Premium)} palette={palette} />
+                </List>
+                <Divider sx={{ background: palette.background.textSecondary }} />
+                {/* Additional Resources */}
+                <Stack direction="row" spacing={1} onClick={toggleAdditionalResources} sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    textAlign: "left",
+                    paddingLeft: 2,
+                    paddingRight: 2,
+                    paddingTop: 1,
+                    paddingBottom: 1,
+                }}>
+                    <Box sx={{ minWidth: "56px", display: "flex", alignItems: "center" }}>
+                        <HelpIcon fill={palette.background.textPrimary} />
+                    </Box>
+                    <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: "0 !important" }}>{t("AdditionalResources")}</Typography>
+                    {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
+                </Stack>
+                <Collapse in={isAdditionalResourcesOpen} sx={{ display: "inline-block" }}>
+                    <ContactInfo />
+                </Collapse>
+            </Box>
         </SwipeableDrawer>
     );
 };

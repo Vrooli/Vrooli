@@ -92,7 +92,6 @@ export const SettingsView = ({
 
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
     const onInputSelect = useCallback((newValue: any) => {
-        console.log("selected value", newValue);
         if (!newValue) return;
         setLocation(newValue?.value);
     }, [setLocation]);
