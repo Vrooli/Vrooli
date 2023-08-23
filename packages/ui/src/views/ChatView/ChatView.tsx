@@ -378,8 +378,7 @@ export const ChatView = ({
                         </Box>
                         <Resizable
                             id="chat-message-input"
-                            max={500}
-                            min={100}
+                            min={150}
                             position="top"
                             sx={{
                                 position: "sticky",

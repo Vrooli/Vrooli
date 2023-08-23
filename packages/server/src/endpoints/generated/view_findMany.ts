@@ -72,6 +72,8 @@ export const view_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -110,6 +112,8 @@ export const view_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -250,6 +254,8 @@ export const view_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -342,6 +348,8 @@ export const view_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -380,6 +388,8 @@ export const view_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -567,6 +577,8 @@ export const view_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -605,6 +617,8 @@ export const view_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -657,6 +671,8 @@ export const view_findMany = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -811,6 +827,8 @@ export const view_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -849,6 +867,8 @@ export const view_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -961,6 +981,8 @@ export const view_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -999,6 +1021,8 @@ export const view_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -1112,6 +1136,8 @@ export const view_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -1150,6 +1176,8 @@ export const view_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -1198,6 +1226,7 @@ export const view_findMany = {
           },
           "id": true,
           "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,

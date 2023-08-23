@@ -12,6 +12,8 @@ export const pullRequest_accept = {
   "status": true,
   "createdBy": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,

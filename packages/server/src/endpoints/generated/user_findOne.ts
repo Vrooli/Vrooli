@@ -7,6 +7,7 @@ export const user_findOne = {
   },
   "id": true,
   "created_at": true,
+  "updated_at": true,
   "bannerImage": true,
   "handle": true,
   "isBot": true,

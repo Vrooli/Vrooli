@@ -29,7 +29,10 @@ export function parseFieldNode(node: FieldNode, fragments: { [x: string]: Fragme
  */
 export function parseFragmentSpreadNode(node: FragmentSpreadNode, fragments: { [x: string]: FragmentDefinitionNode }): { [x: string]: any } {
     // Get fragment
-    const fragment: FragmentDefinitionNode = fragments[node.name.value];
+    const fragment: FragmentDefinitionNode | undefined = fragments[node.name.value];
+    if (!fragment) {
+        throw new Error(`Fragment "${node.name.value}" not found.`);
+    }
     // Create result object
     let result: { [x: string]: any } = {};
     // Loop through each selection
@@ -113,7 +116,7 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
  */
 export const resolveGQLInfo = (info: GraphQLResolveInfo): { [x: string]: any } => {
     // Get selected nodes
-    const selectionNodes = info.fieldNodes[0].selectionSet?.selections;
+    const selectionNodes = info.fieldNodes[0]?.selectionSet?.selections;
     if (!selectionNodes) return {};
     // Create result object
     let result: { [x: string]: any } = {};

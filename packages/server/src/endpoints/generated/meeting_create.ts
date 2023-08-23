@@ -1,6 +1,8 @@
 export const meeting_create = {
   "attendees": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,
@@ -39,6 +41,8 @@ export const meeting_create = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -97,6 +101,8 @@ export const meeting_create = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -273,6 +279,8 @@ export const meeting_create = {
             "owner": {
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -314,6 +322,8 @@ export const meeting_create = {
           "owner": {
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -476,6 +486,8 @@ export const meeting_create = {
       },
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -647,6 +659,8 @@ export const meeting_create = {
       },
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

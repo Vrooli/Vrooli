@@ -31,6 +31,7 @@ export const user: GqlPartial<User> = {
     common: {
         id: true,
         created_at: true,
+        updated_at: true,
         bannerImage: true,
         handle: true,
         isBot: true,
@@ -49,6 +50,8 @@ export const user: GqlPartial<User> = {
     },
     nav: {
         id: true,
+        created_at: true,
+        updated_at: true,
         bannerImage: true,
         handle: true,
         isBot: true,

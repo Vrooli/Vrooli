@@ -89,13 +89,13 @@ export const ChatSideMenu = () => {
             sx={{
                 zIndex,
                 "& .MuiDrawer-paper": {
-                    width: "min(350px, 100%)",
+                    width: "min(300px, 100%)",
                     background: palette.background.default,
                     overflowY: "auto",
                     borderRight: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
                 },
                 "& > .MuiDialog-container": {
-                    width: "min(350px, 100%)",
+                    width: "min(300px, 100%)",
                     "& > .MuiPaper-root": {
                         zIndex,
                     },
@@ -155,15 +155,22 @@ export const ChatSideMenu = () => {
                     id="chat-related-search-list"
                     display="partial"
                     dummyLength={10}
+                    hideUpdateButton={true}
                     take={20}
                     searchType={searchType}
-                    sxs={showSearchFilters ? {
-                        search: { marginTop: 2 },
-                        listContainer: { borderRadius: 0 },
-                    } : {
-                        search: { display: "none" },
-                        buttons: { display: "none" },
-                        listContainer: { borderRadius: 0 },
+                    sxs={{
+                        ...(showSearchFilters ?
+                            { search: { marginTop: 2 } } :
+                            {
+                                search: { display: "none" },
+                                buttons: { display: "none" },
+                            }
+                        ),
+                        listContainer: {
+                            borderRadius: 0,
+                            // Hide Avatar from list items
+                            "& .MuiAvatar-root": { display: "none" },
+                        },
                     }}
                     where={where()}
                 />}

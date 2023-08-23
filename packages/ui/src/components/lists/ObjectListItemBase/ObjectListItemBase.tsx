@@ -18,6 +18,7 @@ import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { SvgComponent } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { getCurrentUser } from "utils/authentication/session";
 import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
@@ -154,7 +155,27 @@ export function ObjectListItemBase<T extends ListObject>({
         }
         // Show multiple icons for chats
         if (isOfType(object, "Chat")) {
-            return <ProfileGroup users={(object as unknown as Chat).participants?.map(p => p.user)} />;
+            // Filter yourself out of participants
+            const participants = (object as unknown as Chat).participants?.filter(p => p.user?.id !== getCurrentUser(session).id) ?? [];
+            // If no participants, show nothing
+            if (participants.length === 0) return null;
+            // If only one participant, show their profile picture instead of a group
+            if (participants.length === 1) {
+                return (
+                    <Avatar
+                        src={extractImageUrl((participants[0]?.user as unknown as { profileImage: string }).profileImage, (participants[0]?.user as unknown as { updated_at: string }).updated_at, 50)}
+                        alt={`${(participants[0]?.user as unknown as { name: string }).name}'s profile picture`}
+                        sx={{
+                            backgroundColor: profileColors[0],
+                            width: isMobile ? "40px" : "50px",
+                            height: isMobile ? "40px" : "50px",
+                            pointerEvents: "none",
+                        }}
+                    />
+                );
+            }
+            // Otherwise, show a group
+            return <ProfileGroup users={participants.map(p => p.user)} />;
         }
         // Otherwise, only show on wide screens
         if (isMobile) return null;
@@ -172,7 +193,7 @@ export function ObjectListItemBase<T extends ListObject>({
             );
         }
         return null;
-    }, [isMobile, object, profileColors, canReact, reaction, score]);
+    }, [isMobile, object, profileColors, canReact, reaction, score, session]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 

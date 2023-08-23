@@ -256,6 +256,8 @@ export const projectVersion_update = {
     "status": true,
     "createdBy": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -323,6 +325,8 @@ export const projectVersion_update = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -364,6 +368,8 @@ export const projectVersion_update = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

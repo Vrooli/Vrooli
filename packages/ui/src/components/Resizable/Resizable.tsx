@@ -48,6 +48,7 @@ const styles: Record<Position, React.CSSProperties> = {
     },
 };
 
+//TODO Need better min/max. Should be able to set as percentage of screen size in addition to px
 const DEFAULT_SIZE = 150;
 const areDimensionsValid = (
     dimensions: Dimensions | null | undefined,
@@ -131,8 +132,8 @@ export const Resizable = ({
         event.preventDefault();
         if (!containerRef.current) return;
         const isTouchEvent = event.touches && event.touches.length;
-        const startX = isTouchEvent ? event.touches[0].clientX : event.clientX;
-        const startY = isTouchEvent ? event.touches[0].clientY : event.clientY;
+        const startX = isTouchEvent ? (event.touches[0]?.clientX ?? 0) : event.clientX;
+        const startY = isTouchEvent ? (event.touches[0]?.clientY ?? 0) : event.clientY;
         const { width: startWidth, height: startHeight } = containerRef.current.getBoundingClientRect();
         let newWidth = startWidth;
         let newHeight = startHeight;
@@ -140,8 +141,8 @@ export const Resizable = ({
         const handleMove = (moveEvent: MouseEvent & TouchEvent) => {
             if (!containerRef.current) return;
             moveEvent.preventDefault();
-            const currentX = isTouchEvent ? moveEvent.touches[0].clientX : moveEvent.clientX;
-            const currentY = isTouchEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
+            const currentX = isTouchEvent ? (moveEvent.touches[0]?.clientX ?? 0) : moveEvent.clientX;
+            const currentY = isTouchEvent ? (moveEvent.touches[0]?.clientY ?? 0) : moveEvent.clientY;
             if (isVerticalResize) {
                 const diffY = currentY - startY;
                 newHeight = position === "bottom" ? startHeight + diffY : startHeight - diffY;

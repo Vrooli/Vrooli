@@ -45,15 +45,16 @@ const batchDirectoryCounts = async (
         // For each directory, increment the counts for the project version
         batch.forEach(directory => {
             const versionId = directory.projectVersion.id;
-            if (!result[versionId]) { return; }
-            result[versionId].directories += 1;
-            result[versionId].apis += directory._count.childApiVersions;
-            result[versionId].notes += directory._count.childNoteVersions;
-            result[versionId].organizations += directory._count.childOrganizations;
-            result[versionId].projects += directory._count.childProjectVersions;
-            result[versionId].routines += directory._count.childRoutineVersions;
-            result[versionId].smartContracts += directory._count.childSmartContractVersions;
-            result[versionId].standards += directory._count.childStandardVersions;
+            const currResult = result[versionId];
+            if (!currResult) return;
+            currResult.directories += 1;
+            currResult.apis += directory._count.childApiVersions;
+            currResult.notes += directory._count.childNoteVersions;
+            currResult.organizations += directory._count.childOrganizations;
+            currResult.projects += directory._count.childProjectVersions;
+            currResult.routines += directory._count.childRoutineVersions;
+            currResult.smartContracts += directory._count.childSmartContractVersions;
+            currResult.standards += directory._count.childStandardVersions;
         });
     },
     objectType: "ProjectVersionDirectory",
@@ -104,26 +105,30 @@ const batchRunCounts = async (
         // For each run, increment the counts for the project version
         batch.forEach(run => {
             const versionId = run.projectVersion?.id;
-            if (!versionId || !result[versionId]) { return; }
+            if (!versionId) return;
+            const currResult = result[versionId];
+            if (!currResult) return;
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
-                result[versionId].runsStarted += 1;
+                currResult.runsStarted += 1;
             }
             // If runCompleted within period, increment runsCompleted 
             // and update averages
             if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
-                result[versionId].runsCompleted += 1;
-                if (run.timeElapsed !== null) result[versionId].runCompletionTimeAverage += run.timeElapsed;
-                result[versionId].runContextSwitchesAverage += run.contextSwitches;
+                currResult.runsCompleted += 1;
+                if (run.timeElapsed !== null) currResult.runCompletionTimeAverage += run.timeElapsed;
+                currResult.runContextSwitchesAverage += run.contextSwitches;
             }
         });
     },
     finalizeResult: (result) => {
         // For the averages, divide by the number of runs completed
         Object.keys(result).forEach(versionId => {
-            if (result[versionId].runsCompleted > 0) {
-                result[versionId].runCompletionTimeAverage /= result[versionId].runsCompleted;
-                result[versionId].runContextSwitchesAverage /= result[versionId].runsCompleted;
+            const currResult = result[versionId];
+            if (!currResult) return;
+            if (currResult.runsCompleted > 0) {
+                currResult.runCompletionTimeAverage /= currResult.runsCompleted;
+                currResult.runContextSwitchesAverage /= currResult.runsCompleted;
             }
         });
         return result;
@@ -169,24 +174,19 @@ export const logProjectStats = async (
         const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
         // Create stats for each project
         await prisma.stats_project.createMany({
-            data: batch.map(projectVersion => ({
-                projectId: projectVersion.root.id,
-                periodStart,
-                periodEnd,
-                periodType,
-                directories: directoryCountsByVersion[projectVersion.id].directories,
-                apis: directoryCountsByVersion[projectVersion.id].apis,
-                notes: directoryCountsByVersion[projectVersion.id].notes,
-                organizations: directoryCountsByVersion[projectVersion.id].organizations,
-                projects: directoryCountsByVersion[projectVersion.id].projects,
-                routines: directoryCountsByVersion[projectVersion.id].routines,
-                smartContracts: directoryCountsByVersion[projectVersion.id].smartContracts,
-                standards: directoryCountsByVersion[projectVersion.id].standards,
-                runsStarted: runCountsByVersion[projectVersion.id].runsStarted,
-                runsCompleted: runCountsByVersion[projectVersion.id].runsCompleted,
-                runCompletionTimeAverage: runCountsByVersion[projectVersion.id].runCompletionTimeAverage,
-                runContextSwitchesAverage: runCountsByVersion[projectVersion.id].runContextSwitchesAverage,
-            })),
+            data: batch.map(projectVersion => {
+                const directoryCounts = directoryCountsByVersion[projectVersion.id];
+                const runCounts = runCountsByVersion[projectVersion.id];
+                if (!directoryCounts || !runCounts) return;
+                return {
+                    projectId: projectVersion.root.id,
+                    periodStart,
+                    periodEnd,
+                    periodType,
+                    ...directoryCounts,
+                    ...runCounts,
+                };
+            }).filter((data): data is Exclude<typeof data, undefined> => !!data),
         });
     },
     select: {

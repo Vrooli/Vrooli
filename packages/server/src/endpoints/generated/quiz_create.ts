@@ -20,6 +20,8 @@ export const quiz_create = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -56,6 +58,8 @@ export const quiz_create = {
         },
         "user": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -135,6 +139,8 @@ export const quiz_create = {
   "updated_at": true,
   "createdBy": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,

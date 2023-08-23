@@ -18,6 +18,8 @@ export const quizQuestionResponse_update = {
       "updated_at": true,
       "createdBy": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -54,6 +56,8 @@ export const quizQuestionResponse_update = {
     },
     "user": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,

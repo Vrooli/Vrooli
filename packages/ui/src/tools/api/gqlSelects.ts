@@ -3,7 +3,7 @@
  * or PartialGraphQLInfo objects, depending on whether the desired endpoint is a graphql endpoint or a rest endpoint.
  * This is done during build to reduce runtime computation.
  */
-import { resolveGQLInfo } from "@local/shared";
+import { resolveGQLInfo, uppercaseFirstLetter } from "@local/shared";
 import fs from "fs";
 import { DocumentNode, FieldNode, FragmentDefinitionNode, GraphQLResolveInfo, OperationDefinitionNode, parse } from "graphql";
 import { injectTypenames } from "../../../../server/src/builders/injectTypenames";
@@ -76,7 +76,7 @@ async function main() {
                 importsString += `\nimport { ${fragmentName} } from "../fragments/${fragmentName}";`;
             }
             // Create full endpoint string and file name
-            const endpointString = `export const ${objectType}${endpointName[0].toUpperCase() + endpointName.slice(1)} = gql\`${tag}\`;\n\n`;
+            const endpointString = `export const ${objectType}${uppercaseFirstLetter(endpointName)} = gql\`${tag}\`;\n\n`;
             const outputFile = `${objectType}_${endpointName}`;
             // Store in total endpoint object
             allEndpoints[outputFile] = `${importsString}\n\n${endpointString}`;
@@ -170,7 +170,7 @@ async function main() {
 
             // If there's only one part, return it
             if (parts.length === 1) {
-                return parts[0];
+                return parts[0] as string;
             }
 
             // Map through the array to construct the camelCase string
@@ -189,18 +189,18 @@ async function main() {
         for (const [name, endpoint] of Object.entries(allEndpoints)) {
             // Extract the gql tag using a regex
             const gqlTagMatch = endpoint.match(/gql`([\s\S]*?)`;/);
-            if (!gqlTagMatch) {
+            if (!gqlTagMatch || gqlTagMatch.length < 2) {
                 console.error(`No gql tag found in ${name}`);
                 continue;
             }
-            let gqlTag = gqlTagMatch[1];
+            let gqlTag = gqlTagMatch[1] as string;
             // Replace fragment placeholders with actual fragment definitions
             let fragmentMatch;
             const fragmentPlaceholderRegex = /\$\{(\w+)\}/g;
             while ((fragmentMatch = fragmentPlaceholderRegex.exec(gqlTag)) !== null) {
                 const fragmentName = fragmentMatch[1];
                 const fragmentContent = allFragments[fragmentName];
-                const fragment = (fragmentContent.match(/`([\s\S]*?)`;/) || [])[1];
+                const fragment = (fragmentContent?.match(/`([\s\S]*?)`;/) || [])[1];
                 if (fragment) {
                     gqlTag = gqlTag.replace(fragmentMatch[0], fragment);
                 } else {
@@ -212,7 +212,7 @@ async function main() {
             // Generate the GraphQLResolveInfo object
             let resolveInfo: any = gqlToGraphQLResolveInfo(documentNode, name.replace(".ts", ""));
             // Attempt to convert to PartialGraphQLResolveInfo, a shorter version of GraphQLResolveInfo
-            const __typename = name.split("_")[0][0].toUpperCase() + name.split("_")[0].slice(1);
+            const __typename = uppercaseFirstLetter(name.split("_")?.[0] ?? "");
             if (__typename in FormatMap) {
                 resolveInfo = resolveGQLInfo(resolveInfo);
                 resolveInfo = injectTypenames(resolveInfo, FormatMap[__typename].gqlRelMap);
@@ -239,6 +239,10 @@ async function main() {
             const excludedFiles = ["base", "index", "types"];
             const restFiles = fs.readdirSync(pairsSrcFolder).map(file => file.replace(".ts", "")).filter(file => !excludedFiles.includes(file));
 
+            // Create backup of pairs file
+            if (fs.existsSync(pairFilePath)) {
+                fs.copyFileSync(pairFilePath, `${pairFilePath}.bak`);
+            }
             // Clear the pairs file
             fs.writeFileSync(pairFilePath, "");
 
@@ -285,6 +289,13 @@ async function main() {
                     });
                 } catch (error) {
                     console.error(`Error processing REST file ${restFile}.ts: ${error}`);
+                    // Restore pairs file from backup
+                    if (fs.existsSync(`${pairFilePath}.bak`)) {
+                        fs.copyFileSync(`${pairFilePath}.bak`, pairFilePath);
+                    }
+                } finally {
+                    // Delete pairs file backup
+                    deleteFile(`${pairFilePath}.bak`);
                 }
             }
         }

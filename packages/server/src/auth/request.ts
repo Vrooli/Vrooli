@@ -86,11 +86,11 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
                 // Users, but make sure they all have unique ids
                 req.session.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
                 // Find preferred languages for first user. Combine with languages in request header
-                if (req.session.users.length && req.session.users[0].languages && req.session.users[0].languages.length) {
-                    let languages: string[] = req.session.users[0].languages;
-                    languages.push(...(req.session.languages ?? []));
-                    languages = [...new Set(languages)];
-                    req.session.languages = languages;
+                const firstUser = req.session.users[0];
+                const firstUserLanguages = firstUser?.languages ?? [];
+                if (firstUser && firstUserLanguages.length) {
+                    const languages = [...firstUserLanguages, ...(req.session.languages ?? [])];
+                    req.session.languages = [...new Set(languages)];
                 }
                 req.session.validToken = true;
                 next();
@@ -325,7 +325,7 @@ export async function requireLoggedIn(req: Request, _: any, next: any) {
 export const getUser = (session: { users?: SessionData["users"] }): SessionUserToken | null => {
     if (!session || !Array.isArray(session?.users) || session.users.length === 0) return null;
     const user = session.users[0];
-    return typeof user.id === "string" && uuidValidate(user.id) ? user : null;
+    return user !== undefined && typeof user.id === "string" && uuidValidate(user.id) ? user : null;
 };
 
 export type RequestConditions = {

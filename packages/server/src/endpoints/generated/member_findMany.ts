@@ -62,6 +62,7 @@ export const member_findMany = {
         },
         "id": true,
         "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

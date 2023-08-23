@@ -2,6 +2,8 @@ export const chat_findOne = {
   "participants": {
     "user": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -22,6 +24,8 @@ export const chat_findOne = {
     "status": true,
     "user": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -46,6 +50,8 @@ export const chat_findOne = {
     "updated_at": true,
     "user": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -84,6 +90,8 @@ export const chat_findOne = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

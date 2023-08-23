@@ -24,7 +24,7 @@ export function isEqual(obj1: unknown, obj2: unknown): boolean {
         const keys2 = Object.keys(obj2);
         if (keys1.length !== keys2.length) return false;
         for (let i = 0; i < keys1.length; i++) {
-            if (!isEqual((obj1 as Array<unknown>)[keys1[i]], obj2[keys1[i]])) return false;
+            if (!isEqual((obj1 as Array<unknown>)[keys1[i]!], obj2[keys1[i]!])) return false;
         }
         return true;
     }

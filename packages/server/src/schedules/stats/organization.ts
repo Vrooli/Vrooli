@@ -34,26 +34,30 @@ const batchRunRoutines = async (
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const organizationId = run.organization?.id;
-            if (!organizationId || !result[organizationId]) { return; }
+            if (!organizationId) return;
+            const currResult = result[organizationId];
+            if (!currResult) return;
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
-                result[organizationId].runRoutinesStarted += 1;
+                currResult.runRoutinesStarted += 1;
             }
             // If runCompleted within period, increment runsCompleted 
             // and update averages
             if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
-                result[organizationId].runRoutinesCompleted += 1;
-                if (run.timeElapsed !== null) result[organizationId].runRoutineCompletionTimeAverage += run.timeElapsed;
-                result[organizationId].runRoutineContextSwitchesAverage += run.contextSwitches;
+                currResult.runRoutinesCompleted += 1;
+                if (run.timeElapsed !== null) currResult.runRoutineCompletionTimeAverage += run.timeElapsed;
+                currResult.runRoutineContextSwitchesAverage += run.contextSwitches;
             }
         });
     },
     finalizeResult: (result) => {
         // For the averages, divide by the number of runs completed
         Object.keys(result).forEach(organizationId => {
-            if (result[organizationId].runRoutinesCompleted > 0) {
-                result[organizationId].runRoutineCompletionTimeAverage /= result[organizationId].runRoutinesCompleted;
-                result[organizationId].runRoutineContextSwitchesAverage /= result[organizationId].runRoutinesCompleted;
+            const currResult = result[organizationId];
+            if (!currResult) return;
+            if (currResult.runRoutinesCompleted > 0) {
+                currResult.runRoutineCompletionTimeAverage /= currResult.runRoutinesCompleted;
+                currResult.runRoutineContextSwitchesAverage /= currResult.runRoutinesCompleted;
             }
         });
         return result;

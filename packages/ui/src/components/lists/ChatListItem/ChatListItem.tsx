@@ -1,7 +1,6 @@
-import { Stack, useTheme } from "@mui/material";
+import { Stack } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useContext, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
@@ -13,8 +12,6 @@ export function ChatListItem({
     ...props
 }: ChatListItemProps) {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
-    const { t } = useTranslation();
 
     const { title, subtitle } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
 
