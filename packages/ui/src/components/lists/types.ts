@@ -165,7 +165,7 @@ export interface SearchListProps {
      */
     canNavigate?: (item: any) => boolean,
     canSearch?: (where: any) => boolean;
-    display: ViewDisplayType;
+    display: ViewDisplayType | "partial";
     /**
      * How many dummy lists to display while loading. Smaller is better for lists displayed 
      * in dialogs, since a large dummy list with a small number of results will give 

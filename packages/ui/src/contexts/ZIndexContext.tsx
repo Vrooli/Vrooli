@@ -1,4 +1,4 @@
-import { createContext, useRef } from "react";
+import { createContext, useMemo, useRef } from "react";
 
 type ZIndexContextType = {
     getZIndex: () => number;
@@ -13,19 +13,19 @@ export const ZIndexProvider = ({ children }) => {
     const stack = useRef<number[]>([]);
 
     const getZIndex = () => {
-        const newZIndex = (stack.current.length > 0 ? stack.current[stack.current.length - 1] : DEFAULT_Z_INDEX) + 1;
+        const newZIndex = (stack.current.length > 0 ? stack.current[stack.current.length - 1] : DEFAULT_Z_INDEX) + 5;
         stack.current.push(newZIndex);
-        console.log("getZIndex new list", stack.current);
         return newZIndex;
     };
 
     const releaseZIndex = () => {
         stack.current.pop();
-        console.log("releaseZIndex new list", stack.current);
     };
 
+    const value = useMemo(() => ({ getZIndex, releaseZIndex }), []);
+
     return (
-        <ZIndexContext.Provider value={{ getZIndex, releaseZIndex }}>
+        <ZIndexContext.Provider value={value}>
             {children}
         </ZIndexContext.Provider>
     );

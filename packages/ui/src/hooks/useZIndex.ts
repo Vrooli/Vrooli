@@ -17,6 +17,7 @@ export const useZIndex = <
     useEffect(() => {
         // Set zIndex if component is visible
         if (visible === undefined || visible) {
+            if (hasCalledGetZIndex.current) return;
             hasCalledGetZIndex.current = true;
             setZIndex(context?.getZIndex() ?? DEFAULT_Z_INDEX);
         }
@@ -39,7 +40,6 @@ export const useZIndex = <
 
     const handleTransitionExit = () => {
         if (!visible && context) {
-            console.log("handleTransitionExit");
             setZIndex(DEFAULT_Z_INDEX);
             if (hasCalledGetZIndex.current) context?.releaseZIndex();
             hasCalledGetZIndex.current = false;

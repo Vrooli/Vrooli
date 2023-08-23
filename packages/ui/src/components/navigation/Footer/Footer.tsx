@@ -17,14 +17,18 @@ const contactLinks: [string, CommonKey, string, CommonKey, SvgComponent][] = [
 const aboutUsLink = LINKS.About;
 const viewStatsLink = LINKS.Stats;
 
+const pagesWithoutFooter: string[] = [LINKS.Chat];
+
 export const Footer = () => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    // Dont' display footer when app is running standalone
+    // Dont' display footer when app is running standalone, 
+    // or when the page is one of the pages in pagesWithoutFooter
     const { isStandalone } = getDeviceInfo();
     if (isStandalone) return null;
+    if (pagesWithoutFooter.some((page) => window.location.pathname.startsWith(page))) return null;
     return (
         <>
             <Box

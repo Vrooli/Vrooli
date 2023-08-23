@@ -146,7 +146,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 >
                     <CreateView />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Chat}/:id`} {...props}>
+                <NavRoute path={`${LINKS.Chat}/:id`} excludePageContainer {...props}>
                     <ChatView />
                 </NavRoute>
                 <NavRoute

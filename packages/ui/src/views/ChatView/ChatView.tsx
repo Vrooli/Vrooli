@@ -1,6 +1,6 @@
-import { Chat, ChatCreateInput, ChatInvite, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatInvite, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, uuid, VALYXA_ID } from "@local/shared";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
-import { fetchLazyWrapper, socket } from "api";
+import { socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -8,8 +8,9 @@ import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { chatInitialValues } from "forms/ChatForm/ChatForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { AddIcon, ListIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,10 +20,10 @@ import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { base36ToUuid, tryOnClose } from "utils/navigation/urlTools";
+import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { updateArray } from "utils/shape/general";
-import { shapeChat } from "utils/shape/models/chat";
+import { ChatShape } from "utils/shape/models/chat";
 import { ChatViewProps } from "views/types";
 
 /** Basic chatInfo for a new convo with Valyxa */
@@ -48,57 +49,64 @@ export const ChatView = ({
     task,
 }: ChatViewProps) => {
     const session = useContext(SessionContext);
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const display = toDisplay(isOpen);
 
-    const [getData, { loading: isFindLoading, errors: findErrors }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
+    // const [getData, { loading: isFindLoading, errors: findErrors }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
+    // const [chat, setChat] = useState<Chat>();
+    // useDisplayServerError(findErrors ?? createErrors);
+    const { isLoading: isReadLoading, object: chat, setObject: setChat } = useObjectFromUrl<Chat, ChatShape>({
+        ...endpointGetChat,
+        objectType: "Chat",
+        overrideObject: chatInfo as Chat,
+        transform: (existing) => chatInitialValues(session, existing),
+    });
     const [createChat, { loading: isCreateLoading, errors: createErrors }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
-    const [chat, setChat] = useState<Chat>();
-    useDisplayServerError(findErrors ?? createErrors);
+    console.log("GOT CHAT", chat);
 
-    useEffect(() => {
-        if (chat || !isOpen) return;
-        // Check if the chat already exists, or if the URL has an id
-        let chatId = chatInfo?.id;
-        if (!chatId && window.location.pathname.startsWith(LINKS.Chat)) {
-            chatId = base36ToUuid(window.location.pathname.split("/")[2]);
-        }
-        const alreadyExists = chatId && uuidValidate(chatId);
-        // If so, find chat by id
-        if (alreadyExists) {
-            console.log("getting chat", chatInfo);
-            fetchLazyWrapper<FindByIdInput, Chat>({
-                fetch: getData,
-                inputs: { id: chatId as string },
-                onSuccess: (data) => {
-                    console.log("GOT CHAT!!!", data);
-                    setChat(data);
-                },
-            });
-        }
-        // Otherwise, start a new chat
-        else {
-            fetchLazyWrapper<ChatCreateInput, Chat>({
-                fetch: createChat,
-                inputs: shapeChat.create({
-                    openToAnyoneWithInvite: false,
-                    id: uuid(),
-                    ...chatInfo,
-                    __typename: "Chat",
-                    translations: orDefault(chatInfo?.translations, [{
-                        __typename: "ChatTranslation" as const,
-                        id: uuid(),
-                        language: lng,
-                        name: chatInfo?.participants?.length === 1 ? firstString(chatInfo.participants[0].user?.name) : "New Chat",
-                    }]),
-                }),
-                onSuccess: (data) => { setChat(data); },
-            });
-        }
-    }, [chat, chatInfo, createChat, getData, isOpen, lng]);
+    // useEffect(() => {
+    //     if (chat || !isOpen) return;
+    //     // Check if the chat already exists, or if the URL has an id
+    //     let chatId = chatInfo?.id;
+    //     if (!chatId && window.location.pathname.startsWith(LINKS.Chat)) {
+    //         chatId = base36ToUuid(window.location.pathname.split("/")[2]);
+    //     }
+    //     const alreadyExists = chatId && uuidValidate(chatId);
+    //     // If so, find chat by id
+    //     if (alreadyExists) {
+    //         console.log("getting chat", chatInfo);
+    //         fetchLazyWrapper<FindByIdInput, Chat>({
+    //             fetch: getData,
+    //             inputs: { id: chatId as string },
+    //             onSuccess: (data) => {
+    //                 console.log("GOT CHAT!!!", data);
+    //                 setChat(data);
+    //             },
+    //         });
+    //     }
+    //     // Otherwise, start a new chat
+    //     else {
+    //         fetchLazyWrapper<ChatCreateInput, Chat>({
+    //             fetch: createChat,
+    //             inputs: shapeChat.create({
+    //                 openToAnyoneWithInvite: false,
+    //                 id: uuid(),
+    //                 ...chatInfo,
+    //                 __typename: "Chat",
+    //                 translations: orDefault(chatInfo?.translations, [{
+    //                     __typename: "ChatTranslation" as const,
+    //                     id: uuid(),
+    //                     language: lng,
+    //                     name: chatInfo?.participants?.length === 1 ? firstString(chatInfo.participants[0].user?.name) : "New Chat",
+    //                 }]),
+    //             }),
+    //             onSuccess: (data) => { setChat(data); },
+    //         });
+    //     }
+    // }, [chat, chatInfo, createChat, getData, isOpen, lng]);
 
     // Handle websocket for chat messages (e.g. new message, new reactions, etc.)
     useEffect(() => {
@@ -121,8 +129,8 @@ export const ChatView = ({
             setChat(c => ({
                 ...c,
                 messages: updateArray(
-                    c!.messages ?? [],
-                    c!.messages.findIndex(m => m.created_at > message.created_at),
+                    c.messages,
+                    c.messages.findIndex(m => m.created_at > message.created_at),
                     message,
                 ),
             } as Chat));
@@ -142,7 +150,7 @@ export const ChatView = ({
             // Remove chat-specific event handlers
             socket.off("message");
         };
-    }, [chat?.id]);
+    }, [chat.id, setChat]);
 
     const { title, subtitle } = useMemo(() => getDisplay(chat, getUserLanguages(session)), [chat, session]);
 
@@ -155,7 +163,7 @@ export const ChatView = ({
     useEffect(() => {
         // If chatting with default AI assistant, add start message so that the user 
         // sees something while the chat is loading
-        if (chat && chat.messages.length === 0 && chat.invites?.length === 1 && chat.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID)) {
+        if (chat && chat.messages.length === 0 && chat.invites?.length === 1 && chat.invites?.some((invite: ChatShape["invites"][0]) => invite.user.id === VALYXA_ID)) {
             const startText = t(task ?? "start", { lng, ns: "tasks", defaultValue: "Hello👋, I'm Valyxa! How can I assist you?" });
             setMessages([{
                 __typename: "ChatMessage" as const,
@@ -265,7 +273,7 @@ export const ChatView = ({
                     {(formik) => <>
                         <TopBar
                             display={display}
-                            hideTitleOnDesktop={true}
+                            // hideTitleOnDesktop={true}
                             onClose={() => {
                                 if (formik.values.editingMessage.trim().length > 0) {
                                     PubSub.get().publishAlertDialog({
@@ -303,7 +311,11 @@ export const ChatView = ({
                                 margin: "auto",
                             }}
                         >
-                            <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
+                            <Box sx={{
+                                overflowY: "auto",
+                                maxHeight: "calc(100vh - 64px)",
+                                minHeight: "calc(100vh - 64px)",
+                            }}>
                                 {messages.map((message: ChatMessage, index) => {
                                     const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;
                                     return <ChatBubble
@@ -323,6 +335,10 @@ export const ChatView = ({
                             <Box sx={{
                                 background: palette.primary.dark,
                                 color: palette.primary.contrastText,
+                                position: "sticky",
+                                bottom: 0,
+                                // resize: "vertical",
+                                // height: "min(50vh, 250px)", // Initial height
                             }}>
                                 <MarkdownInput
                                     actionButtons={[{

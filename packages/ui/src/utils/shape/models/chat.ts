@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ChatInviteShape, shapeChatInvite } from "./chatInvite";
 import { LabelShape, shapeLabel } from "./label";
@@ -13,6 +13,7 @@ export type ChatShape = Pick<Chat, "id" | "openToAnyoneWithInvite"> & {
     __typename: "Chat";
     invites?: ChatInviteShape[] | null;
     labels?: ({ id: string } | LabelShape)[];
+    messages: ChatMessage[]; // Ignored
     organization?: { id: string } | null;
     participantsDelete?: { id: string }[] | null;
     translations?: ChatTranslationShape[] | null;

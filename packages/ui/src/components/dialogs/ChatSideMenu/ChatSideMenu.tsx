@@ -1,24 +1,16 @@
 import { CommonKey } from "@local/shared";
 import { Box, IconButton, Palette, SwipeableDrawer, useTheme } from "@mui/material";
-import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { ObjectList } from "components/lists/ObjectList/ObjectList";
+import { SearchList } from "components/lists/SearchList/SearchList";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { SessionContext } from "contexts/SessionContext";
-import { useFindMany } from "hooks/useFindMany";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
 import { CloseIcon, CommentIcon, RoutineIcon, SearchIcon, StandardIcon } from "icons";
-import React, { useCallback, useContext, useEffect } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useCallback, useEffect, useState } from "react";
 import { noSelect } from "styles";
-import { ListObject } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { ChatPageTabOption, SearchType } from "utils/search/objectToSearch";
-
-type ChatSideMenuType = "Chat" | "Routine" | "Prompt";
-type ChatSideMenuObject = Chat | Routine | Standard;
 
 export const chatSideMenuDisplayData = {
     persistentOnDesktop: true,
@@ -52,8 +44,6 @@ const zIndex = 1300;
 const id = "chat-side-menu";
 
 export const ChatSideMenu = () => {
-    const session = useContext(SessionContext);
-    const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
@@ -66,26 +56,25 @@ export const ChatSideMenu = () => {
         where,
     } = useTabs<ChatPageTabOption>({ tabParams, display: "dialog" });
 
-    const {
-        allData,
-        loading,
-        loadMore,
-        setAllData,
-    } = useFindMany<ChatSideMenuObject>({
-        searchType,
-        where: where(),
-    });
-
     // Handle opening and closing
     const { isOpen, close } = useSideMenu(id, isMobile);
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
         PubSub.get().publishSideMenu({ id, isOpen });
     }, [breakpoints, isOpen]);
-
     const handleClose = useCallback((event: React.MouseEvent<HTMLElement>) => {
         close();
     }, [close]);
+
+    const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
+    const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
+    // If showing search filter, focus the search input
+    useEffect(() => {
+        if (!showSearchFilters) return;
+        const searchInput = document.getElementById("search-bar-chat-related-search-list");
+        searchInput?.focus();
+    }, [showSearchFilters]);
+
 
     return (
         <SwipeableDrawer
@@ -100,11 +89,13 @@ export const ChatSideMenu = () => {
             sx={{
                 zIndex,
                 "& .MuiDrawer-paper": {
+                    width: "min(350px, 100%)",
                     background: palette.background.default,
                     overflowY: "auto",
                     borderRight: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
                 },
                 "& > .MuiDialog-container": {
+                    width: "min(350px, 100%)",
                     "& > .MuiPaper-root": {
                         zIndex,
                     },
@@ -121,7 +112,6 @@ export const ChatSideMenu = () => {
                     justifyContent: "space-between",
                     padding: 1,
                     gap: 1,
-                    width: "min(400px, 100%)",
                     background: palette.primary.dark,
                     color: palette.primary.contrastText,
                     textAlign: "center",
@@ -155,24 +145,29 @@ export const ChatSideMenu = () => {
                 </Box>
                 <IconButton
                     aria-label="search"
-                    onClick={() => { }}
+                    onClick={toggleSearchFilters}
                 >
                     <SearchIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
             </Box>
-            <ListContainer
-                emptyText=""
-                isEmpty={allData.length === 0 && !loading}
-            >
-                <ObjectList
-                    dummyItems={new Array(10).fill(searchType)}
-                    items={allData as ListObject[]}
-                    keyPrefix={`${searchType}-list-item`}
-                    loading={loading}
-                // onAction={onAction}
-                // onClick={(item) => onClick(item)}
-                />
-            </ListContainer>
+            <Box sx={{ overflowY: "auto" }} >
+                {searchType && <SearchList
+                    id="chat-related-search-list"
+                    display="partial"
+                    dummyLength={10}
+                    take={20}
+                    searchType={searchType}
+                    sxs={showSearchFilters ? {
+                        search: { marginTop: 2 },
+                        listContainer: { borderRadius: 0 },
+                    } : {
+                        search: { display: "none" },
+                        buttons: { display: "none" },
+                        listContainer: { borderRadius: 0 },
+                    }}
+                    where={where()}
+                />}
+            </Box>
         </SwipeableDrawer>
     );
 };

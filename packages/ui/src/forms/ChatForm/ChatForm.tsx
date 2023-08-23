@@ -30,6 +30,7 @@ export const chatInitialValues = (
     organization: null,
     invites: [],
     labels: [],
+    messages: [],
     participantsDelete: [],
     ...existing,
     translations: orDefault(existing?.translations, [{

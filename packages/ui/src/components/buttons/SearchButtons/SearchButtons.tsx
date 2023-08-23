@@ -1,4 +1,5 @@
 import { Box } from "@mui/material";
+import { SearchType } from "utils/search/objectToSearch";
 import { AdvancedSearchButton } from "../AdvancedSearchButton/AdvancedSearchButton";
 import { SortButton } from "../SortButton/SortButton";
 import { TimeButton } from "../TimeButton/TimeButton";
@@ -27,12 +28,12 @@ export const SearchButtons = ({
                 setTimeFrame={setTimeFrame}
                 timeFrame={timeFrame}
             />
-            <AdvancedSearchButton
+            {searchType !== SearchType.Popular && <AdvancedSearchButton
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
                 searchType={searchType}
                 setAdvancedSearchParams={setAdvancedSearchParams}
-            />
+            />}
         </Box>
     );
 };
