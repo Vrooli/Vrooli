@@ -1,10 +1,13 @@
-import { CommonKey, LINKS, SOCIALS } from "@local/shared";
+import { CommonKey, LINKS, SOCIALS, uuidValidate } from "@local/shared";
 import { Box, Grid, List, ListItem, ListItemIcon, ListItemText, Tooltip, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
+import { SessionContext } from "contexts/SessionContext";
 import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { SvgComponent } from "types";
+import { getCurrentUser } from "utils/authentication/session";
 import { getDeviceInfo } from "utils/display/device";
 
 /** aria-label, tooltip, link, displayed text, icon */
@@ -17,18 +20,22 @@ const contactLinks: [string, CommonKey, string, CommonKey, SvgComponent][] = [
 const aboutUsLink = LINKS.About;
 const viewStatsLink = LINKS.Stats;
 
-const pagesWithoutFooter: string[] = [LINKS.Chat];
+const pagesWithFooter: string[] = [LINKS.About, LINKS.Premium, LINKS.Privacy, LINKS.Start, LINKS.Terms];
 
 export const Footer = () => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const session = useContext(SessionContext);
+    const { id } = useMemo(() => getCurrentUser(session), [session]);
 
     // Dont' display footer when app is running standalone, 
-    // or when the page is one of the pages in pagesWithoutFooter
+    // when the page isn't one of the pages with a footer,
+    // or when the user is at the home page ("/") and logged in (since this becomes the dashboard page)
     const { isStandalone } = getDeviceInfo();
     if (isStandalone) return null;
-    if (pagesWithoutFooter.some((page) => window.location.pathname.startsWith(page))) return null;
+    if (window.location.pathname !== LINKS.Home && !pagesWithFooter.some((page) => window.location.pathname.startsWith(page))) return null;
+    if (window.location.pathname === LINKS.Home && uuidValidate(id)) return null;
     return (
         <>
             <Box
