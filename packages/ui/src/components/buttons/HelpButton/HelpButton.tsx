@@ -67,7 +67,12 @@ export const HelpButton = ({
                         }}
                     >
                         <MenuTitle onClose={closeMenu} />
-                        <Box sx={{ padding: 2, ...linkColors(palette), ...noSelect }}>
+                        <Box sx={{
+                            padding: 2,
+                            minHeight: "50px",
+                            ...linkColors(palette),
+                            ...noSelect,
+                        }}>
                             <MarkdownDisplay content={markdown} />
                         </Box>
                     </Menu>

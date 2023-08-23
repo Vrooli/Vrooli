@@ -137,6 +137,7 @@ export const ChatBubble = ({
                         sx={{
                             whiteSpace: "pre-wrap",
                             wordWrap: "break-word",
+                            minHeight: "50px",
                         }}
                     /> : <>
                         <MarkdownInputBase

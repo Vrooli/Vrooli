@@ -101,7 +101,7 @@ export const StatusButton = ({
                     },
                 }}
             >
-                <MarkdownDisplay content={statusMarkdown} sx={{ minHeight: "unset" }} />
+                <MarkdownDisplay content={statusMarkdown} />
             </PopoverWithArrow>
         </>
     );

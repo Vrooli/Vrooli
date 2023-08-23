@@ -1,13 +1,14 @@
 import { Chat, ChatCreateInput, ChatInvite, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, uuid, VALYXA_ID } from "@local/shared";
-import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import { Box, IconButton, useTheme } from "@mui/material";
 import { socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Resizable, useDimensionContext } from "components/Resizable/Resizable";
 import { SessionContext } from "contexts/SessionContext";
-import { Formik } from "formik";
+import { Formik, FormikProps } from "formik";
 import { chatInitialValues } from "forms/ChatForm/ChatForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
@@ -25,6 +26,57 @@ import { PubSub } from "utils/pubsub";
 import { updateArray } from "utils/shape/general";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatViewProps } from "views/types";
+
+const NewMessageContainer = ({
+    chat,
+    formik,
+}: {
+    chat: ChatShape,
+    formik: FormikProps<unknown>
+}) => {
+    const session = useContext(SessionContext);
+    const dimensions = useDimensionContext();
+    console.log("newmessagecontainer dimensions", dimensions);
+
+    return (
+        <MarkdownInput
+            actionButtons={[{
+                Icon: AddIcon,
+                onClick: () => {
+                    if (!chat) {
+                        PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
+                        return;
+                    }
+                    formik.handleSubmit();
+                },
+            }]}
+            disabled={!chat}
+            disableAssistant={true}
+            fullWidth
+            getTaggableItems={async (searchString) => {
+                // Find all users in the chat, plus @Everyone
+                let users = [
+                    //TODO handle @Everyone
+                    ...(chat?.participants?.map(p => p.user) ?? []),
+                ];
+                // Filter out current user
+                users = users.filter(p => p.id !== getCurrentUser(session).id);
+                // Filter out users that don't match the search string
+                users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
+                return users;
+            }}
+            maxChars={1500}
+            minRows={4}
+            maxRows={15}
+            name="newMessage"
+            sxs={{
+                root: { height: dimensions.height, width: "100%" },
+                bar: { borderRadius: 0 },
+                textArea: { paddingRight: 4, border: "none", height: "100%" },
+            }}
+        />
+    );
+};
 
 /** Basic chatInfo for a new convo with Valyxa */
 export const assistantChatInfo: ChatViewProps["chatInfo"] = {
@@ -303,80 +355,41 @@ export const ChatView = ({
                             // TODO change title so that when pressed, you can switch chats or add a new chat
                             title={firstString(title, botSettings ? "AI Chat" : "Chat")}
                         />
-                        {/* TODO add ChatSideMenu component */}
-                        <Stack
-                            direction="column"
-                            spacing={4}
+                        <Box sx={{
+                            overflowY: "auto",
+                            maxHeight: "calc(100vh - 64px)",
+                            minHeight: "calc(100vh - 64px)",
+                        }}>
+                            {messages.map((message: ChatMessage, index) => {
+                                const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;
+                                return <ChatBubble
+                                    key={index}
+                                    message={message}
+                                    index={index}
+                                    isOwn={isOwn}
+                                    onUpdated={(updatedMessage) => {
+                                        setMessages(updateArray(messages,
+                                            messages.findIndex(m => m.id === updatedMessage.id),
+                                            updatedMessage,
+                                        ));
+                                    }}
+                                />;
+                            })}
+                        </Box>
+                        <Resizable
+                            id="chat-message-input"
+                            max={500}
+                            min={100}
+                            position="top"
                             sx={{
-                                margin: "auto",
-                            }}
-                        >
-                            <Box sx={{
-                                overflowY: "auto",
-                                maxHeight: "calc(100vh - 64px)",
-                                minHeight: "calc(100vh - 64px)",
-                            }}>
-                                {messages.map((message: ChatMessage, index) => {
-                                    const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;
-                                    return <ChatBubble
-                                        key={index}
-                                        message={message}
-                                        index={index}
-                                        isOwn={isOwn}
-                                        onUpdated={(updatedMessage) => {
-                                            setMessages(updateArray(messages,
-                                                messages.findIndex(m => m.id === updatedMessage.id),
-                                                updatedMessage,
-                                            ));
-                                        }}
-                                    />;
-                                })}
-                            </Box>
-                            <Box sx={{
-                                background: palette.primary.dark,
-                                color: palette.primary.contrastText,
                                 position: "sticky",
                                 bottom: 0,
-                                // resize: "vertical",
-                                // height: "min(50vh, 250px)", // Initial height
+                                height: "min(50vh, 250px)",
+                                background: palette.primary.dark,
+                                color: palette.primary.contrastText,
                             }}>
-                                <MarkdownInput
-                                    actionButtons={[{
-                                        Icon: AddIcon,
-                                        onClick: () => {
-                                            if (!chat) {
-                                                PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
-                                                return;
-                                            }
-                                            formik.handleSubmit();
-                                        },
-                                    }]}
-                                    disabled={!chat}
-                                    disableAssistant={true}
-                                    fullWidth
-                                    getTaggableItems={async (searchString) => {
-                                        // Find all users in the chat, plus @Everyone
-                                        let users = [
-                                            //TODO handle @Everyone
-                                            ...(chat?.participants?.map(p => p.user) ?? []),
-                                        ];
-                                        // Filter out current user
-                                        users = users.filter(p => p.id !== getCurrentUser(session).id);
-                                        // Filter out users that don't match the search string
-                                        users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
-                                        return users;
-                                    }}
-                                    maxChars={1500}
-                                    minRows={4}
-                                    maxRows={15}
-                                    name="newMessage"
-                                    sxs={{
-                                        bar: { borderRadius: 0 },
-                                        textArea: { paddingRight: 4, border: "none" },
-                                    }}
-                                />
-                            </Box>
-                        </Stack>
+                            <NewMessageContainer chat={chat} formik={formik} />
+                        </Resizable>
                     </>}
                 </Formik>
             </MaybeLargeDialog>

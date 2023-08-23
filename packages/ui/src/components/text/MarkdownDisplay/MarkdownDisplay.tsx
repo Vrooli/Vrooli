@@ -345,7 +345,6 @@ export const MarkdownDisplay = ({
             lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
             color: palette.background.textPrimary,
             display: "block",
-            minHeight: "50px",
             ...sx,
         }}>
             {processedContent}

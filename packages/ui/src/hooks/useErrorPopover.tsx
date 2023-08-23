@@ -68,7 +68,7 @@ export const useErrorPopover = ({
                     },
                 }}
             >
-                <MarkdownDisplay content={errorMessage} sx={{ minHeight: "unset" }} />
+                <MarkdownDisplay content={errorMessage} />
             </PopoverWithArrow>
         );
     }, [closePopover, errorAnchorEl, errorMessage]);
