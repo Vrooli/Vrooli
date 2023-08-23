@@ -3,9 +3,9 @@ import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteFormProps } from "forms/types";
@@ -88,10 +88,13 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                 display={display}
                 onClose={onCancel}
                 title=""
-                titleComponent={<TranslatedTextField
+                titleComponent={<EditableTitle
                     language={language}
-                    name="name"
-                    placeholder={t("Name")}
+                    titleField="name"
+                    subtitleField="description"
+                    validationEnabled={false}
+                    variant="subheader"
+                    sxs={{ stack: { padding: 0 } }}
                 />}
             />
             <BaseForm

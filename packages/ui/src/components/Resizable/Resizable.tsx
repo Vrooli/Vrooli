@@ -108,8 +108,6 @@ export const Resizable = ({
     const isVerticalResize = ["top", "bottom"].includes(position);
     const storedDimensions = useMemo(() => id ? getCookieDimensions(id) : null, [id]);
     const [dimensions, setDimensions] = useState<Dimensions>(areDimensionsValid(storedDimensions, position, max, min) ? (storedDimensions as Dimensions) : getDefaultDimensions(position, max, min));
-    console.log("stored dimensions", storedDimensions);
-    console.log("resizable dimensions", dimensions);
 
     // Set initial dimensions
     useEffect(() => {
