@@ -24,15 +24,10 @@ import { ChatUpsert } from "views/objects/chat/ChatUpsert/ChatUpsert";
 import { InboxViewProps } from "../types";
 
 const tabParams = [{
-    titleKey: "Dm" as CommonKey,
+    titleKey: "Message" as CommonKey,
     searchType: SearchType.Chat,
-    tabType: InboxPageTabOption.Dm,
-    where: () => ({ maxParticipants: 2 }),
-}, {
-    titleKey: "Group" as CommonKey,
-    searchType: SearchType.Chat,
-    tabType: InboxPageTabOption.GroupChat,
-    where: () => ({ minParticipants: 3 }),
+    tabType: InboxPageTabOption.Message,
+    where: () => ({}),
 }, {
     titleKey: "Notification" as CommonKey,
     searchType: SearchType.Notification,

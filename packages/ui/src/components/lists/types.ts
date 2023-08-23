@@ -2,7 +2,7 @@ import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization
 import { LineGraphProps } from "components/graphs/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
-import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
+import { NavigableObject, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { ListObject } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
@@ -165,7 +165,7 @@ export interface SearchListProps {
      */
     canNavigate?: (item: any) => boolean,
     canSearch?: (where: any) => boolean;
-    display: ViewDisplayType;
+    display: ViewDisplayType | "partial";
     /**
      * How many dummy lists to display while loading. Smaller is better for lists displayed 
      * in dialogs, since a large dummy list with a small number of results will give 
@@ -214,11 +214,6 @@ export interface TagListProps {
     parentId: string;
     sx?: SxType;
     tags: Partial<Tag>[];
-}
-
-export interface AwardCardProps {
-    award: AwardDisplay;
-    isEarned: boolean;
 }
 
 export interface CardGridProps {

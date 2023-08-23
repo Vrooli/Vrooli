@@ -322,6 +322,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 isOpen={isOpen}
                 onClose={() => { handleCancel(); }}
                 titleId={searchTitleId}
+                sxs={{ paper: { maxWidth: "min(100%, 600px)" } }}
             >
                 <TopBar
                     display="dialog"
@@ -341,6 +342,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     minHeight: "500px",
                     margin: { xs: 0, sm: 2 },
                     paddingTop: 4,
+                    overflow: "auto",
                 }}>
                     {/* Search list to find object */}
                     {!selectedObject && <SearchList

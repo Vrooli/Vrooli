@@ -68,6 +68,7 @@ export const MemberManageView = ({
             sxs={{
                 paper: {
                     minHeight: "min(100vh - 64px, 600px)",
+                    maxWidth: "min(100%, 500px)",
                 },
             }}
         >

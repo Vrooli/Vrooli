@@ -94,8 +94,6 @@ export const typeDef = gql`
         ids: [ID!]
         openToAnyoneWithInvite: Boolean
         labelsIds: [ID!]
-        maxParticipants: Int
-        minParticipants: Int
         organizationId: ID
         searchString: String
         sortBy: ChatSortBy

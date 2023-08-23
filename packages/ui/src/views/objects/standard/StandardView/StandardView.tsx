@@ -9,7 +9,6 @@ import { StandardInput } from "components/inputs/standards/StandardInput/Standar
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
-import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
@@ -138,7 +137,7 @@ export const StandardView = ({
                     maxCharacters={30}
                     parentId={existing?.id ?? ""}
                     tags={tags as any[]}
-                    sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                    sx={{ marginTop: 4 }}
                 />}
                 {/* Date and version labels */}
                 <Stack direction="row" spacing={1} mt={2} mb={1}>

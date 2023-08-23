@@ -40,12 +40,11 @@ export interface DeleteDialogProps {
     objectType: DeleteType;
 }
 
-export interface DialogTitleProps extends Omit<TitleProps, "sxs" | "variant"> {
+export interface DialogTitleProps extends Omit<TitleProps, "sxs"> {
     below?: JSX.Element | boolean | undefined;
     id: string;
     onClose?: () => unknown;
     sxs?: TitleProps["sxs"] & { root?: SxType; };
-    variant?: TitleProps["variant"];
 }
 
 export type SelectOrCreateObjectType = "ApiVersion" |
@@ -122,11 +121,10 @@ export interface ListMenuProps<T> {
     title?: string;
 }
 
-export interface MenuTitleProps {
+export interface MenuTitleProps extends Omit<TitleProps, "sxs"> {
     ariaLabel?: string;
-    helpText?: string;
     onClose: () => unknown;
-    title?: string;
+    sxs?: TitleProps["sxs"] & { root?: SxType; };
 }
 
 export enum ObjectDialogAction {

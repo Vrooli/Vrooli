@@ -6,7 +6,6 @@ import { CommentContainer, containerProps } from "components/containers/CommentC
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
@@ -118,7 +117,7 @@ export const QuestionView = ({
                             maxCharacters={30}
                             parentId={existing?.id ?? ""}
                             tags={tags as Tag[]}
-                            sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                            sx={{ marginTop: 4 }}
                         />}
                     </Stack>
                     <MarkdownDisplay content={subtitle} />

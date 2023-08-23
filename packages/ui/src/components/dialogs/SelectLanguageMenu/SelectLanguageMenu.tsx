@@ -226,16 +226,6 @@ export const SelectLanguageMenu = ({
                     background: palette.background.default,
                     borderRadius: "0 4px 4px",
                     padding: "8px",
-                    "&::-webkit-scrollbar": {
-                        width: 10,
-                    },
-                    "&::-webkit-scrollbar-track": {
-                        backgroundColor: "#dae5f0",
-                    },
-                    "&::-webkit-scrollbar-thumb": {
-                        borderRadius: "100px",
-                        backgroundColor: "#409590",
-                    },
                 }}>
                     <TextField
                         placeholder={t("LanguageEnter")}
@@ -254,8 +244,6 @@ export const SelectLanguageMenu = ({
                         itemCount={languageOptions.length}
                         overscanCount={5}
                         style={{
-                            scrollbarColor: "#409590 #dae5f0",
-                            scrollbarWidth: "thin",
                             maxWidth: "100%",
                         }}
                     >

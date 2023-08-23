@@ -15,7 +15,6 @@ export function ChatListItem({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
-    console.log("in ChatListItem", data, props);
 
     const { title, subtitle } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
 

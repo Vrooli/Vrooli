@@ -10,8 +10,8 @@ export const PageContainer = ({
 }: PageContainerProps) => {
     return (
         <Box id="page" sx={{
-            minWidth: "100vw",
-            minHeight: "100vh",
+            minWidth: "100%",
+            minHeight: "100%",
             width: "min(100%, 700px)",
             margin: "auto",
             // paddingTop: '64px', // Matches Navbar height

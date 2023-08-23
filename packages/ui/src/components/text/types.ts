@@ -56,7 +56,7 @@ export interface TitleProps {
     /** Replaces title if provided */
     titleComponent?: JSX.Element;
     /** Determines size */
-    variant: "header" | "subheader";
+    variant?: "header" | "subheader";
 }
 
 export interface VersionDisplayProps extends BoxProps {

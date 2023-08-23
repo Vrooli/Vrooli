@@ -652,7 +652,7 @@ export const MarkdownInputBase = ({
     const LINE_HEIGHT_MULTIPLIER = 1.5;
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     useEffect(() => {
-        if (!textAreaRef.current || typeof value !== "string") return;
+        if (!textAreaRef.current || typeof value !== "string" || sxs?.textArea?.height) return;
         const lines = (value.match(/\n/g)?.length || 0) + 1;
         const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
         const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
@@ -660,7 +660,7 @@ export const MarkdownInputBase = ({
         const linesShown = Math.max(minRowsNum, Math.min(lines, maxRowsNum));
         const padding = 34;
         textAreaRef.current.style.height = `${linesShown * lineHeight + padding}px`;
-    }, [isPreviewOn, minRows, maxRows, typography, value]);
+    }, [isPreviewOn, minRows, maxRows, typography, value, sxs?.textArea?.height]);
 
     return (
         <>
@@ -922,6 +922,7 @@ export const MarkdownInputBase = ({
                                     content={internalValue}
                                     isEditable={!disabled}
                                     onChange={handleChange}
+                                    sx={{ minHeight: "50px" }}
                                 />
                             </Box>
                         ) :

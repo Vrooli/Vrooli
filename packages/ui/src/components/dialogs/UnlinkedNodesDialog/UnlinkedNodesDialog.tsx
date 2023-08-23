@@ -87,16 +87,6 @@ export const UnlinkedNodesDialog = ({
                 width: open ? { xs: "100%", sm: "375px" } : "fit-content",
                 transition: "height 1s ease-in-out",
                 zIndex: 1500,
-                "&::-webkit-scrollbar": {
-                    width: 10,
-                },
-                "&::-webkit-scrollbar-track": {
-                    backgroundColor: "#dae5f0",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                    borderRadius: "100px",
-                    backgroundColor: "#409590",
-                },
             }}>
                 <Stack direction="row" onClick={handleToggleOpen} sx={{
                     display: "flex",

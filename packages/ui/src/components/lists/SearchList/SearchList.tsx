@@ -61,19 +61,29 @@ export function SearchList<DataType extends NavigableObject>({
     // Handle infinite scroll
     const containerRef = useRef<HTMLDivElement>(null);
     const getScrollingContainer = useCallback((element: HTMLElement | null): HTMLElement | Document | null => {
+        console.log("getting scrolling ccontainer start", display, element);
         // If display is "page", use document instead
         if (display === "page") return document;
-        // Otherwise, traverse up the DOM until we find a component with a role of "dialog"
+        // Traverse up the DOM
         while (element) {
-            if (element.getAttribute("role") === "dialog") {
+            // If a dialog, find the first component with a role of "dialog", 
+            if (display === "dialog" && element.getAttribute("role") === "dialog") {
                 return element;
             }
+            // If inline, find the first component with overflowY set to "scroll" or "auto"
+            const overflowY = window.getComputedStyle(element).overflowY; //TODO need to fix this to get ChatSideMenu infinite scroll to work, but in a way that doesn't break FindObjectDialog
+            if (display === "partial" && (overflowY === "scroll" || overflowY === "auto")) {
+                console.log("getScrollingContainer overflowY END", display, overflowY, element);
+                return element;
+            }
+            console.log("getScrollingContainer overflowY continue", display, overflowY, element);
             element = element.parentElement;
         }
         return null;
     }, [display]);
     const handleScroll = useCallback(() => {
         const container = getScrollingContainer(containerRef.current) ?? window;
+        console.log("didnt find container", container);
         if (!container) return;
         let scrolledY: number;
         let scrollableHeight: number;
@@ -87,6 +97,7 @@ export function SearchList<DataType extends NavigableObject>({
         } else {
             return;
         }
+        console.log("handlescroll should load more?", scrolledY, scrollableHeight - 500);
         if (!loading && scrolledY > scrollableHeight - 500) {
             loadMore();
         }

@@ -347,18 +347,7 @@ export const ResourceListHorizontal = ({
                                 maxWidth: "700px",
                                 marginLeft: "auto",
                                 marginRight: "auto",
-                                // Custom scrollbar styling
                                 overflowX: "auto",
-                                "&::-webkit-scrollbar": {
-                                    width: 5,
-                                },
-                                "&::-webkit-scrollbar-track": {
-                                    backgroundColor: "transparent",
-                                },
-                                "&::-webkit-scrollbar-thumb": {
-                                    borderRadius: "100px",
-                                    backgroundColor: "#409590",
-                                },
                             }}>
                             {/* Resources */}
                             {list?.resources?.map((c: Resource, index) => (

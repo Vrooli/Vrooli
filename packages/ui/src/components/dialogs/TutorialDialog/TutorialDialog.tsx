@@ -1,5 +1,5 @@
 import { LINKS } from "@local/shared";
-import { Box, Button, Dialog, IconButton, MobileStepper, Paper, Stack, useTheme } from "@mui/material";
+import { Box, Button, Dialog, IconButton, MobileStepper, Paper, PaperProps, Stack, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
@@ -80,19 +80,19 @@ const sections: TutorialSection[] = [
             {
                 text: "The side menu has many useful features. Open it by pressing on your profile picture.",
                 element: "side-menu-profile-icon",
-                action: () => { PubSub.get().publishSideMenu(false); },
+                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: false }); },
             },
             {
                 text: "The first section lists all logged-in accounts.\n\nPress on an account to switch to it, or press on your current account to open your profile.",
-                action: () => { PubSub.get().publishSideMenu(true); },
+                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); },
             },
             {
                 text: "The second section allows you to control your display settings. This includes:\n\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed?**: Move various elements, such as the side menu, to the left side of the screen.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
-                action: () => { PubSub.get().publishSideMenu(true); },
+                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); },
             },
             {
                 text: "The third section displays a list of pages not listed in the main navigation bar.",
-                action: () => { PubSub.get().publishSideMenu(true); },
+                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); },
             },
         ],
     },
@@ -102,7 +102,7 @@ const sections: TutorialSection[] = [
             {
                 text: "This page allows you to search public objects on Vrooli.",
                 page: LINKS.Search,
-                action: () => { PubSub.get().publishSideMenu(false); },
+                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: false }); },
             },
             {
                 text: "Use these tabs to switch between different types of objects.\n\nThe first, default tab is for **routines**. These allow you to complete and automate various tasks.\n\nLet's look at some routines now.",
@@ -176,8 +176,7 @@ const sections: TutorialSection[] = [
 const titleId = "tutorial-dialog-title";
 const zIndex = 100000;
 
-/** Draggable paper for dialog */
-const PaperComponent = (props) => {
+const DraggableDialogPaper = (props: PaperProps) => {
     return (
         <Draggable
             handle={`#${titleId}`}
@@ -313,6 +312,7 @@ export const TutorialDialog = ({
                         title={"Wrong Page"}
                         onClose={onClose}
                         variant="subheader"
+                        sxs={{ root: { cursor: "move" } }}
                     />
                     <Stack direction="column" spacing={2} p={2}>
                         <MarkdownDisplay
@@ -339,10 +339,8 @@ export const TutorialDialog = ({
                     title={`${currentSection.title} (${place.section + 1} of ${sections.length})`}
                     onClose={onClose}
                     variant="subheader"
-                    sxs={{
-                        // Can move dialog, but not popper
-                        root: { cursor: getCurrentElement() ? "auto" : "move" },
-                    }}
+                    // Can only drag dialogs, not popovers
+                    sxs={{ root: { cursor: getCurrentElement() ? "auto" : "move" } }}
                 />
                 <Box sx={{ padding: "16px" }}>
                     <MarkdownDisplay
@@ -370,6 +368,7 @@ export const TutorialDialog = ({
                             {isFinalStep ? <CompleteAllIcon /> : isFinalStepInSection ? <CompleteIcon /> : <ArrowRightIcon />}
                         </IconButton>
                     }
+                    sx={{ background: "transparent" }}
                 />
             </>
         );
@@ -425,7 +424,7 @@ export const TutorialDialog = ({
             scroll="paper"
             disableScrollLock={true}
             aria-labelledby={titleId}
-            PaperComponent={PaperComponent}
+            PaperComponent={DraggableDialogPaper}
             sx={{
                 zIndex,
                 pointerEvents: "none",

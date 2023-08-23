@@ -139,8 +139,6 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
             createdTimeFrame: true,
             openToAnyoneWithInvite: true,
             labelsIds: true,
-            maxParticipants: true,
-            minParticipants: true,
             organizationId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
