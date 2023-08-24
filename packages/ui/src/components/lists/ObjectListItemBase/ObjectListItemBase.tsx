@@ -7,6 +7,10 @@ import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { SessionContext } from "contexts/SessionContext";
+import { useObjectActions } from "hooks/useObjectActions";
+import usePress from "hooks/usePress";
+import { useWindowSize } from "hooks/useWindowSize";
 import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,19 +18,18 @@ import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { SvgComponent } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { getCurrentUser } from "utils/authentication/session";
 import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import usePress from "utils/hooks/usePress";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { getObjectEditUrl, getObjectUrl } from "utils/navigation/openObject";
-import { SessionContext } from "utils/SessionContext";
-import { smallHorizontalScrollbar } from "../styles";
 import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
 import { ObjectListItemProps } from "../types";
+
+const LIST_PREFIX = "list-item-";
+const EDIT_PREFIX = "edit-list-item-";
 
 /**
  * A list item that automatically supports most object types, with props 
@@ -51,7 +54,6 @@ export function ObjectListItemBase<T extends ListObject>({
     subtitleOverride,
     titleOverride,
     toTheRight,
-    zIndex,
 }: ObjectListItemProps<T>) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -77,7 +79,7 @@ export function ObjectListItemBase<T extends ListObject>({
 
     const link = useMemo(() => (data && (typeof canNavigate !== "function" || canNavigate(data))) ? getObjectUrl(data) : "", [data, canNavigate]);
     const handleClick = useCallback((target: EventTarget) => {
-        if (!target.id || !target.id.startsWith("list-item-")) return;
+        if (!target.id || !target.id.startsWith(LIST_PREFIX)) return;
         // If data not supplied, don't open
         if (data === null) return;
         // If onClick is supplied, call it instead of navigating
@@ -100,7 +102,7 @@ export function ObjectListItemBase<T extends ListObject>({
     const handleEditClick = useCallback((event: any) => {
         event.preventDefault();
         const target = event.target;
-        if (!target.id || !target.id.startsWith("edit-list-item-")) return;
+        if (!target.id || !target.id.startsWith(EDIT_PREFIX)) return;
         // If data not supplied, don't open
         if (!data) return;
         // If canNavigate is supplied, call it
@@ -153,7 +155,27 @@ export function ObjectListItemBase<T extends ListObject>({
         }
         // Show multiple icons for chats
         if (isOfType(object, "Chat")) {
-            return <ProfileGroup users={(object as unknown as Chat).participants?.map(p => p.user)} />;
+            // Filter yourself out of participants
+            const participants = (object as unknown as Chat).participants?.filter(p => p.user?.id !== getCurrentUser(session).id) ?? [];
+            // If no participants, show nothing
+            if (participants.length === 0) return null;
+            // If only one participant, show their profile picture instead of a group
+            if (participants.length === 1) {
+                return (
+                    <Avatar
+                        src={extractImageUrl((participants[0]?.user as unknown as { profileImage: string }).profileImage, (participants[0]?.user as unknown as { updated_at: string }).updated_at, 50)}
+                        alt={`${(participants[0]?.user as unknown as { name: string }).name}'s profile picture`}
+                        sx={{
+                            backgroundColor: profileColors[0],
+                            width: isMobile ? "40px" : "50px",
+                            height: isMobile ? "40px" : "50px",
+                            pointerEvents: "none",
+                        }}
+                    />
+                );
+            }
+            // Otherwise, show a group
+            return <ProfileGroup users={participants.map(p => p.user)} />;
         }
         // Otherwise, only show on wide screens
         if (isMobile) return null;
@@ -171,7 +193,7 @@ export function ObjectListItemBase<T extends ListObject>({
             );
         }
         return null;
-    }, [isMobile, object, profileColors, canReact, reaction, score]);
+    }, [isMobile, object, profileColors, canReact, reaction, score, session]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 
@@ -193,7 +215,7 @@ export function ObjectListItemBase<T extends ListObject>({
             >
                 {!hideUpdateButton && canUpdate &&
                     <Box
-                        id={`edit-list-item-button-${id}`}
+                        id={`${EDIT_PREFIX}button-${id}`}
                         component="a"
                         aria-label={t("Edit")}
                         href={editUrl}
@@ -206,7 +228,7 @@ export function ObjectListItemBase<T extends ListObject>({
                             pointerEvents: "all",
                             paddingBottom: isMobile ? "0px" : "4px",
                         }}>
-                        <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
+                        <EditIcon id={`${EDIT_PREFIX}icon-${id}`} fill={palette.secondary.main} />
                     </Box>}
                 {/* Add upvote/downvote if mobile */}
                 {isMobile && canReact && object && (
@@ -226,7 +248,6 @@ export function ObjectListItemBase<T extends ListObject>({
                     bookmarkFor={bookmarkFor}
                     isBookmarked={isBookmarked}
                     bookmarks={getCounts(object).bookmarks}
-                    zIndex={zIndex}
                 />}
                 {canComment && (<CommentsButton
                     commentsCount={getCounts(object).comments}
@@ -239,7 +260,7 @@ export function ObjectListItemBase<T extends ListObject>({
                 />}
             </Stack>
         );
-    }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, zIndex, canComment]);
+    }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
     const actionData = useObjectActions({
         canNavigate,
@@ -258,11 +279,10 @@ export function ObjectListItemBase<T extends ListObject>({
                 exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={object}
                 onClose={closeContextMenu}
-                zIndex={zIndex + 1}
             />
             {/* List item */}
             <ListItem
-                id={`list-item-${id}`}
+                id={`${LIST_PREFIX}${id}`}
                 disablePadding
                 button
                 component={link ? "a" : "div"}
@@ -290,9 +310,7 @@ export function ObjectListItemBase<T extends ListObject>({
                     {/* Title */}
                     {loading ? <TextLoading /> :
                         (
-                            <Stack id={`list-item-title-stack-${id}`} direction="row" spacing={1} sx={{
-                                ...smallHorizontalScrollbar(palette),
-                            }}>
+                            <Stack id={`${LIST_PREFIX}title-stack-${id}`} direction="row" spacing={1}>
                                 <ListItemText
                                     primary={titleOverride ?? title}
                                     sx={{
@@ -308,7 +326,6 @@ export function ObjectListItemBase<T extends ListObject>({
                     {loading ? <TextLoading /> : <MarkdownDisplay
                         content={subtitleOverride ?? subtitle}
                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
-                        zIndex={zIndex}
                     />}
                     {/* Any custom components to display below the subtitle */}
                     {belowSubtitle}
@@ -344,7 +361,6 @@ export function ObjectListItemBase<T extends ListObject>({
                             <TagList
                                 parentId={data?.id ?? ""}
                                 tags={(data as any).tags}
-                                sx={{ ...smallHorizontalScrollbar(palette) }}
                             />}
                         {/* Any custom components to display below tags */}
                         {belowTags}

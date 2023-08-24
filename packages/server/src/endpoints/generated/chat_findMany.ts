@@ -34,6 +34,8 @@ export const chat_findMany = {
           },
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -161,6 +163,8 @@ export const chat_findMany = {
       "participants": {
         "user": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,

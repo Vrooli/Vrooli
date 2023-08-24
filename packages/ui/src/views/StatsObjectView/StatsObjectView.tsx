@@ -18,7 +18,6 @@ export const StatsObjectView = <T extends ListObject>({
     isOpen,
     object,
     onClose,
-    zIndex,
 }: StatsObjectViewProps<T>) => {
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
@@ -30,14 +29,12 @@ export const StatsObjectView = <T extends ListObject>({
             onClose={onClose}
             isOpen={isOpen ?? false}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={onClose}
                 title={t("ObjectStats", { objectName: getDisplay(object).title })}
                 titleId={titleId}
-                zIndex={zIndex}
             />
             <Box sx={{ padding: 2 }}>
                 {/* Bookmarks, votes, and other info */}

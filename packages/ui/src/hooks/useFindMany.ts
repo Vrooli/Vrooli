@@ -1,5 +1,6 @@
 import { deepClone, exists, lowercaseFirstLetter, TimeFrame } from "@local/shared";
 import { SearchQueryVariablesInput } from "components/lists/types";
+import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
@@ -7,7 +8,6 @@ import { ListObject, listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
-import { SessionContext } from "utils/SessionContext";
 import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
@@ -122,7 +122,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 before: new Date((searchParams.time as any).before),
             };
         }
-        console.log("got url params", result);
         return result;
     }, [controlsUrl, searchType]);
 
@@ -155,7 +154,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
     });
     // Store params for the last search
     const lastParams = useRef<FullSearchParams>(deepClone(params.current));
-    console.log("searchString isssssss....", params.current.searchString);
 
     /**
      * Cursor for pagination. Resets when search params change.
@@ -227,12 +225,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
         if (!newParams) return;
         const sortBy = updateSortBy(newParams, params.current.sortBy);
         after.current = {};
-        console.log("updating params.current a", params.current, {
-            ...params.current,
-            ...newParams,
-            sortBy,
-            hasMore: true,
-        });
         params.current = {
             ...params.current,
             ...newParams,
@@ -287,6 +279,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
             where: params.current.where,
         };
         if (JSON.stringify(last) !== JSON.stringify(current)) {
+            console.log("THEY WERE DIFFERENT", last.timeFrame, current.timeFrame);
             setAllData([]);
             getData();
             return;

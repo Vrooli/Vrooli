@@ -34,6 +34,8 @@ export const memberInvite_findMany = {
       },
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

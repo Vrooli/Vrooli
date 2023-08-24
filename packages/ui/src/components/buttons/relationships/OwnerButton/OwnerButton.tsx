@@ -7,6 +7,7 @@ import { ListMenuItemData, SelectOrCreateObjectType } from "components/dialogs/t
 import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
 import { RelationshipItemOrganization, RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { OrganizationIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -16,7 +17,6 @@ import { getCurrentUser } from "utils/authentication/session";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
-import { SessionContext } from "utils/SessionContext";
 import { OwnerShape } from "utils/shape/models/types";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { OwnerButtonProps } from "../types";
@@ -34,7 +34,6 @@ const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
 export function OwnerButton({
     isEditing,
     objectType,
-    zIndex,
 }: OwnerButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -130,7 +129,6 @@ export function OwnerButton({
                 data={ownerTypes}
                 onSelect={handleOwnerDialogSelect}
                 onClose={closeOwnerDialog}
-                zIndex={zIndex + 1}
             />
             {/* Popup for selecting organization or user */}
             {findType && <FindObjectDialog
@@ -139,7 +137,6 @@ export function OwnerButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"

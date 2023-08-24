@@ -58,7 +58,6 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -94,7 +93,6 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
                 onCancel={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
-                zIndex={zIndex + 1001}
             />
             <BaseForm
                 dirty={dirty}
@@ -186,7 +184,6 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

@@ -6,14 +6,14 @@ import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { QuestionFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
 
@@ -55,7 +55,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -89,7 +88,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                     <RelationshipList
                         isEditing={true}
                         objectType={"Question"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
                     <FormSection>
@@ -99,7 +97,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -125,13 +122,9 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                                     background: palette.background.paper,
                                 },
                             }}
-                            zIndex={zIndex}
                         />
                     </FormSection>
-                    <TagSelector
-                        name="tags"
-                        zIndex={zIndex}
-                    />
+                    <TagSelector name="tags" />
                 </FormContainer>
             </BaseForm>
             <GridSubmitButtons
@@ -142,7 +135,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

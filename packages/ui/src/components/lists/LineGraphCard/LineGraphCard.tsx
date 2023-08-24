@@ -1,6 +1,6 @@
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
 import { LineGraph } from "components/graphs/LineGraph/LineGraph";
-import { useDimensions } from "utils/hooks/useDimensions";
+import { useDimensions } from "hooks/useDimensions";
 import { LineGraphCardProps } from "../types";
 
 export const LineGraphCard = ({
@@ -8,18 +8,22 @@ export const LineGraphCard = ({
     index,
     ...lineGraphProps
 }: LineGraphCardProps) => {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const { dimensions, ref } = useDimensions<HTMLDivElement>();
 
     return (
         <Card ref={ref} sx={{
             width: "100%",
             height: "100%",
-            boxShadow: 6,
+            boxShadow: 0,
             background: palette.primary.light,
             color: palette.primary.contrastText,
-            borderRadius: "16px",
             margin: 0,
+            borderRadius: { xs: 0, sm: 2 },
+            margin: 0,
+            [breakpoints.down("sm")]: {
+                borderBottom: `1px solid ${palette.divider}`,
+            },
         }}>
             <CardContent
                 sx={{

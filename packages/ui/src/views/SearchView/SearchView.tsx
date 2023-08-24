@@ -5,18 +5,17 @@ import { SideActionButtons } from "components/buttons/SideActionButtons/SideActi
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { SessionContext } from "contexts/SessionContext";
+import { useTabs } from "hooks/useTabs";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
-import { parseData } from "utils/hooks/useFindMany";
-import { useTabs } from "utils/hooks/useTabs";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { combineSearchResults, SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
+import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { SearchViewProps } from "../types";
 
 // Data for each tab
@@ -67,7 +66,7 @@ export const searchViewTabParams = [{
     titleKey: "Standard" as CommonKey,
     searchType: SearchType.Standard,
     tabType: SearchPageTabOption.Standard,
-    where: () => ({ isInternal: false }),
+    where: () => ({ isInternal: false, type: "JSON" }),
 }, {
     Icon: ApiIcon,
     titleKey: "Api" as CommonKey,
@@ -88,7 +87,6 @@ export const searchViewTabParams = [{
 export const SearchView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SearchViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -170,24 +168,18 @@ export const SearchView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             {searchType && <SearchList
                 id="main-search-page-list"
+                display={display}
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
-                resolve={(data, type) => {
-                    if (type === SearchType.Popular) return combineSearchResults(data);
-                    return parseData(data, type);
-                }}
                 searchType={searchType}
-                zIndex={zIndex}
                 where={where()}
                 sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionButtons
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >

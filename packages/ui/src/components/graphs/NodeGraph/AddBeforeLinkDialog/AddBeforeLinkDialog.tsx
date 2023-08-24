@@ -6,10 +6,10 @@ import { DialogContent, List, ListItem, ListItemText } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ListMenuItemData } from "components/dialogs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
 import { AddBeforeLinkDialogProps } from "../types";
 
 const titleId = "add-before-link-dialog-title";
@@ -21,7 +21,6 @@ export const AddBeforeLinkDialog = ({
     nodeId,
     nodes,
     links,
-    zIndex,
 }: AddBeforeLinkDialogProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -50,14 +49,12 @@ export const AddBeforeLinkDialog = ({
             onClose={handleClose}
             isOpen={isOpen}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={handleClose}
                 title={t("LinkSelect")}
                 titleId={titleId}
-                zIndex={zIndex}
             />
             <DialogContent>
                 <List>

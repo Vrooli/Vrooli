@@ -12,16 +12,19 @@ import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
-import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik, useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon, RoutineIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,13 +34,9 @@ import { getCurrentUser } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
-import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
@@ -51,7 +50,6 @@ const statsHelpText =
 export const RoutineView = ({
     isOpen,
     onClose,
-    zIndex,
 }: RoutineViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -191,10 +189,9 @@ export const RoutineView = ({
                 objectId={existing?.id ?? ""}
                 objectType={CommentFor.RoutineVersion}
                 onAddCommentClose={closeAddCommentDialog}
-                zIndex={zIndex}
             />
         </Box>
-    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette, zIndex]);
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette]);
 
     return (
         <>
@@ -206,9 +203,7 @@ export const RoutineView = ({
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -241,13 +236,11 @@ export const RoutineView = ({
                             // eslint-disable-next-line @typescript-eslint/no-empty-function
                             handleDeleteLanguage: () => { },
                         }}
-                        zIndex={zIndex + 1}
                     />
                     {/* Relationships */}
                     <RelationshipList
                         isEditing={false}
                         objectType={"Routine"}
-                        zIndex={zIndex}
                     />
                     {/* Resources */}
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
@@ -257,7 +250,6 @@ export const RoutineView = ({
                         handleUpdate={() => { }}
                         loading={isLoading}
                         parent={{ __typename: "RoutineVersion", id: existing?.id ?? "" }}
-                        zIndex={zIndex}
                     />}
                     {/* Box with description and instructions */}
                     {(!!description || !!instructions) && <Stack direction="column" spacing={4} sx={containerProps(palette)}>
@@ -267,7 +259,6 @@ export const RoutineView = ({
                             text={description}
                             loading={isLoading}
                             loadingLines={2}
-                            zIndex={zIndex}
                         />
                         {/* Instructions */}
                         <TextCollapse
@@ -275,7 +266,6 @@ export const RoutineView = ({
                             text={instructions}
                             loading={isLoading}
                             loadingLines={4}
-                            zIndex={zIndex}
                         />
                     </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
@@ -283,7 +273,6 @@ export const RoutineView = ({
                         <ContentCollapse
                             isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"
-                            zIndex={zIndex}
                         >
                             {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
                                 <GeneratedInputComponentWithLabel
@@ -293,7 +282,6 @@ export const RoutineView = ({
                                     index={index}
                                     textPrimary={palette.background.textPrimary}
                                     onUpload={() => { }}
-                                    zIndex={zIndex}
                                 />
                             ))}
                             {getCurrentUser(session).id && <Button
@@ -313,7 +301,6 @@ export const RoutineView = ({
                                 title={t("ThisIsMultiStep")}
                                 help={"ThisIsMultiStepHelp"}
                                 variant="subheader"
-                                zIndex={zIndex}
                             />
                             <Button
                                 startIcon={<RoutineIcon />}
@@ -329,7 +316,7 @@ export const RoutineView = ({
                         maxCharacters={30}
                         parentId={existing?.id ?? ""}
                         tags={tags as Tag[]}
-                        sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                        sx={{ marginTop: 4 }}
                     />}
                     <Box>
                         {/* Date and version labels */}
@@ -339,13 +326,11 @@ export const RoutineView = ({
                                 loading={isLoading}
                                 showIcon={true}
                                 timestamp={existing?.created_at}
-                                zIndex={zIndex}
                             />
                             <VersionDisplay
                                 currentVersion={existing}
                                 prefix={" - "}
                                 versions={existing?.root?.versions}
-                                zIndex={zIndex}
                             />
                         </Stack>
                         {/* Votes, reports, and other basic stats */}
@@ -358,7 +343,6 @@ export const RoutineView = ({
                             actionData={actionData}
                             exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                             object={existing}
-                            zIndex={zIndex}
                         />
                     </Box>
                     {/* Comments */}
@@ -369,7 +353,6 @@ export const RoutineView = ({
             <SideActionButtons
                 // Treat as a dialog when build view is open
                 display={isBuildOpen ? "dialog" : display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 {/* Edit button */}
@@ -386,7 +369,6 @@ export const RoutineView = ({
                     isBuildGraphOpen={isBuildOpen}
                     isEditing={false}
                     runnableObject={existing}
-                    zIndex={zIndex}
                 /> : null}
             </SideActionButtons>
         </>

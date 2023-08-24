@@ -9,7 +9,6 @@ export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
     showIcon?: boolean;
     textBeforeDate?: string;
     timestamp?: number;
-    zIndex: number;
 }
 
 export interface MarkdownDisplayProps {
@@ -18,7 +17,6 @@ export interface MarkdownDisplayProps {
     onChange?: (content: string) => void;
     sx?: SxType;
     variant?: TypographyProps["variant"];
-    zIndex: number;
 }
 
 export interface OwnerLabelProps {
@@ -58,8 +56,7 @@ export interface TitleProps {
     /** Replaces title if provided */
     titleComponent?: JSX.Element;
     /** Determines size */
-    variant: "header" | "subheader";
-    zIndex: number;
+    variant?: "header" | "subheader";
 }
 
 export interface VersionDisplayProps extends BoxProps {
@@ -68,5 +65,4 @@ export interface VersionDisplayProps extends BoxProps {
     loading?: boolean;
     prefix?: string;
     versions?: { versionLabel: string }[];
-    zIndex: number;
 }

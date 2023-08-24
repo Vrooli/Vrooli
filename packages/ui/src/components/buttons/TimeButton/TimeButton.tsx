@@ -1,6 +1,7 @@
 import { CommonKey, TimeFrame } from "@local/shared";
 import { Box, Menu, MenuItem, Tooltip, Typography, useTheme } from "@mui/material";
 import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
+import { useZIndex } from "hooks/useZIndex";
 import { HistoryIcon as TimeIcon } from "icons";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,15 +21,14 @@ const timeOptions = {
 const TimeMenu = ({
     anchorEl,
     onClose,
-    zIndex,
 }: {
     anchorEl: HTMLElement | null;
     onClose: (labelKey?: CommonKey, timeFrame?: { after?: Date, before?: Date }) => void;
-    zIndex: number;
 }) => {
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
+    const zIndex = useZIndex(open);
 
     const [customRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
     const handleTimeOpen = (event) => setCustomRangeAnchorEl(event.currentTarget);
@@ -75,7 +75,6 @@ const TimeMenu = ({
                 anchorEl={customRangeAnchorEl}
                 onClose={handleTimeClose}
                 onSubmit={(after, before) => onClose("Custom", { after, before })}
-                zIndex={zIndex + 1}
             />
         </Menu>
     );
@@ -85,7 +84,6 @@ const TimeMenu = ({
 export const TimeButton = ({
     setTimeFrame,
     timeFrame,
-    zIndex,
 }: TimeButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -105,7 +103,6 @@ export const TimeButton = ({
             <TimeMenu
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
-                zIndex={zIndex + 1}
             />
             <Tooltip title={t("TimeCreated")} placement="top">
                 <Box

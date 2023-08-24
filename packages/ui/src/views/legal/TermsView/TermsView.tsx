@@ -3,19 +3,18 @@ import termsMarkdown from "assets/policy/terms.md";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { useMarkdown } from "hooks/useMarkdown";
+import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
-import { useMarkdown } from "utils/hooks/useMarkdown";
-import { PageTab, useTabs } from "utils/hooks/useTabs";
 import { PolicyTabOption, policyTabParams } from "../PrivacyPolicyView/PrivacyPolicyView";
 import { TermsViewProps } from "../types";
 
 export const TermsView = ({
     isOpen,
     onClose,
-    zIndex,
 }: TermsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -41,10 +40,9 @@ export const TermsView = ({
                 onChange={handleTabChange}
                 tabs={tabs}
             />}
-            zIndex={zIndex}
         />
         <Box m={2}>
-            <MarkdownDisplay content={terms} zIndex={zIndex} />
+            <MarkdownDisplay content={terms} />
         </Box>
     </>;
 };

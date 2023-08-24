@@ -2,17 +2,16 @@ import { LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Stack, Typography, useTheme } from "@mui/material";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { useStripe } from "hooks/useStripe";
 import { CancelIcon, OpenInNewIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
-import { useStripe } from "utils/hooks/useStripe";
 import { SettingsPaymentViewProps } from "../types";
 
 export const SettingsPaymentView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsPaymentViewProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -32,7 +31,6 @@ export const SettingsPaymentView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Payment", { count: 1 })}
-                zIndex={zIndex}
             />
             <Stack direction="row" mt={2}>
                 <SettingsList />

@@ -1,18 +1,18 @@
 import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
+import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
-import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
+import { NavigableObject, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { ListObject } from "utils/display/listTools";
-import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
+import { ViewDisplayType } from "views/types";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
     object: T | null | undefined;
-    zIndex: number;
 }
 
 
@@ -42,7 +42,6 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     subtitleOverride?: string;
     titleOverride?: string;
     toTheRight?: React.ReactNode;
-    zIndex: number;
 }
 export type ObjectListItemProps<T extends ListObject, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
 
@@ -94,7 +93,6 @@ export interface DateRangeMenuProps {
      * matches.
      */
     strictIntervalRange?: number;
-    zIndex: number;
 }
 
 export type RelationshipItemFocusMode = Pick<FocusMode, "id" | "name"> &
@@ -142,7 +140,6 @@ export interface RelationshipListProps {
     isEditing: boolean;
     isFormDirty?: boolean;
     objectType: ObjectType;
-    zIndex: number;
     sx?: SxType;
 }
 
@@ -168,6 +165,7 @@ export interface SearchListProps {
      */
     canNavigate?: (item: any) => boolean,
     canSearch?: (where: any) => boolean;
+    display: ViewDisplayType | "partial";
     /**
      * How many dummy lists to display while loading. Smaller is better for lists displayed 
      * in dialogs, since a large dummy list with a small number of results will give 
@@ -190,7 +188,6 @@ export interface SearchListProps {
     onItemClick?: (item: any) => unknown;
     /** Additional where clause to pass to the query */
     where?: { [key: string]: object };
-    zIndex: number;
 }
 
 export interface SearchQueryVariablesInput<SortBy> {
@@ -217,11 +214,6 @@ export interface TagListProps {
     parentId: string;
     sx?: SxType;
     tags: Partial<Tag>[];
-}
-
-export interface AwardCardProps {
-    award: AwardDisplay;
-    isEarned: boolean;
 }
 
 export interface CardGridProps {

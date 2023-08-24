@@ -35,6 +35,8 @@ export const chatInvite_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -162,6 +164,8 @@ export const chatInvite_findMany = {
         "participants": {
           "user": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -187,6 +191,8 @@ export const chatInvite_findMany = {
       "status": true,
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

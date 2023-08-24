@@ -8,16 +8,16 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ChatListItemActions, NotificationListItemActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useFindMany } from "hooks/useFindMany";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useTabs } from "hooks/useTabs";
 import { AddIcon, CompleteIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useFindMany } from "utils/hooks/useFindMany";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useTabs } from "utils/hooks/useTabs";
 import { openObject } from "utils/navigation/openObject";
 import { InboxPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { ChatUpsert } from "views/objects/chat/ChatUpsert/ChatUpsert";
@@ -41,7 +41,6 @@ type InboxObject = Chat | Notification;
 export const InboxView = ({
     isOpen,
     onClose,
-    zIndex,
 }: InboxViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -63,8 +62,9 @@ export const InboxView = ({
         setAllData,
     } = useFindMany<InboxObject>({
         searchType,
-        where,
+        where: where(),
     });
+    console.log("alldata", allData);
 
     const [deleteMutation, { errors: deleteErrors }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
@@ -178,21 +178,22 @@ export const InboxView = ({
                 onCancel={closeCreateChat}
                 onCompleted={onChatCreated}
                 overrideObject={{ __typename: "Chat" }}
-                zIndex={zIndex + 1001}
             />
             {/* Main content */}
             <TopBar
                 display={display}
+                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={currTab.label}
                 below={<PageTabs
                     ariaLabel="inbox-tabs"
-                    currTab={currTab}
                     fullWidth
+                    id="inbox-tabs"
+                    ignoreIcons
+                    currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
@@ -205,13 +206,11 @@ export const InboxView = ({
                     loading={loading}
                     onAction={onAction}
                     onClick={(item) => onClick(item as InboxObject)}
-                    zIndex={zIndex}
                 />
             </ListContainer>
             {/* New Chat button */}
             <SideActionButtons
                 display={display}
-                zIndex={zIndex + 1}
                 sx={{ position: "fixed" }}
             >
                 <Tooltip title={t(actionTooltip)}>

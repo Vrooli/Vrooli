@@ -5,6 +5,9 @@ import { Box, CircularProgress, IconButton, List, ListItem, Popover, Stack, Tool
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { SessionContext } from "contexts/SessionContext";
+import { useDebounce } from "hooks/useDebounce";
+import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,11 +15,8 @@ import { linkColors, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { keyComboToString } from "utils/display/device";
 import { getDisplay, ListObject } from "utils/display/listTools";
-import { useDebounce } from "utils/hooks/useDebounce";
-import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { assistantChatInfo, ChatView } from "views/ChatView/ChatView";
 import { ChatViewProps } from "views/types";
 import { MarkdownInputBaseProps } from "../types";
@@ -212,7 +212,6 @@ export const MarkdownInputBase = ({
     tabIndex,
     value,
     sxs,
-    zIndex,
 }: MarkdownInputBaseProps) => {
     const { palette, typography } = useTheme();
     const session = useContext(SessionContext);
@@ -320,7 +319,6 @@ export const MarkdownInputBase = ({
         task: "note",
         onClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
         // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        zIndex: zIndex + 1,
     });
     const openAssistantDialog = useCallback(() => {
         if (!checkIfCanEdit()) return;
@@ -654,7 +652,7 @@ export const MarkdownInputBase = ({
     const LINE_HEIGHT_MULTIPLIER = 1.5;
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     useEffect(() => {
-        if (!textAreaRef.current || typeof value !== "string") return;
+        if (!textAreaRef.current || typeof value !== "string" || sxs?.textArea?.height) return;
         const lines = (value.match(/\n/g)?.length || 0) + 1;
         const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
         const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
@@ -662,7 +660,7 @@ export const MarkdownInputBase = ({
         const linesShown = Math.max(minRowsNum, Math.min(lines, maxRowsNum));
         const padding = 34;
         textAreaRef.current.style.height = `${linesShown * lineHeight + padding}px`;
-    }, [isPreviewOn, minRows, maxRows, typography, value]);
+    }, [isPreviewOn, minRows, maxRows, typography, value, sxs?.textArea?.height]);
 
     return (
         <>
@@ -924,7 +922,7 @@ export const MarkdownInputBase = ({
                                     content={internalValue}
                                     isEditable={!disabled}
                                     onChange={handleChange}
-                                    zIndex={zIndex}
+                                    sx={{ minHeight: "50px" }}
                                 />
                             </Box>
                         ) :

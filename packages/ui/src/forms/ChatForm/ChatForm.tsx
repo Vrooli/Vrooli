@@ -5,18 +5,18 @@ import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { SessionContext } from "contexts/SessionContext";
 import { Field } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ChatFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CopyIcon } from "icons";
 import { forwardRef, useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ChatShape, shapeChat } from "utils/shape/models/chat";
 
@@ -30,6 +30,7 @@ export const chatInitialValues = (
     organization: null,
     invites: [],
     labels: [],
+    messages: [],
     participantsDelete: [],
     ...existing,
     translations: orDefault(existing?.translations, [{
@@ -59,7 +60,6 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -100,7 +100,6 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                     <RelationshipList
                         isEditing={true}
                         objectType={"Chat"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
                     <FormSection sx={{
@@ -112,7 +111,6 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <Field
                             fullWidth
@@ -126,14 +124,13 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                             minRows={4}
                             name="description"
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
                     </FormSection>
                     {/* Invite link */}
                     <Stack direction="column" spacing={1}>
                         <Stack direction="row" sx={{ alignItems: "center" }}>
                             <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
-                            <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} zIndex={zIndex} />
+                            <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
                         </Stack>
                         <Stack direction="row" spacing={0}>
                             {/* Enable/disable */}
@@ -188,7 +185,6 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

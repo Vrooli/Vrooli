@@ -170,24 +170,25 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                     // Add files to input
                     for (const { fieldname, originalname } of files) {
                         // If there are no files, upload must have failed or been rejected. So skip this file.
-                        if (!Array.isArray(fileNames[originalname]) || fileNames[originalname].length === 0) continue;
+                        const currFileNames = fileNames[originalname];
+                        if (!currFileNames || currFileNames.length === 0) continue;
                         // We're going to store image files differently than other files. 
                         // For normal files, there should only be one file in the array. So we'll just use that.
-                        if (fileNames[originalname].length === 1) {
-                            input[fieldname] = fileNames[originalname][0];
+                        if (currFileNames.length === 1) {
+                            input[fieldname] = currFileNames[0] as string;
                         }
                         // For image files, there may be multiple sizes. We'll store them like this: 
                         // { sizes: ["1024x1024", "512x512"], file: "https://bucket-name.s3.region.amazonaws.com/image-hash_*.jpg }
                         // Note how there is an asterisk in the file name. You can replace this with any of the sizes to create a valid URL.
                         else {
                             // Find the size string of each file
-                            const sizes = fileNames[originalname].map((file: string) => {
+                            const sizes = currFileNames.map((file: string) => {
                                 const url = new URL(file);
                                 const size = url.pathname.split("/").pop()?.split("_")[1]?.split(".")[0];
                                 return size;
                             }).filter((size: string | undefined) => size !== undefined) as string[];
                             // Find the file name without the size string
-                            const file = fileNames[originalname][0].replace(`_${sizes[0]}`, "_*");
+                            const file = (currFileNames[0] as string).replace(`_${sizes[0]}`, "_*");
                             input[fieldname] = JSON.stringify({ sizes, file });
                         }
                     }

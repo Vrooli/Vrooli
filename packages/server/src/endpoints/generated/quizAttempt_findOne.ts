@@ -19,6 +19,8 @@ export const quizAttempt_findOne = {
         "updated_at": true,
         "createdBy": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -55,6 +57,8 @@ export const quizAttempt_findOne = {
       },
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -88,6 +92,8 @@ export const quizAttempt_findOne = {
     "updated_at": true,
     "createdBy": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -124,6 +130,8 @@ export const quizAttempt_findOne = {
   },
   "user": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,

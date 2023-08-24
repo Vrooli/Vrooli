@@ -75,8 +75,10 @@ const batchApis = async (
         // For each, add stats to the user
         batch.forEach(api => {
             const userId = api.createdById;
-            if (!userId || !result[userId]) return;
-            result[userId].apisCreated += 1;
+            if (!userId) return;
+            const currResult = result[userId];
+            if (!currResult) return;
+            currResult.apisCreated += 1;
         });
     },
     objectType: "Api",
@@ -113,8 +115,10 @@ const batchOrganizations = async (
         // For each, add stats to the user
         batch.forEach(organization => {
             const userId = organization.createdById;
-            if (!userId || !result[userId]) return;
-            result[userId].organizationsCreated += 1;
+            if (!userId) return;
+            const currResult = result[userId];
+            if (!currResult) return;
+            currResult.organizationsCreated += 1;
         });
     },
     objectType: "Organization",
@@ -152,20 +156,23 @@ const batchProjects = async (
         // For each, add stats to the user
         batch.forEach(project => {
             const userId = project.createdById;
-            if (!userId || !result[userId]) return;
-            result[userId].projectsCreated += 1;
+            if (!userId) return;
+            const currResult = result[userId];
+            if (!currResult) return;
+            currResult.projectsCreated += 1;
             if (project.hasCompleteVersion) {
-                result[userId].projectsCompleted += 1;
-                if (project.completedAt) result[userId].projectCompletionTimeAverage += (new Date(project.completedAt).getTime() - new Date(project.created_at).getTime());
+                currResult.projectsCompleted += 1;
+                if (project.completedAt) currResult.projectCompletionTimeAverage += (new Date(project.completedAt).getTime() - new Date(project.created_at).getTime());
             }
         });
     },
     finalizeResult: (result) => {
         // Calculate averages
         Object.keys(result).forEach(userId => {
-            const user = result[userId];
-            if (user.projectsCompleted > 0) {
-                user.projectCompletionTimeAverage /= user.projectsCompleted;
+            const currResult = result[userId];
+            if (!currResult) return;
+            if (currResult.projectsCompleted > 0) {
+                currResult.projectCompletionTimeAverage /= currResult.projectsCompleted;
             }
         });
         return result;
@@ -211,11 +218,13 @@ const batchQuizzes = async (
         // For each, add stats to the user
         batch.forEach(attempt => {
             const userId = attempt.userId;
-            if (!userId || !result[userId]) return;
+            if (!userId) return;
+            const currResult = result[userId];
+            if (!currResult) return;
             if (attempt.status === QuizAttemptStatus.Passed) {
-                result[userId].quizzesPassed += 1;
+                currResult.quizzesPassed += 1;
             } else if (attempt.status === QuizAttemptStatus.Failed) {
-                result[userId].quizzesFailed += 1;
+                currResult.quizzesFailed += 1;
             }
         });
     },
@@ -256,20 +265,23 @@ const batchRoutines = async (
         // For each, add stats to the user
         batch.forEach(routine => {
             const userId = routine.createdById;
-            if (!userId || !result[userId]) return;
-            result[userId].routinesCreated += 1;
+            if (!userId) return;
+            const currResult = result[userId];
+            if (!currResult) return;
+            currResult.routinesCreated += 1;
             if (routine.hasCompleteVersion) {
-                result[userId].routinesCompleted += 1;
-                if (routine.completedAt) result[userId].routineCompletionTimeAverage += (new Date(routine.completedAt).getTime() - new Date(routine.created_at).getTime());
+                currResult.routinesCompleted += 1;
+                if (routine.completedAt) currResult.routineCompletionTimeAverage += (new Date(routine.completedAt).getTime() - new Date(routine.created_at).getTime());
             }
         });
     },
     finalizeResult: (result) => {
         // Calculate averages
         Object.keys(result).forEach(userId => {
-            const user = result[userId];
-            if (user.routinesCompleted > 0) {
-                user.routineCompletionTimeAverage /= user.routinesCompleted;
+            const currResult = result[userId];
+            if (!currResult) return;
+            if (currResult.routinesCompleted > 0) {
+                currResult.routineCompletionTimeAverage /= currResult.routinesCompleted;
             }
         });
         return result;
@@ -317,26 +329,30 @@ const batchRunProjects = async (
         // For each run, increment the counts for the project version
         batch.forEach(run => {
             const userId = run.user?.id;
-            if (!userId || !result[userId]) { return; }
+            if (!userId) return;
+            const currResult = result[userId];
+            if (!currResult) return;
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
-                result[userId].runProjectsStarted += 1;
+                currResult.runProjectsStarted += 1;
             }
             // If runCompleted within period, increment runsCompleted 
             // and update averages
             if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
-                result[userId].runProjectsCompleted += 1;
-                if (run.timeElapsed !== null) result[userId].runProjectCompletionTimeAverage += run.timeElapsed;
-                result[userId].runProjectContextSwitchesAverage += run.contextSwitches;
+                currResult.runProjectsCompleted += 1;
+                if (run.timeElapsed !== null) currResult.runProjectCompletionTimeAverage += run.timeElapsed;
+                currResult.runProjectContextSwitchesAverage += run.contextSwitches;
             }
         });
     },
     finalizeResult: (result) => {
         // For the averages, divide by the number of runs completed
         Object.keys(result).forEach(userId => {
-            if (result[userId].runProjectsCompleted > 0) {
-                result[userId].runProjectCompletionTimeAverage /= result[userId].runProjectsCompleted;
-                result[userId].runProjectContextSwitchesAverage /= result[userId].runProjectsCompleted;
+            const currResult = result[userId];
+            if (!currResult) return;
+            if (currResult.runProjectsCompleted > 0) {
+                currResult.runProjectCompletionTimeAverage /= currResult.runProjectsCompleted;
+                currResult.runProjectContextSwitchesAverage /= currResult.runProjectsCompleted;
             }
         });
         return result;
@@ -386,26 +402,30 @@ const batchRunRoutines = async (
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const userId = run.user?.id;
-            if (!userId || !result[userId]) { return; }
+            if (!userId) return;
+            const currResult = result[userId];
+            if (!currResult) return;
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
-                result[userId].runRoutinesStarted += 1;
+                currResult.runRoutinesStarted += 1;
             }
             // If runCompleted within period, increment runsCompleted 
             // and update averages
             if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
-                result[userId].runRoutinesCompleted += 1;
-                if (run.timeElapsed !== null) result[userId].runRoutineCompletionTimeAverage += run.timeElapsed;
-                result[userId].runRoutineContextSwitchesAverage += run.contextSwitches;
+                currResult.runRoutinesCompleted += 1;
+                if (run.timeElapsed !== null) currResult.runRoutineCompletionTimeAverage += run.timeElapsed;
+                currResult.runRoutineContextSwitchesAverage += run.contextSwitches;
             }
         });
     },
     finalizeResult: (result) => {
         // For the averages, divide by the number of runs completed
         Object.keys(result).forEach(userId => {
-            if (result[userId].runRoutinesCompleted > 0) {
-                result[userId].runRoutineCompletionTimeAverage /= result[userId].runRoutinesCompleted;
-                result[userId].runRoutineContextSwitchesAverage /= result[userId].runRoutinesCompleted;
+            const currResult = result[userId];
+            if (!currResult) return;
+            if (currResult.runRoutinesCompleted > 0) {
+                currResult.runRoutineCompletionTimeAverage /= currResult.runRoutinesCompleted;
+                currResult.runRoutineContextSwitchesAverage /= currResult.runRoutinesCompleted;
             }
         });
         return result;
@@ -454,20 +474,23 @@ const batchSmartContracts = async (
         // For each, add stats to the user
         batch.forEach(smartContract => {
             const userId = smartContract.createdById;
-            if (!userId || !result[userId]) return;
-            result[userId].smartContractsCreated += 1;
+            if (!userId) return;
+            const currResult = result[userId];
+            if (!currResult) return;
+            currResult.smartContractsCreated += 1;
             if (smartContract.hasCompleteVersion) {
-                result[userId].smartContractsCompleted += 1;
-                if (smartContract.completedAt) result[userId].smartContractCompletionTimeAverage += (new Date(smartContract.completedAt).getTime() - new Date(smartContract.created_at).getTime());
+                currResult.smartContractsCompleted += 1;
+                if (smartContract.completedAt) currResult.smartContractCompletionTimeAverage += (new Date(smartContract.completedAt).getTime() - new Date(smartContract.created_at).getTime());
             }
         });
     },
     finalizeResult: (result) => {
         // Calculate averages
         Object.keys(result).forEach(userId => {
-            const user = result[userId];
-            if (user.smartContractsCompleted > 0) {
-                user.smartContractCompletionTimeAverage /= user.smartContractsCompleted;
+            const currResult = result[userId];
+            if (!currResult) return;
+            if (currResult.smartContractsCompleted > 0) {
+                currResult.smartContractCompletionTimeAverage /= currResult.smartContractsCompleted;
             }
         });
         return result;
@@ -514,20 +537,23 @@ const batchStandards = async (
         // For each, add stats to the user
         batch.forEach(standard => {
             const userId = standard.createdById;
-            if (!userId || !result[userId]) return;
-            result[userId].standardsCreated += 1;
+            if (!userId) return;
+            const currResult = result[userId];
+            if (!currResult) return;
+            currResult.standardsCreated += 1;
             if (standard.hasCompleteVersion) {
-                result[userId].standardsCompleted += 1;
-                if (standard.completedAt) result[userId].standardCompletionTimeAverage += (new Date(standard.completedAt).getTime() - new Date(standard.created_at).getTime());
+                currResult.standardsCompleted += 1;
+                if (standard.completedAt) currResult.standardCompletionTimeAverage += (new Date(standard.completedAt).getTime() - new Date(standard.created_at).getTime());
             }
         });
     },
     finalizeResult: (result) => {
         // Calculate averages
         Object.keys(result).forEach(userId => {
-            const user = result[userId];
-            if (user.standardsCompleted > 0) {
-                user.standardCompletionTimeAverage /= user.standardsCompleted;
+            const currResult = result[userId];
+            if (!currResult) return;
+            if (currResult.standardsCompleted > 0) {
+                currResult.standardCompletionTimeAverage /= currResult.standardsCompleted;
             }
         });
         return result;
@@ -583,15 +609,15 @@ export const logUserStats = async (
                 periodStart,
                 periodEnd,
                 periodType,
-                ...apiStats[user.id],
-                ...organizationStats[user.id],
-                ...projectStats[user.id],
-                ...quizStats[user.id],
-                ...routineStats[user.id],
-                ...runProjectStats[user.id],
-                ...runRoutineStats[user.id],
-                ...smartContractStats[user.id],
-                ...standardStats[user.id],
+                ...(apiStats[user.id] || { apisCreated: 0 }),
+                ...(organizationStats[user.id] || { organizationsCreated: 0 }),
+                ...(projectStats[user.id] || { projectsCompleted: 0, projectCompletionTimeAverage: 0, projectsCreated: 0 }),
+                ...(quizStats[user.id] || { quizzesFailed: 0, quizzesPassed: 0 }),
+                ...(routineStats[user.id] || { routineCompletionTimeAverage: 0, routinesCompleted: 0, routinesCreated: 0 }),
+                ...(runProjectStats[user.id] || { runProjectCompletionTimeAverage: 0, runProjectContextSwitchesAverage: 0, runProjectsCompleted: 0, runProjectsStarted: 0 }),
+                ...(runRoutineStats[user.id] || { runRoutineCompletionTimeAverage: 0, runRoutineContextSwitchesAverage: 0, runRoutinesCompleted: 0, runRoutinesStarted: 0 }),
+                ...(smartContractStats[user.id] || { smartContractCompletionTimeAverage: 0, smartContractsCompleted: 0, smartContractsCreated: 0 }),
+                ...(standardStats[user.id] || { standardCompletionTimeAverage: 0, standardsCompleted: 0, standardsCreated: 0 }),
             })),
         });
     },

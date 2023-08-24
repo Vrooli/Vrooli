@@ -9,6 +9,9 @@ import { ResourceListVertical } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
+import { SessionContext } from "contexts/SessionContext";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { ApiIcon, EditIcon, EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,15 +21,11 @@ import { placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
 import { ApiViewProps } from "../types";
 
 export const ApiView = ({
     isOpen,
     onClose,
-    zIndex,
 }: ApiViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -74,9 +73,8 @@ export const ApiView = ({
             loading={isLoading}
             mutate={true}
             parent={{ __typename: "ApiVersion", id: apiVersion?.id ?? "" }}
-            zIndex={zIndex}
         />
-    ) : null, [resourceList, permissions.canUpdate, isLoading, zIndex, apiVersion, setApiVersion]);
+    ) : null, [resourceList, permissions.canUpdate, isLoading, apiVersion, setApiVersion]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -144,7 +142,6 @@ export const ApiView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
-                        zIndex={zIndex}
                     />
                 }
                 {/* Joined date */}
@@ -154,7 +151,6 @@ export const ApiView = ({
                     textBeforeDate="Joined"
                     timestamp={apiVersion?.created_at}
                     width={"33%"}
-                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -168,7 +164,7 @@ export const ApiView = ({
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <ShareButton object={apiVersion} zIndex={zIndex} />
+                    <ShareButton object={apiVersion} />
                     <ReportsLink object={apiVersion} />
                     <BookmarkButton
                         disabled={!canBookmark}
@@ -177,12 +173,11 @@ export const ApiView = ({
                         isBookmarked={apiVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={apiVersion?.root?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
-                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, zIndex, canBookmark, actionData]);
+    ), [palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, canBookmark, actionData]);
 
     return (
         <>
@@ -190,7 +185,6 @@ export const ApiView = ({
                 display={display}
                 onClose={onClose}
                 title={firstString(name, t("Api", { count: 1 }))}
-                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -198,7 +192,6 @@ export const ApiView = ({
                 anchorEl={moreMenuAnchor}
                 object={apiVersion as any}
                 onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
             />
             <Box sx={{
                 background: palette.mode === "light" ? "#b2b3b3" : "#303030",
@@ -217,7 +210,6 @@ export const ApiView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
-                        zIndex={zIndex}
                     />}
                 </Box>
                 {overviewComponent}

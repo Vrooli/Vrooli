@@ -12,6 +12,8 @@ export const chatMessage_findMany = {
       "updated_at": true,
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

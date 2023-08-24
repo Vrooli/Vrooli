@@ -64,7 +64,11 @@ export const projectVersion_create = {
         "language": true,
         "description": true,
         "name": true,
-        "text": true
+        "pages": {
+          "id": true,
+          "pageIndex": true,
+          "text": true
+        }
       },
       "__typename": "NoteVersion"
     },
@@ -252,6 +256,8 @@ export const projectVersion_create = {
     "status": true,
     "createdBy": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -319,6 +325,8 @@ export const projectVersion_create = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -360,6 +368,8 @@ export const projectVersion_create = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

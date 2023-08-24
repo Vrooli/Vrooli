@@ -2,16 +2,16 @@ import { endpointGetRunRoutine, endpointPostRunRoutine, endpointPutRunRoutine, R
 import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunRoutineForm, runRoutineInitialValues, transformRunRoutineValues, validateRunRoutineValues } from "forms/RunRoutineForm/RunRoutineForm";
-import { useContext, useRef } from "react";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { RunRoutineShape } from "utils/shape/models/runRoutine";
 import { RunRoutineUpsertProps } from "../types";
 
@@ -21,7 +21,6 @@ export const RunRoutineUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: RunRoutineUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -34,7 +33,6 @@ export const RunRoutineUpsert = ({
         transform: (existing) => runRoutineInitialValues(session, existing),
     });
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -49,20 +47,19 @@ export const RunRoutineUpsert = ({
         onCancel,
         onCompleted,
     });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="run-routine-upsert-dialog"
             isOpen={isOpen ?? false}
-            onClose={handleCancel}
-            zIndex={zIndex}
+            onClose={handleClose}
         >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(isCreate ? "CreateRun" : "UpdateRun")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -87,8 +84,8 @@ export const RunRoutineUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

@@ -1,6 +1,7 @@
 import { CommentFor, endpointGetStandardVersion, StandardVersion } from "@local/shared";
 import { Box, Palette, Stack, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
@@ -8,12 +9,14 @@ import { StandardInput } from "components/inputs/standards/StandardInput/Standar
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
-import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
+import { SessionContext } from "contexts/SessionContext";
 import { standardInitialValues } from "forms/StandardForm/StandardForm";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,9 +25,6 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
@@ -43,7 +43,6 @@ const containerProps = (palette: Palette) => ({
 export const StandardView = ({
     isOpen,
     onClose,
-    zIndex,
 }: StandardViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -94,9 +93,7 @@ export const StandardView = ({
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <Box sx={{
                 marginLeft: "auto",
@@ -104,36 +101,10 @@ export const StandardView = ({
                 width: "min(100%, 700px)",
                 padding: 2,
             }}>
-                {/* Edit button, positioned at bottom corner of screen */}
-                <Stack direction="row" spacing={2} sx={{
-                    position: "fixed",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: zIndex + 2,
-                    bottom: 0,
-                    right: 0,
-                    // Accounts for BottomNav
-                    marginBottom: {
-                        xs: "calc(56px + 16px + env(safe-area-inset-bottom))",
-                        md: "calc(16px + env(safe-area-inset-bottom))",
-                    },
-                    marginLeft: "calc(16px + env(safe-area-inset-left))",
-                    marginRight: "calc(16px + env(safe-area-inset-right))",
-                    height: "calc(64px + env(safe-area-inset-bottom))",
-                }}>
-                    {/* Edit button */}
-                    {permissions.canUpdate ? (
-                        <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
-                            <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </ColorIconButton>
-                    ) : null}
-                </Stack>
                 {/* Relationships */}
                 <RelationshipList
                     isEditing={false}
                     objectType={"Routine"}
-                    zIndex={zIndex}
                 />
                 {/* Resources */}
                 {Array.isArray(resourceList?.resources) && resourceList!.resources.length > 0 && <ResourceListHorizontal
@@ -144,7 +115,6 @@ export const StandardView = ({
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
                     parent={{ __typename: "StandardVersion", id: existing?.id ?? "" }}
-                    zIndex={zIndex}
                 />}
                 {/* Box with description */}
                 <Box sx={containerProps(palette)}>
@@ -153,7 +123,6 @@ export const StandardView = ({
                         text={description}
                         loading={isLoading}
                         loadingLines={2}
-                        zIndex={zIndex}
                     />
                 </Box>
                 {/* Box with standard */}
@@ -161,7 +130,6 @@ export const StandardView = ({
                     <StandardInput
                         disabled={true}
                         fieldName="preview"
-                        zIndex={zIndex}
                     />
                 </Stack>
                 {/* Tags */}
@@ -169,7 +137,7 @@ export const StandardView = ({
                     maxCharacters={30}
                     parentId={existing?.id ?? ""}
                     tags={tags as any[]}
-                    sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                    sx={{ marginTop: 4 }}
                 />}
                 {/* Date and version labels */}
                 <Stack direction="row" spacing={1} mt={2} mb={1}>
@@ -178,13 +146,11 @@ export const StandardView = ({
                         loading={isLoading}
                         showIcon={true}
                         timestamp={existing?.created_at}
-                        zIndex={zIndex}
                     />
                     <VersionDisplay
                         currentVersion={existing}
                         prefix={" - "}
                         versions={existing?.root?.versions}
-                        zIndex={zIndex}
                     />
                 </Stack>
                 {/* Votes, reports, and other basic stats */}
@@ -198,7 +164,6 @@ export const StandardView = ({
                     actionData={actionData}
                     exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                     object={existing}
-                    zIndex={zIndex}
                 />
                 {/* Comments */}
                 <Box sx={containerProps(palette)}>
@@ -208,10 +173,20 @@ export const StandardView = ({
                         objectId={existing?.id ?? ""}
                         objectType={CommentFor.StandardVersion}
                         onAddCommentClose={closeAddCommentDialog}
-                        zIndex={zIndex}
                     />
                 </Box>
             </Box>
+            <SideActionButtons
+                display={display}
+                sx={{ position: "fixed" }}
+            >
+                {/* Edit button */}
+                {permissions.canUpdate ? (
+                    <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                ) : null}
+            </SideActionButtons>
         </>
     );
 };

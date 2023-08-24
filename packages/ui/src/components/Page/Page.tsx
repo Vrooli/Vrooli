@@ -1,10 +1,10 @@
 import { LINKS } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
+import { SessionContext } from "contexts/SessionContext";
 import { useContext } from "react";
 import { Redirect, useLocation } from "route";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { PageProps } from "../../views/wrapper/types";
 
 export const Page = ({

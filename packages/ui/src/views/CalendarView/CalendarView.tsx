@@ -5,7 +5,12 @@ import { SideActionButtons } from "components/buttons/SideActionButtons/SideActi
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { SessionContext } from "contexts/SessionContext";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
+import { useDimensions } from "hooks/useDimensions";
+import { useFindMany } from "hooks/useFindMany";
+import { useTabs } from "hooks/useTabs";
+import { useWindowSize } from "hooks/useWindowSize";
 import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, MonthIcon, TodayIcon, WeekIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer, DateLocalizer, Navigate, Views } from "react-big-calendar";
@@ -16,12 +21,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
-import { useDimensions } from "utils/hooks/useDimensions";
-import { useFindMany } from "utils/hooks/useFindMany";
-import { useTabs } from "utils/hooks/useTabs";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { CalendarPageTabOption, SearchType } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { CalendarViewProps } from "views/types";
 
@@ -152,7 +152,6 @@ const DayColumnHeader = ({ label }) => {
 export const CalendarView = ({
     isOpen,
     onClose,
-    zIndex,
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -304,13 +303,11 @@ export const CalendarView = ({
                 onCancel={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
-                zIndex={zIndex + 2}
             />
             {/* Add event button */}
             <SideActionButtons
                 // Treat as a dialog when build view is open
                 display={display}
-                zIndex={zIndex + 1}
             >
                 <ColorIconButton
                     aria-label="create event"
@@ -337,7 +334,6 @@ export const CalendarView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             <Calendar
                 localizer={localizer}

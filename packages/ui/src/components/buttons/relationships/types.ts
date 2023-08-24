@@ -4,7 +4,6 @@ interface RelationshipButtonsBaseProps {
     isEditing: boolean;
     isFormDirty?: boolean;
     objectType: ObjectType;
-    zIndex: number;
 }
 
 export type FocusModeButtonProps = RelationshipButtonsBaseProps

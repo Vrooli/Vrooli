@@ -4,12 +4,12 @@
 import { Box, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import usePress from "hooks/usePress";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
 import { getDeviceInfo } from "utils/display/device";
-import usePress from "utils/hooks/usePress";
 import { getObjectUrl, ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
@@ -38,7 +38,6 @@ export const ShareObjectDialog = ({
     object,
     open,
     onClose,
-    zIndex,
 }: ShareObjectDialogProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -88,14 +87,12 @@ export const ShareObjectDialog = ({
             isOpen={open}
             onClose={onClose}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={onClose}
                 title={t("Share")}
                 titleId={titleId}
-                zIndex={zIndex}
             />
             <Stack direction="column" spacing={2} p={2} sx={{ justifyContent: "center", alignItems: "center" }}>
                 <Box

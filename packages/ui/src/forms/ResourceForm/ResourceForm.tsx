@@ -5,15 +5,15 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ResourceFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 
@@ -35,7 +35,7 @@ export const resourceInitialValues = (
     list: {
         __typename: "ResourceList" as const,
         ...existing.list,
-        id: existing.list.id ?? DUMMY_ID,
+        id: existing.list?.id ?? DUMMY_ID,
     },
     translations: orDefault(existing.translations, [{
         __typename: "ResourceTranslation" as const,
@@ -64,7 +64,6 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -113,10 +112,9 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                         handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
                         languages={languages}
-                        zIndex={zIndex + 1}
                     />
                     {/* Enter link or search for object */}
-                    <LinkInput onObjectData={foundLinkData} zIndex={zIndex} />
+                    <LinkInput onObjectData={foundLinkData} />
                     <Selector
                         name="usedFor"
                         options={Object.keys(ResourceUsedFor)}
@@ -149,7 +147,6 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

@@ -7,7 +7,6 @@ export const GeneratedCodeInput = ({
     disabled,
     fieldData,
     index,
-    zIndex,
 }: GeneratedInputComponentProps) => {
     console.log('rendering code input');
     const props = useMemo(() => fieldData.props as CodeProps, [fieldData.props]);
@@ -15,8 +14,7 @@ export const GeneratedCodeInput = ({
     return (
         <CodeInput
             {...props}
-            // name={fieldData.fieldName}
-            zIndex={zIndex}
+        // name={fieldData.fieldName}
         />
     )
 }

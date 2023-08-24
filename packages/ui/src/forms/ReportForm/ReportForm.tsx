@@ -65,7 +65,6 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { t } = useTranslation();
@@ -91,7 +90,6 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                         currentLanguage={languageField.value}
                         handleCurrent={setLanguage}
                         languages={[languageField.value]}
-                        zIndex={zIndex}
                     />
                     <Selector
                         name="reason"
@@ -114,7 +112,6 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                         minRows={4}
                         name="details"
                         placeholder={t("DetailsOptional")}
-                        zIndex={zIndex}
                     />
                 </FormContainer>
             </BaseForm>
@@ -126,7 +123,6 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

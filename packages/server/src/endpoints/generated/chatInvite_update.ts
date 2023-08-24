@@ -3,6 +3,8 @@ export const chatInvite_update = {
     "participants": {
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -26,6 +28,8 @@ export const chatInvite_update = {
       "updated_at": true,
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -64,6 +68,8 @@ export const chatInvite_update = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -236,6 +242,8 @@ export const chatInvite_update = {
   "status": true,
   "user": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,

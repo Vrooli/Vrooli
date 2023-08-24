@@ -150,7 +150,7 @@ export const getFocusModesFromOccurrences = (
     // Get the occurrences for each schedule
     const occurrences = schedules.map((schedule) => schedule ? calculateOccurrences(schedule as Schedule, startDate, endDate) : []);
     // Get the focus modes that have occurrences in the time frame
-    const activeFocusModes = focusModes.filter((focusMode, index) => occurrences[index].length > 0);
+    const activeFocusModes = focusModes.filter((focusMode, index) => occurrences[index] !== undefined && occurrences[index]!.length > 0);
     return activeFocusModes;
 };
 
@@ -190,7 +190,7 @@ export const getActiveFocusMode = (
     if (activeFocusModes.length > 0) {
         return {
             __typename: "ActiveFocusMode",
-            mode: activeFocusModes[0],
+            mode: activeFocusModes[0]!,
             stopCondition: FocusModeStopCondition.Automatic,
         };
     }
@@ -198,7 +198,7 @@ export const getActiveFocusMode = (
     // Otherwise, return null
     return focusModes.length > 0 ? {
         __typename: "ActiveFocusMode",
-        mode: focusModes[0],
+        mode: focusModes[0]!,
         stopCondition: FocusModeStopCondition.Automatic,
     } : null;
 };

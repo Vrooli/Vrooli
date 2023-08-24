@@ -1,7 +1,8 @@
-import { OrganizationSortBy, ProjectOrOrganization, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy } from "@local/shared";
+import { OrganizationSortBy, PageInfo, ProjectOrOrganization, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy } from "@local/shared";
 import { readManyAsFeedHelper } from "../../actions";
 import { getUser } from "../../auth";
 import { addSupplementalFieldsMultiTypes, toPartialGqlInfo } from "../../builders";
+import { PartialGraphQLInfo } from "../../builders/types";
 import { rateLimit } from "../../middleware";
 import { FindManyResult, GQLEndpoint } from "../../types";
 import { SearchMap } from "../../utils";
@@ -25,107 +26,101 @@ export const UnionsEndpoints: EndpointsUnions = {
             }, req.session.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req };
+            // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
+            const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
+            // Checks if object type should be included in results
+            const shouldInclude = (objectType: `${ProjectOrRoutineSearchInput["objectType"]}`) => {
+                if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
+                return input.objectType ? input.objectType === objectType : true;
+            };
             // Query projects
-            let projects;
-            if (input.objectType === undefined || input.objectType === "Project") {
-                projects = await readManyAsFeedHelper({
-                    ...commonReadParams,
-                    info: (partial as any).Project,
-                    input: {
-                        after: input.projectAfter,
-                        createdTimeFrame: input.createdTimeFrame,
-                        excludeIds: input.excludeIds,
-                        hasCompleteVersion: input.hasCompleteVersion,
-                        hasCompleteExceptions: input.hasCompleteVersionExceptions,
-                        ids: input.ids,
-                        languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
-                        maxBookmarks: input.maxBookmarks,
-                        maxScore: input.maxScore,
-                        minBookmarks: input.minBookmarks,
-                        minScore: input.minScore,
-                        minViews: input.minViews,
-                        organizationId: input.organizationId,
-                        parentId: input.parentId,
-                        reportId: input.reportId,
-                        resourceTypes: input.resourceTypes,
-                        searchString: input.searchString,
-                        sortBy: input.sortBy as unknown as ProjectSortBy,
-                        tags: input.tags,
-                        take,
-                        updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req.session)?.id,
-                        visibility: input.visibility,
-                    },
-                    objectType: "Project",
-                });
-            }
+            const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
+                ...commonReadParams,
+                info: partial.Project as PartialGraphQLInfo,
+                input: {
+                    after: input.projectAfter,
+                    createdTimeFrame: input.createdTimeFrame,
+                    excludeIds: input.excludeIds,
+                    hasCompleteVersion: input.hasCompleteVersion,
+                    hasCompleteExceptions: input.hasCompleteVersionExceptions,
+                    ids: input.ids,
+                    languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                    maxBookmarks: input.maxBookmarks,
+                    maxScore: input.maxScore,
+                    minBookmarks: input.minBookmarks,
+                    minScore: input.minScore,
+                    minViews: input.minViews,
+                    organizationId: input.organizationId,
+                    parentId: input.parentId,
+                    reportId: input.reportId,
+                    resourceTypes: input.resourceTypes,
+                    searchString: input.searchString,
+                    sortBy: input.sortBy as ProjectSortBy | undefined,
+                    tags: input.tags,
+                    take,
+                    updatedTimeFrame: input.updatedTimeFrame,
+                    userId: getUser(req.session)?.id,
+                    visibility: input.visibility,
+                },
+                objectType: "Project",
+            }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Query routines
-            let routines;
-            if (input.objectType === undefined || input.objectType === "Routine") {
-                routines = await readManyAsFeedHelper({
-                    ...commonReadParams,
-                    info: (partial as any).Routine,
-                    input: {
-                        after: input.routineAfter,
-                        createdTimeFrame: input.createdTimeFrame,
-                        excludeIds: input.excludeIds,
-                        ids: input.ids,
-                        isInternal: false,
-                        hasCompleteVersion: input.hasCompleteVersion,
-                        hasCompleteExceptions: input.hasCompleteVersionExceptions,
-                        languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
-                        minComplexity: input.routineMinComplexity,
-                        maxComplexity: input.routineMaxComplexity,
-                        maxBookmarks: input.maxBookmarks,
-                        maxScore: input.maxScore,
-                        minBookmarks: input.minBookmarks,
-                        minScore: input.minScore,
-                        minSimplicity: input.routineMinSimplicity,
-                        minTimesCompleted: input.routineMinTimesCompleted,
-                        maxTimesCompleted: input.routineMaxTimesCompleted,
-                        minViews: input.minViews,
-                        organizationId: input.organizationId,
-                        parentId: input.parentId,
-                        projectId: input.routineProjectId,
-                        reportId: input.reportId,
-                        resourceTypes: input.resourceTypes,
-                        searchString: input.searchString,
-                        sortBy: input.sortBy as unknown as RoutineSortBy,
-                        tags: input.tags,
-                        take,
-                        updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req.session)?.id,
-                        visibility: input.visibility,
-                    },
-                    objectType: "Routine",
-                });
-            }
+            const { nodes: routines, pageInfo: routinesInfo } = shouldInclude("Routine") ? await readManyAsFeedHelper({
+                ...commonReadParams,
+                info: partial.Routine as PartialGraphQLInfo,
+                input: {
+                    after: input.routineAfter,
+                    createdTimeFrame: input.createdTimeFrame,
+                    excludeIds: input.excludeIds,
+                    ids: input.ids,
+                    isInternal: false,
+                    hasCompleteVersion: input.hasCompleteVersion,
+                    hasCompleteExceptions: input.hasCompleteVersionExceptions,
+                    languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                    minComplexity: input.routineMinComplexity,
+                    maxComplexity: input.routineMaxComplexity,
+                    maxBookmarks: input.maxBookmarks,
+                    maxScore: input.maxScore,
+                    minBookmarks: input.minBookmarks,
+                    minScore: input.minScore,
+                    minSimplicity: input.routineMinSimplicity,
+                    minTimesCompleted: input.routineMinTimesCompleted,
+                    maxTimesCompleted: input.routineMaxTimesCompleted,
+                    minViews: input.minViews,
+                    organizationId: input.organizationId,
+                    parentId: input.parentId,
+                    projectId: input.routineProjectId,
+                    reportId: input.reportId,
+                    resourceTypes: input.resourceTypes,
+                    searchString: input.searchString,
+                    sortBy: input.sortBy as unknown as RoutineSortBy,
+                    tags: input.tags,
+                    take,
+                    updatedTimeFrame: input.updatedTimeFrame,
+                    userId: getUser(req.session)?.id,
+                    visibility: input.visibility,
+                },
+                objectType: "Routine",
+            }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes({
-                projects: projects?.nodes ?? [],
-                routines: routines?.nodes ?? [],
-            }, {
-                projects: { type: "Project", ...(partial as any).Project },
-                routines: { type: "Routine", ...(partial as any).Routine },
+            const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, routines }, {
+                projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
+                routines: { type: "Routine", ...(partial.Routine as PartialGraphQLInfo) },
             }, prisma, getUser(req.session));
-            // Combine nodes, alternating between projects and routines
-            const nodes: ProjectOrRoutine[] = [];
-            for (let i = 0; i < Math.max(withSupplemental.projects.length, withSupplemental.routines.length); i++) {
-                if (i < withSupplemental.projects.length) {
-                    nodes.push(withSupplemental.projects[i]);
-                }
-                if (i < withSupplemental.routines.length) {
-                    nodes.push(withSupplemental.routines[i]);
-                }
-            }
+            // Combine nodes, alternating between each type
+            const properties = Object.values(withSupplemental);
+            const maxLen = Math.max(...properties.map(arr => arr.length));
+            const nodes: ProjectOrRoutine[] = Array.from({ length: maxLen })
+                .flatMap((_, i) => properties.map(prop => prop[i]))
+                .filter(Boolean);
             // Combine pageInfo
             const combined: ProjectOrRoutineSearchResult = {
                 __typename: "ProjectOrRoutineSearchResult" as const,
                 pageInfo: {
                     __typename: "ProjectOrRoutinePageInfo" as const,
-                    hasNextPage: projects?.pageInfo?.hasNextPage ?? routines?.pageInfo?.hasNextPage ?? false,
-                    endCursorProject: projects?.pageInfo?.endCursor ?? "",
-                    endCursorRoutine: routines?.pageInfo?.endCursor ?? "",
+                    hasNextPage: projectsInfo.hasNextPage || routinesInfo.hasNextPage || false,
+                    endCursorProject: projectsInfo.endCursor ?? "",
+                    endCursorRoutine: routinesInfo.endCursor ?? "",
                 },
                 edges: nodes.map((node) => ({ __typename: "ProjectOrRoutineEdge" as const, cursor: node.id, node })),
             };
@@ -140,99 +135,93 @@ export const UnionsEndpoints: EndpointsUnions = {
             }, req.session.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req };
+            // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
+            const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
+            // Checks if object type should be included in results
+            const shouldInclude = (objectType: `${ProjectOrOrganizationSearchInput["objectType"]}`) => {
+                if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
+                return input.objectType ? input.objectType === objectType : true;
+            };
             // Query projects
-            let projects;
-            if (input.objectType === undefined || input.objectType === "Project") {
-                projects = await readManyAsFeedHelper({
-                    ...commonReadParams,
-                    info: (partial as any).Project,
-                    input: {
-                        after: input.projectAfter,
-                        createdTimeFrame: input.createdTimeFrame,
-                        excludeIds: input.excludeIds,
-                        ids: input.ids,
-                        isComplete: input.projectIsComplete,
-                        isCompleteExceptions: input.projectIsCompleteExceptions,
-                        languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
-                        maxBookmarks: input.maxBookmarks,
-                        maxScore: input.projectMaxScore,
-                        maxViews: input.maxViews,
-                        minBookmarks: input.minBookmarks,
-                        minScore: input.projectMinScore,
-                        minViews: input.minViews,
-                        organizationId: input.projectOrganizationId,
-                        parentId: input.projectParentId,
-                        reportId: input.reportId,
-                        resourceTypes: input.resourceTypes,
-                        searchString: input.searchString,
-                        sortBy: input.sortBy as unknown as ProjectSortBy,
-                        tags: input.tags,
-                        take,
-                        updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req.session)?.id,
-                        visibility: input.visibility,
-                    },
-                    objectType: "Project",
-                });
-            }
+            const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
+                ...commonReadParams,
+                info: partial.Project as PartialGraphQLInfo,
+                input: {
+                    after: input.projectAfter,
+                    createdTimeFrame: input.createdTimeFrame,
+                    excludeIds: input.excludeIds,
+                    ids: input.ids,
+                    isComplete: input.projectIsComplete,
+                    isCompleteExceptions: input.projectIsCompleteExceptions,
+                    languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                    maxBookmarks: input.maxBookmarks,
+                    maxScore: input.projectMaxScore,
+                    maxViews: input.maxViews,
+                    minBookmarks: input.minBookmarks,
+                    minScore: input.projectMinScore,
+                    minViews: input.minViews,
+                    organizationId: input.projectOrganizationId,
+                    parentId: input.projectParentId,
+                    reportId: input.reportId,
+                    resourceTypes: input.resourceTypes,
+                    searchString: input.searchString,
+                    sortBy: input.sortBy as unknown as ProjectSortBy,
+                    tags: input.tags,
+                    take,
+                    updatedTimeFrame: input.updatedTimeFrame,
+                    userId: getUser(req.session)?.id,
+                    visibility: input.visibility,
+                },
+                objectType: "Project",
+            }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Query organizations
-            let organizations;
-            if (input.objectType === undefined || input.objectType === "Organization") {
-                organizations = await readManyAsFeedHelper({
-                    ...commonReadParams,
-                    info: (partial as any).Organization,
-                    input: {
-                        after: input.organizationAfter,
-                        createdTimeFrame: input.createdTimeFrame,
-                        excludeIds: input.excludeIds,
-                        ids: input.ids,
-                        languages: input.translationLanguagesLatestVersion,
-                        maxBookmarks: input.maxBookmarks,
-                        minBookmarks: input.minBookmarks,
-                        maxViews: input.maxViews,
-                        minViews: input.minViews,
-                        isOpenToNewMembers: input.organizationIsOpenToNewMembers,
-                        projectId: input.organizationProjectId,
-                        routineId: input.organizationRoutineId,
-                        reportId: input.reportId,
-                        resourceTypes: input.resourceTypes,
-                        searchString: input.searchString,
-                        sortBy: input.sortBy as unknown as OrganizationSortBy,
-                        tags: input.tags,
-                        take,
-                        updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req.session)?.id,
-                        visibility: input.visibility,
-                    },
-                    objectType: "Organization",
-                });
-            }
+            const { nodes: organizations, pageInfo: organizationsInfo } = shouldInclude("Organization") ? await readManyAsFeedHelper({
+                ...commonReadParams,
+                info: partial.Organization as PartialGraphQLInfo,
+                input: {
+                    after: input.organizationAfter,
+                    createdTimeFrame: input.createdTimeFrame,
+                    excludeIds: input.excludeIds,
+                    ids: input.ids,
+                    languages: input.translationLanguagesLatestVersion,
+                    maxBookmarks: input.maxBookmarks,
+                    minBookmarks: input.minBookmarks,
+                    maxViews: input.maxViews,
+                    minViews: input.minViews,
+                    isOpenToNewMembers: input.organizationIsOpenToNewMembers,
+                    projectId: input.organizationProjectId,
+                    routineId: input.organizationRoutineId,
+                    reportId: input.reportId,
+                    resourceTypes: input.resourceTypes,
+                    searchString: input.searchString,
+                    sortBy: input.sortBy as unknown as OrganizationSortBy,
+                    tags: input.tags,
+                    take,
+                    updatedTimeFrame: input.updatedTimeFrame,
+                    userId: getUser(req.session)?.id,
+                    visibility: input.visibility,
+                },
+                objectType: "Organization",
+            }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes({
-                projects: projects?.nodes ?? [],
-                organizations: organizations?.nodes ?? [],
-            }, {
-                projects: { type: "Project", ...(partial as any).Project },
-                organizations: { type: "Organization", ...(partial as any).Organization },
+            const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, organizations }, {
+                projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
+                organizations: { type: "Organization", ...(partial.Organization as PartialGraphQLInfo) },
             }, prisma, getUser(req.session));
-            // Combine nodes, alternating between projects and organizations
-            const nodes: ProjectOrOrganization[] = [];
-            for (let i = 0; i < Math.max(withSupplemental.projects.length, withSupplemental.organizations.length); i++) {
-                if (i < withSupplemental.projects.length) {
-                    nodes.push(withSupplemental.projects[i]);
-                }
-                if (i < withSupplemental.organizations.length) {
-                    nodes.push(withSupplemental.organizations[i]);
-                }
-            }
+            // Combine nodes, alternating between each type
+            const properties = Object.values(withSupplemental);
+            const maxLen = Math.max(...properties.map(arr => arr.length));
+            const nodes: ProjectOrOrganization[] = Array.from({ length: maxLen })
+                .flatMap((_, i) => properties.map(prop => prop[i]))
+                .filter(Boolean);
             // Combine pageInfo
             const combined: ProjectOrOrganizationSearchResult = {
                 __typename: "ProjectOrOrganizationSearchResult" as const,
                 pageInfo: {
                     __typename: "ProjectOrOrganizationPageInfo" as const,
-                    hasNextPage: projects?.pageInfo?.hasNextPage ?? organizations?.pageInfo?.hasNextPage ?? false,
-                    endCursorProject: projects?.pageInfo?.endCursor ?? "",
-                    endCursorOrganization: organizations?.pageInfo?.endCursor ?? "",
+                    hasNextPage: projectsInfo.hasNextPage || organizationsInfo.hasNextPage || false,
+                    endCursorProject: projectsInfo.endCursor ?? "",
+                    endCursorOrganization: organizationsInfo.endCursor ?? "",
                 },
                 edges: nodes.map((node) => ({ __typename: "ProjectOrOrganizationEdge" as const, cursor: node.id, node })),
             };
@@ -247,84 +236,78 @@ export const UnionsEndpoints: EndpointsUnions = {
             }, req.session.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req };
+            // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
+            const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
+            // Checks if object type should be included in results
+            const shouldInclude = (objectType: `${RunProjectOrRunRoutineSearchInput["objectType"]}`) => {
+                if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
+                return input.objectType ? input.objectType === objectType : true;
+            };
             // Query run projects
-            let runProjects;
-            if (input.objectType === undefined || input.objectType === "RunProject") {
-                runProjects = await readManyAsFeedHelper({
-                    ...commonReadParams,
-                    info: (partial as any).RunProject,
-                    input: {
-                        after: input.runProjectAfter,
-                        createdTimeFrame: input.createdTimeFrame,
-                        startedTimeFrame: input.startedTimeFrame,
-                        completedTimeFrame: input.completedTimeFrame,
-                        excludeIds: input.excludeIds,
-                        ids: input.ids,
-                        status: input.status,
-                        statuses: input.statuses,
-                        projectVersionId: input.projectVersionId,
-                        searchString: input.searchString,
-                        sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
-                        take,
-                        updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req.session)?.id,
-                        visibility: input.visibility,
-                    },
-                    objectType: "RunProject",
-                });
-            }
+            const { nodes: runProjects, pageInfo: runProjectsInfo } = shouldInclude("RunProject") ? await readManyAsFeedHelper({
+                ...commonReadParams,
+                info: partial.RunProject as PartialGraphQLInfo,
+                input: {
+                    after: input.runProjectAfter,
+                    createdTimeFrame: input.createdTimeFrame,
+                    startedTimeFrame: input.startedTimeFrame,
+                    completedTimeFrame: input.completedTimeFrame,
+                    excludeIds: input.excludeIds,
+                    ids: input.ids,
+                    status: input.status,
+                    statuses: input.statuses,
+                    projectVersionId: input.projectVersionId,
+                    searchString: input.searchString,
+                    sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
+                    take,
+                    updatedTimeFrame: input.updatedTimeFrame,
+                    userId: getUser(req.session)?.id,
+                    visibility: input.visibility,
+                },
+                objectType: "RunProject",
+            }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Query routines
-            let runRoutines;
-            if (input.objectType === undefined || input.objectType === "RunRoutine") {
-                runRoutines = await readManyAsFeedHelper({
-                    ...commonReadParams,
-                    info: (partial as any).RunRoutine,
-                    input: {
-                        after: input.runRoutineAfter,
-                        createdTimeFrame: input.createdTimeFrame,
-                        startedTimeFrame: input.startedTimeFrame,
-                        completedTimeFrame: input.completedTimeFrame,
-                        excludeIds: input.excludeIds,
-                        ids: input.ids,
-                        status: input.status,
-                        statuses: input.statuses,
-                        routineVersionId: input.routineVersionId,
-                        searchString: input.searchString,
-                        sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
-                        take,
-                        updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req.session)?.id,
-                        visibility: input.visibility,
-                    },
-                    objectType: "RunRoutine",
-                });
-            }
+            const { nodes: runRoutines, pageInfo: runRoutinesInfo } = shouldInclude("RunRoutine") ? await readManyAsFeedHelper({
+                ...commonReadParams,
+                info: partial.RunRoutine as PartialGraphQLInfo,
+                input: {
+                    after: input.runProjectAfter,
+                    createdTimeFrame: input.createdTimeFrame,
+                    startedTimeFrame: input.startedTimeFrame,
+                    completedTimeFrame: input.completedTimeFrame,
+                    excludeIds: input.excludeIds,
+                    ids: input.ids,
+                    status: input.status,
+                    statuses: input.statuses,
+                    projectVersionId: input.projectVersionId,
+                    searchString: input.searchString,
+                    sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
+                    take,
+                    updatedTimeFrame: input.updatedTimeFrame,
+                    userId: getUser(req.session)?.id,
+                    visibility: input.visibility,
+                },
+                objectType: "RunRoutine",
+            }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes({
-                runProjects: runProjects?.nodes ?? [],
-                runRoutines: runRoutines?.nodes ?? [],
-            }, {
-                runProjects: { type: "RunProject", ...(partial as any).RunProject },
-                runRoutines: { type: "RunRoutine", ...(partial as any).RunRoutine },
+            const withSupplemental = await addSupplementalFieldsMultiTypes({ runProjects, runRoutines }, {
+                runProjects: { type: "RunProject", ...(partial.RunProject as PartialGraphQLInfo) },
+                runRoutines: { type: "RunRoutine", ...(partial.RunRoutine as PartialGraphQLInfo) },
             }, prisma, getUser(req.session));
-            // Combine nodes, alternating between runProjects and runRoutines
-            const nodes: RunProjectOrRunRoutine[] = [];
-            for (let i = 0; i < Math.max(withSupplemental.runProjects.length, withSupplemental.runRoutines.length); i++) {
-                if (i < withSupplemental.runProjects.length) {
-                    nodes.push(withSupplemental.runProjects[i]);
-                }
-                if (i < withSupplemental.runRoutines.length) {
-                    nodes.push(withSupplemental.runRoutines[i]);
-                }
-            }
+            // Combine nodes, alternating between each type
+            const properties = Object.values(withSupplemental);
+            const maxLen = Math.max(...properties.map(arr => arr.length));
+            const nodes: RunProjectOrRunRoutine[] = Array.from({ length: maxLen })
+                .flatMap((_, i) => properties.map(prop => prop[i]))
+                .filter(Boolean);
             // Combine pageInfo
             const combined: RunProjectOrRunRoutineSearchResult = {
                 __typename: "RunProjectOrRunRoutineSearchResult" as const,
                 pageInfo: {
                     __typename: "RunProjectOrRunRoutinePageInfo" as const,
-                    hasNextPage: runProjects?.pageInfo?.hasNextPage ?? runRoutines?.pageInfo?.hasNextPage ?? false,
-                    endCursorRunProject: runProjects?.pageInfo?.endCursor ?? "",
-                    endCursorRunRoutine: runRoutines?.pageInfo?.endCursor ?? "",
+                    hasNextPage: runProjectsInfo.hasNextPage || runRoutinesInfo.hasNextPage || false,
+                    endCursorRunProject: runProjectsInfo.endCursor ?? "",
+                    endCursorRunRoutine: runRoutinesInfo.endCursor ?? "",
                 },
                 edges: nodes.map((node) => ({ __typename: "RunProjectOrRunRoutineEdge" as const, cursor: node.id, node })),
             };

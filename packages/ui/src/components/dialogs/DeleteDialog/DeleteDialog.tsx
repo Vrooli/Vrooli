@@ -2,11 +2,11 @@ import { DeleteOneInput, endpointPostDeleteOne, LINKS, Success } from "@local/sh
 import { Button, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { DeleteIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { DeleteDialogProps } from "../types";
 
@@ -16,7 +16,6 @@ export const DeleteDialog = ({
     objectId,
     objectName,
     objectType,
-    zIndex,
 }: DeleteDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -53,13 +52,11 @@ export const DeleteDialog = ({
             id="delete-dialog"
             isOpen={isOpen}
             onClose={() => { close(); }}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={() => { close(); }}
                 title={t("Delete")}
-                zIndex={zIndex}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} mt={2}>

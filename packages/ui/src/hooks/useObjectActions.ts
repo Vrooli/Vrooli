@@ -1,4 +1,5 @@
 import { BookmarkFor, CopyType, DeleteType, exists, LINKS, ReactionFor, ReportFor, setDotNotationValue } from "@local/shared";
+import { SessionContext } from "contexts/SessionContext";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { SetLocation } from "route";
 import { NavigableObject } from "types";
@@ -7,7 +8,6 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYou, getYouDot, ListObject } from "utils/display/listTools";
 import { openObject, openObjectEdit } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { useBookmarker } from "./useBookmarker";
 import { useCopier } from "./useCopier";
 import { useVoter } from "./useVoter";

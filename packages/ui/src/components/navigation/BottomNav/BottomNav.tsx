@@ -1,9 +1,9 @@
 import { BottomNavigation, useTheme } from "@mui/material";
+import { SessionContext } from "contexts/SessionContext";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useContext } from "react";
 import { useLocation } from "route";
-import { useKeyboardOpen } from "utils/hooks/useKeyboardOpen";
 import { actionsToBottomNav, getUserActions } from "utils/navigation/userActions";
-import { SessionContext } from "utils/SessionContext";
 
 export const BottomNav = () => {
     const session = useContext(SessionContext);

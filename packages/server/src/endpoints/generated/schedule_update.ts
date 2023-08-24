@@ -18,6 +18,8 @@ export const schedule_update = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -180,6 +182,8 @@ export const schedule_update = {
   "meetings": {
     "attendees": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -218,6 +222,8 @@ export const schedule_update = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -400,6 +406,8 @@ export const schedule_update = {
           "owner": {
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -441,6 +449,8 @@ export const schedule_update = {
         "owner": {
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -603,6 +613,8 @@ export const schedule_update = {
     },
     "user": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -774,6 +786,8 @@ export const schedule_update = {
     },
     "user": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,

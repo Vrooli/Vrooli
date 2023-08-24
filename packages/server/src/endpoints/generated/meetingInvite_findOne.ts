@@ -2,6 +2,8 @@ export const meetingInvite_findOne = {
   "meeting": {
     "attendees": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -28,6 +30,8 @@ export const meetingInvite_findOne = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -86,6 +90,8 @@ export const meetingInvite_findOne = {
         "owner": {
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -262,6 +268,8 @@ export const meetingInvite_findOne = {
               "owner": {
                 "User": {
                   "id": true,
+                  "created_at": true,
+                  "updated_at": true,
                   "bannerImage": true,
                   "handle": true,
                   "isBot": true,
@@ -303,6 +311,8 @@ export const meetingInvite_findOne = {
             "owner": {
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -465,6 +475,8 @@ export const meetingInvite_findOne = {
         },
         "user": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -636,6 +648,8 @@ export const meetingInvite_findOne = {
         },
         "user": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,

@@ -1,6 +1,6 @@
 import { exists, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, GqlModelType } from "@local/shared";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
-import { ParseSearchParamsResult } from "route";
+import { ParseSearchParamsResult, useLocation } from "route";
 import { PartialWithType } from "types";
 import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { defaultYou, getYou, YouInflated } from "utils/display/listTools";
@@ -52,7 +52,8 @@ export function useObjectFromUrl<
     transform?: TFunc,
 }): UseObjectFromUrlReturn<TData, TFunc> {
     // Get URL params
-    const urlParams = useMemo(() => parseSingleItemUrl({}), []);
+    const [location] = useLocation();
+    const urlParams = useMemo(() => parseSingleItemUrl({ url: location }), [location]);
 
     const stableOnInvalidUrlParams = useStableCallback(onInvalidUrlParams);
     const stableTransform = useStableCallback(transform);

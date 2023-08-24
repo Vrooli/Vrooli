@@ -74,6 +74,8 @@ export const standard_findMany = {
           },
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -112,6 +114,8 @@ export const standard_findMany = {
         },
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,

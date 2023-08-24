@@ -9,6 +9,8 @@ export const transfer_findMany = {
       "status": true,
       "fromOwner": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -17,6 +19,8 @@ export const transfer_findMany = {
       },
       "toOwner": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -92,6 +96,8 @@ export const transfer_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -130,6 +136,8 @@ export const transfer_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -177,7 +185,11 @@ export const transfer_findMany = {
               "language": true,
               "description": true,
               "name": true,
-              "text": true
+              "pages": {
+                "id": true,
+                "pageIndex": true,
+                "text": true
+              }
             },
             "id": true,
             "created_at": true,
@@ -234,6 +246,8 @@ export const transfer_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -272,6 +286,8 @@ export const transfer_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -369,6 +385,8 @@ export const transfer_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -407,6 +425,8 @@ export const transfer_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -519,6 +539,8 @@ export const transfer_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -557,6 +579,8 @@ export const transfer_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -669,6 +693,8 @@ export const transfer_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -707,6 +733,8 @@ export const transfer_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -820,6 +848,8 @@ export const transfer_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -858,6 +888,8 @@ export const transfer_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,

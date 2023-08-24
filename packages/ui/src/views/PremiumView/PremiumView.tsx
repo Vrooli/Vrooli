@@ -1,11 +1,11 @@
 import { LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useStripe } from "hooks/useStripe";
 import { CompleteIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { stringifySearchParams, useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
-import { useStripe } from "utils/hooks/useStripe";
 import { PremiumViewProps } from "../types";
 
 // Features comparison table data
@@ -39,7 +39,6 @@ const rows = [
 export const PremiumView = ({
     isOpen,
     onClose,
-    zIndex,
 }: PremiumViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -60,7 +59,6 @@ export const PremiumView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Premium")}
-                zIndex={zIndex}
             />
             <Stack direction="column" spacing={4} mt={2} mb={2} justifyContent="center" alignItems="center">
                 {/* Introduction to premium */}

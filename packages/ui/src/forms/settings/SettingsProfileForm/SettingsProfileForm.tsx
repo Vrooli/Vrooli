@@ -4,14 +4,14 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { SessionContext } from "contexts/SessionContext";
 import { Field } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSection } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { SettingsProfileFormProps } from "../types";
 
 export const SettingsProfileForm = ({
@@ -21,7 +21,6 @@ export const SettingsProfileForm = ({
     numVerifiedWallets,
     onCancel,
     values,
-    zIndex,
     ...props
 }: SettingsProfileFormProps) => {
     const session = useContext(SessionContext);
@@ -54,7 +53,6 @@ export const SettingsProfileForm = ({
                     onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                     name="profileImage"
                     profile={{ __typename: "User", ...values }}
-                    zIndex={zIndex}
                 />
                 <FormSection sx={{ marginTop: 2 }}>
                     <LanguageInput
@@ -63,7 +61,6 @@ export const SettingsProfileForm = ({
                         handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
                         languages={languages}
-                        zIndex={zIndex}
                     />
                     <Field fullWidth name="name" label={t("Name")} as={TextField} />
                     <Field fullWidth name="handle" label={t("Handle")} as={TextField} />
@@ -73,7 +70,6 @@ export const SettingsProfileForm = ({
                         minRows={4}
                         name="bio"
                         placeholder={t("Bio")}
-                        zIndex={zIndex}
                     />
                 </FormSection>
             </BaseForm>
@@ -85,7 +81,6 @@ export const SettingsProfileForm = ({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

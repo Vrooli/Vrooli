@@ -14,7 +14,6 @@ export const WalletSelectDialog = ({
     handleOpenInstall,
     onClose,
     open,
-    zIndex,
 }: WalletSelectDialogProps) => {
     const { t } = useTranslation();
 
@@ -30,14 +29,12 @@ export const WalletSelectDialog = ({
             onClose={handleClose}
             isOpen={open}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 help={helpText}
                 title={t("InstalledWallets")}
                 onClose={handleClose}
-                zIndex={zIndex}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} paddingTop={2}>

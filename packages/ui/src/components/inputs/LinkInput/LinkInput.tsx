@@ -13,7 +13,6 @@ export const LinkInput = ({
     label,
     name = "link",
     onObjectData,
-    zIndex,
 }: LinkInputProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -71,7 +70,6 @@ export const LinkInput = ({
                 isOpen={searchOpen}
                 handleCancel={closeSearch}
                 handleComplete={closeSearch}
-                zIndex={zIndex + 1}
             />
             <Box>
                 {/* Text field with button to open search dialog */}
@@ -106,7 +104,6 @@ export const LinkInput = ({
                         <MarkdownDisplay
                             sx={{ marginLeft: "8px" }}
                             content={`${title}${subtitle ? " - " + subtitle : ""}`}
-                            zIndex={zIndex}
                         />
                     </Tooltip>
                 )}

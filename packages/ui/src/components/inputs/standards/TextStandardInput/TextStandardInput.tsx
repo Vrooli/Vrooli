@@ -30,7 +30,6 @@ const autoCompleteOptions = [
  */
 export const TextStandardInput = ({
     isEditing,
-    zIndex,
 }: TextStandardInputProps) => {
     const { t } = useTranslation();
 
@@ -58,7 +57,6 @@ export const TextStandardInput = ({
                         placeholder={t("DefaultValue")}
                         minRows={values.minRows ?? 2}
                         maxRows={values.maxRows ?? 4}
-                        zIndex={zIndex}
                     /> :
                     <Field
                         fullWidth

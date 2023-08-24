@@ -2,6 +2,7 @@ import { StandardVersion } from "@local/shared";
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { EditableText } from "components/containers/EditableText/EditableText";
 import { StandardVersionSelectSwitch } from "components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { routineVersionIOInitialValues, transformRoutineVersionIOValues, validateRoutineVersionIOValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
 import { standardInitialValues } from "forms/StandardForm/StandardForm";
@@ -10,7 +11,6 @@ import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } fro
 import { useTranslation } from "react-i18next";
 import { linkColors } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
 import { InputOutputListItemProps } from "../types";
@@ -29,7 +29,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
     handleDelete,
     handleUpdate,
     language,
-    zIndex,
 }, ref) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -164,7 +163,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 isEditing={isEditing}
                                 name='name'
                                 props={{ label: t("Identifier"), fullWidth: true }}
-                                zIndex={zIndex}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -178,7 +176,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                     language,
                                     fullWidth: true,
                                 }}
-                                zIndex={zIndex}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -187,7 +184,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 isEditing={isEditing}
                                 name='helpText'
                                 props={{ placeholder: t("DetailsOptional"), language }}
-                                zIndex={zIndex}
                             />
                         </Grid>
                         {isInput && <Grid item xs={12}>
@@ -218,7 +214,6 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                     translations: standardVersion.translations ?? [{ __typename: "StandardVersionTranslation" as const, language: getUserLanguages(session)[0], name: "" }],
                                 } as any : null}
                                 onChange={onSwitchChange}
-                                zIndex={zIndex}
                             />
                         </Grid>
                     </Grid>

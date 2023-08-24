@@ -3,7 +3,7 @@ import { GqlPartial } from "../types";
 import { rel } from "../utils";
 
 export const runProjectOrRunRoutine: GqlPartial<RunProjectOrRunRoutine> = {
-    __typename: "RunProjectOrRunRoutine" as any,
+    __typename: "RunProjectOrRunRoutine" as RunProjectOrRunRoutine["__typename"],
     full: {
         __define: {
             0: async () => rel((await import("./runProject")).runProject, "full"),

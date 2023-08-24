@@ -74,6 +74,8 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -112,6 +114,8 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -187,6 +191,8 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -308,6 +314,8 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -365,6 +373,8 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -410,6 +420,8 @@ export const notificationSubscription_findMany = {
                 },
                 "User": {
                   "id": true,
+                  "created_at": true,
+                  "updated_at": true,
                   "bannerImage": true,
                   "handle": true,
                   "isBot": true,
@@ -486,6 +498,8 @@ export const notificationSubscription_findMany = {
               },
               "user": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -559,6 +573,8 @@ export const notificationSubscription_findMany = {
               },
               "user": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -720,7 +736,11 @@ export const notificationSubscription_findMany = {
               "language": true,
               "description": true,
               "name": true,
-              "text": true
+              "pages": {
+                "id": true,
+                "pageIndex": true,
+                "text": true
+              }
             },
             "id": true,
             "created_at": true,
@@ -777,6 +797,8 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -815,6 +837,8 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -964,6 +988,8 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -1002,6 +1028,8 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -1056,6 +1084,8 @@ export const notificationSubscription_findMany = {
           "status": true,
           "createdBy": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -1081,6 +1111,8 @@ export const notificationSubscription_findMany = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -1175,6 +1207,8 @@ export const notificationSubscription_findMany = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -1291,6 +1325,8 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -1329,6 +1365,8 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -1441,6 +1479,8 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -1479,6 +1519,8 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -1592,6 +1634,8 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -1630,6 +1674,8 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,

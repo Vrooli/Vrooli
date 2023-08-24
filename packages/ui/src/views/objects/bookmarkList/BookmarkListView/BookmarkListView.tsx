@@ -8,6 +8,10 @@ import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObject
 import { SiteSearchBar } from "components/inputs/search";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { AddIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,17 +21,12 @@ import { listToAutocomplete } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
 import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
 export const BookmarkListView = ({
     isOpen,
     onClose,
-    zIndex,
 }: BookmarkListViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -101,7 +100,6 @@ export const BookmarkListView = ({
                 isOpen={searchOpen}
                 handleCancel={closeSearch}
                 handleComplete={closeSearch}
-                zIndex={zIndex + 1}
             />
             <TopBar
                 display={display}
@@ -124,13 +122,11 @@ export const BookmarkListView = ({
                         onInputChange={onBookmarkSelect}
                         options={autocompleteOptions}
                         sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                        zIndex={zIndex}
                     />
                 </Box>}
-                zIndex={zIndex}
             />
             <>
-                <SideActionButtons display={display} zIndex={zIndex + 1}>
+                <SideActionButtons display={display} >
                     {/* Edit button */}
                     <ColorIconButton aria-label="Edit list" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
@@ -149,7 +145,6 @@ export const BookmarkListView = ({
                         items={bookmarks}
                         keyPrefix="bookmark-list-item"
                         loading={isLoading}
-                        zIndex={zIndex}
                     />
                 </ListContainer>
             </>

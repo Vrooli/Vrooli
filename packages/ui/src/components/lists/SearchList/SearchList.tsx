@@ -5,13 +5,13 @@ import { Box, Button } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
+import { useFindMany } from "hooks/useFindMany";
 import { PlusIcon } from "icons";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { NavigableObject } from "types";
 import { ListObject } from "utils/display/listTools";
-import { useFindMany } from "utils/hooks/useFindMany";
 import { openObject } from "utils/navigation/openObject";
 import { ObjectList } from "../ObjectList/ObjectList";
 import { SearchListProps } from "../types";
@@ -19,6 +19,7 @@ import { SearchListProps } from "../types";
 export function SearchList<DataType extends NavigableObject>({
     canNavigate = () => true,
     canSearch,
+    display,
     dummyLength = 5,
     handleAdd,
     hideUpdateButton,
@@ -30,7 +31,6 @@ export function SearchList<DataType extends NavigableObject>({
     sxs,
     onItemClick,
     where,
-    zIndex,
 }: SearchListProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -57,23 +57,61 @@ export function SearchList<DataType extends NavigableObject>({
         take,
         where,
     });
-    console.log("searchlist searchString", searchString);
 
-    // If near the bottom of the page, load more data
-    // If scrolled past a certain point, show an "Add New" button
+    // Handle infinite scroll
+    const containerRef = useRef<HTMLDivElement>(null);
+    const getScrollingContainer = useCallback((element: HTMLElement | null): HTMLElement | Document | null => {
+        console.log("getting scrolling ccontainer start", display, element);
+        // If display is "page", use document instead
+        if (display === "page") return document;
+        // Traverse up the DOM
+        while (element) {
+            // If a dialog, find the first component with a role of "dialog", 
+            if (display === "dialog" && element.getAttribute("role") === "dialog") {
+                return element;
+            }
+            // If inline, find the first component with overflowY set to "scroll" or "auto"
+            const overflowY = window.getComputedStyle(element).overflowY; //TODO need to fix this to get ChatSideMenu infinite scroll to work, but in a way that doesn't break FindObjectDialog
+            if (display === "partial" && (overflowY === "scroll" || overflowY === "auto")) {
+                console.log("getScrollingContainer overflowY END", display, overflowY, element);
+                return element;
+            }
+            console.log("getScrollingContainer overflowY continue", display, overflowY, element);
+            element = element.parentElement;
+        }
+        return null;
+    }, [display]);
     const handleScroll = useCallback(() => {
-        const scrolledY = window.scrollY;
-        const windowHeight = window.innerHeight;
-        if (!loading && scrolledY > windowHeight - 500) {
+        const container = getScrollingContainer(containerRef.current) ?? window;
+        console.log("didnt find container", container);
+        if (!container) return;
+        let scrolledY: number;
+        let scrollableHeight: number;
+        if (container === document) {
+            // When container is document, you should use document.documentElement or document.body based on browser compatibility
+            scrolledY = window.scrollY || window.pageYOffset;
+            scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+        } else if (container instanceof HTMLElement) {
+            scrolledY = container.scrollTop;
+            scrollableHeight = container.scrollHeight - container.clientHeight;
+        } else {
+            return;
+        }
+        console.log("handlescroll should load more?", scrolledY, scrollableHeight - 500);
+        if (!loading && scrolledY > scrollableHeight - 500) {
             loadMore();
         }
-    }, [loading, loadMore]);
-
-    // Set event listener for infinite scroll
+    }, [getScrollingContainer, loading, loadMore]);
     useEffect(() => {
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, [handleScroll]);
+        const scrollingContainer = getScrollingContainer(containerRef.current);
+        if (scrollingContainer) {
+            scrollingContainer.addEventListener("scroll", handleScroll);
+            return () => scrollingContainer.removeEventListener("scroll", handleScroll);
+        } else {
+            console.error("Could not find scrolling container - infinite scroll disabled");
+            return;
+        }
+    }, [getScrollingContainer, handleScroll]);
 
     const handleSearch = useCallback((newString: string) => {
         console.log("handleSearch called", newString);
@@ -111,7 +149,6 @@ export function SearchList<DataType extends NavigableObject>({
                     onChange={handleSearch}
                     onInputChange={onInputSelect}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                    zIndex={zIndex}
                 />
             </Box>
             <SearchButtons
@@ -128,9 +165,9 @@ export function SearchList<DataType extends NavigableObject>({
                     ...sxs?.buttons,
                 }}
                 timeFrame={timeFrame}
-                zIndex={zIndex}
             />
             <ListContainer
+                ref={containerRef}
                 emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={allData.length === 0 && !loading}
                 sx={{ ...sxs?.listContainer }}
@@ -143,7 +180,6 @@ export function SearchList<DataType extends NavigableObject>({
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
                     onClick={onItemClick}
-                    zIndex={zIndex}
                 />
             </ListContainer>
             {/* Add new button */}

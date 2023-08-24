@@ -6,7 +6,6 @@ import { TranslatedMarkdownInputProps } from "../types";
 export const TranslatedMarkdownInput = ({
     language,
     name,
-    zIndex,
     ...props
 }: TranslatedMarkdownInputProps) => {
     const [field, meta, helpers] = useField("translations");
@@ -29,7 +28,6 @@ export const TranslatedMarkdownInput = ({
             helperText={touched?.[name] && error?.[name]}
             onBlur={handleBlur}
             onChange={handleChange}
-            zIndex={zIndex}
         />
     );
 };

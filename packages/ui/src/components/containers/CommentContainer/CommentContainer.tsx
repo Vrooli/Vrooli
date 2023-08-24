@@ -6,11 +6,11 @@ import { Button, Palette, Stack, useTheme } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
 import { CommentThread } from "components/lists/comment";
+import { useFindMany } from "hooks/useFindMany";
+import { useWindowSize } from "hooks/useWindowSize";
 import { CreateIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useFindMany } from "utils/hooks/useFindMany";
-import { useWindowSize } from "utils/hooks/useWindowSize";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { CommentContainerProps } from "../types";
 
@@ -35,7 +35,6 @@ export function CommentContainer({
     objectId,
     objectType,
     onAddCommentClose,
-    zIndex,
 }: CommentContainerProps) {
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
@@ -100,7 +99,7 @@ export function CommentContainer({
     }, [forceAddCommentOpen, isMobile]);
 
     return (
-        <ContentCollapse isOpen={isOpen} title={`Comments (${allData.length})`} zIndex={zIndex}>
+        <ContentCollapse isOpen={isOpen} title={`Comments (${allData.length})`}>
             {/* Add comment */}
             <CommentUpsertInput
                 comment={undefined}
@@ -111,7 +110,6 @@ export function CommentContainer({
                 onCancel={handleAddCommentClose}
                 onCompleted={onCommentAdd}
                 parent={null} // parent is the thread. This is a top-level comment, so no parent
-                zIndex={zIndex}
             />
             {/* Sort & filter */}
             {allData.length > 0 ? <>
@@ -125,7 +123,6 @@ export function CommentContainer({
                     sortBy={sortBy}
                     sortByOptions={sortByOptions}
                     timeFrame={timeFrame}
-                    zIndex={zIndex}
                 />
                 {/* Comments list */}
                 <Stack direction="column" spacing={2}>
@@ -135,7 +132,6 @@ export function CommentContainer({
                             canOpen={true}
                             data={thread}
                             language={language}
-                            zIndex={zIndex}
                         />
                     ))}
                 </Stack>

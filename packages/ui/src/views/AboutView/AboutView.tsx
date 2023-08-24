@@ -68,7 +68,6 @@ const joinTeamLink = "https://github.com/Vrooli/Vrooli#-join-the-team";
 export const AboutView = ({
     isOpen,
     onClose,
-    zIndex,
 }: AboutViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -82,7 +81,6 @@ export const AboutView = ({
                 hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={t("AboutUs")}
-                zIndex={zIndex}
             />
             <Stack mt={4} spacing={4}>
                 <Box>

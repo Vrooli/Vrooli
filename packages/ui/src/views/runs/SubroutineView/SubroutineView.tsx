@@ -8,14 +8,15 @@ import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
-import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
+import { SessionContext } from "contexts/SessionContext";
 import { useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
+import { useObjectActions } from "hooks/useObjectActions";
 import { SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,10 +24,8 @@ import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsToFormik } from "utils/runUtils";
-import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
@@ -52,7 +51,6 @@ export const SubroutineView = ({
     owner,
     routineVersion,
     run,
-    zIndex,
 }: SubroutineViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -184,12 +182,11 @@ export const SubroutineView = ({
                         textPrimary={palette.background.textPrimary}
                         // eslint-disable-next-line @typescript-eslint/no-empty-function
                         onUpload={() => { }}
-                        zIndex={zIndex}
                     />
                 ))}
             </Box>
         );
-    }, [copyInput, formValueMap, palette.background.textPrimary, internalRoutineVersion?.inputs, zIndex]);
+    }, [copyInput, formValueMap, palette.background.textPrimary, internalRoutineVersion?.inputs]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
@@ -230,7 +227,6 @@ export const SubroutineView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                zIndex={zIndex}
             />
             <Box sx={{
                 marginLeft: "auto",
@@ -256,7 +252,6 @@ export const SubroutineView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
-                        zIndex={zIndex}
                     />}
                 </Stack>
                 {/* Resources */}
@@ -268,7 +263,6 @@ export const SubroutineView = ({
                     handleUpdate={() => { }} // Intentionally blank
                     loading={loading}
                     parent={{ __typename: "RoutineVersion", id: routineVersion?.id ?? "" }}
-                    zIndex={zIndex}
                 />}
                 {/* Box with description and instructions */}
                 <Stack direction="column" spacing={4} sx={containerProps(palette)}>
@@ -278,7 +272,6 @@ export const SubroutineView = ({
                         text={description}
                         loading={loading}
                         loadingLines={2}
-                        zIndex={zIndex}
                     />
                     {/* Instructions */}
                     <TextCollapse
@@ -286,11 +279,10 @@ export const SubroutineView = ({
                         text={instructions}
                         loading={loading}
                         loadingLines={4}
-                        zIndex={zIndex}
                     />
                 </Stack>
                 <Box sx={containerProps(palette)}>
-                    <ContentCollapse title="Inputs" zIndex={zIndex}>
+                    <ContentCollapse title="Inputs">
                         {inputComponents}
                         <Button
                             startIcon={<SuccessIcon />}
@@ -307,26 +299,23 @@ export const SubroutineView = ({
                     actionData={actionData}
                     exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                     object={internalRoutineVersion}
-                    zIndex={zIndex}
                 />
                 <Box sx={containerProps(palette)}>
                     <ContentCollapse
                         isOpen={false}
                         title="Additional Information"
-                        zIndex={zIndex}
                     >
                         {/* Relationships */}
                         <RelationshipList
                             isEditing={false}
                             objectType={"Routine"}
-                            zIndex={zIndex}
                         />
                         {/* Tags */}
                         {exists(tags) && tags.length > 0 && <TagList
                             maxCharacters={30}
                             parentId={internalRoutineVersion?.id ?? ""}
                             tags={tags as Tag[]}
-                            sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                            sx={{ marginTop: 4 }}
                         />}
                         {/* Date and version labels */}
                         <Stack direction="row" spacing={1} mt={2} mb={1}>
@@ -335,13 +324,11 @@ export const SubroutineView = ({
                                 loading={loading}
                                 showIcon={true}
                                 timestamp={internalRoutineVersion?.created_at}
-                                zIndex={zIndex}
                             />
                             <VersionDisplay
                                 currentVersion={internalRoutineVersion}
                                 prefix={" - "}
                                 versions={internalRoutineVersion?.root?.versions}
-                                zIndex={zIndex}
                             />
                         </Stack>
                         {/* Votes, reports, and other basic stats */}
@@ -361,7 +348,6 @@ export const SubroutineView = ({
                         objectId={internalRoutineVersion?.id ?? ""}
                         objectType={CommentFor.RoutineVersion}
                         onAddCommentClose={closeAddCommentDialog}
-                        zIndex={zIndex}
                     />
                 </Box>
             </Box>

@@ -63,9 +63,10 @@ export const AuthEndpoints: EndpointsAuth = {
                             ],
                         },
                     });
-                    if (emails.length === 0)
-                        throw new CustomError("0131", "EmailOrCodeInvalid", req.session.languages);
-                    const verified = await validateVerificationCode(emails[0].emailAddress, user.id, verificationCode, prisma, req.session.languages);
+                    const firstEmail = emails[0];
+                    if (!firstEmail || !verificationCode)
+                        throw new CustomError("0131", "EmailOrCodeInvalid", req.session.languages, { verificationCode });
+                    const verified = await validateVerificationCode(firstEmail.emailAddress, user.id, verificationCode, prisma, req.session.languages);
                     if (!verified)
                         throw new CustomError("0132", "CannotVerifyEmailCode", req.session.languages);
                 }
@@ -87,9 +88,9 @@ export const AuthEndpoints: EndpointsAuth = {
                 }
                 // Validate verification code, if supplied
                 if (input.verificationCode) {
-                    if (!input.verificationCode.includes(":"))
+                    const [, verificationCode] = input.verificationCode.includes(":") ? input.verificationCode.split(":") : [undefined, undefined];
+                    if (!verificationCode)
                         throw new CustomError("0136", "CannotVerifyEmailCode", req.session.languages);
-                    const [, verificationCode] = input.verificationCode.split(":");
                     const verified = await validateVerificationCode(email.emailAddress, user.id, verificationCode, prisma, req.session.languages);
                     if (!verified)
                         throw new CustomError("0137", "CannotVerifyEmailCode", req.session.languages);
@@ -274,7 +275,7 @@ export const AuthEndpoints: EndpointsAuth = {
             if (!req.session.users || index === -1) throw new CustomError("0272", "NoUser", req.session.languages);
             // Filter out user from session, then place at front
             const otherUsers = (req.session.users.filter(u => u.id !== input.id) ?? []).map(sessionUserTokenToUser);
-            const currentUser = await toSessionUser(req.session.users[index], prisma, req);
+            const currentUser = await toSessionUser(req.session.users[index]!, prisma, req);
             const session = { isLoggedIn: true, users: [currentUser, ...otherUsers] };
             // Set up session token
             await generateSessionJwt(res, session);
@@ -397,7 +398,7 @@ export const AuthEndpoints: EndpointsAuth = {
                 // If wallet is not verified, link it to your account
                 if (!walletData.verified) {
                     await prisma.user.update({
-                        where: { id: req.session.users?.[0].id as string },
+                        where: { id: req.session.users?.[0]?.id as string },
                         data: {
                             wallets: {
                                 connect: { id: walletData.id },

@@ -25,7 +25,6 @@ const renderIcon = (Icon: IconType, key: number) => {
 export const MembersButton = ({
     isEditing,
     objectType,
-    zIndex,
 }: MembersButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -78,7 +77,6 @@ export const MembersButton = ({
                 isOpen={isDialogOpen}
                 onClose={closeDialog}
                 organizationId={idField.value ?? ""}
-                zIndex={zIndex}
             />
             <Stack
                 direction="column"

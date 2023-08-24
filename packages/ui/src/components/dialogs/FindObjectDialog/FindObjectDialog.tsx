@@ -7,6 +7,8 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useTabs } from "hooks/useTabs";
 import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,11 +16,8 @@ import { lazily } from "react-lazily";
 import { removeSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
 import { getDisplay } from "utils/display/listTools";
-import { parseData } from "utils/hooks/useFindMany";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useTabs } from "utils/hooks/useTabs";
 import { getObjectUrl } from "utils/navigation/openObject";
-import { CalendarPageTabOption, combineSearchResults, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
+import { CalendarPageTabOption, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { UpsertProps } from "views/objects/types";
 import { searchViewTabParams } from "../../../views/SearchView/SearchView";
@@ -112,7 +111,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     limitTo,
     onlyVersioned,
     where,
-    zIndex,
 }: FindObjectDialogProps<Find, ObjectType>) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -296,7 +294,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 onCompleted={handleCreated}
                 onCancel={handleCreateClose}
                 overrideObject={{ __typename: createObjectType }}
-                zIndex={zIndex + 2}
             />}
             {/* Menu for selecting create object type */}
             {!CreateView && <Menu
@@ -325,7 +322,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 isOpen={isOpen}
                 onClose={() => { handleCancel(); }}
                 titleId={searchTitleId}
-                zIndex={zIndex}
+                sxs={{ paper: { maxWidth: "min(100%, 600px)" } }}
             >
                 <TopBar
                     display="dialog"
@@ -340,27 +337,22 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}
-                    zIndex={zIndex}
                 />
                 <Box sx={{
                     minHeight: "500px",
                     margin: { xs: 0, sm: 2 },
                     paddingTop: 4,
+                    overflow: "auto",
                 }}>
                     {/* Search list to find object */}
                     {!selectedObject && <SearchList
                         id="find-object-search-list"
                         canNavigate={() => false}
+                        display="dialog"
                         dummyLength={3}
                         onItemClick={onInputSelect}
                         take={20}
-                        resolve={(data, type) => {
-                            console.log("findobjectdialog resolve data: ", type, data);
-                            if (type === SearchType.Popular) return combineSearchResults(data);
-                            return parseData(data, type);
-                        }}
                         searchType={searchType}
-                        zIndex={zIndex}
                         where={where}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
@@ -391,7 +383,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         </Stack>
                     )}
                 </Box>
-                <SideActionButtons display="dialog" zIndex={zIndex + 1001}>
+                <SideActionButtons display="dialog">
                     <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >
                         <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>

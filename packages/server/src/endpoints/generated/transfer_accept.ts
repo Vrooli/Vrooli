@@ -51,6 +51,8 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -92,6 +94,8 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -166,7 +170,11 @@ export const transfer_accept = {
           "language": true,
           "description": true,
           "name": true,
-          "text": true
+          "pages": {
+            "id": true,
+            "pageIndex": true,
+            "text": true
+          }
         },
         "id": true,
         "created_at": true,
@@ -201,6 +209,8 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -242,6 +252,8 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -344,6 +356,8 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -385,6 +399,8 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -502,6 +518,8 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -543,6 +561,8 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -660,6 +680,8 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -701,6 +723,8 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -819,6 +843,8 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -860,6 +886,8 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,

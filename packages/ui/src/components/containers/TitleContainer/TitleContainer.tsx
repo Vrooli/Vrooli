@@ -15,7 +15,6 @@ export function TitleContainer({
     options = [],
     sx,
     title,
-    zIndex,
 }: TitleContainerProps) {
     const { palette } = useTheme();
 
@@ -27,7 +26,6 @@ export function TitleContainer({
                 options={options.filter(({ Icon }) => Icon) as TitleProps["options"]}
                 title={title}
                 variant="subheader"
-                zIndex={zIndex}
             />
             <Box
                 sx={{

@@ -8,7 +8,6 @@ export interface NodeContextMenuProps {
     availableActions: BuildAction[];
     handleClose: () => void;
     handleSelect: (option: BuildAction) => void;
-    zIndex: number;
 }
 
 export interface AddAfterLinkDialogProps {
@@ -18,7 +17,6 @@ export interface AddAfterLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
-    zIndex: number;
 }
 
 export interface AddBeforeLinkDialogProps {
@@ -28,7 +26,6 @@ export interface AddBeforeLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
-    zIndex: number;
 }
 
 export interface GraphActionsProps {
@@ -42,7 +39,6 @@ export interface GraphActionsProps {
     isEditing: boolean;
     language: string;
     nodesOffGraph: Node[];
-    zIndex: number;
 }
 
 export interface MoveNodeMenuProps {
@@ -51,7 +47,6 @@ export interface MoveNodeMenuProps {
     language: string; // Language to display/edit
     node?: Node | null; // Node to be moved
     routineVersion: RoutineVersion;
-    zIndex: number;
 }
 
 export interface NodeEndDialogProps {
@@ -60,7 +55,6 @@ export interface NodeEndDialogProps {
     isOpen: boolean;
     node: Node & { end: NodeEnd };
     language: string;
-    zIndex: number;
 }
 
 export interface NodeGraphProps {
@@ -88,7 +82,6 @@ export interface NodeGraphProps {
     /** Dictionary of row and column pairs for every node ID on graph */
     nodesById: { [x: string]: Node };
     scale: number;
-    zIndex: number;
 }
 
 /**
@@ -106,7 +99,6 @@ export interface NodeColumnProps {
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleNodeUpdate: (updatedNode: Node) => void;
     language: string;
-    zIndex: number;
 }
 
 export interface NodeRoutineListDialogProps {
@@ -115,5 +107,4 @@ export interface NodeRoutineListDialogProps {
     isOpen: boolean;
     node: NodeWithRoutineListShape | null;
     language: string;
-    zIndex: number;
 }

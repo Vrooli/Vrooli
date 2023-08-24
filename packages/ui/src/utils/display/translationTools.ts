@@ -657,7 +657,7 @@ export const getShortenedLabel = (label: string) => {
 export const getTranslationData = <
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
->(field: FieldInputProps<any>, meta: FieldMetaProps<any>, language: string): {
+>(field: FieldInputProps<unknown>, meta: FieldMetaProps<unknown>, language: string): {
     error: { [key in keyof Values[KeyField][0]]: string } | undefined,
     index: number,
     touched: { [key in keyof Values[KeyField][0]]: boolean } | undefined,

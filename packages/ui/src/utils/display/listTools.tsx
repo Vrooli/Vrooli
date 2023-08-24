@@ -1,4 +1,4 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, ChatParticipant, CommentFor, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, View } from "@local/shared";
+import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatParticipant, CommentFor, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, View } from "@local/shared";
 import { AutocompleteOption } from "types";
 import { valueFromDot } from "utils/shape/general";
 import { displayDate, firstString } from "./stringTools";
@@ -309,6 +309,21 @@ export const getDisplay = (
             title,
             subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (projectVersionSubtitle ? " | " + projectVersionSubtitle : ""),
         };
+    }
+    // If a chat, use the chat's title/subtitle, or default to descriptive text with participant or participant count
+    if (isOfType(object, "Chat")) {
+        const { participants, participantsCount, updated_at } = object as Partial<Chat>;
+        const { name, description } = getTranslation(object as Partial<Chat>, langs, true);
+        const isGroup = Number.isInteger(participantsCount) && (participantsCount as number) > 2;
+        const firstParticipant = Array.isArray(participants) && participants.length > 0 ? participants[0] : null;
+        const title = firstString(name, isGroup ?
+            `Group chat (${participantsCount})` :
+            firstParticipant ?
+                `Chat with ${getDisplay(firstParticipant).title}` :
+                "Chat",
+        );
+        const subtitle = firstString(description, displayDate(updated_at));
+        return { title, subtitle };
     }
     // If a member or chat participant, use the user's display
     if (isOfType(object, "Member", "ChatParticipant")) return getDisplay({ __typename: "User", ...(object as Partial<ChatParticipant | Member>).user } as ListObject);

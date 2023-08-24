@@ -16,7 +16,6 @@ export const SettingsNotificationForm = ({
     isLoading,
     onCancel,
     values,
-    zIndex,
     ...props
 }: SettingsNotificationFormProps) => {
     const { t } = useTranslation();
@@ -59,7 +58,6 @@ export const SettingsNotificationForm = ({
                         Icon={PhoneIcon}
                         title={t("Device", { count: 2 })}
                         variant="subheader"
-                        zIndex={zIndex}
                     />
                     <PushList
                         handleUpdate={() => { }}
@@ -79,7 +77,6 @@ export const SettingsNotificationForm = ({
                         Icon={EmailIcon}
                         title={t("Email", { count: 2 })}
                         variant="subheader"
-                        zIndex={zIndex}
                     />
                     {/* <EmailList
                 handleUpdate={updateEmails}
@@ -98,7 +95,6 @@ export const SettingsNotificationForm = ({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

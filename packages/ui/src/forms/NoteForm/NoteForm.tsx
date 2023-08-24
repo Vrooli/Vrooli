@@ -3,17 +3,17 @@ import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
+import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { NoteVersionShape, shapeNoteVersion } from "utils/shape/models/noteVersion";
 import { OwnerShape } from "utils/shape/models/types";
@@ -42,7 +42,10 @@ export const noteInitialValues = (
         language: getUserLanguages(session)[0],
         description: "",
         name: "New Note",
-        text: "",
+        pages: [{
+            __typename: "NotePage" as const,
+            text: "",
+        }],
     }]),
 });
 
@@ -63,8 +66,8 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
     isLoading,
     isOpen,
     onCancel,
+    onClose,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -79,19 +82,22 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
         fields: ["description", "name", "text"],
         validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
+    console.log("errors", combineErrorsWithTranslations(props.errors, translationErrors));
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={onClose}
                 title=""
-                titleComponent={<TranslatedTextField
+                titleComponent={<EditableTitle
                     language={language}
-                    name="name"
-                    placeholder={t("Name")}
+                    titleField="name"
+                    subtitleField="description"
+                    validationEnabled={false}
+                    variant="subheader"
+                    sxs={{ stack: { padding: 0 } }}
                 />}
-                zIndex={zIndex}
             />
             <BaseForm
                 dirty={dirty}
@@ -137,7 +143,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                             } : {}),
                         },
                     }}
-                    zIndex={zIndex}
                 />
             </BaseForm>
             <GridSubmitButtons
@@ -150,18 +155,15 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                 onSubmit={props.handleSubmit}
                 sideActionButtons={{
                     display,
-                    zIndex: zIndex + 1,
                     children: (
                         <EllipsisActionButton>
                             <RelationshipList
                                 isEditing={true}
                                 objectType={"Note"}
-                                zIndex={zIndex}
                             />
                         </EllipsisActionButton>
                     ),
                 }}
-                zIndex={zIndex}
             />
         </>
     );

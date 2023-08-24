@@ -3,6 +3,7 @@ import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, 
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -63,7 +64,6 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
     onCancel,
     reminderListId,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -116,6 +116,10 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                     ref={ref}
                 >
                     <FormContainer>
+                        <RelationshipList
+                            isEditing={true}
+                            objectType={"Reminder"}
+                        />
                         <Field
                             fullWidth
                             name="name"
@@ -128,7 +132,6 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                             minRows={4}
                             name="description"
                             placeholder={t("DescriptionOptional")}
-                            zIndex={zIndex}
                         />
                         <DateInput
                             name="dueDate"
@@ -141,7 +144,6 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                                 Icon={ListNumberIcon}
                                 title={t("Step", { count: 2 })}
                                 variant="subheader"
-                                zIndex={zIndex}
                             />
                             <Droppable droppableId="reminderItems">
                                 {(provided) => (
@@ -178,7 +180,6 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                                                                         minRows={2}
                                                                         name={`reminderItems[${i}].description`}
                                                                         placeholder={t("Description")}
-                                                                        zIndex={zIndex}
                                                                     />
                                                                     <DateInput
                                                                         name={`reminderItems[${i}].dueDate`}
@@ -241,7 +242,6 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

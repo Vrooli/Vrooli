@@ -11,7 +11,6 @@ export interface CommentContainerProps {
     objectId: string;
     objectType: CommentFor;
     onAddCommentClose?: () => unknown;
-    zIndex: number;
 }
 
 export interface TitleContainerProps {
@@ -30,12 +29,12 @@ export interface TitleContainerProps {
         onClick: (e?: any) => unknown;
     }[];
     sx?: SxType;
-    zIndex: number;
 }
 
 export interface ListContainerProps {
     children: ReactNode;
     emptyText?: string;
+    id?: string;
     isEmpty?: boolean;
     sx?: SxType;
 }
@@ -63,7 +62,6 @@ export interface ContentCollapseProps {
     titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
     titleKey?: CommonKey;
     titleVariables?: { [x: string]: string | number };
-    zIndex: number;
 }
 
 export interface TextCollapseProps {
@@ -74,7 +72,6 @@ export interface TextCollapseProps {
     onOpenChange?: (isOpen: boolean) => unknown;
     title?: string | null;
     text?: string | null;
-    zIndex: number;
 }
 
 export type EditTextComponent = "Markdown" | "TranslatedMarkdown" | "TranslatedTextField" | "TextField";
@@ -85,7 +82,6 @@ interface BaseEditableTextProps<T extends EditTextComponent> {
     name: string;
     showOnNoText?: boolean;
     variant?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "subtitle1" | "subtitle2" | "body1" | "body2";
-    zIndex: number;
 }
 
 interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends BaseEditableTextProps<T> {

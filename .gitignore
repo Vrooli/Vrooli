@@ -152,7 +152,7 @@ build/
 
 #Persistent data
 data/logs*
-data/postgres/
+data/postgres*
 data/redis/
 data/stats/
 data/uploads/

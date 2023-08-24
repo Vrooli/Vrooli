@@ -3,24 +3,23 @@ import { Box, Button, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { SettingsDisplayForm } from "forms/settings";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useProfileQuery } from "hooks/useProfileQuery";
 import { SearchIcon } from "icons";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getSiteLanguage } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
-import { SessionContext } from "utils/SessionContext";
 import { SettingsDisplayViewProps } from "../types";
 
 export const SettingsDisplayView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsDisplayViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -37,7 +36,6 @@ export const SettingsDisplayView = ({
                 help={t("DisplaySettingsDescription")}
                 onClose={onClose}
                 title={t("Display")}
-                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />
@@ -68,7 +66,6 @@ export const SettingsDisplayView = ({
                             display={display}
                             isLoading={isProfileLoading || isUpdating}
                             onCancel={formik.resetForm}
-                            zIndex={zIndex}
                             {...formik}
                         />}
                     </Formik>

@@ -29,7 +29,6 @@ export interface DirectoryListHorizontalProps {
     directory: ProjectVersionDirectory | null;
     loading?: boolean;
     mutate?: boolean;
-    zIndex: number;
 }
 
 export interface DirectoryListVerticalProps {
@@ -38,7 +37,6 @@ export interface DirectoryListVerticalProps {
     directory: ProjectVersionDirectory | null | undefined;
     loading: boolean;
     mutate: boolean;
-    zIndex: number;
 }
 
 export interface DirectoryListItemProps {
@@ -59,5 +57,4 @@ export interface DirectoryListItemContextMenuProps {
     onClose: () => void;
     onDelete: (index: number) => void;
     data: DirectoryItem | null;
-    zIndex: number;
 }

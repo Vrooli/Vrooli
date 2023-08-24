@@ -3,18 +3,18 @@ import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleForm, scheduleInitialValues, transformScheduleValues, validateScheduleValues } from "forms/ScheduleForm/ScheduleForm";
-import { useContext, useRef } from "react";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useTabs } from "hooks/useTabs";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useTabs } from "utils/hooks/useTabs";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
 import { ScheduleShape } from "utils/shape/models/schedule";
 import { calendarTabParams } from "views/CalendarView/CalendarView";
 import { ScheduleUpsertProps } from "../types";
@@ -33,7 +33,6 @@ export const ScheduleUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: ScheduleUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -68,7 +67,6 @@ export const ScheduleUpsert = ({
         } as Schedule),
     });
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -83,18 +81,18 @@ export const ScheduleUpsert = ({
         onCancel,
         onCompleted,
     });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="schedule-upsert-dialog"
             isOpen={isOpen ?? false}
-            onClose={handleCancel}
-            zIndex={zIndex}
+            onClose={handleClose}
         >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(`${isCreate ? "Create" : "Update"}${currTab.tabType}` as any)}
                 // Can only link to an object when creating
                 below={isCreate && canChangeTab && <PageTabs
@@ -104,7 +102,6 @@ export const ScheduleUpsert = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -138,8 +135,8 @@ export const ScheduleUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

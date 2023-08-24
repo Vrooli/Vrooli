@@ -3,13 +3,13 @@ import { Box, Checkbox, CircularProgress, IconButton, Link, useTheme } from "@mu
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import hljs from "highlight.js";
 import "highlight.js/styles/monokai-sublime.css";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import usePress from "hooks/usePress";
 import { CopyIcon } from "icons";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDisplay } from "utils/display/listTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import usePress from "utils/hooks/usePress";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { MarkdownDisplayProps } from "../types";
@@ -124,7 +124,7 @@ const routeToEndpoint = {
 };
 
 /** Creates custom links for Vrooli objects, and normal links otherwise */
-const CustomLink = ({ children, href, zIndex }) => {
+const CustomLink = ({ children, href }) => {
     // Check if this is a special link
     let linkUrl, windowUrl;
     try {
@@ -146,9 +146,9 @@ const CustomLink = ({ children, href, zIndex }) => {
     const { title, subtitle } = getDisplay(data, ["en"]);
 
     // Popover to display more info
-    const [anchorEl, setAnchorEl] = useState<any | null>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = useCallback((target: EventTarget) => {
-        setAnchorEl(target);
+        setAnchorEl(target as HTMLElement);
         const urlParams = parseSingleItemUrl({ url: href });
         if (exists(urlParams.handle)) getData({ handle: urlParams.handle });
         else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });
@@ -182,7 +182,6 @@ const CustomLink = ({ children, href, zIndex }) => {
                 <PopoverWithArrow
                     anchorEl={anchorEl}
                     handleClose={close}
-                    zIndex={zIndex + 1}
                 >
                     <Box p={2}>
                         {isLoading
@@ -190,7 +189,7 @@ const CustomLink = ({ children, href, zIndex }) => {
                             : <>
                                 <Link href={href}><strong>{title}</strong></Link>
                                 <br />
-                                <MarkdownDisplay content={subtitle} zIndex={zIndex + 1} />
+                                <MarkdownDisplay content={subtitle} />
                             </>
                         }
                     </Box>
@@ -202,7 +201,7 @@ const CustomLink = ({ children, href, zIndex }) => {
     }
 };
 
-/** HOC for rendering links. Required so we can pass zIndex */
+/** HOC for rendering links */
 const withCustomLinkProps = (additionalProps) => {
     return ({ href, children }) => {
         return <CustomLink href={href} {...additionalProps}>{children}</CustomLink>;
@@ -281,7 +280,6 @@ export const MarkdownDisplay = ({
     onChange,
     sx,
     variant, //TODO
-    zIndex,
 }: MarkdownDisplayProps) => {
     const { palette, typography } = useTheme();
     const id = useMemo(() => uuid(), []);
@@ -291,7 +289,7 @@ export const MarkdownDisplay = ({
         overrides: {
             code: CodeBlock,
             blockquote: Blockquote,
-            a: withCustomLinkProps({ zIndex }),
+            a: withCustomLinkProps({}),
             input: withCustomCheckboxProps({
                 onChange: (checkboxId: string, updatedState: boolean) => {
                     if (!content || !onChange) return;
@@ -347,7 +345,6 @@ export const MarkdownDisplay = ({
             lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
             color: palette.background.textPrimary,
             display: "block",
-            minHeight: "50px",
             ...sx,
         }}>
             {processedContent}

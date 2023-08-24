@@ -1,5 +1,6 @@
 import { IconButton, List, ListItem, ListItemIcon, ListItemText, Menu, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { useZIndex } from "hooks/useZIndex";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
@@ -14,12 +15,12 @@ export function ListMenu<T>({
     onClose,
     title,
     data,
-    zIndex,
 }: ListMenuProps<T>) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
+    const zIndex = useZIndex(open);
 
     const items = useMemo(() => data?.map(({
         label,
@@ -103,7 +104,6 @@ export function ListMenu<T>({
                 ariaLabel={titleId}
                 title={title}
                 onClose={() => { onClose(); }}
-                zIndex={zIndex}
             />}
             <List>
                 {items}

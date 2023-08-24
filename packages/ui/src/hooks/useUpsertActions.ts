@@ -1,7 +1,7 @@
 import { LINKS } from "@local/shared";
 import { Method } from "api";
 import { ObjectDialogAction } from "components/dialogs/types";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { setCookiePartialData } from "utils/cookies";
@@ -42,19 +42,17 @@ export const useUpsertActions = <
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    // We can only use history.back()/replace if there is a previous page
-    const hasPreviousPage = useMemo(() => Boolean(sessionStorage.getItem("lastPath")), []);
-
     const onAction = useCallback((action: ObjectDialogAction, item?: T) => {
         // URL of view page for the object
         const viewUrl = item ? getObjectUrl(item as any) : undefined;
+        const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
         switch (action) {
             case ObjectDialogAction.Add:
                 // Add the new object to the cache
                 if (item) setCookiePartialData(item, "full");
                 // Navigate to the view page for the new object
                 if (display === "page") {
-                    setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
+                    setLocation(viewUrl ?? LINKS.Home, { replace: true });
                 } else {
                     onCompleted?.(item!);
                 }
@@ -95,7 +93,7 @@ export const useUpsertActions = <
                 // Navigate to the view page for the object
                 if (display === "page") {
                     if (!viewUrl && hasPreviousPage) window.history.back();
-                    else setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
+                    else setLocation(viewUrl ?? LINKS.Home, { replace: true });
                 } else {
                     onCompleted?.(item!);
                 }
@@ -110,7 +108,7 @@ export const useUpsertActions = <
                 }
                 break;
         }
-    }, [display, isCreate, setLocation, hasPreviousPage, onCompleted, t, onCancel, onDeleted]);
+    }, [display, isCreate, setLocation, onCompleted, t, onCancel, onDeleted]);
 
     const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction]);
     const handleCreated = useCallback((data: T) => { onAction(ObjectDialogAction.Add, data); }, [onAction]);

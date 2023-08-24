@@ -6,21 +6,20 @@ import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/Select
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
 import { NoteViewProps } from "../types";
 
 export const NoteView = ({
     isOpen,
     onClose,
-    zIndex,
 }: NoteViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -41,11 +40,11 @@ export const NoteView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { description, name, text } = useMemo(() => {
-        const { description, name, text } = getTranslation(noteVersion, [language]);
+        const { description, name, pages } = getTranslation(noteVersion, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
             name,
-            text: text ?? "",
+            text: pages?.sort((a, b) => a.pageIndex - b.pageIndex).map(p => p.text).join("\n\n") ?? "",
         };
     }, [language, noteVersion]);
 
@@ -66,17 +65,14 @@ export const NoteView = ({
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <>
-                <SideActionButtons display={display} zIndex={zIndex + 1}>
+                <SideActionButtons display={display}>
                     <EllipsisActionButton>
                         <ObjectActionsRow
                             actionData={actionData}
                             object={noteVersion}
-                            zIndex={zIndex}
                         />
                     </EllipsisActionButton>
                 </SideActionButtons>
@@ -116,7 +112,6 @@ export const NoteView = ({
                             } : {}),
                         },
                     }}
-                    zIndex={zIndex}
                 />
             </>
         </>

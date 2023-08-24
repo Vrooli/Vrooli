@@ -1,11 +1,12 @@
 import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
+import { SettingsSearchBar } from "components/inputs/search";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
 import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, VisibleIcon, WalletIcon } from "icons";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
@@ -77,7 +78,6 @@ export const displaySettingsData: SettingsData[] = [
 export const SettingsView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -88,19 +88,40 @@ export const SettingsView = ({
         setLocation(link);
     }, [setLocation]);
 
+    const [searchString, setSearchString] = useState<string>("");
+
+    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
+    const onInputSelect = useCallback((newValue: any) => {
+        if (!newValue) return;
+        setLocation(newValue?.value);
+    }, [setLocation]);
+
     return (
         <>
-            <SettingsTopBar
+            <TopBar
+                below={<Box sx={{
+                    width: "min(100%, 700px)",
+                    margin: "auto",
+                    marginTop: 2,
+                    marginBottom: 2,
+                    paddingLeft: 2,
+                    paddingRight: 2,
+                }}>
+                    <SettingsSearchBar
+                        value={searchString}
+                        onChange={updateSearch}
+                        onInputChange={onInputSelect}
+                    />
+                </Box>}
                 display={display}
+                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={t("Settings")}
-                zIndex={zIndex}
             />
-            <Box p={2}>
+            <Box>
                 <Title
                     title={t("Account")}
                     variant="header"
-                    zIndex={zIndex}
                 />
                 <CardGrid minWidth={300}>
                     {accountSettingsData.map(({ title, titleVariables, description, link, Icon }, index) => (
@@ -118,7 +139,6 @@ export const SettingsView = ({
                     title={t("Display")}
                     sxs={{ text: { paddingTop: 2 } }}
                     variant="header"
-                    zIndex={zIndex}
                 />
                 <CardGrid minWidth={300} sx={{ paddingBottom: "64px" }}>
                     {displaySettingsData.map(({ title, titleVariables, description, link, Icon }, index) => (

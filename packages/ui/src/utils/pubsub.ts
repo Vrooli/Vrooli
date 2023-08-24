@@ -9,7 +9,6 @@ import { ActiveFocusMode, CommonKey, ErrorKey, Session } from "@local/shared";
 import { SnackSeverity } from "components/snacks";
 
 export type Pubs = "Celebration" |
-    "ChatSideMenu" |
     "CommandPalette" |
     "Cookies" | // For cookie consent dialog
     "FastUpdate" |
@@ -62,6 +61,11 @@ export type AlertDialogPub = {
     }[];
 }
 
+export type SideMenuPub = {
+    id: "side-menu" | "chat-side-menu";
+    isOpen: boolean;
+}
+
 export class PubSub {
     private static instance: PubSub;
     // eslint-disable-next-line @typescript-eslint/ban-types
@@ -85,9 +89,6 @@ export class PubSub {
     }
     publishCelebration(duration?: number) {
         this.publish("Celebration", duration);
-    }
-    publishChatSideMenu(open?: boolean) {
-        this.publish("ChatSideMenu", open);
     }
     publishCommandPalette() {
         this.publish("CommandPalette");
@@ -136,8 +137,8 @@ export class PubSub {
         localStorage.setItem("isLoggedIn", session?.isLoggedIn === true ? "true" : "false");
         this.publish("Session", session);
     }
-    publishSideMenu(open?: boolean) {
-        this.publish("SideMenu", open);
+    publishSideMenu(data: SideMenuPub) {
+        this.publish("SideMenu", data);
     }
     publishSnack(data: SnackPub) {
         this.publish("Snack", data);
@@ -164,9 +165,6 @@ export class PubSub {
     }
     subscribeCelebration(subscriber: (duration?: number) => void) {
         return this.subscribe("Celebration", subscriber);
-    }
-    subscribeChatSideMenu(subscriber: (open?: boolean) => void) {
-        return this.subscribe("ChatSideMenu", subscriber);
     }
     subscribeCommandPalette(subscriber: () => void) {
         return this.subscribe("CommandPalette", subscriber);
@@ -207,7 +205,7 @@ export class PubSub {
     subscribeSession(subscriber: (session: Session | undefined) => void) {
         return this.subscribe("Session", subscriber);
     }
-    subscribeSideMenu(subscriber: (open?: boolean) => void) {
+    subscribeSideMenu(subscriber: (data: SideMenuPub) => void) {
         return this.subscribe("SideMenu", subscriber);
     }
     subscribeSnack(subscriber: (data: SnackPub) => void) {

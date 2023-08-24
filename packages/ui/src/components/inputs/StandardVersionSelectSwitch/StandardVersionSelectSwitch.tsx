@@ -1,11 +1,11 @@
 import { Button, Checkbox, FormControlLabel, Grid, Tooltip, Typography } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { SessionContext } from "contexts/SessionContext";
 import { AddIcon, CompleteIcon } from "icons";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
 import { StandardInput } from "../standards/StandardInput/StandardInput";
 import { StandardVersionSelectSwitchProps } from "../types";
 
@@ -14,11 +14,10 @@ export function StandardVersionSelectSwitch({
     selected,
     onChange,
     disabled,
-    zIndex,
 }: StandardVersionSelectSwitchProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    console.log("StandardVersionSelectSwitch", selected, onChange, disabled, zIndex);
+    console.log("StandardVersionSelectSwitch", selected, onChange, disabled);
 
     const [usingStandard, setUsingStandard] = useState<boolean>(selected !== null);
 
@@ -50,7 +49,6 @@ export function StandardVersionSelectSwitch({
                 handleComplete={onChange as any}
                 handleCancel={closeCreateDialog}
                 limitTo={["StandardVersion"]}
-                zIndex={zIndex + 1}
             />
             {/* Main component */}
             <Grid container spacing={1}>
@@ -101,7 +99,6 @@ export function StandardVersionSelectSwitch({
                         <StandardInput
                             disabled={!canUpdateStandardVersion}
                             fieldName="preview"
-                            zIndex={zIndex}
                         />
                     </Grid>
                 )}

@@ -20,6 +20,9 @@ export const DialogTitle = forwardRef(({
         <Box ref={ref} sx={{
             background: palette.primary.dark,
             color: palette.primary.contrastText,
+            position: "sticky",
+            top: 0,
+            zIndex: 2,
             ...titleData.sxs?.root,
         }}>
             <MuiDialogTitle
@@ -34,7 +37,7 @@ export const DialogTitle = forwardRef(({
                 }}
             >
                 <Title
-                    variant="header"
+                    variant="subheader"
                     {...titleData}
                     sxs={{
                         stack: { marginLeft: "auto", padding: 0 },

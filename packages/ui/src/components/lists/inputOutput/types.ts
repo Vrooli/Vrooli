@@ -8,7 +8,6 @@ export interface InputOutputContainerProps {
     isInput: boolean;
     language: string;
     list: (RoutineVersionInputShape | RoutineVersionOutputShape)[];
-    zIndex: number;
 }
 
 export interface InputOutputListItemProps {
@@ -24,5 +23,4 @@ export interface InputOutputListItemProps {
     handleDelete: (index: number) => void;
     handleUpdate: (index: number, updatedItem: RoutineVersionInputShape | RoutineVersionOutputShape) => void;
     language: string;
-    zIndex: number;
 }

@@ -1,10 +1,10 @@
 import { Node, NodeEnd } from "@local/shared";
 import { Box, Tooltip, Typography } from "@mui/material";
+import usePress from "hooks/usePress";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
-import usePress from "utils/hooks/usePress";
 import { calculateNodeSize, DraggableNode, NodeContextMenu, NodeEndDialog, NodeWidth } from "../..";
 import { nodeLabel } from "../styles";
 import { EndNodeProps } from "../types";
@@ -26,7 +26,6 @@ export const EndNode = ({
     linksIn,
     node,
     scale = 1,
-    zIndex,
 }: EndNodeProps) => {
 
     /**
@@ -94,7 +93,6 @@ export const EndNode = ({
                 availableActions={[BuildAction.AddListBeforeNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.DeleteNode]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id); }}
-                zIndex={zIndex + 1}
             />
             {/* Normal-click menu */}
             <NodeEndDialog
@@ -103,7 +101,6 @@ export const EndNode = ({
                 isOpen={editDialogOpen}
                 language={language}
                 node={node}
-                zIndex={zIndex + 1}
             />
             <DraggableNode
                 className="handle"

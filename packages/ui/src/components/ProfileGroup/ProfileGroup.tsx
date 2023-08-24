@@ -1,11 +1,11 @@
 import { User } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ProfileGroupProps } from "components/types";
+import { SessionContext } from "contexts/SessionContext";
 import { BotIcon, UserIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { SessionContext } from "utils/SessionContext";
 
 type IconType = SvgComponent | string | null;
 

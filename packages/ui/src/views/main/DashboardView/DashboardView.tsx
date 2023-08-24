@@ -1,4 +1,4 @@
-import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, NoteVersion, Reminder, ResourceList, uuid } from "@local/shared";
+import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, Reminder, ResourceList, uuid } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
@@ -9,6 +9,11 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { HomePrompt } from "components/text/HomePrompt/HomePrompt";
+import { SessionContext } from "contexts/SessionContext";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useFetch } from "hooks/useFetch";
+import { useReactSearch } from "hooks/useReactSearch";
+import { PageTab } from "hooks/useTabs";
 import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,23 +24,16 @@ import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay, listToAutocomplete } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useFetch } from "utils/hooks/useFetch";
-import { useReactSearch } from "utils/hooks/useReactSearch";
-import { PageTab } from "utils/hooks/useTabs";
 import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
-import { NoteUpsert } from "views/objects/note";
 import { DashboardViewProps } from "../types";
 
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
     isOpen,
     onClose,
-    zIndex,
 }: DashboardViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -188,16 +186,7 @@ export const DashboardView = ({
         }
     }, [data]);
 
-    const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
-    const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
-    const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false); }, []);
-    const onNoteCreated = useCallback((note: NoteVersion) => {
-        closeCreateNote();
-        // Convert NoteVersion to Note before adding to list
-        const { root, ...rest } = note;
-        const asRoot = { ...root, versions: [note] };
-        setNotes(n => [asRoot, ...n]);
-    }, [closeCreateNote]);
+    const openCreateNote = useCallback(() => { setLocation(`${LINKS.Note}/add`); }, []);
 
     // Calculate upcoming events using schedules 
     const upcomingEvents = useMemo(() => {
@@ -228,15 +217,6 @@ export const DashboardView = ({
 
     return (
         <PageContainer>
-            {/* Create note dialog */}
-            <NoteUpsert
-                isCreate={true}
-                isOpen={isCreateNoteOpen}
-                onCancel={closeCreateNote}
-                onCompleted={onNoteCreated}
-                overrideObject={{ __typename: "NoteVersion" }}
-                zIndex={zIndex + 1001}
-            />
             {/* Main content */}
             <TopBar
                 display={display}
@@ -252,7 +232,6 @@ export const DashboardView = ({
                         tabs={tabs}
                     />
                 )}
-                zIndex={zIndex}
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: "5vh", sm: "20vh" } }}>
@@ -267,7 +246,6 @@ export const DashboardView = ({
                     onInputChange={onInputSelect}
                     showSecondaryLabel={true}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                    zIndex={zIndex}
                 />
             </Stack>
             {/* Result feeds */}
@@ -287,7 +265,6 @@ export const DashboardView = ({
                     loading={loading}
                     mutate={true}
                     parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
-                    zIndex={zIndex}
                 />
                 {/* Events */}
                 <ListTitleContainer
@@ -300,7 +277,6 @@ export const DashboardView = ({
                         label: t("Open"),
                         onClick: openSchedule,
                     }]}
-                    zIndex={zIndex}
                 >
                     <ObjectList
                         dummyItems={new Array(5).fill("Event")}
@@ -308,7 +284,6 @@ export const DashboardView = ({
                         keyPrefix="event-list-item"
                         loading={loading}
                         onClick={onClick}
-                        zIndex={zIndex}
                     />
                 </ListTitleContainer>
                 {/* Reminders */}
@@ -318,7 +293,6 @@ export const DashboardView = ({
                     loading={loading}
                     listId={reminderListId}
                     reminders={reminders}
-                    zIndex={zIndex}
                 />
                 {/* Notes */}
                 <ListTitleContainer
@@ -335,7 +309,6 @@ export const DashboardView = ({
                         label: t("Create"),
                         onClick: openCreateNote,
                     }]}
-                    zIndex={zIndex}
                 >
                     <ObjectList
                         dummyItems={new Array(5).fill("Note")}
@@ -343,7 +316,6 @@ export const DashboardView = ({
                         keyPrefix="note-list-item"
                         loading={loading}
                         onClick={onClick}
-                        zIndex={zIndex}
                     />
                 </ListTitleContainer>
             </Box>

@@ -732,11 +732,23 @@ model note_version_translation {
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     name                 String                      @db.VarChar(128)
-    text                 String                      @db.VarChar(65536)
     description          String?                     @db.VarChar(2048)
     language             String                      @db.VarChar(3)
     noteVersionId        String                      @db.Uuid
     noteVersion          note_version                @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
+    pages                note_page[]
+}
+
+model note_page {
+    id                   String                      @id @default(uuid()) @db.Uuid
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    pageIndex            Int                         @default(0)
+    text                 String                      @db.VarChar(65536)
+    translationId        String                      @db.Uuid
+    translation          note_version_translation    @relation(fields: [translationId], references: [id], onDelete: Cascade)
+
+    @@unique([translationId, pageIndex], name: "translationId_pageIndex_unique")
 }
 
 model notification {

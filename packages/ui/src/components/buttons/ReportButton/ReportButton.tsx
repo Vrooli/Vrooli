@@ -7,7 +7,6 @@ import { ReportButtonProps } from "../types";
 export const ReportButton = ({
     forId,
     reportFor,
-    zIndex,
 }: ReportButtonProps) => {
     const { palette } = useTheme();
 
@@ -23,7 +22,6 @@ export const ReportButton = ({
                 onCancel={closeDialog}
                 onCompleted={closeDialog}
                 overrideObject={{ createdFor: { __typename: reportFor, id: forId } }}
-                zIndex={zIndex + 1}
             />
             <Tooltip title="Report">
                 <IconButton aria-label="Report" size="small" onClick={openDialog}>

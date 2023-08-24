@@ -163,7 +163,6 @@ const main = async () => {
     io.use(auth.authenticateSocket);
     // Listen for new WebSocket connections
     io.on("connection", (socket) => {
-        console.log("a user connected");
         // Add handlers
         chatSocketHandlers(io, socket);
         notificationSocketHandlers(io, socket);

@@ -8,7 +8,6 @@ import { SettingsApiViewProps } from "../types";
 export const SettingsApiView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsApiViewProps) => {
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
@@ -19,7 +18,6 @@ export const SettingsApiView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Api", { count: 1 })}
-                zIndex={zIndex}
             />
             <Stack direction="row" mt={2}>
                 <SettingsList />

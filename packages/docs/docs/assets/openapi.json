@@ -16365,6 +16365,86 @@
                 "title": "NoteEdge",
                 "type": "object"
             },
+            "NotePage": {
+                "properties": {
+                    "__typename": {
+                        "title": "NotePage.__typename",
+                        "enum": [
+                            "NotePage"
+                        ],
+                        "type": "string"
+                    },
+                    "id": {
+                        "title": "NotePage.id",
+                        "type": "string"
+                    },
+                    "pageIndex": {
+                        "title": "NotePage.pageIndex",
+                        "type": "number"
+                    },
+                    "text": {
+                        "title": "NotePage.text",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "__typename",
+                    "id",
+                    "pageIndex",
+                    "text"
+                ],
+                "additionalProperties": false,
+                "title": "NotePage",
+                "type": "object"
+            },
+            "NotePageCreateInput": {
+                "properties": {
+                    "id": {
+                        "title": "NotePageCreateInput.id",
+                        "type": "string"
+                    },
+                    "pageIndex": {
+                        "title": "NotePageCreateInput.pageIndex",
+                        "type": "number"
+                    },
+                    "text": {
+                        "title": "NotePageCreateInput.text",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "pageIndex",
+                    "text"
+                ],
+                "additionalProperties": false,
+                "title": "NotePageCreateInput",
+                "type": "object"
+            },
+            "NotePageUpdateInput": {
+                "properties": {
+                    "id": {
+                        "title": "NotePageUpdateInput.id",
+                        "type": "string"
+                    },
+                    "pageIndex": {
+                        "title": "NotePageUpdateInput.pageIndex",
+                        "nullable": true,
+                        "type": "number"
+                    },
+                    "text": {
+                        "title": "NotePageUpdateInput.text",
+                        "nullable": true,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id"
+                ],
+                "additionalProperties": false,
+                "title": "NotePageUpdateInput",
+                "type": "object"
+            },
             "NoteSearchInput": {
                 "properties": {
                     "after": {
@@ -17255,9 +17335,12 @@
                         "title": "NoteVersionTranslation.name",
                         "type": "string"
                     },
-                    "text": {
-                        "title": "NoteVersionTranslation.text",
-                        "type": "string"
+                    "pages": {
+                        "items": {
+                            "$ref": "#/components/schemas/NotePage"
+                        },
+                        "title": "NoteVersionTranslation.pages",
+                        "type": "array"
                     }
                 },
                 "required": [
@@ -17265,7 +17348,7 @@
                     "id",
                     "language",
                     "name",
-                    "text"
+                    "pages"
                 ],
                 "additionalProperties": false,
                 "title": "NoteVersionTranslation",
@@ -17290,16 +17373,27 @@
                         "title": "NoteVersionTranslationCreateInput.name",
                         "type": "string"
                     },
-                    "text": {
-                        "title": "NoteVersionTranslationCreateInput.text",
-                        "type": "string"
+                    "pagesCreate": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/NotePageCreateInput"
+                                },
+                                "title": "NoteVersionTranslationCreateInput.pagesCreate",
+                                "type": "array"
+                            },
+                            {
+                                "title": "NoteVersionTranslationCreateInput.pagesCreate",
+                                "nullable": true
+                            }
+                        ],
+                        "title": "NoteVersionTranslationCreateInput.pagesCreate"
                     }
                 },
                 "required": [
                     "id",
                     "language",
-                    "name",
-                    "text"
+                    "name"
                 ],
                 "additionalProperties": false,
                 "title": "NoteVersionTranslationCreateInput",
@@ -17325,10 +17419,53 @@
                         "nullable": true,
                         "type": "string"
                     },
-                    "text": {
-                        "title": "NoteVersionTranslationUpdateInput.text",
-                        "nullable": true,
-                        "type": "string"
+                    "pagesCreate": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/NotePageCreateInput"
+                                },
+                                "title": "NoteVersionTranslationUpdateInput.pagesCreate",
+                                "type": "array"
+                            },
+                            {
+                                "title": "NoteVersionTranslationUpdateInput.pagesCreate",
+                                "nullable": true
+                            }
+                        ],
+                        "title": "NoteVersionTranslationUpdateInput.pagesCreate"
+                    },
+                    "pagesDelete": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "title": "NoteVersionTranslationUpdateInput.pagesDelete",
+                                "type": "array"
+                            },
+                            {
+                                "title": "NoteVersionTranslationUpdateInput.pagesDelete",
+                                "nullable": true
+                            }
+                        ],
+                        "title": "NoteVersionTranslationUpdateInput.pagesDelete"
+                    },
+                    "pagesUpdate": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/NotePageUpdateInput"
+                                },
+                                "title": "NoteVersionTranslationUpdateInput.pagesUpdate",
+                                "type": "array"
+                            },
+                            {
+                                "title": "NoteVersionTranslationUpdateInput.pagesUpdate",
+                                "nullable": true
+                            }
+                        ],
+                        "title": "NoteVersionTranslationUpdateInput.pagesUpdate"
                     }
                 },
                 "required": [
@@ -19905,8 +20042,166 @@
                 "title": "PhoneCreateInput",
                 "type": "object"
             },
-            "PopularInput": {
+            "Popular": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/Api",
+                        "title": "Popular"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Note",
+                        "title": "Popular"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Organization",
+                        "title": "Popular"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Project",
+                        "title": "Popular"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Question",
+                        "title": "Popular"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Routine",
+                        "title": "Popular"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SmartContract",
+                        "title": "Popular"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Standard",
+                        "title": "Popular"
+                    },
+                    {
+                        "$ref": "#/components/schemas/User",
+                        "title": "Popular"
+                    }
+                ],
+                "title": "Popular"
+            },
+            "PopularEdge": {
                 "properties": {
+                    "__typename": {
+                        "title": "PopularEdge.__typename",
+                        "enum": [
+                            "PopularEdge"
+                        ],
+                        "type": "string"
+                    },
+                    "cursor": {
+                        "title": "PopularEdge.cursor",
+                        "type": "string"
+                    },
+                    "node": {
+                        "$ref": "#/components/schemas/Popular",
+                        "title": "PopularEdge.node"
+                    }
+                },
+                "required": [
+                    "__typename",
+                    "cursor",
+                    "node"
+                ],
+                "additionalProperties": false,
+                "title": "PopularEdge",
+                "type": "object"
+            },
+            "PopularPageInfo": {
+                "properties": {
+                    "__typename": {
+                        "title": "PopularPageInfo.__typename",
+                        "enum": [
+                            "PopularPageInfo"
+                        ],
+                        "type": "string"
+                    },
+                    "endCursorApi": {
+                        "title": "PopularPageInfo.endCursorApi",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "endCursorNote": {
+                        "title": "PopularPageInfo.endCursorNote",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "endCursorOrganization": {
+                        "title": "PopularPageInfo.endCursorOrganization",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "endCursorProject": {
+                        "title": "PopularPageInfo.endCursorProject",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "endCursorQuestion": {
+                        "title": "PopularPageInfo.endCursorQuestion",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "endCursorRoutine": {
+                        "title": "PopularPageInfo.endCursorRoutine",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "endCursorSmartContract": {
+                        "title": "PopularPageInfo.endCursorSmartContract",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "endCursorStandard": {
+                        "title": "PopularPageInfo.endCursorStandard",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "endCursorUser": {
+                        "title": "PopularPageInfo.endCursorUser",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "hasNextPage": {
+                        "title": "PopularPageInfo.hasNextPage",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "__typename",
+                    "hasNextPage"
+                ],
+                "additionalProperties": false,
+                "title": "PopularPageInfo",
+                "type": "object"
+            },
+            "PopularSearchInput": {
+                "properties": {
+                    "apiAfter": {
+                        "title": "PopularSearchInput.apiAfter",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "createdTimeFrame": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TimeFrame",
+                                "title": "PopularSearchInput.createdTimeFrame"
+                            },
+                            {
+                                "title": "PopularSearchInput.createdTimeFrame",
+                                "nullable": true
+                            }
+                        ],
+                        "title": "PopularSearchInput.createdTimeFrame"
+                    },
+                    "noteAfter": {
+                        "title": "PopularSearchInput.noteAfter",
+                        "nullable": true,
+                        "type": "string"
+                    },
                     "objectType": {
                         "anyOf": [
                             {
@@ -19921,18 +20216,44 @@
                                     "Standard",
                                     "User"
                                 ],
-                                "title": "PopularInput.objectType",
+                                "title": "PopularSearchInput.objectType",
                                 "type": "string"
                             },
                             {
-                                "title": "PopularInput.objectType",
+                                "title": "PopularSearchInput.objectType",
                                 "nullable": true
                             }
                         ],
-                        "title": "PopularInput.objectType"
+                        "title": "PopularSearchInput.objectType"
+                    },
+                    "organizationAfter": {
+                        "title": "PopularSearchInput.organizationAfter",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "projectAfter": {
+                        "title": "PopularSearchInput.projectAfter",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "questionAfter": {
+                        "title": "PopularSearchInput.questionAfter",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "routineAfter": {
+                        "title": "PopularSearchInput.routineAfter",
+                        "nullable": true,
+                        "type": "string"
                     },
                     "searchString": {
-                        "title": "PopularInput.searchString",
+                        "title": "PopularSearchInput.searchString",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "smartContractAfter": {
+                        "title": "PopularSearchInput.smartContractAfter",
+                        "nullable": true,
                         "type": "string"
                     },
                     "sortBy": {
@@ -19944,116 +20265,96 @@
                                     "ViewsAsc",
                                     "ViewsDesc"
                                 ],
-                                "title": "PopularInput.sortBy",
+                                "title": "PopularSearchInput.sortBy",
                                 "type": "string"
                             },
                             {
-                                "title": "PopularInput.sortBy",
+                                "title": "PopularSearchInput.sortBy",
                                 "nullable": true
                             }
                         ],
-                        "title": "PopularInput.sortBy"
+                        "title": "PopularSearchInput.sortBy"
+                    },
+                    "standardAfter": {
+                        "title": "PopularSearchInput.standardAfter",
+                        "nullable": true,
+                        "type": "string"
                     },
                     "take": {
-                        "title": "PopularInput.take",
+                        "title": "PopularSearchInput.take",
                         "nullable": true,
                         "type": "number"
+                    },
+                    "updatedTimeFrame": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TimeFrame",
+                                "title": "PopularSearchInput.updatedTimeFrame"
+                            },
+                            {
+                                "title": "PopularSearchInput.updatedTimeFrame",
+                                "nullable": true
+                            }
+                        ],
+                        "title": "PopularSearchInput.updatedTimeFrame"
+                    },
+                    "userAfter": {
+                        "title": "PopularSearchInput.userAfter",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "visibility": {
+                        "anyOf": [
+                            {
+                                "enum": [
+                                    "All",
+                                    "Own",
+                                    "Private",
+                                    "Public"
+                                ],
+                                "title": "PopularSearchInput.visibility",
+                                "type": "string"
+                            },
+                            {
+                                "title": "PopularSearchInput.visibility",
+                                "nullable": true
+                            }
+                        ],
+                        "title": "PopularSearchInput.visibility"
                     }
                 },
-                "required": [
-                    "searchString"
-                ],
                 "additionalProperties": false,
-                "title": "PopularInput",
+                "title": "PopularSearchInput",
                 "type": "object"
             },
-            "PopularResult": {
+            "PopularSearchResult": {
                 "properties": {
                     "__typename": {
-                        "title": "PopularResult.__typename",
+                        "title": "PopularSearchResult.__typename",
                         "enum": [
-                            "PopularResult"
+                            "PopularSearchResult"
                         ],
                         "type": "string"
                     },
-                    "apis": {
+                    "edges": {
                         "items": {
-                            "$ref": "#/components/schemas/Api"
+                            "$ref": "#/components/schemas/PopularEdge"
                         },
-                        "title": "PopularResult.apis",
+                        "title": "PopularSearchResult.edges",
                         "type": "array"
                     },
-                    "notes": {
-                        "items": {
-                            "$ref": "#/components/schemas/Note"
-                        },
-                        "title": "PopularResult.notes",
-                        "type": "array"
-                    },
-                    "organizations": {
-                        "items": {
-                            "$ref": "#/components/schemas/Organization"
-                        },
-                        "title": "PopularResult.organizations",
-                        "type": "array"
-                    },
-                    "projects": {
-                        "items": {
-                            "$ref": "#/components/schemas/Project"
-                        },
-                        "title": "PopularResult.projects",
-                        "type": "array"
-                    },
-                    "questions": {
-                        "items": {
-                            "$ref": "#/components/schemas/Question"
-                        },
-                        "title": "PopularResult.questions",
-                        "type": "array"
-                    },
-                    "routines": {
-                        "items": {
-                            "$ref": "#/components/schemas/Routine"
-                        },
-                        "title": "PopularResult.routines",
-                        "type": "array"
-                    },
-                    "smartContracts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SmartContract"
-                        },
-                        "title": "PopularResult.smartContracts",
-                        "type": "array"
-                    },
-                    "standards": {
-                        "items": {
-                            "$ref": "#/components/schemas/Standard"
-                        },
-                        "title": "PopularResult.standards",
-                        "type": "array"
-                    },
-                    "users": {
-                        "items": {
-                            "$ref": "#/components/schemas/User"
-                        },
-                        "title": "PopularResult.users",
-                        "type": "array"
+                    "pageInfo": {
+                        "$ref": "#/components/schemas/PopularPageInfo",
+                        "title": "PopularSearchResult.pageInfo"
                     }
                 },
                 "required": [
                     "__typename",
-                    "apis",
-                    "notes",
-                    "organizations",
-                    "projects",
-                    "questions",
-                    "routines",
-                    "smartContracts",
-                    "standards",
-                    "users"
+                    "edges",
+                    "pageInfo"
                 ],
                 "additionalProperties": false,
-                "title": "PopularResult",
+                "title": "PopularSearchResult",
                 "type": "object"
             },
             "Post": {

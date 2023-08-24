@@ -12,6 +12,7 @@ export type EndpointsTranslate = {
 export const TranslateEndpoints: EndpointsTranslate = {
     Query: {
         translate: async (_, { input }, { prisma, req }, info) => {
+            return {} as any;
             throw new CustomError("0328", "NotImplemented", req.session.languages);
             // Get IETF subtags for source and target languages
             const sourceTag = input.languageSource.split("-")[0];

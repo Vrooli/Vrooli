@@ -7,31 +7,33 @@ import { TIDCardProps } from "../types";
 export const TIDCard = ({
     buttonText,
     description,
-    key,
     Icon,
     id,
     onClick,
     title,
+    ...props
 }: TIDCardProps) => {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
 
     return (
         <Box
-            key={key}
+            {...props}
             id={id}
             onClick={onClick}
             sx={{
                 width: "100%",
-                boxShadow: 8,
+                boxShadow: { xs: 0, sm: 4 },
                 padding: 1,
-                borderRadius: 2,
+                borderRadius: { xs: 0, sm: 2 },
                 cursor: "pointer",
                 background: palette.background.paper,
                 "&:hover": {
-                    filter: "brightness(1.1)",
-                    boxShadow: 12,
+                    filter: "brightness(1.05)",
                 },
                 display: "flex",
+                [breakpoints.down("sm")]: {
+                    borderBottom: `1px solid ${palette.divider}`,
+                },
             }}>
             {/* Left of card is icon */}
             {Icon && <Box sx={{

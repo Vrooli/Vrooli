@@ -1,10 +1,10 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, exists, Success, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { shapeBookmark } from "utils/shape/models/bookmark";
 import { useLazyFetch } from "./useLazyFetch";
 
@@ -38,14 +38,32 @@ export const useBookmarker = ({
     const closeBookmarkDialog = useCallback(() => { setIsBookmarkDialogOpen(false); }, []);
 
     const handleAdd = useCallback(() => {
+        if (!objectId) {
+            PubSub.get().publishSnack({ messageKey: "NotFound", severity: "Error" });
+            return;
+        }
         const bookmarkListId = bookmarkLists && bookmarkLists.length ? bookmarkLists[0].id : undefined;
+        console.log("adding bookmark", bookmarkListId, shapeBookmark.create({
+            id: uuid(),
+            to: {
+                __typename: BookmarkFor[objectType],
+                id: objectId,
+            },
+            list: {
+                __typename: "BookmarkList",
+                id: bookmarkListId ?? uuid(),
+                // Setting label marks this as a create, 
+                // which should only be done if there is no bookmarkListId
+                label: bookmarkListId ? undefined : "Favorites",
+            },
+        }));
         fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
             fetch: addBookmark,
             inputs: shapeBookmark.create({
                 id: uuid(),
                 to: {
                     __typename: BookmarkFor[objectType],
-                    id: objectId!,
+                    id: objectId,
                 },
                 list: {
                     __typename: "BookmarkList",

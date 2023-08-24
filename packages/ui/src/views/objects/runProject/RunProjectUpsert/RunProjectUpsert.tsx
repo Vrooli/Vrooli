@@ -2,16 +2,16 @@ import { endpointGetRunProject, endpointPostRunProject, endpointPutRunProject, R
 import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectForm, runProjectInitialValues, transformRunProjectValues, validateRunProjectValues } from "forms/RunProjectForm/RunProjectForm";
-import { useContext, useRef } from "react";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { RunProjectShape } from "utils/shape/models/runProject";
 import { RunProjectUpsertProps } from "../types";
 
@@ -21,7 +21,6 @@ export const RunProjectUpsert = ({
     onCancel,
     onCompleted,
     overrideObject,
-    zIndex,
 }: RunProjectUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -34,7 +33,6 @@ export const RunProjectUpsert = ({
         transform: (existing) => runProjectInitialValues(session, existing),
     });
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -49,20 +47,19 @@ export const RunProjectUpsert = ({
         onCancel,
         onCompleted,
     });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="run-project-upsert-dialog"
             isOpen={isOpen ?? false}
-            onClose={handleCancel}
-            zIndex={zIndex}
+            onClose={handleClose}
         >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(isCreate ? "CreateRun" : "UpdateRun")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -87,8 +84,8 @@ export const RunProjectUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

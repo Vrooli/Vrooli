@@ -28,7 +28,6 @@ export const LinkDialog = ({
     nodeFrom,
     nodeTo,
     routineVersion,
-    zIndex,
 }: LinkDialogProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -187,14 +186,12 @@ export const LinkDialog = ({
             isOpen={isOpen}
             onClose={handleCancel}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 title={t(isAdd ? "LinkAdd" : "LinkEdit")}
                 help={helpText}
                 onClose={handleCancel}
-                zIndex={zIndex}
             />
             <DialogContent sx={{
                 marginBottom: "64px",
@@ -209,7 +206,6 @@ export const LinkDialog = ({
                 isCreate={isAdd}
                 onCancel={handleCancel}
                 onSubmit={addLink}
-                zIndex={zIndex}
             />
         </LargeDialog>
     );

@@ -15,7 +15,6 @@ import { FocusModeButtonProps } from "../types";
 export function FocusModeButton({
     isEditing,
     objectType,
-    zIndex,
 }: FocusModeButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -23,7 +22,7 @@ export function FocusModeButton({
 
     const [field, , helpers] = useField("focusMode");
 
-    const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
+    const isAvailable = useMemo(() => ["Reminder", "Schedule"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
 
     // Focus mode dialog
     const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
@@ -83,7 +82,6 @@ export function FocusModeButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"

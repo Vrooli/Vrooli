@@ -5,17 +5,16 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsPrivacyForm } from "forms/settings";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useProfileQuery } from "hooks/useProfileQuery";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { SettingsPrivacyViewProps } from "../types";
 
 export const SettingsPrivacyView = ({
     isOpen,
     onClose,
-    zIndex,
 }: SettingsPrivacyViewProps) => {
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
@@ -29,7 +28,6 @@ export const SettingsPrivacyView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Authentication")}
-                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />
@@ -64,7 +62,6 @@ export const SettingsPrivacyView = ({
                             display={display}
                             isLoading={isProfileLoading || isUpdating}
                             onCancel={formik.resetForm}
-                            zIndex={zIndex}
                             {...formik}
                         />}
                     </Formik>

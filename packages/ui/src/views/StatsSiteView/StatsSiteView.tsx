@@ -1,19 +1,19 @@
 import { CommonKey, endpointGetStatsSite, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
-import { Box, Divider, List, ListItem, ListItemText, Typography, useTheme } from "@mui/material";
+import { Card, CardContent, Typography, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
 import { LineGraphCard } from "components/lists/LineGraphCard/LineGraphCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
 import { statsDisplay } from "utils/display/statsDisplay";
 import { displayDate } from "utils/display/stringTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { PageTab, useTabs } from "utils/hooks/useTabs";
 import { StatsSiteViewProps } from "../types";
 
 /**
@@ -84,9 +84,8 @@ const MIN_DATE = new Date(2023, 1, 1);
 export const StatsSiteView = ({
     isOpen,
     onClose,
-    zIndex,
 }: StatsSiteViewProps) => {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
 
@@ -144,48 +143,83 @@ export const StatsSiteView = ({
     // Shape stats data for display.
     const { aggregate, visual } = useMemo(() => statsDisplay(stats), [stats]);
 
+    // Create a card for each aggregate stat
+    const aggregateCards = useMemo(() => (
+        Object.entries(aggregate).map(([field, value], index) => {
+            // Uppercase first letter of field name
+            const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+            const title = t(fieldName, { count: 2, ns: "common", defaultValue: field });
+            return (
+                <Card sx={{
+                    width: "100%",
+                    height: "100%",
+                    background: palette.background.paper,
+                    color: palette.background.textPrimary,
+                    boxShadow: 0,
+                    borderRadius: { xs: 0, sm: 2 },
+                    margin: 0,
+                    [breakpoints.down("sm")]: {
+                        borderBottom: `1px solid ${palette.divider}`,
+                    },
+                }}>
+                    <CardContent sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        height: "100%",
+                    }}>
+                        {/* TODO add brone, silver, gold, etc. AwardIcon depending on tier */}
+                        <Typography
+                            variant="h6"
+                            component="h2"
+                            textAlign="center"
+                            mb={2}
+                        >{title}</Typography>
+                        <Typography
+                            variant="body2"
+                            component="p"
+                            textAlign="center"
+                            color="text.secondary"
+                        >{value}</Typography>
+                    </CardContent>
+                </Card>
+            );
+        })
+    ), [aggregate, breakpoints, palette.background.paper, palette.background.textPrimary, palette.divider, t]);
+
     // Create a line graph card for each visual stat
-    const cards = useMemo(() => (
+    const graphCards = useMemo(() => (
         Object.entries(visual).map(([field, data], index) => {
             if (data.length === 0) return null;
             // Uppercase first letter of field name
             const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
             const title = t(fieldName, { count: 2, ns: "common", defaultValue: field });
             return (
-                <Box
+                <LineGraphCard
+                    data={data}
                     key={index}
-                    sx={{
-                        margin: 2,
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                    }}
-                >
-                    <LineGraphCard
-                        data={data}
-                        index={index}
-                        lineColor='white'
-                        title={title}
-                        zIndex={zIndex}
-                    />
-                </Box>
+                    index={index}
+                    lineColor='white'
+                    title={title}
+                />
             );
         })
-    ), [t, visual, zIndex]);
+    ), [t, visual]);
 
     return (
         <>
             <TopBar
                 display={display}
+                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={t("StatisticsShort")}
                 below={<PageTabs
                     ariaLabel="stats-period-tabs"
                     currTab={currTab}
+                    fullWidth={true}
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
-                zIndex={zIndex}
             />
             {/* Date range picker */}
             <DateRangeMenu
@@ -196,7 +230,6 @@ export const StatsSiteView = ({
                 onSubmit={handleDateRangeSubmit}
                 range={period}
                 strictIntervalRange={tabPeriods[currTab.tabType]}
-                zIndex={zIndex}
             />
             {/* Date range diplay */}
             <Typography
@@ -218,32 +251,16 @@ export const StatsSiteView = ({
                         justifyContent: "center",
                     },
                 }}
-                zIndex={zIndex}
             >
-                <List sx={{
-                    background: palette.background.paper,
-                    borderRadius: 2,
-                    maxWidth: 400,
-                    margin: "auto",
-                }}>
-                    {Object.entries(aggregate).map(([field, value], index) => {
-                        // Uppercase first letter of field name
-                        const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
-                        const title = t(fieldName, { count: 2, ns: "common", defaultValue: field });
-                        return (
-                            <>
-                                <ListItem key={index}>
-                                    <ListItemText
-                                        primary={title}
-                                        secondary={value}
-                                    />
-                                </ListItem>
-                                {/* Do not add a divider after the last item */}
-                                {index !== Object.entries(aggregate).length - 1 && <Divider />}
-                            </>
-                        );
-                    })}
-                </List>
+                {stats.length === 0 && <Typography
+                    variant="body1"
+                    textAlign="center"
+                    color="text.secondary"
+                    sx={{ marginTop: 4 }}
+                >{t("NoData")}</Typography>}
+                {aggregateCards.length > 0 && <CardGrid minWidth={300}>
+                    {aggregateCards}
+                </CardGrid>}
             </ContentCollapse>
 
             {/* Line graph cards */}
@@ -255,11 +272,16 @@ export const StatsSiteView = ({
                         justifyContent: "center",
                     },
                 }}
-                zIndex={zIndex}
             >
-                <CardGrid minWidth={275}>
-                    {cards}
-                </CardGrid>
+                {graphCards.length === 0 && <Typography
+                    variant="body1"
+                    textAlign="center"
+                    color="text.secondary"
+                    sx={{ marginTop: 4 }}
+                >{t("NoData")}</Typography>}
+                {graphCards.length > 0 && <CardGrid minWidth={300}>
+                    {graphCards}
+                </CardGrid>}
             </ContentCollapse>
         </>
     );

@@ -6,11 +6,11 @@ import { ChatBubbleStatus } from "components/ChatBubbleStatus/ChatBubbleStatus";
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
+import { SessionContext } from "contexts/SessionContext";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { BotIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { SessionContext } from "utils/SessionContext";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
 
 export const ChatBubble = ({
@@ -18,7 +18,6 @@ export const ChatBubble = ({
     isOwn,
     message,
     onUpdated,
-    zIndex,
 }: ChatBubbleProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -138,8 +137,8 @@ export const ChatBubble = ({
                         sx={{
                             whiteSpace: "pre-wrap",
                             wordWrap: "break-word",
+                            minHeight: "50px",
                         }}
-                        zIndex={zIndex}
                     /> : <>
                         <MarkdownInputBase
                             fullWidth
@@ -148,7 +147,6 @@ export const ChatBubble = ({
                             name="edit-message"
                             onChange={(updatedText) => setEditingText(updatedText)}
                             value={editingText ?? ""}
-                            zIndex={zIndex}
                         />
                         <Grid container spacing={1} mt={2}>
                             <GridSubmitButtons
@@ -163,7 +161,6 @@ export const ChatBubble = ({
                                 onSubmit={() => {
                                     finishEditing();
                                 }}
-                                zIndex={zIndex}
                             />
                         </Grid>
                     </>

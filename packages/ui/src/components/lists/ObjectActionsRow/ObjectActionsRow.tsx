@@ -1,12 +1,12 @@
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { SessionContext } from "contexts/SessionContext";
 import { EllipsisIcon } from "icons";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, ObjectAction } from "utils/actions/objectActions";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
 import { ObjectActionsRowProps } from "../types";
 
 const commonButtonSx = (palette: Palette) => ({
@@ -29,7 +29,6 @@ export const ObjectActionsRow = <T extends ListObject>({
     actionData,
     exclude,
     object,
-    zIndex,
 }: ObjectActionsRowProps<T>) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -103,7 +102,6 @@ export const ObjectActionsRow = <T extends ListObject>({
             <ObjectActionDialogs
                 {...actionData}
                 object={object}
-                zIndex={zIndex + 1}
             />
             {/* Displayed actions */}
             {actions}
@@ -114,7 +112,6 @@ export const ObjectActionsRow = <T extends ListObject>({
                 exclude={[...(exclude ?? []), ...actionsDisplayed]}
                 object={object}
                 onClose={closeOverflowMenu}
-                zIndex={zIndex + 1}
             />}
         </Stack>
     );
