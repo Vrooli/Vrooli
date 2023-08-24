@@ -3,11 +3,11 @@ import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteForm, noteInitialValues, transformNoteValues, validateNoteValues } from "forms/NoteForm/NoteForm";
+import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useContext, useRef } from "react";
+import { useContext } from "react";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { NoteVersionShape } from "utils/shape/models/noteVersion";
@@ -30,7 +30,6 @@ export const NoteUpsert = ({
         transform: (data) => noteInitialValues(session, data),
     });
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -45,13 +44,14 @@ export const NoteUpsert = ({
         onCancel,
         onCompleted,
     });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="note-upsert-dialog"
             isOpen={isOpen ?? false}
-            onClose={handleCancel}
+            onClose={handleClose}
         >
             <Formik
                 enableReinitialize={true}
@@ -77,6 +77,7 @@ export const NoteUpsert = ({
                         isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                         isOpen={true}
                         onCancel={handleCancel}
+                        onClose={handleClose}
                         ref={formRef}
                         versions={[]}
                         {...formik}

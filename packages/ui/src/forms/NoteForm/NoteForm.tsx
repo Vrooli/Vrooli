@@ -66,6 +66,7 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
     isLoading,
     isOpen,
     onCancel,
+    onClose,
     values,
     ...props
 }, ref) => {
@@ -81,12 +82,13 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
         fields: ["description", "name", "text"],
         validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
+    console.log("errors", combineErrorsWithTranslations(props.errors, translationErrors));
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={onClose}
                 title=""
                 titleComponent={<EditableTitle
                     language={language}

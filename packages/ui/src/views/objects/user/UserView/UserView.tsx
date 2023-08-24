@@ -70,7 +70,7 @@ export const UserView = ({
 }: UserViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
-    const [, setLocation] = useLocation();
+    const [location, setLocation] = useLocation();
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -78,7 +78,7 @@ export const UserView = ({
     // Parse information from URL
     const urlInfo = useMemo(() => {
         // Use common function to parse URL
-        let urlInfo = { ...parseSingleItemUrl({}), isOwnProfile: false };
+        let urlInfo = { ...parseSingleItemUrl({ url: location }), isOwnProfile: false };
         // If it returns a handle of "profile", it's not actually a handle - it's the current user
         if (urlInfo.handle === "profile" && session) {
             urlInfo.isOwnProfile = true;
@@ -86,7 +86,7 @@ export const UserView = ({
             urlInfo = { ...urlInfo, handle: currentUser?.handle ?? undefined, id: currentUser?.id };
         }
         return urlInfo;
-    }, [session]);
+    }, [location, session]);
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
     const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
     const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);

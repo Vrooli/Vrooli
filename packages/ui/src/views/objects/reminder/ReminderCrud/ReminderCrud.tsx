@@ -4,13 +4,13 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm/ReminderForm";
+import { useFormDialog } from "hooks/useFormDialog";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { DeleteIcon } from "icons";
-import { useCallback, useContext, useRef } from "react";
+import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
@@ -39,7 +39,6 @@ export const ReminderCrud = ({
     });
     console.log("reminderUpsert render", existing);
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         fetchCreate,
@@ -58,6 +57,7 @@ export const ReminderCrud = ({
         onCompleted,
         onDeleted,
     });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
@@ -99,11 +99,11 @@ export const ReminderCrud = ({
             display={display}
             id="reminder-upsert-dialog"
             isOpen={isOpen ?? false}
-            onClose={handleCancel}
+            onClose={handleClose}
         >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={firstString(getDisplay(existing).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
                 // Show delete button only when updating
                 options={!isCreate ? [{
@@ -135,6 +135,7 @@ export const ReminderCrud = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
                     {...formik}
                 />}

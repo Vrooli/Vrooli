@@ -4,7 +4,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFetch } from "hooks/useFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getLastUrlPart } from "route";
+import { getLastUrlPart, useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { ReportsViewProps } from "../types";
@@ -30,7 +30,8 @@ export const ReportsView = ({
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
 
-    const { id } = useMemo(() => parseSingleItemUrl({}), []);
+    const [location] = useLocation();
+    const { id } = useMemo(() => parseSingleItemUrl({ url: location }), [location]);
     const objectType = useMemo(() => getLastUrlPart({ offset: 1 }), []);
 
     const { data } = useFetch<ReportSearchInput, ReportSearchResult>({

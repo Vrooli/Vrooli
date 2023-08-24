@@ -35,7 +35,7 @@ export const resourceInitialValues = (
     list: {
         __typename: "ResourceList" as const,
         ...existing.list,
-        id: existing.list.id ?? DUMMY_ID,
+        id: existing.list?.id ?? DUMMY_ID,
     },
     translations: orDefault(existing.translations, [{
         __typename: "ResourceTranslation" as const,

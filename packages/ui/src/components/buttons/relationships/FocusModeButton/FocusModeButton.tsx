@@ -22,7 +22,7 @@ export function FocusModeButton({
 
     const [field, , helpers] = useField("focusMode");
 
-    const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
+    const isAvailable = useMemo(() => ["Reminder", "Schedule"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
 
     // Focus mode dialog
     const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<Element>) => {

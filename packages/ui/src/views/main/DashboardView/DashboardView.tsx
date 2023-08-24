@@ -1,4 +1,4 @@
-import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, NoteVersion, Reminder, ResourceList, uuid } from "@local/shared";
+import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, Reminder, ResourceList, uuid } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
@@ -28,7 +28,6 @@ import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
-import { NoteUpsert } from "views/objects/note";
 import { DashboardViewProps } from "../types";
 
 /** View displayed for Home page when logged in */
@@ -187,16 +186,7 @@ export const DashboardView = ({
         }
     }, [data]);
 
-    const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
-    const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
-    const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false); }, []);
-    const onNoteCreated = useCallback((note: NoteVersion) => {
-        closeCreateNote();
-        // Convert NoteVersion to Note before adding to list
-        const { root, ...rest } = note;
-        const asRoot = { ...root, versions: [note] };
-        setNotes(n => [asRoot, ...n]);
-    }, [closeCreateNote]);
+    const openCreateNote = useCallback(() => { setLocation(`${LINKS.Note}/add`); }, []);
 
     // Calculate upcoming events using schedules 
     const upcomingEvents = useMemo(() => {
@@ -227,14 +217,6 @@ export const DashboardView = ({
 
     return (
         <PageContainer>
-            {/* Create note dialog */}
-            <NoteUpsert
-                isCreate={true}
-                isOpen={isCreateNoteOpen}
-                onCancel={closeCreateNote}
-                onCompleted={onNoteCreated}
-                overrideObject={{ __typename: "NoteVersion" }}
-            />
             {/* Main content */}
             <TopBar
                 display={display}

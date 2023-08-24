@@ -3,6 +3,7 @@ import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, 
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -115,6 +116,10 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                     ref={ref}
                 >
                     <FormContainer>
+                        <RelationshipList
+                            isEditing={true}
+                            objectType={"Reminder"}
+                        />
                         <Field
                             fullWidth
                             name="name"

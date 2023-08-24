@@ -1,5 +1,4 @@
 import { DUMMY_ID, orDefault, Organization, organizationTranslationValidation, organizationValidation, Session } from "@local/shared";
-import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
@@ -59,7 +58,6 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations

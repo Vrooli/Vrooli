@@ -4,11 +4,11 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { QuestionForm, questionInitialValues, transformQuestionValues, validateQuestionValues } from "forms/QuestionForm/QuestionForm";
+import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useContext, useRef } from "react";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
@@ -33,7 +33,6 @@ export const QuestionUpsert = ({
         transform: (existing) => questionInitialValues(session, existing),
     });
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -48,17 +47,18 @@ export const QuestionUpsert = ({
         onCancel,
         onCompleted,
     });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="question-upsert-dialog"
             isOpen={isOpen ?? false}
-            onClose={handleCancel}
+            onClose={handleClose}
         >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(isCreate ? "CreateQuestion" : "UpdateQuestion")}
             />
             <Formik
@@ -87,6 +87,7 @@ export const QuestionUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
                     {...formik}
                 />}

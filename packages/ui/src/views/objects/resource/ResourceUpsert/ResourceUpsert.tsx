@@ -4,11 +4,11 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NewResourceShape, ResourceForm, resourceInitialValues, transformResourceValues, validateResourceValues } from "forms/ResourceForm/ResourceForm";
+import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useContext, useRef } from "react";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
@@ -34,7 +34,6 @@ export const ResourceUpsert = ({
         transform: (existing) => resourceInitialValues(session, existing as NewResourceShape),
     });
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -49,23 +48,18 @@ export const ResourceUpsert = ({
         onCancel,
         onCompleted,
     });
-
-    // TODO add this back, and add to every other upsert. Can make a hook for it, or pass an "isDirty" to the dialog or something
-    // const handleClose = useCallback((_?: unknown, reason?: "backdropClick" | "escapeKeyDown") => {
-    //     // Confirm dialog is dirty and closed by clicking outside
-    //     formRef.current?.handleClose(onClose, reason !== "backdropClick");
-    // }, [onClose]);
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="resource-upsert-dialog"
             isOpen={isOpen ?? false}
-            onClose={handleCancel}
+            onClose={handleClose}
         >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={isCreate ? t("CreateResource") : t("UpdateResource")}
                 help={t("ResourceHelp")}
             />
@@ -101,6 +95,7 @@ export const ResourceUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
                     {...formik}
                 />}

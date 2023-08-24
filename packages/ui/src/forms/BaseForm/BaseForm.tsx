@@ -24,9 +24,9 @@ export const BaseForm = forwardRef<BaseFormRef | undefined, BaseFormProps>(({
         }
     }, [promptBeforeUnload, dirty]);
 
-    // Alert user if they try to close/refresh the tab with unsaved changes
+    // Alert user if they try to close/refresh the tab with unsaved changes.
+    // NOTE: This only works for pages. Dialogs must implement their own logic.
     usePromptBeforeUnload({ shouldPrompt: promptBeforeUnload && dirty });
-    // Alert user if they try to close the dialog (if the form is in one) with unsaved changes
     const handleClose = useCallback((onClose: () => void, closeAnyway?: boolean) => {
         if (dirty && closeAnyway !== true) {
             if (window.confirm("You have unsaved changes. Are you sure you want to close?")) {

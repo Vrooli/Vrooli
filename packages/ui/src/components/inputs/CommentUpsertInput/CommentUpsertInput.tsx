@@ -4,11 +4,11 @@ import { fetchLazyWrapper } from "api";
 import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { CommentForm, commentInitialValues, transformCommentValues, validateCommentValues } from "forms/CommentForm/CommentForm";
+import { useFormDialog } from "hooks/useFormDialog";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useWindowSize } from "hooks/useWindowSize";
-import { useContext, useMemo, useRef } from "react";
+import { useContext, useMemo } from "react";
 import { CommentUpsertInputProps } from "../types";
 
 /**
@@ -30,7 +30,6 @@ export const CommentUpsertInput = ({
 
     const initialValues = useMemo(() => commentInitialValues(session, objectType, objectId, language, comment), [comment, language, objectId, objectType, session]);
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -45,6 +44,7 @@ export const CommentUpsertInput = ({
         onCancel,
         onCompleted,
     });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <Formik
@@ -73,6 +73,7 @@ export const CommentUpsertInput = ({
                     isLoading={isCreateLoading || isUpdateLoading}
                     isOpen={isOpen}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     parent={parent}
                     ref={formRef}
                     {...formik}
@@ -83,6 +84,7 @@ export const CommentUpsertInput = ({
                     isLoading={isCreateLoading || isUpdateLoading}
                     isOpen={isOpen}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
                     {...formik}
                 />;

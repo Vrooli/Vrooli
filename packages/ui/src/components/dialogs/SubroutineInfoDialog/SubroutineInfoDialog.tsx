@@ -1,8 +1,8 @@
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { SubroutineForm, subroutineInitialValues, validateSubroutineValues } from "forms/SubroutineForm/SubroutineForm";
-import { useContext, useMemo, useRef } from "react";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useContext, useMemo } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { SubroutineInfoDialogProps } from "../types";
@@ -31,7 +31,7 @@ export const SubroutineInfoDialog = ({
         return { subroutine, numSubroutines: data.node.routineList.items.length };
     }, [data]);
 
-    const formRef = useRef<BaseFormRef>();
+    const { formRef, handleClose } = useFormDialog({ handleCancel: onClose });
     const initialValues = useMemo(() => subroutineInitialValues(session, subroutine), [subroutine, session]);
 
     const canUpdate = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.root?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canUpdate === true), [isEditing, subroutine?.routineVersion?.root?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canUpdate, userId]);
@@ -65,6 +65,7 @@ export const SubroutineInfoDialog = ({
                     isOpen={true}
                     numSubroutines={numSubroutines}
                     onCancel={onClose}
+                    onClose={handleClose}
                     ref={formRef}
                     versions={[]}
                     {...formik}

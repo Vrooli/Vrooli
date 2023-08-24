@@ -54,6 +54,7 @@ export interface BaseObjectFormProps<T> extends FormikProps<T> {
     isLoading: boolean;
     isOpen: boolean;
     onCancel: () => unknown;
+    onClose: () => unknown;
     ref: React.RefObject<any>;
 }
 

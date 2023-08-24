@@ -325,7 +325,6 @@ export const ChatView = ({
                     {(formik) => <>
                         <TopBar
                             display={display}
-                            // hideTitleOnDesktop={true}
                             onClose={() => {
                                 if (formik.values.editingMessage.trim().length > 0) {
                                     PubSub.get().publishAlertDialog({
@@ -352,8 +351,16 @@ export const ChatView = ({
                             >
                                 <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
                             </IconButton>}
-                            // TODO change title so that when pressed, you can switch chats or add a new chat
+                            // TODO component needs to be wrapped in parent with formik for editable title, so we can use useTranslatedFields hook
                             title={firstString(title, botSettings ? "AI Chat" : "Chat")}
+                        //             titleComponent={<EditableTitle
+                        //     language={language}
+                        //     titleField="name"
+                        //     subtitleField="description"
+                        //     validationEnabled={false}
+                        //     variant="subheader"
+                        //     sxs={{ stack: { padding: 0 } }}
+                        // />}
                         />
                         <Box sx={{
                             overflowY: "auto",

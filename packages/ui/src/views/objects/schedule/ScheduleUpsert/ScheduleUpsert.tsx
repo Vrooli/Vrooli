@@ -5,12 +5,12 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleForm, scheduleInitialValues, transformScheduleValues, validateScheduleValues } from "forms/ScheduleForm/ScheduleForm";
+import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTabs } from "hooks/useTabs";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useContext, useRef } from "react";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
@@ -67,7 +67,6 @@ export const ScheduleUpsert = ({
         } as Schedule),
     });
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -82,17 +81,18 @@ export const ScheduleUpsert = ({
         onCancel,
         onCompleted,
     });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="schedule-upsert-dialog"
             isOpen={isOpen ?? false}
-            onClose={handleCancel}
+            onClose={handleClose}
         >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(`${isCreate ? "Create" : "Update"}${currTab.tabType}` as any)}
                 // Can only link to an object when creating
                 below={isCreate && canChangeTab && <PageTabs
@@ -135,6 +135,7 @@ export const ScheduleUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
                     {...formik}
                 />}

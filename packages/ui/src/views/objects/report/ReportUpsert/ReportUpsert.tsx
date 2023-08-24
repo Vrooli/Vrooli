@@ -5,12 +5,12 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NewReportShape, ReportForm, reportInitialValues, transformReportValues, validateReportValues } from "forms/ReportForm/ReportForm";
 import { formNavLink } from "forms/styles";
+import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useCallback, useContext, useRef } from "react";
+import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
 import { toDisplay } from "utils/display/pageTools";
@@ -36,7 +36,6 @@ export const ReportUpsert = ({
         transform: (existing) => reportInitialValues(session, existing as NewReportShape),
     });
 
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -51,6 +50,7 @@ export const ReportUpsert = ({
         onCancel,
         onCompleted,
     });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     /**
      * Opens existing reports in a new tab
@@ -64,11 +64,11 @@ export const ReportUpsert = ({
             display={display}
             id="report-upsert-dialog"
             isOpen={isOpen ?? false}
-            onClose={handleCancel}
+            onClose={handleClose}
         >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t("Report", { count: 1 })}
                 help={t("ReportsHelp")}
             />
@@ -105,6 +105,7 @@ export const ReportUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
                     {...formik}
                 />}
