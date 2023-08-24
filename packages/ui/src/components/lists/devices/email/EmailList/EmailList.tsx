@@ -2,9 +2,8 @@
  * Displays a list of emails for the user to manage
  */
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
-import { Stack, TextField, useTheme } from "@mui/material";
+import { IconButton, Stack, TextField, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useFormik } from "formik";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -133,16 +132,16 @@ export const EmailList = ({
                         },
                     }}
                 />
-                <ColorIconButton
+                <IconButton
                     aria-label='add-new-email-button'
-                    background={palette.secondary.main}
                     type='submit'
                     sx={{
+                        background: palette.secondary.main,
                         borderRadius: "0 5px 5px 0",
                         height: "56px",
                     }}>
                     <AddIcon />
-                </ColorIconButton>
+                </IconButton>
             </Stack>
         </form>
     );

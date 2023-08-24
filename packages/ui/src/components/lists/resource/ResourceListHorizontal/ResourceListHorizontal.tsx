@@ -1,9 +1,8 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
 import { CommonKey, Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource, ResourceUsedFor } from "@local/shared";
-import { Box, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { SessionContext } from "contexts/SessionContext";
 import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
@@ -122,22 +121,20 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
                 {canUpdate && (
                     <>
                         <Tooltip title={t("Edit")}>
-                            <ColorIconButton
+                            <IconButton
                                 id='edit-icon-button'
-                                background='#c5ab17'
-                                sx={{ position: "absolute", top: 4, left: 4 }}
+                                sx={{ background: "#c5ab17", position: "absolute", top: 4, left: 4 }}
                             >
                                 <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
-                            </ColorIconButton>
+                            </IconButton>
                         </Tooltip>
                         <Tooltip title={t("Delete")}>
-                            <ColorIconButton
+                            <IconButton
                                 id='delete-icon-button'
-                                background={palette.error.main}
-                                sx={{ position: "absolute", top: 4, right: 4 }}
+                                sx={{ background: palette.error.main, position: "absolute", top: 4, right: 4 }}
                             >
                                 <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
-                            </ColorIconButton>
+                            </IconButton>
                         </Tooltip>
                     </>
                 )}

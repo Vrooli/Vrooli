@@ -1,5 +1,4 @@
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
 import { InvisibleIcon, VisibleIcon } from "icons";
@@ -43,13 +42,12 @@ export function IsPrivateButton({
         >
             <TextShrink id="privacy" sx={{ ...commonLabelProps() }}>{t(field?.value ? "Private" : "Public")}</TextShrink>
             <Tooltip title={tooltip}>
-                <ColorIconButton
-                    background={palette.primary.light}
-                    sx={{ ...smallButtonProps(isEditing, false) }}
+                <IconButton
                     onClick={handleClick}
+                    sx={{ ...smallButtonProps(isEditing, false), background: palette.primary.light }}
                 >
                     {Icon && <Icon {...commonIconProps()} />}
-                </ColorIconButton>
+                </IconButton>
             </Tooltip>
         </Stack>
     );

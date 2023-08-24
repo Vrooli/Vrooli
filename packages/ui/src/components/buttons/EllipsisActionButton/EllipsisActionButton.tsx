@@ -1,8 +1,7 @@
-import { Collapse, Stack, Tooltip, useTheme } from "@mui/material";
+import { Collapse, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { CloseIcon, EllipsisIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { EllipsisActionButtonProps } from "../types";
 
 export function EllipsisActionButton({
@@ -36,18 +35,19 @@ export function EllipsisActionButton({
                 </Stack>
             </Collapse>
             <Tooltip title={t("MoreOptions")} placement="top">
-                <ColorIconButton
+                <IconButton
                     aria-label="run-routine"
-                    background={palette.secondary.main}
+                    component="button"
                     onClick={toggleOpen}
                     sx={{
+                        background: palette.secondary.main,
                         padding: 0,
                         width: "54px",
                         height: "54px",
                     }}
                 >
                     <Icon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton>
+                </IconButton>
             </Tooltip>
         </>
     );

@@ -84,7 +84,7 @@ export const OrganizationUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
-                    onClose={handleCllose}
+                    onClose={handleClose}
                     ref={formRef}
                     {...formik}
                 />}

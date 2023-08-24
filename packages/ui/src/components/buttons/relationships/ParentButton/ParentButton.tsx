@@ -1,6 +1,5 @@
 import { exists } from "@local/shared";
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemProjectVersion, RelationshipItemRoutineVersion } from "components/lists/types";
@@ -126,13 +125,12 @@ export function ParentButton({
             >
                 <TextShrink id="parent" sx={{ ...commonLabelProps() }}>{t("Parent")}</TextShrink>
                 <Tooltip title={tooltip}>
-                    <ColorIconButton
-                        background={palette.primary.light}
-                        sx={{ ...smallButtonProps(isEditing, true) }}
+                    <IconButton
                         onClick={handleParentClick}
+                        sx={{ ...smallButtonProps(isEditing, true), background: palette.primary.light }}
                     >
                         {Icon && <Icon {...commonIconProps()} />}
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
             </Stack>
         </>

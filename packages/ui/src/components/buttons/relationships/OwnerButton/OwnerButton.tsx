@@ -1,6 +1,5 @@
 import { exists } from "@local/shared";
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
 import { ListMenuItemData, SelectOrCreateObjectType } from "components/dialogs/types";
@@ -145,13 +144,12 @@ export function OwnerButton({
             >
                 <TextShrink id="owner" sx={{ ...commonLabelProps() }}>{t("Owner")}</TextShrink>
                 <Tooltip title={tooltip}>
-                    <ColorIconButton
-                        background={palette.primary.light}
-                        sx={{ ...smallButtonProps(isEditing, true) }}
+                    <IconButton
                         onClick={handleOwnerClick}
+                        sx={{ ...smallButtonProps(isEditing, true), background: palette.primary.light }}
                     >
                         {Icon && <Icon {...commonIconProps()} />}
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
             </Stack>
         </>

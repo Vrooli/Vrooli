@@ -1,6 +1,5 @@
-import { CommonKey, FindByIdInput, FindVersionInput } from "@local/shared";
-import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { FindByIdInput, FindVersionInput } from "@local/shared";
+import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -9,7 +8,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon } from "icons";
+import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
@@ -17,10 +16,9 @@ import { removeSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
-import { CalendarPageTabOption, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
+import { CalendarPageTabOption, findObjectTabParams, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { UpsertProps } from "views/objects/types";
-import { searchViewTabParams } from "../../../views/SearchView/SearchView";
 import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));
@@ -48,36 +46,6 @@ export type FindObjectTabOption = "All" |
     SearchPageTabOption | `${SearchPageTabOption}` |
     CalendarPageTabOption | `${CalendarPageTabOption}` |
     "ApiVersion" | "NoteVersion" | "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "StandardVersion";
-
-// Data for each tab. Ordered by tab index
-const tabParams = [
-    ...searchViewTabParams,
-    {
-        Icon: FocusModeIcon,
-        titleKey: "FocusMode" as CommonKey,
-        searchType: SearchType.FocusMode,
-        tabType: CalendarPageTabOption.FocusMode,
-        where: () => ({}),
-    }, {
-        Icon: OrganizationIcon,
-        titleKey: "Meeting" as CommonKey,
-        searchType: SearchType.Meeting,
-        tabType: CalendarPageTabOption.Meeting,
-        where: () => ({}),
-    }, {
-        Icon: RoutineIcon,
-        titleKey: "RunRoutine" as CommonKey,
-        searchType: SearchType.RunRoutine,
-        tabType: CalendarPageTabOption.RunRoutine,
-        where: () => ({}),
-    }, {
-        Icon: ProjectIcon,
-        titleKey: "RunProject" as CommonKey,
-        searchType: SearchType.RunProject,
-        tabType: CalendarPageTabOption.RunProject,
-        where: () => ({}),
-    },
-];
 
 /**
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
@@ -117,7 +85,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const [, setLocation] = useLocation();
 
     const filteredTabs = useMemo(() => {
-        let filtered = tabParams;
+        let filtered = findObjectTabParams;
         // Apply limitTo filter
         if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.tabType) || limitTo.includes(`${tab.tabType}Version` as FindObjectTabOption));
         // If onlyVersioned, filter tabs which don't have a corresponding versioned search type
@@ -304,7 +272,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 onClose={() => onSelectCreateTypeClose()}
             >
                 {/* Never show 'All' */}
-                {tabParams.filter((t) => ![SearchType.Popular].includes(t.searchType)).map(tab => (
+                {findObjectTabParams.filter((t) => ![SearchType.Popular].includes(t.searchType)).map(tab => (
                     <MenuItem
                         key={tab.searchType}
                         onClick={() => onSelectCreateTypeClose(tab.searchType as SearchType)}
@@ -366,7 +334,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                                     buttonText={t("Select")}
                                     description={getDisplay(version as any).subtitle}
                                     key={index}
-                                    Icon={tabParams.find((t) => t.searchType === (version as any).__typename)?.Icon}
+                                    Icon={findObjectTabParams.find((t) => t.searchType === (version as any).__typename)?.Icon}
                                     onClick={() => onVersionSelect(version)}
                                     title={`${version.versionLabel} - ${getDisplay(version as any).title}`}
                                 />
@@ -384,12 +352,12 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     )}
                 </Box>
                 <SideActionButtons display="dialog">
-                    <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >
+                    <IconButton aria-label="filter-list" onClick={focusSearch} sx={{ background: palette.secondary.main }}>
                         <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
-                    <ColorIconButton aria-label="create-new" background={palette.secondary.main} onClick={onCreateStart}>
+                    </IconButton>
+                    <IconButton aria-label="create-new" onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 </SideActionButtons>
             </LargeDialog>
         </>

@@ -1,5 +1,4 @@
-import { Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BumpModerateIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -42,30 +41,30 @@ export function TextSizeButtons() {
                 {t("TextSize")}: {size}
             </Typography>
             <Stack direction="row" spacing={0} sx={{ paddingTop: 1, paddingBottom: 1 }}>
-                <Tooltip placement="top" title="Smaller">
-                    <ColorIconButton
-                        aria-label='shrink text'
-                        background={palette.secondary.main}
+                <Tooltip placement="top" title={t("TextShrink")}>
+                    <IconButton
+                        aria-label={t("TextShrink")}
                         onClick={handleShrink}
                         sx={{
+                            background: palette.secondary.main,
                             borderRadius: "12px 0 0 12px",
                             borderRight: `1px solid ${palette.secondary.contrastText}`,
                             height: "48px",
                         }}>
                         <BumpModerateIcon fill={palette.secondary.contrastText} style={{ transform: "rotate(180deg)" }} />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
-                <Tooltip placement="top" title="Larger">
-                    <ColorIconButton
-                        aria-label='grow text'
-                        background={palette.secondary.main}
+                <Tooltip placement="top" title={t("TextGrow")}>
+                    <IconButton
+                        aria-label={t("TextGrow")}
                         onClick={handleGrow}
                         sx={{
+                            background: palette.secondary.main,
                             borderRadius: "0 12px 12px 0",
                             height: "48px",
                         }}>
                         <BumpModerateIcon fill={palette.secondary.contrastText} />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
             </Stack>
         </Stack>

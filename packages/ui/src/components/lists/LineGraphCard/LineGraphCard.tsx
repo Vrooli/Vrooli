@@ -20,7 +20,6 @@ export const LineGraphCard = ({
             color: palette.primary.contrastText,
             margin: 0,
             borderRadius: { xs: 0, sm: 2 },
-            margin: 0,
             [breakpoints.down("sm")]: {
                 borderBottom: `1px solid ${palette.divider}`,
             },

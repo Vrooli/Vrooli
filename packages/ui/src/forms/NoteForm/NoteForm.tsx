@@ -44,6 +44,8 @@ export const noteInitialValues = (
         name: "New Note",
         pages: [{
             __typename: "NotePage" as const,
+            id: DUMMY_ID,
+            pageIndex: 0,
             text: "",
         }],
     }]),
@@ -82,7 +84,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
         fields: ["description", "name", "text"],
         validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
-    console.log("errors", combineErrorsWithTranslations(props.errors, translationErrors));
 
     return (
         <>

@@ -1,7 +1,6 @@
-import { Chat, CommonKey, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, Success } from "@local/shared";
-import { Tooltip, useTheme } from "@mui/material";
+import { Chat, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, Success } from "@local/shared";
+import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
@@ -19,21 +18,9 @@ import { openLink, useLocation } from "route";
 import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { openObject } from "utils/navigation/openObject";
-import { InboxPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { InboxPageTabOption, inboxTabParams, SearchType } from "utils/search/objectToSearch";
 import { ChatUpsert } from "views/objects/chat/ChatUpsert/ChatUpsert";
 import { InboxViewProps } from "../types";
-
-const tabParams = [{
-    titleKey: "Message" as CommonKey,
-    searchType: SearchType.Chat,
-    tabType: InboxPageTabOption.Message,
-    where: () => ({}),
-}, {
-    titleKey: "Notification" as CommonKey,
-    searchType: SearchType.Notification,
-    tabType: InboxPageTabOption.Notification,
-    where: () => ({}),
-}];
 
 type InboxType = "Chat" | "Notification";
 type InboxObject = Chat | Notification;
@@ -53,7 +40,7 @@ export const InboxView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<InboxPageTabOption>({ tabParams, display });
+    } = useTabs<InboxPageTabOption>({ tabParams: inboxTabParams, display });
 
     const {
         allData,
@@ -214,9 +201,9 @@ export const InboxView = ({
                 sx={{ position: "fixed" }}
             >
                 <Tooltip title={t(actionTooltip)}>
-                    <ColorIconButton aria-label="new-chat" background={palette.secondary.main} onClick={onActionButtonPress} >
+                    <IconButton aria-label={t("CreateChat")} onClick={onActionButtonPress} sx={{ background: palette.secondary.main }}>
                         <ActionButtonIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
             </SideActionButtons>
         </>

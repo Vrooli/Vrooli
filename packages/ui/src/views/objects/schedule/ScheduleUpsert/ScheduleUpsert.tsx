@@ -14,9 +14,8 @@ import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
+import { CalendarPageTabOption, calendarTabParams } from "utils/search/objectToSearch";
 import { ScheduleShape } from "utils/shape/models/schedule";
-import { calendarTabParams } from "views/CalendarView/CalendarView";
 import { ScheduleUpsertProps } from "../types";
 
 const tabParams = calendarTabParams.filter(tp => tp.tabType !== "All");

@@ -1,6 +1,5 @@
 import { NodeRoutineListItem } from "@local/shared";
 import { Box, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { useDebounce } from "hooks/useDebounce";
 import usePress from "hooks/usePress";
 import { ActionIcon, AddIcon, CloseIcon, EditIcon, ExpandLessIcon, ExpandMoreIcon, ListBulletIcon, ListNumberIcon, NoActionIcon } from "icons";
@@ -243,11 +242,11 @@ export const RoutineListNode = ({
 
 
     const addButton = useMemo(() => isEditing ? (
-        <ColorIconButton
+        <IconButton
             onClick={handleSubroutineAdd}
             onTouchStart={handleSubroutineAdd}
-            background='#6daf72'
             sx={{
+                background: "#6daf72",
                 boxShadow: 2,
                 width: addSize,
                 height: addSize,
@@ -264,7 +263,7 @@ export const RoutineListNode = ({
             }}
         >
             <AddIcon />
-        </ColorIconButton>
+        </IconButton>
     ) : null, [addSize, handleSubroutineAdd, isEditing]);
 
     // Right click context menu

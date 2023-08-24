@@ -1,6 +1,5 @@
 import { User } from "@local/shared";
-import { Box, Stack, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Box, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
@@ -84,10 +83,10 @@ export const MembersButton = ({
                 justifyContent="center"
             >
                 <TextShrink id="members" sx={{ ...commonLabelProps() }}>{t("Member", { count: 2 })}</TextShrink>
-                <ColorIconButton
-                    background={palette.primary.light}
+                <IconButton
                     sx={{
                         ...smallButtonProps(isEditing, true),
+                        background: palette.primary.light,
                         borderRadius: "12px",
                         color: "white",
                         position: "relative",
@@ -105,7 +104,7 @@ export const MembersButton = ({
                             {renderIcon(icons[3], 3)}
                         </Stack>
                     </Stack>
-                </ColorIconButton>
+                </IconButton>
             </Stack>
         </>
     );

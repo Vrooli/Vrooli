@@ -2,12 +2,12 @@
  * TextField for entering (and previewing) markdown.
  */
 import { Box, CircularProgress, IconButton, List, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { useDebounce } from "hooks/useDebounce";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useWindowSize } from "hooks/useWindowSize";
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -213,10 +213,11 @@ export const MarkdownInputBase = ({
     value,
     sxs,
 }: MarkdownInputBaseProps) => {
-    const { palette, typography } = useTheme();
+    const { breakpoints, palette, typography } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
 
     // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
@@ -303,6 +304,7 @@ export const MarkdownInputBase = ({
      * Adds, to change stack, and removes anything from the change stack after the current index
      */
     const handleChange = useCallback((updatedText: string) => {
+        console.log("handleChange", updatedText, changeStackIndex, changeStack.current);
         const newChangeStack = [...changeStack.current];
         newChangeStack.splice(changeStackIndex + 1, newChangeStack.length - changeStackIndex - 1);
         newChangeStack.push(updatedText);
@@ -685,6 +687,7 @@ export const MarkdownInputBase = ({
                 {/* Bar above TextField, for inserting markdown and previewing */}
                 <Box sx={{
                     display: "flex",
+                    flexDirection: (isLeftHanded || !isMobile) ? "row" : "row-reverse",
                     width: "100%",
                     padding: "0.5rem",
                     background: palette.primary.light,
@@ -696,7 +699,10 @@ export const MarkdownInputBase = ({
                     <Stack
                         direction="row"
                         spacing={{ xs: 0, sm: 0.5, md: 1 }}
-                        sx={{ marginRight: "auto" }}
+                        sx={{
+                            ...((isLeftHanded || !isMobile) ? { marginRight: "auto" } : { marginLeft: "auto" }),
+                            visibility: disabled ? "hidden" : "visible",
+                        }}
                     >
                         {/* AI assistant */}
                         {hasPremium && !disableAssistant && <Tooltip title={t("AIAssistant")} placement="top">
@@ -959,56 +965,58 @@ export const MarkdownInputBase = ({
                         )
                 }
                 {/* Help text, characters remaining indicator, and action buttons */}
-                {(helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box
-                    sx={{
-                        padding: 1,
-                        display: "flex",
-                        flexDirection: isLeftHanded ? "row-reverse" : "row",
-                        gap: 1,
-                        justifyContent: "space-between",
-                        alitnItems: "center",
-                    }}
-                >
-                    {/* Helper text label */}
-                    {
-                        // helperText &&
-                        <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
-                            {helperText}
-                        </Typography>
-                    }
-                    <Box sx={{
-                        display: "flex",
-                        gap: 2,
-                        ...(isLeftHanded ?
-                            { marginRight: "auto", flexDirection: "row-reverse" } :
-                            { marginLeft: "auto", flexDirection: "row" }),
-                    }}>
-                        {/* Characters remaining indicator */}
+                {
+                    (helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box
+                        sx={{
+                            padding: 1,
+                            display: "flex",
+                            flexDirection: isLeftHanded ? "row-reverse" : "row",
+                            gap: 1,
+                            justifyContent: "space-between",
+                            alitnItems: "center",
+                        }}
+                    >
+                        {/* Helper text label */}
                         {
-                            !disabled && maxChars !== undefined &&
-                            <CharLimitIndicator
-                                chars={internalValue?.length ?? 0}
-                                maxChars={maxChars}
-                            />
+                            // helperText &&
+                            <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
+                                {helperText}
+                            </Typography>
                         }
-                        {/* Action buttons */}
-                        {
-                            actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }, index) => (
-                                <Tooltip key={index} title={tooltip} placement="top">
-                                    <ColorIconButton
-                                        background={palette.secondary.main}
-                                        disabled={disabled || buttonDisabled}
-                                        size="small"
-                                        onClick={onClick}
-                                    >
-                                        <Icon fill={palette.primary.contrastText} />
-                                    </ColorIconButton>
-                                </Tooltip>
-                            ))
-                        }
+                        <Box sx={{
+                            display: "flex",
+                            gap: 2,
+                            ...(isLeftHanded ?
+                                { marginRight: "auto", flexDirection: "row-reverse" } :
+                                { marginLeft: "auto", flexDirection: "row" }),
+                        }}>
+                            {/* Characters remaining indicator */}
+                            {
+                                !disabled && maxChars !== undefined &&
+                                <CharLimitIndicator
+                                    chars={internalValue?.length ?? 0}
+                                    maxChars={maxChars}
+                                />
+                            }
+                            {/* Action buttons */}
+                            {
+                                actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }, index) => (
+                                    <Tooltip key={index} title={tooltip} placement="top">
+                                        <IconButton
+                                            disabled={disabled || buttonDisabled}
+                                            size="small"
+                                            onClick={onClick}
+                                            sx={{ background: palette.secondary.main }}
+                                        >
+                                            <Icon fill={palette.primary.contrastText} />
+                                        </IconButton>
+                                    </Tooltip>
+                                ))
+                            }
+                        </Box>
                     </Box>
-                </Box>}
-            </Stack>
+                }
+            </Stack >
         </>
     );
 };

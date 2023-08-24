@@ -1,8 +1,7 @@
 /**
  * Dialog for sharing an object
  */
-import { Box, Palette, Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Box, IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import usePress from "hooks/usePress";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from "icons";
@@ -26,6 +25,7 @@ const postTitle: { [key in ObjectType]?: string } = {
 };
 
 const buttonProps = (palette: Palette) => ({
+    background: palette.secondary.main,
     height: "48px",
     width: "48px",
 });
@@ -115,52 +115,47 @@ export const ShareObjectDialog = ({
                 </Box>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
                     <Tooltip title={t("CopyLink")}>
-                        <ColorIconButton
+                        <IconButton
                             onClick={copyLink}
-                            background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
                             <CopyIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
+                        </IconButton>
                     </Tooltip>
                     <Tooltip title={t("ShareByEmail")}>
-                        <ColorIconButton
+                        <IconButton
                             href={emailUrl}
                             onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
-                            background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
                             <EmailIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
+                        </IconButton>
                     </Tooltip>
                     <Tooltip title={t("TweetIt")}>
-                        <ColorIconButton
+                        <IconButton
                             href={twitterUrl}
                             onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
-                            background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
                             <TwitterIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
+                        </IconButton>
                     </Tooltip>
                     <Tooltip title={t("LinkedInPost")}>
-                        <ColorIconButton
+                        <IconButton
                             href={linkedInUrl}
                             onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
-                            background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
                             <LinkedInIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
+                        </IconButton>
                     </Tooltip>
                     {navigator.share && <Tooltip title={t("Other")}>
-                        <ColorIconButton
+                        <IconButton
                             onClick={() => { navigator.share({ title, url }); }}
-                            background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
                             <EllipsisIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
+                        </IconButton>
                     </Tooltip>}
                 </Stack>
             </Stack>

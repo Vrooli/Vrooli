@@ -304,3 +304,14 @@ export const PulseButton = styled(Button)(({ theme }) => ({
     },
     transition: "all 0.2s ease",
 }));
+
+export const highlightStyle = (background: string, disabled: boolean | undefined) => ({
+    background,
+    pointerEvents: disabled ? "none" : "auto",
+    filter: disabled ? "grayscale(1) opacity(0.5)" : "none",
+    transition: "filter 0.2s ease-in-out",
+    "&:hover": {
+        background,
+        filter: disabled ? "grayscale(1) opacity(0.5)" : "brightness(1.2)",
+    },
+} as const);

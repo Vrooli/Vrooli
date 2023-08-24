@@ -1,5 +1,4 @@
-import { Avatar, Box, Stack, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Avatar, Box, IconButton, Stack, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
 import { BotIcon, DeleteIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
 import { useEffect, useMemo, useState } from "react";
@@ -143,16 +142,16 @@ export const ProfilePictureInput = ({
                     right: "0px",
                     zIndex: zIndex + 1,
                 }}>
-                    <ColorIconButton background={palette.secondary.main}>
+                    <IconButton sx={{ background: palette.secondary.main }}>
                         <EditIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
-                    </ColorIconButton>
+                    </IconButton>
                     {bannerImageUrl !== undefined && (
-                        <ColorIconButton
-                            background={palette.error.main}
+                        <IconButton
                             onClick={removeBannerImage}
+                            sx={{ background: palette.error.main }}
                         >
                             <DeleteIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
+                        </IconButton>
                     )}
                 </Stack>
             </Box>
@@ -188,16 +187,16 @@ export const ProfilePictureInput = ({
                     right: profileImageUrl !== undefined ? "-56px" : "-8px",
                     zIndex: zIndex + 1,
                 }}>
-                    <ColorIconButton background={palette.secondary.main}>
+                    <IconButton sx={{ background: palette.secondary.main }}>
                         <EditIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
-                    </ColorIconButton>
+                    </IconButton>
                     {profileImageUrl !== undefined && (
-                        <ColorIconButton
-                            background={palette.error.main}
+                        <IconButton
                             onClick={removeProfileImage}
+                            sx={{ background: palette.error.main }}
                         >
                             <DeleteIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
+                        </IconButton>
                     )}
                 </Stack>
             </Box>

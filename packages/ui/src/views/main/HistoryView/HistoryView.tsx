@@ -1,37 +1,12 @@
-import { CommonKey, RunStatus } from "@local/shared";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useTabs } from "hooks/useTabs";
 import { toDisplay } from "utils/display/pageTools";
-import { HistoryPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { HistoryPageTabOption, historyTabParams } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 
-const tabParams = [{
-    titleKey: "View" as CommonKey,
-    searchType: SearchType.View,
-    tabType: HistoryPageTabOption.Viewed,
-    where: () => ({}),
-}, {
-    titleKey: "Bookmark" as CommonKey,
-    searchType: SearchType.BookmarkList,
-    tabType: HistoryPageTabOption.Bookmarked,
-    where: () => ({}),
-}, {
-    titleKey: "Active" as CommonKey,
-    searchType: SearchType.RunProjectOrRunRoutine,
-    tabType: HistoryPageTabOption.RunsActive,
-    where: () => ({ statuses: [RunStatus.InProgress, RunStatus.Scheduled] }),
-}, {
-    titleKey: "Complete" as CommonKey,
-    searchType: SearchType.RunProjectOrRunRoutine,
-    tabType: HistoryPageTabOption.RunsCompleted,
-    where: () => ({ statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed] }),
-}];
-
-/**
- * Shows items you've bookmarked, viewed, or run recently.
- */
+/** Shows items you've bookmarked, viewed, or run recently */
 export const HistoryView = ({
     isOpen,
     onClose,
@@ -43,7 +18,7 @@ export const HistoryView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<HistoryPageTabOption>({ tabParams, display });
+    } = useTabs<HistoryPageTabOption>({ tabParams: historyTabParams, display });
 
     return (
         <>

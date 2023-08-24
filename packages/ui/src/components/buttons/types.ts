@@ -1,5 +1,5 @@
 import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
-import { ButtonProps, IconButtonProps } from "@mui/material";
+import { ButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
 import { NavigableObject, PartialWithType, SvgProps, SxType } from "types";
@@ -30,15 +30,6 @@ export interface BuildEditButtonsProps {
 export type CameraButtonProps = {
     disabled?: boolean;
     onTranscriptChange: (result: string) => unknown;
-}
-
-export interface ColorIconButtonProps extends IconButtonProps {
-    background: string;
-    children: JSX.Element | null | undefined;
-    disabled?: boolean;
-    href?: string;
-    onClick?: (event: React.MouseEvent<HTMLElement>) => unknown;
-    sx?: SxType;
 }
 
 export interface CommentsButtonProps {

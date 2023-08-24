@@ -53,7 +53,7 @@ const tabPeriodTypes: { [key in StatsTabOption]: StatPeriodType | `${StatPeriodT
     AllTime: "Yearly",
 } as const;
 
-const tabParams = [
+export const statsSiteTabParams = [
     {
         titleKey: "Daily" as CommonKey,
         tabType: StatsTabOption.Daily,
@@ -108,7 +108,7 @@ export const StatsSiteView = ({
         handleDateRangeClose();
     }, [period.after, period.before]);
 
-    const { currTab, setCurrTab, tabs } = useTabs<StatsTabOption, false>({ tabParams, display });
+    const { currTab, setCurrTab, tabs } = useTabs<StatsTabOption, false>({ tabParams: statsSiteTabParams, display });
     const handleTabChange = useCallback((_event: ChangeEvent<unknown>, tab: PageTab<StatsTabOption, false>) => {
         setCurrTab(tab);
         // Reset date range based on tab selection.

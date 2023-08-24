@@ -1,12 +1,12 @@
-import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Box, FormControl, FormHelperText, IconButton, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { MinusIcon, PlusIcon } from "icons";
 import { useCallback, useEffect, useRef } from "react";
 import { IntegerInputProps } from "../types";
 
 const buttonProps = {
-    minWidth: 30,
+    minWidth: "30px",
+    maxWidth: "48px",
     width: "20%",
 };
 
@@ -91,9 +91,8 @@ export const IntegerInput = ({
                 justifyContent: "center",
                 ...props?.sx ?? {},
             }}>
-                <ColorIconButton
+                <IconButton
                     aria-label='minus'
-                    background={palette.secondary.main}
                     disabled={disabled}
                     onMouseDown={handleMinusDown}
                     onMouseUp={stopTouch}
@@ -102,11 +101,11 @@ export const IntegerInput = ({
                     onContextMenu={(e) => e.preventDefault()}
                     sx={{
                         ...buttonProps,
+                        background: palette.secondary.main,
                         borderRadius: "5px 0 0 5px",
-                        maxWidth: "48px",
                     }}>
                     <MinusIcon />
-                </ColorIconButton>
+                </IconButton>
                 <FormControl sx={{
                     background: palette.background.paper,
                     width: fullWidth ? "100%" : "60%",
@@ -150,9 +149,8 @@ export const IntegerInput = ({
                     />
                     {meta.touched && meta.error && <FormHelperText id={`helper-text-${name}`}>{meta.error}</FormHelperText>}
                 </FormControl>
-                <ColorIconButton
+                <IconButton
                     aria-label='plus'
-                    background={palette.secondary.main}
                     disabled={disabled}
                     onMouseDown={handlePlusDown}
                     onMouseUp={stopTouch}
@@ -161,11 +159,11 @@ export const IntegerInput = ({
                     onContextMenu={(e) => e.preventDefault()}
                     sx={{
                         ...buttonProps,
+                        background: palette.secondary.main,
                         borderRadius: "0 5px 5px 0",
-                        maxWidth: "48px",
                     }}>
                     <PlusIcon />
-                </ColorIconButton>
+                </IconButton>
             </Box>
         </Tooltip >
     );

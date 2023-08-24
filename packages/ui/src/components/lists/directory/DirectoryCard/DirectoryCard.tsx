@@ -1,5 +1,4 @@
-import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import usePress from "hooks/usePress";
 import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
@@ -108,13 +107,12 @@ export const DirectoryCard = ({
                 {showIcons && (
                     <>
                         <Tooltip title={t("Delete")}>
-                            <ColorIconButton
+                            <IconButton
                                 id='delete-icon-button'
-                                background={palette.error.main}
-                                sx={{ position: "absolute", top: 4, right: 4 }}
+                                sx={{ background: palette.error.main, position: "absolute", top: 4, right: 4 }}
                             >
                                 <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
-                            </ColorIconButton>
+                            </IconButton>
                         </Tooltip>
                     </>
                 )}

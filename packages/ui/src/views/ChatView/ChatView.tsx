@@ -399,7 +399,7 @@ export const ChatView = ({
                     </>}
                 </Formik>
             </MaybeLargeDialog>
-            <ChatSideMenu />
+            {isOpen && <ChatSideMenu />}
         </>
     );
 };

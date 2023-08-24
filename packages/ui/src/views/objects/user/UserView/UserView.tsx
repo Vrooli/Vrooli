@@ -1,7 +1,6 @@
-import { BookmarkFor, CommonKey, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, VisibilityType } from "@local/shared";
-import { Box, IconButton, Palette, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User } from "@local/shared";
+import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
@@ -28,41 +27,13 @@ import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
 import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { defaultYou, getYou, placeholderColor, YouInflated } from "utils/display/listTools";
+import { defaultYou, getYou, placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { SearchType, UserPageTabOption } from "utils/search/objectToSearch";
+import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
 import { UserViewProps } from "../types";
-
-type TabWhereParams = {
-    userId: string;
-    permissions: YouInflated;
-}
-
-const tabColor = (palette: Palette) => ({ active: palette.secondary.main, inactive: palette.background.textSecondary });
-const tabParams = [{
-    color: tabColor,
-    titleKey: "Details" as CommonKey,
-    searchType: SearchType.User, // Ignored
-    tabType: UserPageTabOption.Details,
-    where: () => ({}),
-}, {
-    color: tabColor,
-    titleKey: "Project" as CommonKey,
-    searchPlaceholderKey: "SearchProject" as CommonKey,
-    searchType: SearchType.Project,
-    tabType: UserPageTabOption.Project,
-    where: ({ userId, permissions }: TabWhereParams) => ({ ownedByUserId: userId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
-}, {
-    color: tabColor,
-    titleKey: "Organization" as CommonKey,
-    searchPlaceholderKey: "SearchOrganization" as CommonKey,
-    searchType: SearchType.Organization,
-    tabType: UserPageTabOption.Organization,
-    where: ({ userId }: TabWhereParams) => ({ memberUserIds: [userId], visibility: VisibilityType.All }),
-}];
 
 export const UserView = ({
     isOpen,
@@ -130,8 +101,8 @@ export const UserView = ({
 
     const availableTabs = useMemo(() => {
         // Details tab is only for bots
-        if (user?.isBot) return tabParams;
-        return tabParams.filter(tab => tab.tabType !== UserPageTabOption.Details);
+        if (user?.isBot) return userTabParams;
+        return userTabParams.filter(tab => tab.tabType !== UserPageTabOption.Details);
     }, [user]);
     const {
         currTab,
@@ -474,18 +445,15 @@ export const UserView = ({
                 display={display}
                 sx={{ position: "fixed" }}
             >
-                {/* Toggle search filters */}
-                {currTab.tabType !== UserPageTabOption.Details ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
+                {currTab.tabType !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton> : null}
-                {/* Add/invite to meeting/chat button */}
-                <ColorIconButton aria-label="message" background={palette.secondary.main} onClick={handleAddOrInvite} >
+                </IconButton> : null}
+                <IconButton aria-label={t("AddToTeam")} onClick={handleAddOrInvite} sx={{ background: palette.secondary.main }}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton>
-                {/* Message button */}
-                <ColorIconButton aria-label="message" background={palette.secondary.main} onClick={handleStartChat} >
+                </IconButton>
+                <IconButton aria-label={t("MessageSend")} onClick={handleStartChat} sx={{ background: palette.secondary.main }}>
                     <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton>
+                </IconButton>
             </SideActionButtons>
         </>
     );
