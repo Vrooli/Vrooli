@@ -1,6 +1,7 @@
 import { FindByIdInput, FindVersionInput } from "@local/shared";
 import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { BottomActionsGrid } from "components/buttons/BottomActionsGrid/BottomActionsGrid";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
@@ -15,6 +16,7 @@ import { lazily } from "react-lazily";
 import { removeSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
 import { getDisplay } from "utils/display/listTools";
+import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { CalendarPageTabOption, findObjectTabParams, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
@@ -248,10 +250,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
-    const focusSearch = useCallback(() => {
-        const searchInput = document.getElementById("search-bar-find-object-search-list");
-        searchInput?.focus();
-    }, []);
+    const focusSearch = () => { scrollIntoFocusedView("search-bar-find-object-search-list"); };
 
     return (
         <>
@@ -351,14 +350,16 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         </Stack>
                     )}
                 </Box>
-                <SideActionButtons display="dialog">
-                    <IconButton aria-label="filter-list" onClick={focusSearch} sx={{ background: palette.secondary.main }}>
-                        <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
-                    <IconButton aria-label="create-new" onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
-                </SideActionButtons>
+                <BottomActionsGrid display="dialog" sx={{ background: "transparent" }}>
+                    <SideActionsButtons display="dialog">
+                        <IconButton aria-label="filter-list" onClick={focusSearch} sx={{ background: palette.secondary.main }}>
+                            <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        </IconButton>
+                        <IconButton aria-label="create-new" onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
+                            <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        </IconButton>
+                    </SideActionsButtons>
+                </BottomActionsGrid>
             </LargeDialog>
         </>
     );

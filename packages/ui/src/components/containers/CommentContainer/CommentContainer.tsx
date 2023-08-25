@@ -11,6 +11,7 @@ import { useWindowSize } from "hooks/useWindowSize";
 import { CreateIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { scrollIntoFocusedView } from "utils/display/scroll";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { CommentContainerProps } from "../types";
 
@@ -91,11 +92,7 @@ export function CommentContainer({
     // then we should scroll and focus the add comment input
     useEffect(() => {
         if (!forceAddCommentOpen || isMobile) return;
-        const addCommentInput = document.getElementById("markdown-input-add-comment-root");
-        if (addCommentInput) {
-            addCommentInput.scrollIntoView({ behavior: "smooth" });
-            addCommentInput.focus();
-        }
+        scrollIntoFocusedView("markdown-input-add-comment-root");
     }, [forceAddCommentOpen, isMobile]);
 
     return (

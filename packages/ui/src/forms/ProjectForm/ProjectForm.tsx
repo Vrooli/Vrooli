@@ -1,6 +1,6 @@
 import { DUMMY_ID, orDefault, ProjectVersion, projectVersionTranslationValidation, projectVersionValidation, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
@@ -157,7 +157,7 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                     />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

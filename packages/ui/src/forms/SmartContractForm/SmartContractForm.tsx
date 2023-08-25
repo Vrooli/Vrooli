@@ -1,6 +1,6 @@
 import { DUMMY_ID, orDefault, Session, SmartContractVersion, smartContractVersionTranslationValidation, smartContractVersionValidation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -150,7 +150,7 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                     />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

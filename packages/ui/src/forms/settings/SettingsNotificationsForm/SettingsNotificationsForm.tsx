@@ -1,5 +1,5 @@
 import { Stack } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { PushList } from "components/lists/devices";
@@ -87,7 +87,7 @@ export const SettingsNotificationForm = ({
                     {/* TODO */}
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors}
                 isCreate={false}

@@ -2,7 +2,7 @@ import { BookmarkFor, endpointGetProjectVersion, LINKS, ProjectVersion } from "@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -187,7 +187,7 @@ export const ProjectView = ({
                 /> */}
             </Box>
             {/* Edit button (if canUpdate) */}
-            <SideActionButtons
+            <SideActionsButtons
                 // Treat as a dialog when build view is open
                 display={display}
                 sx={{ position: "fixed" }}
@@ -197,7 +197,7 @@ export const ProjectView = ({
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </IconButton>
                 ) : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

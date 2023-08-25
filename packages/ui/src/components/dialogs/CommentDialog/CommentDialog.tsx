@@ -1,6 +1,6 @@
 import { commentTranslationValidation } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
@@ -105,7 +105,7 @@ export const CommentDialog = ({
                         <Typography variant="body2">{parentText}</Typography>
                     </Box>
                 )}
-                <GridSubmitButtons
+                <BottomActionsButtons
                     display={"dialog"}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}

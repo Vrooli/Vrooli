@@ -1,7 +1,7 @@
 import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPutChatMessage } from "@local/shared";
 import { Avatar, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ChatBubbleStatus } from "components/ChatBubbleStatus/ChatBubbleStatus";
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
@@ -149,7 +149,7 @@ export const ChatBubble = ({
                             value={editingText ?? ""}
                         />
                         <Grid container spacing={1} mt={2}>
-                            <GridSubmitButtons
+                            <BottomActionsButtons
                                 disabledCancel={isCreating || isUpdating}
                                 disabledSubmit={isCreating || isUpdating}
                                 display="page"

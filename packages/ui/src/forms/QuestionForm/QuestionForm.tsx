@@ -1,6 +1,6 @@
 import { DUMMY_ID, orDefault, Question, questionTranslationValidation, questionValidation, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
@@ -127,7 +127,7 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                     <TagSelector name="tags" />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

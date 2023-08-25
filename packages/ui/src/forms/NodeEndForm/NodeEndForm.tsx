@@ -1,6 +1,6 @@
 import { DUMMY_ID, nodeTranslationValidation, NodeType, nodeValidation, orDefault, RoutineVersion, Session, uuid } from "@local/shared";
 import { Checkbox, FormControlLabel, Tooltip } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
@@ -130,7 +130,7 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                     </Tooltip>
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

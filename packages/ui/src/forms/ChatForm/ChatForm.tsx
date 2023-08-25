@@ -1,6 +1,6 @@
 import { Chat, chatTranslationValidation, chatValidation, DUMMY_ID, orDefault, Session, uuid } from "@local/shared";
 import { Checkbox, IconButton, InputAdornment, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
@@ -177,7 +177,7 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                     </Stack>
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

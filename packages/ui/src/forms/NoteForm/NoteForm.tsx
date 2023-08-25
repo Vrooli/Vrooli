@@ -1,7 +1,7 @@
 import { DUMMY_ID, NoteVersion, noteVersionTranslationValidation, noteVersionValidation, orDefault, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -146,7 +146,7 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                     }}
                 />
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -155,7 +155,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
                 sideActionButtons={{
-                    display,
                     children: (
                         <EllipsisActionButton>
                             <RelationshipList

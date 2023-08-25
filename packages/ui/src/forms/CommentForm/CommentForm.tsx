@@ -1,5 +1,5 @@
 import { Comment, CommentFor, commentTranslationValidation, commentValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -80,7 +80,7 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
                         minRows={3}
                     />
                 </FormContainer>
-                <GridSubmitButtons
+                <BottomActionsButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}

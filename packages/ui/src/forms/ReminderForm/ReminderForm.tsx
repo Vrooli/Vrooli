@@ -1,6 +1,6 @@
 import { DUMMY_ID, Reminder, reminderValidation, Session, uuid } from "@local/shared";
 import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -234,7 +234,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                     </FormContainer>
                 </BaseForm>
             </DragDropContext>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={isCreate}

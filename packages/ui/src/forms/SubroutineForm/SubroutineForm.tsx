@@ -1,6 +1,6 @@
 import { DUMMY_ID, exists, nodeRoutineListItemValidation, orDefault, ResourceList, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
@@ -310,7 +310,7 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                     </Grid>
                 </FormContainer>
             </BaseForm>
-            {canUpdateRoutineVersion && <GridSubmitButtons
+            {canUpdateRoutineVersion && <BottomActionsButtons
                 display="dialog"
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

@@ -1,6 +1,6 @@
 import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
 import { Button, Grid, Stack, TextField } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -216,7 +216,7 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                         versions={versions}
                     />
                 </FormContainer>
-                <GridSubmitButtons
+                <BottomActionsButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}

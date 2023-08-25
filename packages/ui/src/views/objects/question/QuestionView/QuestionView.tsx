@@ -1,6 +1,6 @@
 import { CommentFor, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
@@ -130,7 +130,7 @@ export const QuestionView = ({
                     {comments}
                 </Stack>}
             </Formik>
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
@@ -140,7 +140,7 @@ export const QuestionView = ({
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </IconButton>
                 ) : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

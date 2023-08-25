@@ -1,17 +1,17 @@
 import { Stack } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
-import { SideActionButtonsProps } from "../types";
+import { SideActionsButtonsProps } from "../types";
 
 /**
  * Buttons displayed on bottom left or right of screen
  */
-export const SideActionButtons = ({
+export const SideActionsButtons = ({
     children,
     display,
     hasGridActions = false,
     isLeftHanded,
     sx,
-}: SideActionButtonsProps) => {
+}: SideActionsButtonsProps) => {
     const zIndex = useZIndex();
 
     const gridActionsHeight = hasGridActions ? "70px" : "0px";

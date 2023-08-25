@@ -1,6 +1,6 @@
 import { CommentFor, endpointGetStandardVersion, StandardVersion } from "@local/shared";
 import { Box, IconButton, Palette, Stack, useTheme } from "@mui/material";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
@@ -175,7 +175,7 @@ export const StandardView = ({
                     />
                 </Box>
             </Box>
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
@@ -185,7 +185,7 @@ export const StandardView = ({
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </IconButton>
                 ) : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

@@ -2,7 +2,7 @@ import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, e
 import { Box, Button, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { RunButton } from "components/buttons/RunButton/RunButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
@@ -349,7 +349,7 @@ export const RoutineView = ({
                 </Stack>}
             </Formik>
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
-            <SideActionButtons
+            <SideActionsButtons
                 // Treat as a dialog when build view is open
                 display={isBuildOpen ? "dialog" : display}
                 sx={{ position: "fixed" }}
@@ -369,7 +369,7 @@ export const RoutineView = ({
                     isEditing={false}
                     runnableObject={existing}
                 /> : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

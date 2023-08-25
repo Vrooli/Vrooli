@@ -17,7 +17,7 @@ export interface AdvancedSearchButtonProps {
 export interface BuildEditButtonsProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;
-    errors: GridSubmitButtonsProps["errors"];
+    errors: BottomActionsButtonsProps["errors"];
     handleCancel: () => unknown;
     handleScaleChange: (delta: number) => unknown;
     handleSubmit: () => unknown;
@@ -43,12 +43,13 @@ export interface EllipsisActionButtonProps {
     children: JSX.Element | null | undefined;
 }
 
-export interface GridActionButtonsProps {
+export interface BottomActionsGridProps {
     children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
+    sx?: SxType;
 }
 
-export interface GridSubmitButtonsProps {
+export interface BottomActionsButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
     display: ViewDisplayType;
@@ -60,7 +61,7 @@ export interface GridSubmitButtonsProps {
     onCancel: () => unknown;
     onSetSubmitting?: (isSubmitting: boolean) => unknown;
     onSubmit?: () => unknown;
-    sideActionButtons?: Omit<SideActionButtonsProps, "hasGridActions">;
+    sideActionButtons?: Omit<SideActionsButtonsProps, "display" | "hasGridActions">;
 }
 
 export interface HelpButtonProps extends ButtonProps {
@@ -125,7 +126,7 @@ export interface ShareButtonProps {
     object: NavigableObject | null | undefined;
 }
 
-export interface SideActionButtonsProps {
+export interface SideActionsButtonsProps {
     children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
     /** If true, displays higher up */

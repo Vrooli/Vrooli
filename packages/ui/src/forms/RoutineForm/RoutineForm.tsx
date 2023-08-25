@@ -1,6 +1,6 @@
 import { DUMMY_ID, Node, NodeLink, orDefault, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -338,7 +338,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                     </FormSection>
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

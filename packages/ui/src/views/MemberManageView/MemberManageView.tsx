@@ -1,6 +1,6 @@
 import { CommonKey } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -41,10 +41,7 @@ export const MemberManageView = ({
         setInviteDialogOpen(true);
     }, []);
 
-    const focusSearch = useCallback(() => {
-        const searchInput = document.getElementById("search-bar-member-manage-list");
-        searchInput?.focus();
-    }, []);
+    const focusSearch = () => { scrollIntoFocusedView("search-bar-member-manage-list"); };
 
     return (
         <MaybeLargeDialog
@@ -113,7 +110,7 @@ export const MemberManageView = ({
                 where={where(organizationId)}
                 sxs={{ search: { marginTop: 2 } }}
             />}
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
@@ -123,7 +120,7 @@ export const MemberManageView = ({
                 <IconButton aria-label={t("CreateInvite")} onClick={onInviteStart} sx={{ background: palette.secondary.main }}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>
-            </SideActionButtons>
+            </SideActionsButtons>
         </MaybeLargeDialog>
     );
 };

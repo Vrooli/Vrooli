@@ -3,7 +3,7 @@
  */
 import { GqlModelType } from "@local/shared";
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, useTheme } from "@mui/material";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -82,10 +82,7 @@ export const MyStuffView = ({
         else setSelectCreateTypeAnchorEl(null);
     }, [setLocation]);
 
-    const focusSearch = useCallback(() => {
-        const searchInput = document.getElementById("search-bar-my-stuff-list");
-        searchInput?.focus();
-    }, []);
+    const focusSearch = () => { scrollIntoFocusedView("search-bar-my-stuff-list"); };
 
     return (
         <>
@@ -133,7 +130,7 @@ export const MyStuffView = ({
                 where={where(userId ?? "")}
                 sxs={{ search: { marginTop: 2 } }}
             />}
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
@@ -145,7 +142,7 @@ export const MyStuffView = ({
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </IconButton>
                 ) : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

@@ -1,5 +1,5 @@
 import { IconButton, TextField } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
@@ -189,7 +189,7 @@ export const EditableTitle = ({
                         /> : null}
                     </FormContainer>
                 </BaseForm>
-                <GridSubmitButtons
+                <BottomActionsButtons
                     display="dialog"
                     errors={validationEnabled ? formik.errors : {}}
                     isCreate={false}

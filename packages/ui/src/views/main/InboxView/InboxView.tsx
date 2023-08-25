@@ -1,7 +1,7 @@
 import { Chat, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, Success } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ChatListItemActions, NotificationListItemActions } from "components/lists/types";
@@ -196,7 +196,7 @@ export const InboxView = ({
                 />
             </ListContainer>
             {/* New Chat button */}
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
@@ -205,7 +205,7 @@ export const InboxView = ({
                         <ActionButtonIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </IconButton>
                 </Tooltip>
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

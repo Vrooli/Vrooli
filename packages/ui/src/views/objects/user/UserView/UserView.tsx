@@ -2,7 +2,7 @@ import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput
 import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -441,7 +441,7 @@ export const UserView = ({
                     />
                 </Box>}
             </Box>
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
@@ -454,7 +454,7 @@ export const UserView = ({
                 <IconButton aria-label={t("MessageSend")} onClick={handleStartChat} sx={{ background: palette.secondary.main }}>
                     <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

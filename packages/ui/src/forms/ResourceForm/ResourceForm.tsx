@@ -1,6 +1,6 @@
 import { CommonKey, DUMMY_ID, orDefault, Resource, ResourceListFor, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
 import { Stack } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector } from "components/inputs/Selector/Selector";
@@ -139,7 +139,7 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                     />
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

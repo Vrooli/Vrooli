@@ -1,5 +1,5 @@
 import { Typography, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
 import { useField } from "formik";
@@ -78,7 +78,7 @@ export const SettingsPrivacyForm = ({
                     />
                 </ListContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={false}

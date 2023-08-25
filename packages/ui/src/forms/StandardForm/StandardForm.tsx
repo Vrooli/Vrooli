@@ -1,6 +1,6 @@
 import { DUMMY_ID, orDefault, Session, StandardVersion, standardVersionTranslationValidation, standardVersionValidation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
@@ -151,7 +151,7 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                     />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

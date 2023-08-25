@@ -1,6 +1,6 @@
 import { calculateOccurrences, Schedule, ScheduleSearchResult } from "@local/shared";
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -277,7 +277,7 @@ export const CalendarView = ({
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
             />
             {/* Add event button */}
-            <SideActionButtons
+            <SideActionsButtons
                 // Treat as a dialog when build view is open
                 display={display}
             >
@@ -293,7 +293,7 @@ export const CalendarView = ({
                 >
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>
-            </SideActionButtons>
+            </SideActionsButtons>
             <TopBar
                 ref={ref}
                 display={display}

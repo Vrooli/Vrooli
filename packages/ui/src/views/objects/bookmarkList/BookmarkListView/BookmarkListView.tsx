@@ -1,7 +1,7 @@
 import { Bookmark, BookmarkCreateInput, BookmarkList, endpointGetBookmarkList, endpointPostBookmark, uuid } from "@local/shared";
 import { Box, IconButton, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SiteSearchBar } from "components/inputs/search";
@@ -125,14 +125,14 @@ export const BookmarkListView = ({
                 </Box>}
             />
             <>
-                <SideActionButtons display={display} >
+                <SideActionsButtons display={display} >
                     <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </IconButton>
                     <IconButton aria-label={t("AddBookmark")} onClick={openSearch} sx={{ background: palette.secondary.main }}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </IconButton>
-                </SideActionButtons>
+                </SideActionsButtons>
                 <ListContainer
                     emptyText={t("NoResults", { ns: "error" })}
                     isEmpty={bookmarks.length === 0 && !isLoading}

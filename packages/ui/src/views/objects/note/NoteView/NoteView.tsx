@@ -1,7 +1,7 @@
 import { endpointGetNoteVersion, NoteVersion } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
@@ -68,14 +68,14 @@ export const NoteView = ({
                 />}
             />
             <>
-                <SideActionButtons display={display}>
+                <SideActionsButtons display={display}>
                     <EllipsisActionButton>
                         <ObjectActionsRow
                             actionData={actionData}
                             object={noteVersion}
                         />
                     </EllipsisActionButton>
-                </SideActionButtons>
+                </SideActionsButtons>
                 <MarkdownInputBase
                     disabled={true}
                     minRows={3}
