@@ -1,8 +1,8 @@
 import { TextField } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { Field, useField, useFormikContext } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -155,14 +155,14 @@ export const EditableTitle = ({
                             label={titleLabel || t("Name")}
                             as={TextField}
                         />}
-                        {(language && isSubtitleTranslated && subtitleField) ? <TranslatedMarkdownInput
+                        {(language && isSubtitleTranslated && subtitleField) ? <TranslatedRichInput
                             language={language}
                             name={subtitleField}
                             maxChars={1024}
                             minRows={4}
                             maxRows={8}
                             placeholder={subtitleLabel || t("Description")}
-                        /> : subtitleField ? <MarkdownInput
+                        /> : subtitleField ? <RichInput
                             name={subtitleField}
                             maxChars={1024}
                             minRows={4}

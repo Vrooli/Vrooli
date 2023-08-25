@@ -245,7 +245,7 @@ export interface TextProps {
     defaultValue?: string;
     /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
     autoComplete?: string;
-    /** If true, displays MarkdownInput instead of TextField */
+    /** If true, displays RichInput instead of TextField */
     isMarkdown?: boolean;
     /** Maximum number of characters for the text field. Defaults to 1000 */
     maxChars?: number;

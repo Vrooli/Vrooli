@@ -2,7 +2,7 @@ import { DUMMY_ID, NoteVersion, noteVersionTranslationValidation, noteVersionVal
 import { useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
@@ -110,7 +110,7 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                     paddingBottom: 0,
                 }}
             >
-                <TranslatedMarkdownInput
+                <TranslatedRichInput
                     language={language}
                     name="text"
                     placeholder={t("PleaseBeNice")}

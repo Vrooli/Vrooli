@@ -132,7 +132,7 @@ export interface LinkInputProps {
     onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => unknown;
 }
 
-export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
+export type RichInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
@@ -165,7 +165,7 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     };
 }
 
-export type MarkdownInputProps = Omit<MarkdownInputBaseProps, "onChange" | "value">
+export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
 
 export type PasswordTextFieldProps = TextFieldProps & {
     autoComplete?: string;
@@ -285,7 +285,7 @@ export interface ToggleSwitchProps {
     sx?: SxType;
 }
 
-export interface TranslatedMarkdownInputProps {
+export interface TranslatedRichInputProps {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;

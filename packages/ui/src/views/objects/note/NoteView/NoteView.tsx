@@ -3,7 +3,7 @@ import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
+import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
@@ -76,7 +76,7 @@ export const NoteView = ({
                         />
                     </EllipsisActionButton>
                 </SideActionsButtons>
-                <MarkdownInputBase
+                <RichInputBase
                     disabled={true}
                     minRows={3}
                     name="text"

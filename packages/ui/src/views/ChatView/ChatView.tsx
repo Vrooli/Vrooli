@@ -4,7 +4,7 @@ import { socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Resizable, useDimensionContext } from "components/Resizable/Resizable";
 import { SessionContext } from "contexts/SessionContext";
@@ -39,7 +39,7 @@ const NewMessageContainer = ({
     console.log("newmessagecontainer dimensions", dimensions);
 
     return (
-        <MarkdownInput
+        <RichInput
             actionButtons={[{
                 Icon: SendIcon,
                 onClick: () => {

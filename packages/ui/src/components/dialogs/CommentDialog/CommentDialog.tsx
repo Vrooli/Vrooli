@@ -1,7 +1,7 @@
 import { commentTranslationValidation } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -17,7 +17,7 @@ const titleId = "comment-dialog-title";
 
 /**
  * Dialog for creating/updating a comment. 
- * Only used on mobile; desktop displays MarkdownInput at top of 
+ * Only used on mobile; desktop displays RichInput at top of 
  * CommentContainer
  */
 export const CommentDialog = ({
@@ -69,7 +69,7 @@ export const CommentDialog = ({
                     paddingBottom: 0,
                 }}
             >
-                <TranslatedMarkdownInput
+                <TranslatedRichInput
                     language={language}
                     name="text"
                     placeholder={t("PleaseBeNice")}

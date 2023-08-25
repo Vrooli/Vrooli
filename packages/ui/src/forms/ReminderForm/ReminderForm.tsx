@@ -2,7 +2,7 @@ import { DUMMY_ID, Reminder, reminderValidation, Session, uuid } from "@local/sh
 import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
@@ -126,7 +126,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                             label={t("Name")}
                             as={TextField}
                         />
-                        <MarkdownInput
+                        <RichInput
                             maxChars={2048}
                             maxRows={10}
                             minRows={4}
@@ -174,7 +174,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                                                                         label={t("Name")}
                                                                         as={TextField}
                                                                     />
-                                                                    <MarkdownInput
+                                                                    <RichInput
                                                                         maxChars={2048}
                                                                         maxRows={6}
                                                                         minRows={2}

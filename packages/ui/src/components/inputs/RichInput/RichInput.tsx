@@ -1,11 +1,11 @@
 import { useField } from "formik";
-import { MarkdownInputBase } from "../MarkdownInputBase/MarkdownInputBase";
-import { MarkdownInputProps } from "../types";
+import { RichInputBase } from "../RichInputBase/RichInputBase";
+import { RichInputProps } from "../types";
 
-export const MarkdownInput = ({
+export const RichInput = ({
     name,
     ...props
-}: MarkdownInputProps) => {
+}: RichInputProps) => {
     const [field, meta, helpers] = useField(name);
 
     const handleChange = (value) => {
@@ -13,7 +13,7 @@ export const MarkdownInput = ({
     };
 
     return (
-        <MarkdownInputBase
+        <RichInputBase
             {...props}
             name={name}
             value={field.value}

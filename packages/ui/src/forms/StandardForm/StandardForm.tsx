@@ -5,7 +5,7 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -130,7 +130,7 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                             language={language}
                             name="name"
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="description"
                             maxChars={2048}

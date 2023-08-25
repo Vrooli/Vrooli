@@ -1,13 +1,13 @@
 import { useField } from "formik";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
-import { MarkdownInputBase } from "../MarkdownInputBase/MarkdownInputBase";
-import { TranslatedMarkdownInputProps } from "../types";
+import { RichInputBase } from "../RichInputBase/RichInputBase";
+import { TranslatedRichInputProps } from "../types";
 
-export const TranslatedMarkdownInput = ({
+export const TranslatedRichInput = ({
     language,
     name,
     ...props
-}: TranslatedMarkdownInputProps) => {
+}: TranslatedRichInputProps) => {
     const [field, meta, helpers] = useField("translations");
     const { value, error, touched } = getTranslationData(field, meta, language);
 
@@ -20,7 +20,7 @@ export const TranslatedMarkdownInput = ({
     };
 
     return (
-        <MarkdownInputBase
+        <RichInputBase
             {...props}
             name={name}
             value={value?.[name] || ""}
