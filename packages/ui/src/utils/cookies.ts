@@ -23,6 +23,7 @@ export const Cookies = {
     IsLeftHanded: "isLeftHanded",
     FocusModeActive: "focusModeActive",
     FocusModeAll: "focusModeAll",
+    ShowMarkdown: "showMarkdown",
     SideMenuState: "sideMenuState",
 };
 export type Cookies = ValueOf<typeof Cookies>;
@@ -191,6 +192,14 @@ export const setCookieDimensions = (id: string, dimensions: Dimensions) => ifAll
     const allDimensions = getOrSetCookie(Cookies.Dimensions, (value: unknown): value is Record<string, Dimensions> => typeof value === "object" && value !== null, {});
     setCookie(Cookies.Dimensions, allDimensions ? { ...allDimensions, [id]: dimensions } : { [id]: dimensions });
 });
+
+export const getCookieShowMarkdown = <T extends boolean | undefined>(fallback?: T): T =>
+    ifAllowed("functional",
+        () => getOrSetCookie(Cookies.ShowMarkdown, (value: unknown): value is boolean => typeof value === "boolean", fallback),
+        fallback,
+    );
+export const setCookieShowMarkdown = (showMarkdown: boolean) => ifAllowed("functional", () => setCookie(Cookies.ShowMarkdown, showMarkdown));
+
 
 /** Supports ID data from URL params, as well as partial object */
 type PartialData = {

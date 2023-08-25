@@ -11,14 +11,6 @@ export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
     timestamp?: number;
 }
 
-export interface MarkdownDisplayProps {
-    content: string | undefined;
-    isEditable?: boolean;
-    onChange?: (content: string) => void;
-    sx?: SxType;
-    variant?: TypographyProps["variant"];
-}
-
 export interface OwnerLabelProps {
     confirmOpen?: (callback: () => void) => void;
     language?: string

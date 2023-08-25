@@ -13,6 +13,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { useTranslation } from "react-i18next";
 import { linkColors, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
 import { keyComboToString } from "utils/display/device";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
@@ -232,20 +233,6 @@ export const MarkdownInputBase = ({
     // Debounce text change
     const onChangeDebounced = useDebounce(onChange, 200);
 
-    // Flash preview button when user tries to edit text while preview is on
-    const [flashPreview, setFlashPreview] = useState(false);
-    useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (flashPreview) {
-            timer = setTimeout(() => {
-                setFlashPreview(false);
-            }, 500);
-        }
-        return () => {
-            clearTimeout(timer);
-        };
-    }, [flashPreview]);
-
     const isButtonDebounced = useRef(false);
     const startDebounce = useCallback(() => {
         isButtonDebounced.current = true;
@@ -254,45 +241,27 @@ export const MarkdownInputBase = ({
         }, 100);
     }, []);
 
-    const [isPreviewOn, setIsPreviewOn] = useState(false);
-    const togglePreview = useCallback(() => { setIsPreviewOn(on => !on); }, []);
-    const togglePreviewDebounce = useDebounce(togglePreview, 50);
-    const checkIfCanEdit = useCallback(() => {
-        if (isPreviewOn) {
-            setFlashPreview(true);
-            return false;
-        }
-        return true;
-    }, [isPreviewOn]);
-    // Switch focus when preview is toggled
-    useEffect(() => {
-        // Ignore if no changes have been made (starts with initial value, so length is 1)
-        if (changeStack.current.length <= 1) return;
-        // Set focus after a short delay to allow for debouncing of togglePreview
-        console.log("switching focus", isPreviewOn, document.getElementById(`markdown-input-base-${name}`));
-        // If turning preview on, change focus to the full markdown input component
-        if (isPreviewOn) document.getElementById(`markdown-input-base-${name}`)?.focus();
-        // Otherwise, change focus to the input element
-        else document.getElementById(`markdown-input-${name}`)?.focus();
-    }, [isPreviewOn, name]);
+    const [isMarkdownOn, setIsMarkdownOn] = useState(getCookieShowMarkdown() ?? false);
+    const toggleMarkdown = useCallback(() => {
+        setIsMarkdownOn(!isMarkdownOn);
+        setCookieShowMarkdown(!isMarkdownOn);
+    }, [isMarkdownOn]);
 
     /** Moves back one in the change stack */
     const undo = useCallback(() => {
-        if (checkIfCanEdit() && changeStackIndex > 0) {
-            setChangeStackIndex(changeStackIndex - 1);
-            setInternalValue(changeStack.current[changeStackIndex - 1]);
-            onChangeDebounced(changeStack.current[changeStackIndex - 1]);
-        }
-    }, [changeStackIndex, checkIfCanEdit, onChangeDebounced]);
+        if (disabled || changeStackIndex <= 0) return;
+        setChangeStackIndex(changeStackIndex - 1);
+        setInternalValue(changeStack.current[changeStackIndex - 1]);
+        onChangeDebounced(changeStack.current[changeStackIndex - 1]);
+    }, [changeStackIndex, disabled, onChangeDebounced]);
     const canUndo = useMemo(() => changeStackIndex > 0 && changeStack.current.length > 0, [changeStackIndex]);
     /** Moves forward one in the change stack */
     const redo = useCallback(() => {
-        if (checkIfCanEdit() && changeStackIndex < changeStack.current.length - 1) {
-            setChangeStackIndex(changeStackIndex + 1);
-            setInternalValue(changeStack.current[changeStackIndex + 1]);
-            onChangeDebounced(changeStack.current[changeStackIndex + 1]);
-        }
-    }, [changeStackIndex, checkIfCanEdit, onChangeDebounced]);
+        if (disabled || changeStackIndex >= changeStack.current.length - 1) return;
+        setChangeStackIndex(changeStackIndex + 1);
+        setInternalValue(changeStack.current[changeStackIndex + 1]);
+        onChangeDebounced(changeStack.current[changeStackIndex + 1]);
+    }, [changeStackIndex, disabled, onChangeDebounced]);
     const canRedo = useMemo(() => changeStackIndex < changeStack.current.length - 1 && changeStack.current.length > 0, [changeStackIndex]);
     /**
      * Adds, to change stack, and removes anything from the change stack after the current index
@@ -317,7 +286,7 @@ export const MarkdownInputBase = ({
         // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
     });
     const openAssistantDialog = useCallback(() => {
-        if (!checkIfCanEdit()) return;
+        if (disabled) return;
         // We want to provide the assistant with the most relevant context
         let context: string | undefined = undefined;
         const maxContextLength = 1500;
@@ -333,11 +302,11 @@ export const MarkdownInputBase = ({
         // Open the assistant dialog
         console.log("context here", context, highlightedText, selectionStart, selectionEnd, textArea.value);
         setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `\`\`\`\n${context}\n\`\`\`\n\n` : undefined }));
-    }, [checkIfCanEdit, internalValue, name]);
+    }, [disabled, internalValue, name]);
 
     const [headerAnchorEl, setHeaderAnchorEl] = useState<HTMLElement | null>(null);
     const openHeaderSelect = (event: React.MouseEvent<HTMLElement>) => {
-        if (!checkIfCanEdit()) return;
+        if (disabled) return;
         setHeaderAnchorEl(event.currentTarget);
     };
     const closeHeader = () => { setHeaderAnchorEl(null); };
@@ -345,14 +314,14 @@ export const MarkdownInputBase = ({
 
     const [listAnchorEl, setListAnchorEl] = useState<HTMLElement | null>(null);
     const openListSelect = (event: React.MouseEvent<HTMLElement>) => {
-        if (!checkIfCanEdit()) return;
+        if (disabled) return;
         setListAnchorEl(event.currentTarget);
     };
     const closeList = () => { setListAnchorEl(null); };
     const listSelectOpen = Boolean(listAnchorEl);
 
     const insertHeader = useCallback((header: Headers) => {
-        if (!checkIfCanEdit()) return;
+        if (disabled) return;
         // Find the current selection
         const { selectionStart, textArea } = getSelection(`markdown-input-${name}`);
         // Find the start of the line which the select starts on
@@ -369,7 +338,7 @@ export const MarkdownInputBase = ({
         }
         handleChange(textArea.value);
         closeHeader();
-    }, [checkIfCanEdit, handleChange, name]);
+    }, [disabled, handleChange, name]);
 
     /**
      * Pads selection with the given substring
@@ -377,7 +346,7 @@ export const MarkdownInputBase = ({
      * @param padEnd The substring to add after the selection
      */
     const padSelection = useCallback((padStart: string, padEnd: string) => {
-        if (!checkIfCanEdit()) return;
+        if (disabled) return;
         // Find the current selection
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
         // If no selection, return
@@ -388,14 +357,14 @@ export const MarkdownInputBase = ({
         // Insert ~~ before the selection, and ~~ after the selection
         textArea.value = textArea.value.substring(0, selectionStart) + padStart + textArea.value.substring(selectionStart, selectionEnd) + padEnd + textArea.value.substring(selectionEnd);
         handleChange(textArea.value);
-    }, [checkIfCanEdit, handleChange, name]);
+    }, [disabled, handleChange, name]);
 
-    const strikethrough = useCallback(() => { padSelection("~~", "~~"); }, [padSelection]);
-    const bold = useCallback(() => { padSelection("**", "**"); }, [padSelection]);
-    const italic = useCallback(() => { padSelection("*", "*"); }, [padSelection]);
+    const strikethrough = useCallback(() => { if (!disabled) padSelection("~~", "~~"); }, [disabled, padSelection]);
+    const bold = useCallback(() => { if (!disabled) padSelection("**", "**"); }, [disabled, padSelection]);
+    const italic = useCallback(() => { if (!disabled) padSelection("*", "*"); }, [disabled, padSelection]);
 
     const insertLink = useCallback(() => {
-        if (!checkIfCanEdit()) return;
+        if (disabled) return;
         // Find the current selection
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
         // If no selection, insert [link](url) at the cursor
@@ -406,42 +375,42 @@ export const MarkdownInputBase = ({
         }
         // Otherwise, call padSelection
         padSelection("[", "](url)");
-    }, [checkIfCanEdit, name, onChange, padSelection]);
+    }, [disabled, name, onChange, padSelection]);
 
     const insertBulletList = useCallback(() => {
-        if (!checkIfCanEdit()) return;
+        if (disabled) return;
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
         const [lines, linesStart, linesEnd] = (getLinesAtRange(textArea.value, selectionStart, selectionEnd) ?? []);
         const newValue = replaceText(textArea.value, lines.map(line => `* ${line}`).join("\n"), linesStart, linesEnd);
         textArea.value = newValue;
         handleChange(newValue);
         closeList();
-    }, [checkIfCanEdit, handleChange, name]);
+    }, [disabled, handleChange, name]);
 
     const insertNumberList = useCallback(() => {
-        if (!checkIfCanEdit()) return;
+        if (disabled) return;
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
         const [lines, linesStart, linesEnd] = (getLinesAtRange(textArea.value, selectionStart, selectionEnd) ?? []);
         const newValue = replaceText(textArea.value, lines.map((line, i) => `${i + 1}. ${line}`).join("\n"), linesStart, linesEnd);
         textArea.value = newValue;
         handleChange(newValue);
         closeList();
-    }, [checkIfCanEdit, handleChange, name]);
+    }, [disabled, handleChange, name]);
 
     const insertCheckboxList = useCallback(() => {
-        if (!checkIfCanEdit()) return;
+        if (disabled) return;
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
         const [lines, linesStart, linesEnd] = (getLinesAtRange(textArea.value, selectionStart, selectionEnd) ?? []);
         const newValue = replaceText(textArea.value, lines.map(line => `- [ ] ${line}`).join("\n"), linesStart, linesEnd);
         textArea.value = newValue;
         handleChange(newValue);
         closeList();
-    }, [checkIfCanEdit, handleChange, name]);
+    }, [disabled, handleChange, name]);
 
     // Prevents the textArea from removing its highlight when one 
     // of the buttons is clicked
     const handleMouseDown = useCallback((e) => {
-        if (isPreviewOn) return;
+        if (disabled) return;
         // Get selection data
         const { selectionStart, selectionEnd } = getSelection(`markdown-input-${name}`);
         // Get target element id
@@ -452,7 +421,7 @@ export const MarkdownInputBase = ({
             e.stopPropagation();
         }
         // e.preventDefault() 
-    }, [isPreviewOn, name]);
+    }, [disabled, name]);
 
     // Handle "@" dropdown for tagging users or any other items
     const [dropdownAnchorEl, setDropdownAnchorEl] = useState<HTMLElement | null>(null);
@@ -514,7 +483,7 @@ export const MarkdownInputBase = ({
             "4": () => insertBulletList(), // ALT + 4 - Bullet list
             "5": () => insertNumberList(), // ALT + 5 - Number list
             "6": () => insertCheckboxList(), // ALT + 6 - Checkbox list
-            "7": () => togglePreview(), // ALT + 7 - Toggle preview
+            "7": () => toggleMarkdown(), // ALT + 7 - Toggle preview
             "b": () => bold(), // CTRL + B - Bold
             "i": () => italic(), // CTRL + I - Italic
             "k": () => insertLink(), // CTRL + K - Insert link
@@ -628,12 +597,7 @@ export const MarkdownInputBase = ({
                 console.log("fullcomponent action triggered");
                 e.preventDefault();
                 startDebounce();
-                togglePreview();
-            }
-            // If any letters or numbers are pressed (i.e. user is trying to type and possibly 
-            // frustrated that nothing is happending), trigger preview button flash
-            else if (/^[a-zA-Z0-9]$/.test(e.key)) {
-                setFlashPreview(true);
+                toggleMarkdown();
             }
         };
         // Find textarea or full component
@@ -647,7 +611,7 @@ export const MarkdownInputBase = ({
             textarea?.removeEventListener("keydown", handleTextareaKeyDown);
             fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
         };
-    }, [bold, dropdownAnchorEl, dropdownList, dropdownTabIndex, getTaggableItems, handleChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, selectDropdownItem, startDebounce, strikethrough, tagString, togglePreview, togglePreviewDebounce, undo]);
+    }, [bold, dropdownAnchorEl, dropdownList, dropdownTabIndex, getTaggableItems, handleChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, selectDropdownItem, startDebounce, strikethrough, tagString, toggleMarkdown, undo]);
 
     // Resize textarea to fit content
     const LINE_HEIGHT_MULTIPLIER = 1.5;
@@ -661,7 +625,7 @@ export const MarkdownInputBase = ({
         const linesShown = Math.max(minRowsNum, Math.min(lines, maxRowsNum));
         const padding = 34;
         textAreaRef.current.style.height = `${linesShown * lineHeight + padding}px`;
-    }, [isPreviewOn, minRows, maxRows, typography, value, sxs?.textArea?.height]);
+    }, [minRows, maxRows, typography, value, sxs?.textArea?.height]);
 
     return (
         <>
@@ -899,22 +863,22 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>}
                         {/* Preview */}
-                        <Tooltip title={isPreviewOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "7")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "7")})`} placement="top">
-                            <Typography variant="body2" onClick={togglePreview} sx={{
+                        <Tooltip title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "7")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "7")})`} placement="top">
+                            <Typography variant="body2" onClick={toggleMarkdown} sx={{
                                 cursor: "pointer",
                                 margin: "auto",
                                 padding: 1,
-                                background: flashPreview ? palette.error.main : palette.primary.main,
+                                background: palette.primary.main,
                                 borderRadius: 2,
                             }}>
-                                {isPreviewOn ? t("Markdown") : t("Preview")}
+                                {!isMarkdownOn ? t("MarkdownTo") : t("PreviewTo")}
                             </Typography>
                         </Tooltip>
                     </Box>
                 </Box>
                 {/* TextField for entering markdown, or markdown display if previewing */}
                 {
-                    isPreviewOn ?
+                    !isMarkdownOn ?
                         (
                             <Box
                                 id={`markdown-preview-${name}`}
@@ -933,7 +897,8 @@ export const MarkdownInputBase = ({
                                     content={internalValue}
                                     isEditable={!disabled}
                                     onChange={handleChange}
-                                    sx={{ minHeight: "50px" }}
+                                    placeholder={placeholder}
+                                    sxs={{ root: { minHeight: "50px" } }}
                                 />
                             </Box>
                         ) :
