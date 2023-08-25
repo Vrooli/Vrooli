@@ -116,12 +116,6 @@ const headerMarkdowns = {
     [Headers.H6]: "###### ",
 };
 
-const dropDownButtonProps = ({
-    borderRadius: 0,
-    width: "48px",
-    height: "48px",
-});
-
 /**
  * Determines start index of the current line.
  * @param text Text to search.
@@ -695,7 +689,7 @@ export const MarkdownInputBase = ({
                     flexDirection: (isLeftHanded || !isMobile) ? "row" : "row-reverse",
                     width: "100%",
                     padding: "0.5rem",
-                    background: palette.primary.light,
+                    background: palette.primary.main,
                     color: palette.primary.contrastText,
                     borderRadius: "0.5rem 0.5rem 0 0",
                     ...(sxs?.bar ?? {}),
@@ -716,6 +710,7 @@ export const MarkdownInputBase = ({
                                 disabled={disabled}
                                 size="small"
                                 onClick={openAssistantDialog}
+                                sx={{ background: palette.primary.main, borderRadius: 2 }}
                             >
                                 <MagicIcon fill={palette.primary.contrastText} />
                             </IconButton>
@@ -727,6 +722,7 @@ export const MarkdownInputBase = ({
                                 disabled={disabled}
                                 size="small"
                                 onClick={openHeaderSelect}
+                                sx={{ background: palette.primary.main, borderRadius: 2 }}
                             >
                                 <HeaderIcon fill={palette.primary.contrastText} />
                             </IconButton>
@@ -743,13 +739,13 @@ export const MarkdownInputBase = ({
                         >
                             {/* When opened, button row of 1-6, for each size */}
                             <Stack direction="row" spacing={0} sx={{
-                                background: palette.primary.light,
+                                background: palette.primary.main,
                                 color: palette.primary.contrastText,
                             }}>
                                 <Tooltip title={`${t("Header1")} (${keyComboToString("Alt", "1")})`} placement="top">
                                     <IconButton
                                         onClick={() => insertHeader(Headers.H1)}
-                                        sx={dropDownButtonProps}
+                                        sx={{ background: palette.primary.main, borderRadius: 2 }}
                                     >
                                         <Header1Icon fill={palette.primary.contrastText} />
                                     </IconButton>
@@ -757,7 +753,7 @@ export const MarkdownInputBase = ({
                                 <Tooltip title={`${t("Header2")} (${keyComboToString("Alt", "2")})`} placement="top">
                                     <IconButton
                                         onClick={() => insertHeader(Headers.H2)}
-                                        sx={dropDownButtonProps}
+                                        sx={{ background: palette.primary.main, borderRadius: 2 }}
                                     >
                                         <Header2Icon fill={palette.primary.contrastText} />
                                     </IconButton>
@@ -765,7 +761,7 @@ export const MarkdownInputBase = ({
                                 <Tooltip title={`${t("Header3")} (${keyComboToString("Alt", "3")})`} placement="top">
                                     <IconButton
                                         onClick={() => insertHeader(Headers.H3)}
-                                        sx={dropDownButtonProps}
+                                        sx={{ background: palette.primary.main, borderRadius: 2 }}
                                     >
                                         <Header3Icon fill={palette.primary.contrastText} />
                                     </IconButton>
@@ -778,6 +774,7 @@ export const MarkdownInputBase = ({
                                 disabled={disabled}
                                 size="small"
                                 onClick={bold}
+                                sx={{ background: palette.primary.main, borderRadius: 2 }}
                             >
                                 <BoldIcon fill={palette.primary.contrastText} />
                             </IconButton>
@@ -788,6 +785,7 @@ export const MarkdownInputBase = ({
                                 disabled={disabled}
                                 size="small"
                                 onClick={italic}
+                                sx={{ background: palette.primary.main, borderRadius: 2 }}
                             >
                                 <ItalicIcon fill={palette.primary.contrastText} />
                             </IconButton>
@@ -798,6 +796,7 @@ export const MarkdownInputBase = ({
                                 disabled={disabled}
                                 size="small"
                                 onClick={strikethrough}
+                                sx={{ background: palette.primary.main, borderRadius: 2 }}
                             >
                                 <StrikethroughIcon fill={palette.primary.contrastText} />
                             </IconButton>
@@ -809,6 +808,7 @@ export const MarkdownInputBase = ({
                                 disabled={disabled}
                                 size="small"
                                 onClick={openListSelect}
+                                sx={{ background: palette.primary.main, borderRadius: 2 }}
                             >
                                 <ListIcon fill={palette.primary.contrastText} />
                             </IconButton>
@@ -824,13 +824,13 @@ export const MarkdownInputBase = ({
                             }}
                         >
                             <Stack direction="row" spacing={0} sx={{
-                                background: palette.primary.light,
+                                background: palette.primary.main,
                                 color: palette.primary.contrastText,
                             }}>
                                 <Tooltip title={`${t("ListBulleted")} (${keyComboToString("Alt", "4")})`} placement="top">
                                     <IconButton
                                         onClick={insertBulletList}
-                                        sx={dropDownButtonProps}
+                                        sx={{ background: palette.primary.main, borderRadius: 2 }}
                                     >
                                         <ListBulletIcon fill={palette.primary.contrastText} />
                                     </IconButton>
@@ -838,7 +838,7 @@ export const MarkdownInputBase = ({
                                 <Tooltip title={`${t("ListNumbered")} (${keyComboToString("Alt", "5")})`} placement="top">
                                     <IconButton
                                         onClick={insertNumberList}
-                                        sx={dropDownButtonProps}
+                                        sx={{ background: palette.primary.main, borderRadius: 2 }}
                                     >
                                         <ListNumberIcon fill={palette.primary.contrastText} />
                                     </IconButton>
@@ -846,7 +846,7 @@ export const MarkdownInputBase = ({
                                 <Tooltip title={`${t("ListCheckbox")} (${keyComboToString("Alt", "6")})`} placement="top">
                                     <IconButton
                                         onClick={insertCheckboxList}
-                                        sx={dropDownButtonProps}
+                                        sx={{ background: palette.primary.main, borderRadius: 2 }}
                                     >
                                         <ListCheckIcon fill={palette.primary.contrastText} />
                                     </IconButton>
@@ -859,25 +859,28 @@ export const MarkdownInputBase = ({
                                 disabled={disabled}
                                 size="small"
                                 onClick={insertLink}
+                                sx={{ background: palette.primary.main, borderRadius: 2 }}
                             >
                                 <LinkIcon fill={palette.primary.contrastText} />
                             </IconButton>
                         </Tooltip>
                     </Stack>
                     {/* To the right is buttons for undo, redo, and previewing the markdown */}
-                    <Stack
-                        direction="row"
-                        spacing={{ xs: 0, sm: 0.5, md: 1 }}
-                        alignItems="center"
-                    >
+                    <Box sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: { xs: 0, sm: 0.5, md: 1 },
+                    }}>
                         {/* Undo */}
                         {(canUndo || canRedo) && <Tooltip title={canUndo ? `${t("Undo")} (${keyComboToString("Ctrl", "Z")})` : ""}>
                             <IconButton
                                 id="undo-button"
                                 disabled={!canUndo}
                                 onClick={undo}
-                                aria-label="Undo"
+                                aria-label={t("Undo")}
                                 size="small"
+                                sx={{ background: palette.primary.main, borderRadius: 2 }}
                             >
                                 <UndoIcon fill={palette.primary.contrastText} />
                             </IconButton>
@@ -888,8 +891,9 @@ export const MarkdownInputBase = ({
                                 id="redo-button"
                                 disabled={!canRedo}
                                 onClick={redo}
-                                aria-label="Redo"
+                                aria-label={t("Redo")}
                                 size="small"
+                                sx={{ background: palette.primary.main, borderRadius: 2 }}
                             >
                                 <RedoIcon fill={palette.primary.contrastText} />
                             </IconButton>
@@ -899,13 +903,14 @@ export const MarkdownInputBase = ({
                             <Typography variant="body2" onClick={togglePreview} sx={{
                                 cursor: "pointer",
                                 margin: "auto",
-                                backgroundColor: flashPreview ? palette.error.main : "transparent",
-                                transition: "backgroundColor 1s ease-in-out",
+                                padding: 1,
+                                background: flashPreview ? palette.error.main : palette.primary.main,
+                                borderRadius: 2,
                             }}>
-                                {isPreviewOn ? t("Preview") : t("Markdown")}
+                                {isPreviewOn ? t("Markdown") : t("Preview")}
                             </Typography>
                         </Tooltip>
-                    </Stack>
+                    </Box>
                 </Box>
                 {/* TextField for entering markdown, or markdown display if previewing */}
                 {

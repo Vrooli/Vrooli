@@ -118,7 +118,6 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                     sxs={{
                         bar: {
                             borderRadius: 0,
-                            background: palette.primary.main,
                             position: "sticky",
                             top: 0,
                         },
