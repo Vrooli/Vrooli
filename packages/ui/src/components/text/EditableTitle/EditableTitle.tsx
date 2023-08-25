@@ -1,4 +1,4 @@
-import { IconButton, TextField } from "@mui/material";
+import { TextField } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
@@ -125,30 +125,12 @@ export const EditableTitle = ({
                 title={title}
                 help={subtitle}
                 {...titleProps}
-                sxs={{
-                    ...titleProps.sxs,
-                    stack: {
-                        ...(isEditable ? { paddingRight: 0 } : {}),
-                        ...titleProps.sxs?.stack,
-                    },
-                }}
+                options={isEditable ? [{
+                    Icon: EditIcon,
+                    label: t("Edit"),
+                    onClick: handleOpenDialog,
+                }] : []}
             />
-            {isEditable && (
-                <IconButton
-                    aria-label={t("Edit")}
-                    color="secondary"
-                    size="small"
-                    onClick={handleOpenDialog}
-                    sx={{
-                        paddingRight: (titleProps.sxs?.stack as Record<string, unknown>)?.paddingRight ||
-                            (titleProps.sxs?.stack as Record<string, unknown>)?.padding ||
-                            2,
-                    }}
-                >
-                    <EditIcon />
-                </IconButton>
-            )}
-
             <LargeDialog
                 id="editable-title-dialog"
                 isOpen={isDialogOpen}

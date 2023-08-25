@@ -428,7 +428,7 @@ export function App() {
                             // Custom IconButton hover highlighting, which doesn't hide background color
                             ".MuiIconButton-root": {
                                 "&:hover": {
-                                    filter: "brightness(1.2)",
+                                    filter: "brightness(1.3)",
                                 },
                                 "&.Mui-disabled": {
                                     pointerEvents: "none",

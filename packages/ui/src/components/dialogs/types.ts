@@ -44,6 +44,7 @@ export interface DialogTitleProps extends Omit<TitleProps, "sxs"> {
     below?: JSX.Element | boolean | undefined;
     id: string;
     onClose?: () => unknown;
+    startComponent?: JSX.Element;
     sxs?: TitleProps["sxs"] & { root?: SxType; };
 }
 

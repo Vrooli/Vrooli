@@ -154,6 +154,7 @@ export enum MemberManagePageTabOption {
 }
 
 export enum MyStuffPageTabOption {
+    All = "All",
     Api = "Api",
     Note = "Note",
     Organization = "Organization",
@@ -386,8 +387,13 @@ export const inboxTabParams = [{
     where: () => ({}),
 }];
 
-// Data for each tab TODO add popular and bot tabs
 export const myStuffTabParams = [{
+    Icon: VisibleIcon,
+    titleKey: "All" as CommonKey,
+    searchType: SearchType.Popular,
+    tabType: MyStuffPageTabOption.All,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
     Icon: RoutineIcon,
     titleKey: "Routine" as CommonKey,
     searchType: SearchType.Routine,
@@ -428,7 +434,13 @@ export const myStuffTabParams = [{
     titleKey: "Organization" as CommonKey,
     searchType: SearchType.Organization,
     tabType: MyStuffPageTabOption.Organization,
-    where: (userId: string) => ({ memberUserIds: [userId] }),
+    where: ({ userId }) => ({ memberUserIds: [userId] }),
+}, {
+    Icon: UserIcon,
+    titleKey: "Bot" as CommonKey,
+    searchType: SearchType.User,
+    tabType: MyStuffPageTabOption.User,
+    where: ({ userId }) => ({ visibility: VisibilityType.Own, isBot: true, excludeIds: [userId] }),
 }, {
     Icon: StandardIcon,
     titleKey: "Standard" as CommonKey,

@@ -8,7 +8,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useDebounce } from "hooks/useDebounce";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useWindowSize } from "hooks/useWindowSize";
-import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "icons";
+import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { linkColors, noSelect } from "styles";
@@ -545,6 +545,7 @@ export const MarkdownInputBase = ({
             }
             // Handle tag dropdown. Triggered by "@" key press
             if (!dropdownAnchorEl && typeof getTaggableItems === "function" && e.key === "@") {
+                console.log("opening dropdown for tags");
                 setTagString("");
                 setDropdownList([]);
                 setDropdownAnchorEl(textAreaRef.current);
@@ -619,6 +620,10 @@ export const MarkdownInputBase = ({
                     handleChange(textArea.value);
                 }
             }
+            // On "Esc" key press, don't propagate the event
+            else if (e.key === "Escape") {
+                e.stopPropagation();
+            }
             console.log("made it to the end");
         };
         // Handle key press events for preview
@@ -667,7 +672,7 @@ export const MarkdownInputBase = ({
     return (
         <>
             {/* Assistant dialog for generating text */}
-            <ChatView {...assistantDialogProps} />
+            {!disableAssistant && <ChatView {...assistantDialogProps} />}
             {/* Dropdown for tagging items */}
             <TagItemDropdown
                 anchorEl={dropdownAnchorEl}
@@ -863,6 +868,7 @@ export const MarkdownInputBase = ({
                     <Stack
                         direction="row"
                         spacing={{ xs: 0, sm: 0.5, md: 1 }}
+                        alignItems="center"
                     >
                         {/* Undo */}
                         {(canUndo || canRedo) && <Tooltip title={canUndo ? `${t("Undo")} (${keyComboToString("Ctrl", "Z")})` : ""}>
@@ -889,21 +895,15 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>}
                         {/* Preview */}
-                        <Tooltip title={isPreviewOn ? `${t("PressToEdit")} (${keyComboToString("Alt", "7")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "7")})`} placement="top">
-                            <IconButton
-                                size="small"
-                                onClick={togglePreview}
-                                sx={{
-                                    backgroundColor: flashPreview ? palette.error.main : "transparent",
-                                    transition: "backgroundColor 1s ease-in-out",
-                                }}
-                            >
-                                {
-                                    isPreviewOn ?
-                                        <InvisibleIcon fill={flashPreview ? palette.error.contrastText : palette.primary.contrastText} /> :
-                                        <VisibleIcon fill={flashPreview ? palette.error.contrastText : palette.primary.contrastText} />
-                                }
-                            </IconButton>
+                        <Tooltip title={isPreviewOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "7")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "7")})`} placement="top">
+                            <Typography variant="body2" onClick={togglePreview} sx={{
+                                cursor: "pointer",
+                                margin: "auto",
+                                backgroundColor: flashPreview ? palette.error.main : "transparent",
+                                transition: "backgroundColor 1s ease-in-out",
+                            }}>
+                                {isPreviewOn ? t("Preview") : t("Markdown")}
+                            </Typography>
                         </Tooltip>
                     </Stack>
                 </Box>
@@ -1006,7 +1006,7 @@ export const MarkdownInputBase = ({
                                             disabled={disabled || buttonDisabled}
                                             size="small"
                                             onClick={onClick}
-                                            sx={{ background: palette.secondary.main }}
+                                            sx={{ background: palette.primary.dark }}
                                         >
                                             <Icon fill={palette.primary.contrastText} />
                                         </IconButton>

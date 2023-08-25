@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { ApiVersion, Bookmark, ChatParticipant, handleRegex, isOfType, LINKS, Member, NoteVersion, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, View, walletAddressRegex } from "@local/shared";
+import { ApiVersion, Bookmark, ChatParticipant, handleRegex, isOfType, LINKS, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, View, walletAddressRegex } from "@local/shared";
 import { SetLocation, stringifySearchParams } from "route";
 import { CalendarEvent, CalendarEventOption, NavigableObject, ShortcutOption } from "types";
 import { ResourceType } from "utils/consts";
@@ -46,6 +46,8 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string =>
     if (isOfType(object, "RunProject")) return getObjectUrlBase((object as RunProject).projectVersion as NavigableObject);
     // If the object is a member or participant, use the user
     if (isOfType(object, "Member", "ChatParticipant")) return getObjectUrlBase((object as Member | ChatParticipant).user as NavigableObject);
+    // If the object is a notification, use the "link" property
+    if (isOfType(object, "Notification")) return (object as Notification).link ?? "";
     // Otherwise, use __typename (or root if versioned object)
     return LINKS[object.__typename.replace("Version", "")];
 };
@@ -74,6 +76,8 @@ export const getObjectSlug = (object: NavigableObject | null | undefined, prefer
     }
     // If the object is a member or chat participant, use the user's slug
     if (isOfType(object, "Member", "ChatParticipant")) return getObjectSlug((object as Partial<ChatParticipant | Member>).user);
+    // If the object is a notification, return an empty string
+    if (isOfType(object, "Notification")) return "";
     // Otherwise, use object's handle or id
     const id = uuidToBase36((object as { id?: string }).id ?? "");
     return prefersId ? id : (object as { handle?: string }).handle ?? id;

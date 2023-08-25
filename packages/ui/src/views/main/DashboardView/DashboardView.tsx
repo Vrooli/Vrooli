@@ -216,7 +216,7 @@ export const DashboardView = ({
     }, [data?.schedules, session]);
 
     return (
-        <PageContainer>
+        <PageContainer sx={{ marginBottom: 2 }}>
             {/* Main content */}
             <TopBar
                 display={display}

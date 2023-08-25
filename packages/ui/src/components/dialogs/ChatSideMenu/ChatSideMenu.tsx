@@ -16,7 +16,7 @@ export const chatSideMenuDisplayData = {
     sideForRightHanded: "left",
 } as const;
 
-const zIndex = 1300;
+const zIndex = 2000;
 const id = "chat-side-menu";
 
 export const ChatSideMenu = () => {

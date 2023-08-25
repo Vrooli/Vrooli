@@ -11,6 +11,7 @@ import { AddIcon, LockIcon, SearchIcon, UnlockIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
+import { scrollIntoFocusedView } from "utils/display/scroll";
 import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
 import { MemberManageViewProps } from "../types";
 

@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
+import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { MyStuffPageTabOption, myStuffTabParams, SearchType } from "utils/search/objectToSearch";
 import { MyStuffViewProps } from "../types";
@@ -127,7 +128,7 @@ export const MyStuffView = ({
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                where={where(userId ?? "")}
+                where={where({ userId: userId ?? "" })}
                 sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionsButtons

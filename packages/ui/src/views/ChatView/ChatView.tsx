@@ -12,7 +12,7 @@ import { Formik, FormikProps } from "formik";
 import { chatInitialValues } from "forms/ChatForm/ChatForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
-import { AddIcon, ListIcon } from "icons";
+import { ListIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -41,7 +41,7 @@ const NewMessageContainer = ({
     return (
         <MarkdownInput
             actionButtons={[{
-                Icon: AddIcon,
+                Icon: SendIcon,
                 onClick: () => {
                     if (!chat) {
                         PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
@@ -117,7 +117,7 @@ export const ChatView = ({
         transform: (existing) => chatInitialValues(session, existing),
     });
     const [createChat, { loading: isCreateLoading, errors: createErrors }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
-    console.log("GOT CHAT", chat);
+    console.log("GOT CHAT", chat, isOpen);
 
     // useEffect(() => {
     //     if (chat || !isOpen) return;
@@ -386,6 +386,7 @@ export const ChatView = ({
                         <Resizable
                             id="chat-message-input"
                             min={150}
+                            max={"50vh"}
                             position="top"
                             sx={{
                                 position: "sticky",

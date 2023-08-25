@@ -10,6 +10,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { BotIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { extractImageUrl } from "utils/display/imageTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
 
@@ -104,13 +105,15 @@ export const ChatBubble = ({
             <Stack direction="row" spacing={1}>
                 {!isOwn && (
                     <Avatar
-                        // src={message.user.avatar} TODO
+                        src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, 50)}
                         alt={message.user?.name ?? message.user?.handle}
                         // onClick handlers...
                         sx={{
                             bgcolor: message.user.isBot ? "grey" : undefined,
                             boxShadow: 2,
                             cursor: "pointer",
+                            // Bots show up as squares, to distinguish them from users
+                            ...(message.user?.isBot ? { borderRadius: "8px" } : {}),
                         }}
                     >
                         {message.user.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
