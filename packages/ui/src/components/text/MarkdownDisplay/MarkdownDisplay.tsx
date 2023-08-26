@@ -1,11 +1,5 @@
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { ContentEditable } from "@lexical/react/LexicalContentEditable";
-import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
-import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
-// import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
-import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { endpointGetApi, endpointGetChat, endpointGetComment, endpointGetNote, endpointGetOrganization, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetSmartContract, endpointGetStandard, endpointGetTag, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
-import { Box, Checkbox, CircularProgress, IconButton, Link, TypographyProps, useTheme } from "@mui/material";
+import { Box, Checkbox, CircularProgress, IconButton, Link, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import hljs from "highlight.js";
 import "highlight.js/styles/monokai-sublime.css";
@@ -13,8 +7,8 @@ import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
 import { CopyIcon } from "icons";
-import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SxType } from "types";
+import Markdown from "markdown-to-jsx";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -277,147 +271,89 @@ function parseMarkdownCheckboxes(content: string) {
     return checkboxIndices;
 }
 
+
+
 export const MarkdownDisplay = ({
     content,
     isEditable,
     onChange,
-    placeholder,
-    sxs,
+    sx,
     variant, //TODO
 }: {
     content: string | undefined;
     isEditable?: boolean;
     onChange?: (content: string) => void;
-    placeholder?: string;
-    sxs?: {
-        root?: SxType;
-        editor?: SxType;
-    };
+    sx?: SxType;
     variant?: TypographyProps["variant"];
+    zIndex: number;
 }) => {
-    const { palette, spacing, typography } = useTheme();
-    // const id = useMemo(() => uuid(), []);
+    const { palette, typography } = useTheme();
+    const id = useMemo(() => uuid(), []);
 
-    // // Add overrides for custom components
-    // const options = {
-    //     overrides: {
-    //         code: CodeBlock,
-    //         blockquote: Blockquote,
-    //         a: withCustomLinkProps({}),
-    //         input: withCustomCheckboxProps({
-    //             onChange: (checkboxId: string, updatedState: boolean) => {
-    //                 if (!content || !onChange) return;
-    //                 // Find location of each checkbox in rendered markdown. Used to find corresponding checkbox in markdown string
-    //                 const markdownComponent = document.getElementById(id);
-    //                 if (!markdownComponent) return;
-    //                 // Use a tree walker to find all checkboxes
-    //                 const treeWalker = document.createTreeWalker(
-    //                     markdownComponent,
-    //                     NodeFilter.SHOW_ELEMENT,
-    //                     {
-    //                         acceptNode: (node: Node) => {
-    //                             // Check if the node is an input element before checking its type
-    //                             if ((node as HTMLInputElement).nodeName === "INPUT" && (node as HTMLInputElement).type === "checkbox") {
-    //                                 return NodeFilter.FILTER_ACCEPT;
-    //                             } else {
-    //                                 return NodeFilter.FILTER_SKIP;
-    //                             }
-    //                         },
-    //                     },
-    //                 );
-    //                 const checkboxes: Node[] = [];
-    //                 while (treeWalker.nextNode()) {
-    //                     checkboxes.push(treeWalker.currentNode);
-    //                 }
-    //                 // Extract id from each checkbox, so we know the order of the checkboxes in the markdown string
-    //                 const checkboxIds = checkboxes.map(checkbox => checkbox.id);
-    //                 // Find the index of the checkbox that was clicked
-    //                 const checkboxIndex = checkboxIds.findIndex(cId => cId === checkboxId);
-    //                 // Find location of each checkbox in content (i.e. plaintext), both checked and unchecked
-    //                 const checkboxLocations = parseMarkdownCheckboxes(content);
-    //                 if (checkboxIndex >= checkboxLocations.length) {
-    //                     console.error("Checkbox index out of range. Checkboxes:", checkboxes, "Checkbox index:", checkboxIndex, "Checkbox locations:", checkboxLocations);
-    //                     return;
-    //                 }
-    //                 // Replace the checkbox in the content with the updated checkbox
-    //                 const checkboxStart = checkboxLocations[checkboxIndex];
-    //                 const newCheckbox = updatedState ? "[x]" : "[ ]";
-    //                 const newContent = content.substring(0, checkboxStart) + newCheckbox + content.substring(checkboxStart + 3);
-    //                 onChange(newContent);
-    //             },
-    //         }),
-    //     },
-    // };
-
-    // // Preprocess the Markdown content
-    // const processedContent = processMarkdown(content ?? "");
-
-    // return (
-    //     <Markdown id={id} options={options} style={{
-    //         fontFamily: typography.fontFamily,
-    //         fontSize: typography.fontSize + 2,
-    //         lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
-    //         color: palette.background.textPrimary,
-    //         display: "block",
-    //         ...sx,
-    //     }}>
-    //         {processedContent}
-    //     </Markdown>
-    // );
-    const theme = {
-
+    // Add overrides for custom components
+    const options = {
+        overrides: {
+            code: CodeBlock,
+            blockquote: Blockquote,
+            a: withCustomLinkProps({}),
+            input: withCustomCheckboxProps({
+                onChange: (checkboxId: string, updatedState: boolean) => {
+                    if (!content || !onChange) return;
+                    // Find location of each checkbox in rendered markdown. Used to find corresponding checkbox in markdown string
+                    const markdownComponent = document.getElementById(id);
+                    if (!markdownComponent) return;
+                    // Use a tree walker to find all checkboxes
+                    const treeWalker = document.createTreeWalker(
+                        markdownComponent,
+                        NodeFilter.SHOW_ELEMENT,
+                        {
+                            acceptNode: (node: Node) => {
+                                // Check if the node is an input element before checking its type
+                                if ((node as HTMLInputElement).nodeName === "INPUT" && (node as HTMLInputElement).type === "checkbox") {
+                                    return NodeFilter.FILTER_ACCEPT;
+                                } else {
+                                    return NodeFilter.FILTER_SKIP;
+                                }
+                            },
+                        },
+                    );
+                    const checkboxes: Node[] = [];
+                    while (treeWalker.nextNode()) {
+                        checkboxes.push(treeWalker.currentNode);
+                    }
+                    // Extract id from each checkbox, so we know the order of the checkboxes in the markdown string
+                    const checkboxIds = checkboxes.map(checkbox => checkbox.id);
+                    // Find the index of the checkbox that was clicked
+                    const checkboxIndex = checkboxIds.findIndex(cId => cId === checkboxId);
+                    // Find location of each checkbox in content (i.e. plaintext), both checked and unchecked
+                    const checkboxLocations = parseMarkdownCheckboxes(content);
+                    if (checkboxIndex >= checkboxLocations.length) {
+                        console.error("Checkbox index out of range. Checkboxes:", checkboxes, "Checkbox index:", checkboxIndex, "Checkbox locations:", checkboxLocations);
+                        return;
+                    }
+                    // Replace the checkbox in the content with the updated checkbox
+                    const checkboxStart = checkboxLocations[checkboxIndex];
+                    const newCheckbox = updatedState ? "[x]" : "[ ]";
+                    const newContent = content.substring(0, checkboxStart) + newCheckbox + content.substring(checkboxStart + 3);
+                    onChange(newContent);
+                },
+            }),
+        },
     };
 
-    const onError = (error: Error) => {
-        console.error(error);
-    };
-
-    const initialConfig = {
-        namespace: "MyEditor",
-        theme,
-        onError,
-    };
-
-    // function handleChange(editorState: EditorState): void {
-    //     const json = editorState.toJSON();
-    //     const text = editorState.read(() => $getRoot().getTextContent());
-    //     onChange?.({ json, text });
-    // }
+    // Preprocess the Markdown content
+    const processedContent = processMarkdown(content ?? "");
 
     return (
-        <LexicalComposer initialConfig={initialConfig}>
-            <Box className="editor-container" sx={{
-                border: "1px solid green",
-                position: "relative",
-                ...sxs?.root,
-            }}>
-                <RichTextPlugin
-                    contentEditable={<ContentEditable
-                        className="editor-input"
-                        // content={content ?? ""}
-                        style={{
-                            outline: "none",
-                            border: "1px solid red",
-                            ...sxs?.editor,
-                        } as CSSProperties}
-                    />}
-                    placeholder={
-                        <div style={{
-                            position: "absolute",
-                            pointerEvents: "none",
-                            top: 0,
-                            left: 0,
-                            padding: spacing(1),
-                        }}
-                        >
-                            {placeholder ?? "Enter some text..."}
-                        </div>
-                    }
-                    ErrorBoundary={LexicalErrorBoundary}
-                />
-                {/* <OnChangePlugin onChange={onChange} /> */}
-                <HistoryPlugin />
-            </Box>
-        </LexicalComposer>
+        <Markdown id={id} options={options} style={{
+            fontFamily: typography.fontFamily,
+            fontSize: typography.fontSize + 2,
+            lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
+            color: palette.background.textPrimary,
+            display: "block",
+            ...sx,
+        }}>
+            {processedContent}
+        </Markdown>
     );
 };

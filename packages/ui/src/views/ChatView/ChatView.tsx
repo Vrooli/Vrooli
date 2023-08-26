@@ -63,6 +63,7 @@ const NewMessageContainer = ({
                 users = users.filter(p => p.id !== getCurrentUser(session).id);
                 // Filter out users that don't match the search string
                 users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
+                console.log("got taggable items", users, searchString);
                 return users;
             }}
             maxChars={1500}
