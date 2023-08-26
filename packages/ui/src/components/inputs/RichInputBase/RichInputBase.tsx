@@ -93,6 +93,7 @@ export const RichInputBase = ({
     const CurrentViewComponent = useMemo(() => isMarkdownOn ? RichInputMarkdown : RichInputLexical, [isMarkdownOn]);
     // Map view-specific functions to this component
     const handleAction: RichInputChildView["handleAction"] = useCallback((action: RichInputAction) => {
+        console.log("in RichInputBase handleAction", action, CurrentViewComponent, (CurrentViewComponent as unknown as RichInputChildView)?.handleAction);
         if (CurrentViewComponent && (CurrentViewComponent as unknown as RichInputChildView).handleAction) {
             (CurrentViewComponent as unknown as RichInputChildView).handleAction(action);
         }
