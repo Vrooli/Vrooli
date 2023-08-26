@@ -1,8 +1,15 @@
+import { CodeNode } from "@lexical/code";
+import { LinkNode } from "@lexical/link";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { $convertFromMarkdownString, TRANSFORMERS } from "@lexical/markdown";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
+import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
+import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
 import { CSSProperties, useCallback } from "react";
@@ -11,6 +18,7 @@ import { ListObject } from "utils/display/listTools";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { RichInputAction } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputChildView, RichInputLexicalProps } from "../types";
+
 
 /** TextField for entering WYSIWYG text */
 export const RichInputLexical = ({
@@ -44,8 +52,11 @@ export const RichInputLexical = ({
 
     const initialConfig = {
         namespace: "MyEditor",
+        // To find missing nodes, check each plugin's file in the lexical repo for the "dependencies" array
+        nodes: [CodeNode, HeadingNode, HorizontalRuleNode, LinkNode, ListNode, ListItemNode, QuoteNode],
         theme,
         onError,
+        editorState: () => $convertFromMarkdownString(value, TRANSFORMERS),
     };
 
     const tagData = useTagDropdown({ getTaggableItems });
@@ -114,6 +125,7 @@ export const RichInputLexical = ({
                 {/* <OnChangePlugin onChange={onChange} /> */}
                 <HistoryPlugin />
                 <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
+                <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
             </Box>
         </LexicalComposer>
     );
