@@ -173,6 +173,8 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     const strikethrough = useCallback(() => { if (!disabled) padSelection("~~", "~~"); }, [disabled, padSelection]);
     const bold = useCallback(() => { if (!disabled) padSelection("**", "**"); }, [disabled, padSelection]);
     const italic = useCallback(() => { if (!disabled) padSelection("*", "*"); }, [disabled, padSelection]);
+    const spoiler = useCallback(() => { if (!disabled) padSelection("||", "||"); }, [disabled, padSelection]);
+    const underline = useCallback(() => { if (!disabled) padSelection("<u>", "</u>"); }, [disabled, padSelection]);
 
     const insertLink = useCallback(() => {
         if (disabled) return;
@@ -251,7 +253,9 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "ListNumber": insertNumberList,
             "Mode": toggleMarkdown,
             "Redo": redo,
+            "Spoiler": spoiler,
             "Strikethrough": strikethrough,
+            "Underline": underline,
             "Undo": undo,
         };
         const actionFunction = actionMap[action];
@@ -267,7 +271,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "3": () => insertHeader(Headers.H3), // ALT + 3 - Insert header 3
             "4": () => insertBulletList(), // ALT + 4 - Bullet list
             "5": () => insertNumberList(), // ALT + 5 - Number list
-            "6": () => insertCheckboxList(), // ALT + 6 - Checkbox list
+            "6": () => insertCheckboxList(), // ALT + 6 - Checklist
             "7": () => toggleMarkdown(), // ALT + 7 - Toggle preview
             "b": () => bold(), // CTRL + B - Bold
             "i": () => italic(), // CTRL + I - Italic
@@ -275,6 +279,8 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "z": () => undo(), // CTRL + Z - Undo
             "Z": () => redo(), // CTRL + SHIFT + Z = Redo
             "S": () => strikethrough(), // CTRL + SHIFT + S - Strikethrough
+            "l": () => spoiler(), // CTRL + L - Spoiler
+            "u": () => underline(), // CTRL + U - Underline
             "y": () => redo(), // CTRL + Y = Redo
         };
         // Handle key press events for textarea
@@ -397,7 +403,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             textarea?.removeEventListener("keydown", handleTextareaKeyDown);
             fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
         };
-    }, [bold, getTaggableItems, onChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, toggleMarkdown, undo, id, tagData, selectDropdownItem, value]);
+    }, [bold, getTaggableItems, onChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, toggleMarkdown, undo, id, tagData, selectDropdownItem, value, spoiler]);
 
     return (
         <>

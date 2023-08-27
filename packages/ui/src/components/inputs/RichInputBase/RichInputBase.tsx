@@ -144,6 +144,21 @@ export const RichInputBase = ({
         resize();
     }, [resize, isMarkdownOn]);
 
+    /** Prevents input from losing focus when the toolbar is pressed */
+    const handleMouseDown = useCallback((e) => {
+        // Find the first parent element with an id
+        let parent = e.target;
+        while (parent && !parent.id) {
+            parent = parent.parentElement;
+        }
+        // If the target is not the textArea, then prevent default
+        if (parent && parent.id !== id) {
+            console.log("preventing default", parent.id);
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }, [id]);
+
     return (
         <>
             {/* Assistant dialog for generating text */}
@@ -152,6 +167,7 @@ export const RichInputBase = ({
                 id={`markdown-input-base-${name}`}
                 direction="column"
                 spacing={0}
+                onMouseDown={handleMouseDown}
                 sx={{ ...(sxs?.root ?? {}) }}
             >
                 <RichInputToolbar

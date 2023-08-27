@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    version="1.1"
+    id="svg5"
+    inkscape:export-filename="BoldIcon.png"
+    inkscape:export-xdpi="96"
+    inkscape:export-ydpi="96"
+    sodipodi:docname="BoldIcon.svg"
+    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:svg="http://www.w3.org/2000/svg">
+    <sodipodi:namedview
+        id="namedview7"
+        pagecolor="#505050"
+        bordercolor="#eeeeee"
+        borderopacity="1"
+        inkscape:showpageshadow="0"
+        inkscape:pageopacity="0"
+        inkscape:pagecheckerboard="0"
+        inkscape:deskcolor="#505050"
+        inkscape:document-units="mm"
+        showgrid="false"
+        showguides="true" />
+    <defs
+        id="defs2" />
+    <g
+        inkscape:label="Layer 1"
+        inkscape:groupmode="layer"
+        id="layer1">
+        <path
+            id="path8372"
+            style="font-weight:bold;font-size:16px;font-family:Lato;-inkscape-font-specification:'Lato Light';white-space:pre;stroke-width:1.51181;stroke-linecap:round;stroke-linejoin:round"
+            d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z" />
+    </g>
+</svg>

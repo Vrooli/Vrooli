@@ -477,3 +477,18 @@
 .RichInput__embedBlockFocus {
     outline: 2px solid rgb(60, 132, 244);
 }
+
+.spoiler {
+    cursor: pointer;
+    transition: color 0.4s, background 0.4s;
+}
+
+.spoiler.revealed {
+    color: inherit;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.spoiler.hidden {
+    color: transparent;
+    background: black;
+}

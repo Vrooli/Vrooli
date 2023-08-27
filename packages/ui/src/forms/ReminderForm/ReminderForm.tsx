@@ -112,7 +112,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                     dirty={dirty}
                     display={display}
                     isLoading={isLoading}
-                    maxWidth={600}
+                    maxWidth={700}
                     ref={ref}
                 >
                     <FormContainer>

@@ -17,11 +17,10 @@ import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { $createHeadingNode, $isHeadingNode, HeadingNode, HeadingTagType, QuoteNode } from "@lexical/rich-text";
 import { $isAtNodeEnd, $isParentElementRTL, $setBlocksType } from "@lexical/selection";
 import { $isTableNode } from "@lexical/table";
-import { $findMatchingParent, $getNearestNodeOfType } from "@lexical/utils";
+import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import type { DOMConversionOutput, EditorConfig, EditorThemeClasses } from "lexical";
-import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalEditor, NodeKey, RangeSelection, SELECTION_CHANGE_COMMAND, TextFormatType, TextNode } from "lexical";
+import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorThemeClasses, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, NodeKey, RangeSelection, SELECTION_CHANGE_COMMAND, TextFormatType, TextNode } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
@@ -219,6 +218,7 @@ export function getSelectedNode(
     }
 }
 
+// Create a custom node for spoilers
 export class SpoilerNode extends ElementNode {
     static getType(): string {
         return "spoiler";
@@ -232,26 +232,32 @@ export class SpoilerNode extends ElementNode {
         return new SpoilerNode(node.__key);
     }
 
-    createDOM(config: EditorConfig): HTMLElement {
+    toggleSpoilerVisibility = (event: Event) => {
+        const target = event.currentTarget as HTMLElement;
+        if (target.classList.contains("revealed")) {
+            target.classList.remove("revealed");
+            target.classList.add("hidden");
+        } else {
+            target.classList.remove("hidden");
+            target.classList.add("revealed");
+        }
+    };
+
+    createDOM(_config: EditorConfig): HTMLElement {
         const element = document.createElement("span");
-        element.style.backgroundColor = "black";
-        element.style.color = "black";
-        // Any other styles or attributes you want to apply to the spoiler element.
+        element.classList.add("spoiler", "hidden"); // Start in hidden state
+        element.setAttribute("spellcheck", "false"); // Disable spellcheck so that it doesn't block the toggle
+        element.addEventListener("click", this.toggleSpoilerVisibility);
         return element;
     }
 
-    updateDOM(
-        prevNode: SpoilerNode,
-        span: HTMLElement,
-        config: EditorConfig,
-    ): boolean {
+    updateDOM(_prevNode: SpoilerNode, span: HTMLElement, config: EditorConfig): boolean {
         // Assuming you might want to update some styles or attributes in the future, but for now, it's a no-op
         // Simply checks that the element is a spoiler and updates if needed
         if (!span.classList.contains("spoiler")) {
             span.classList.add("spoiler");
-            span.style.backgroundColor = "black";
-            span.style.color = "black";
-            // Add other updates if needed
+            span.setAttribute("spellcheck", "false");
+            span.addEventListener("click", this.toggleSpoilerVisibility);
             return true; // Indicates that the DOM was updated
         }
         return false; // Indicates that no updates were necessary
@@ -284,6 +290,162 @@ export class SpoilerNode extends ElementNode {
 export function $createSpoilerNode(): SpoilerNode {
     return $applyNodeReplacement(new SpoilerNode());
 }
+// Create a command to toggle spoilers
+const SPOILER_COMMAND: LexicalCommand<void> = createCommand("FORMAT_TEXT_COMMAND");
+
+/** Register commands for custom components (i.e. spoiler) */
+const registerCustomCommands = (editor: LexicalEditor): (() => void) => {
+    const removeListener = mergeRegister(
+        editor.registerCommand<void>(
+            SPOILER_COMMAND,
+            () => {
+                const selection = $getSelection();
+                if (!$isRangeSelection(selection)) {
+                    return false;
+                }
+                const nodes = selection.getNodes();
+                console.log("got nodes", nodes, nodes.map(node => node.getParent()));
+                // Check if there is a spoiler node in the selection, or if the selection is a single node with a parent spoiler node
+                const isAlreadySpoiled = (nodes.length > 0 && nodes.some((node) => node instanceof SpoilerNode)) ||
+                    (nodes.length === 1 && nodes[0].getParent() instanceof SpoilerNode);
+                console.log("is already spoiled", isAlreadySpoiled);
+                if (isAlreadySpoiled) {
+                    // Remove each spoiler effect by replacing it with its children
+                    nodes.forEach((node) => {
+                        let spoilerNode = node;
+                        // If node isn't a spoiler, try the parent
+                        if (!(spoilerNode instanceof SpoilerNode)) {
+                            spoilerNode = node.getParent() as LexicalNode;
+                            if (!(spoilerNode instanceof SpoilerNode)) {
+                                return;
+                            }
+                        }
+                        const children = spoilerNode.getChildren<LexicalNode>();
+                        for (const child of children) {
+                            spoilerNode.insertBefore(child);
+                        }
+                        spoilerNode.remove();
+                    });
+                } else if (nodes.length > 0) {
+                    // // Apply spoiler effect
+                    // const spoilerNode = $createSpoilerNode();
+
+                    // // Pre-insert the spoiler node to its position in the hierarchy.
+                    // // TODO this adds the spoiler to the whole line. Need to fix
+                    // const firstNode = nodes[0];
+                    // firstNode.insertBefore(spoilerNode);
+
+                    // // Move nodes into the spoiler node.
+                    // for (const node of nodes) {
+                    //     if (!(node instanceof SpoilerNode)) {
+                    //         console.log("adding node to spoiler", node.getTextContent());
+                    //         spoilerNode.append(node);  // Assuming this moves the node
+                    //     }
+                    // }
+                    // // Adjust the selection to the entire spoilerNode
+                    // spoilerNode.select();
+
+
+                    // const spoilerNode = $createSpoilerNode();
+
+                    // // For the first node, if it's partially selected, split and take the part that's within the selection
+                    // let startNode = nodes[0];
+                    // console.log("first node", startNode.getTextContent());
+                    // if (startNode.getTextContent().length !== selection.anchor.offset) {
+                    //     startNode = startNode.splitText(selection.anchor.offset);
+                    // }
+                    // console.log("got start node", (startNode as unknown as any[]).map(node => node.getTextContent()));
+
+                    // // For the last node, if it's partially selected, split and take the part that's within the selection
+                    // const endNode = nodes[nodes.length - 1];
+                    // if (endNode.getTextContent().length !== selection.focus.offset) {
+                    //     endNode.splitText(selection.focus.offset);
+                    // }
+                    // console.log("got end node", endNode);
+
+                    // // Now, from the startNode to endNode, wrap everything in between in the spoilerNode
+                    // let currentNode = startNode;
+                    // while (currentNode !== endNode) {
+                    //     spoilerNode.append(currentNode);
+                    //     const next = currentNode.getNextSibling();
+                    //     if (next === null) {
+                    //         break;
+                    //     }
+                    //     currentNode = next!;
+                    // }
+                    // spoilerNode.append(endNode);
+
+                    // const parent = startNode.getParent();
+                    // if (parent === null) {
+                    //     return false;
+                    // }
+                    // console.log("got parent", parent);
+                    // parent.insertBefore(spoilerNode, startNode);
+                    // spoilerNode.select();
+
+
+
+
+                    const spoilerNode = $createSpoilerNode();
+
+                    const startNode = nodes[0];
+                    console.log("got start node", startNode.getTextContent());
+                    const endNode = nodes[nodes.length - 1];
+                    const startParent = startNode.getParent();
+
+                    // Get offsets
+                    const [startOffset, endOffset] = [selection.anchor.offset, selection.focus.offset - selection.anchor.offset].sort();
+                    console.log("got offsets", startOffset, endOffset);
+
+                    // Split the startNode if needed
+                    if (startNode.getTextContentSize() > startOffset) {
+                        const beforeText = startNode.getTextContent().substring(0, startOffset);
+                        const newNode = new TextNode(beforeText); // Assuming TextNode constructor accepts a string
+                        console.log("new node 1", newNode.getTextContent());
+                        startNode.insertBefore(newNode);
+                        startNode.setTextContent(startNode.getTextContent().substring(startOffset));
+                    }
+                    console.log("got start node", startNode.getTextContent());
+
+                    // Split the endNode if needed
+                    if (endOffset < endNode.getTextContentSize()) {
+                        const afterText = endNode.getTextContent().substring(endOffset);
+                        const newNode = new TextNode(afterText);
+                        console.log("new node 2", newNode.getTextContent());
+                        endNode.insertAfter(newNode);
+                        endNode.setTextContent(endNode.getTextContent().substring(0, endOffset));
+                    }
+                    console.log("got end node", endNode.getTextContent());
+
+                    // At this point, our selection should be bounded by complete TextNodes.
+                    // We now loop through all nodes and move them into the spoilerNode.
+                    for (const node of nodes) {
+                        if (!(node instanceof SpoilerNode)) {
+                            console.log("adding node to spoiler", node.getTextContent());
+                            spoilerNode.append(node);
+                        }
+                    }
+
+                    // Insert the spoilerNode in the correct location
+                    console.log("insert the spoiler node", startNode.getTextContent(), spoilerNode.getTextContent());
+                    // startNode.getParent()?.insertBefore(spoilerNode);
+                    if (startParent) {
+                        startParent.insertBefore(spoilerNode);
+                    } else {
+                        // Handle cases where the startParent is not available
+                        console.error("Failed to find a parent for the startNode!");
+                    }
+
+                    // Adjust the selection to the entire spoilerNode
+                    spoilerNode.select();
+                }
+                return true;
+            },
+            COMMAND_PRIORITY_EDITOR,
+        ),
+    );
+    return removeListener;
+};
 
 // Custom transformers for syntax not supported by CommonMark (Markdown's spec)
 const UNDERLINE: TextMatchTransformer = {
@@ -294,12 +456,12 @@ const UNDERLINE: TextMatchTransformer = {
         }
         return null;
     },
-    importRegExp: /<u>(.*?)<\/u>/g,
-    regExp: /<u>(.*?)<\/u>/g,
+    importRegExp: /<u>(.*?)<\/u>/,
+    regExp: /<u>(.*?)<\/u>$/,
     replace: (textNode, match) => {
         const newTextContent = match[1];
         const newTextNode = new TextNode(newTextContent);
-        newTextNode.setStyle("textDecoration: underline;");
+        newTextNode.setStyle("text-decoration: underline;");
         textNode.replace(newTextNode);
     },
     trigger: "<u>",
@@ -317,14 +479,12 @@ const SPOILER: TextMatchTransformer = {
     regExp: /\|\|(.*?)\|\|$/,
     replace: (textNode, match) => {
         // Extract the matched spoiler text
-        const spoilerText = match[0];
+        const spoilerText = match[1];
         console.log("SPOILER TEXT", match, textNode);
 
         // Create a new styled text node with the matched spoiler text
         const spoilerTextNode = new TextNode(spoilerText);
         console.log("SPOILER TEXT NODE", spoilerTextNode);
-        spoilerTextNode.setStyle("backgroundColor: black;");
-        spoilerTextNode.setStyle("color: black;");
 
         // Create a SpoilerNode
         const spoilerNode = $createSpoilerNode();
@@ -412,6 +572,7 @@ export const RichInputLexical = ({
         const isEditable = initialConfig.editable;
         const [editor] = composerContext;
         editor.setEditable(isEditable !== undefined ? isEditable : true);
+        registerCustomCommands(editor);
         // We only do this for init
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -569,6 +730,9 @@ export const RichInputLexical = ({
     const toggleFormat = (formatType: TextFormatType) => {
         composerContext[0].dispatchCommand(FORMAT_TEXT_COMMAND, formatType);
     };
+    const toggleSpoiler = () => {
+        composerContext[0].dispatchCommand(SPOILER_COMMAND, (void 0));
+    };
     (RichInputLexical as unknown as RichInputChildView).handleAction = (action: RichInputAction) => {
         console.log("in RichInputlExical handleAction", action);
         const dispatch = composerContext[0].dispatchCommand;
@@ -585,7 +749,9 @@ export const RichInputLexical = ({
             "ListNumber": () => dispatch(INSERT_ORDERED_LIST_COMMAND, (void 0)),
             "Mode": toggleMarkdown,
             "Redo": redo,
+            "Spoiler": toggleSpoiler,
             "Strikethrough": () => toggleFormat("strikethrough"),
+            "Underline": () => toggleFormat("underline"),
             "Undo": undo,
         };
         const actionFunction = actionMap[action];

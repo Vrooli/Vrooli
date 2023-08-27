@@ -1,8 +1,8 @@
-import { Box, IconButton, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useWindowSize } from "hooks/useWindowSize";
-import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon } from "icons";
+import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
@@ -22,8 +22,12 @@ export type RichInputAction =
     "ListNumber" |
     "Mode" |
     "Redo" |
+    "Spoiler" |
     "Strikethrough" |
+    "Underline" |
     "Undo";
+
+type PopoverActionItem = { action: RichInputAction, icon: React.ReactNode, label: string };
 
 const ToolButton = ({
     disabled,
@@ -43,12 +47,63 @@ const ToolButton = ({
             disabled={disabled}
             size="small"
             onClick={onClick}
-            sx={{ background: palette.primary.main, borderRadius: 2 }}
+            sx={{
+                background: palette.primary.main,
+                color: palette.primary.contrastText,
+                borderRadius: 2,
+            }}
         >
             {icon}
         </IconButton>
     </Tooltip>
 );
+
+const ActionPopover = ({
+    idPrefix,
+    isOpen,
+    anchorEl,
+    onClose,
+    items,
+    handleAction,
+    palette,
+}) => (
+    <Popover
+        id={`markdown-input-${idPrefix}-popover`}
+        open={isOpen}
+        anchorEl={anchorEl}
+        onClose={onClose}
+        anchorOrigin={{
+            vertical: "bottom",
+            horizontal: "center",
+        }}
+    >
+        <List sx={{ background: palette.background.paper, color: palette.background.contrastText }}>
+            {items.map(({ action, icon, label }) => (
+                <ListItem button key={action} onClick={() => { handleAction(action); }}>
+                    <ListItemIcon>
+                        {icon}
+                    </ListItemIcon>
+                    <ListItemText primary={label} />
+                </ListItem>
+            ))}
+        </List>
+    </Popover>
+);
+
+const usePopover = (initialState = null) => {
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(initialState);
+
+    const openPopover = (event: React.MouseEvent<HTMLElement>, condition = true) => {
+        if (!condition) return;
+        setAnchorEl(event.currentTarget);
+    };
+
+    const closePopover = () => { setAnchorEl(null); };
+
+    const isPopoverOpen = Boolean(anchorEl);
+
+    return [anchorEl, openPopover, closePopover, isPopoverOpen] as const;
+};
 
 export const RichInputToolbar = ({
     canRedo,
@@ -76,32 +131,26 @@ export const RichInputToolbar = ({
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
 
-    const [headerAnchorEl, setHeaderAnchorEl] = useState<HTMLElement | null>(null);
-    const openHeaderSelect = (event: React.MouseEvent<HTMLElement>) => {
-        if (disabled) return;
-        setHeaderAnchorEl(event.currentTarget);
-    };
-    const closeHeader = () => { setHeaderAnchorEl(null); };
-    const headerSelectOpen = Boolean(headerAnchorEl);
+    const [headerAnchorEl, openHeaderSelect, closeHeader, headerSelectOpen] = usePopover();
+    const [formatAnchorEl, openFormatSelect, closeFormat, formatSelectOpen] = usePopover();
+    const [listAnchorEl, openListSelect, closeList, listSelectOpen] = usePopover();
 
-    const [listAnchorEl, setListAnchorEl] = useState<HTMLElement | null>(null);
-    const openListSelect = (event: React.MouseEvent<HTMLElement>) => {
-        if (disabled) return;
-        setListAnchorEl(event.currentTarget);
-    };
-    const closeList = () => { setListAnchorEl(null); };
-    const listSelectOpen = Boolean(listAnchorEl);
-
-    const headerItems: { action: RichInputAction, icon: React.ReactNode, label: string }[] = [
-        { action: "Header1", icon: <Header1Icon fill={palette.primary.contrastText} />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
-        { action: "Header2", icon: <Header2Icon fill={palette.primary.contrastText} />, label: `${t("Header2")} (${keyComboToString("Alt", "2")})` },
-        { action: "Header3", icon: <Header3Icon fill={palette.primary.contrastText} />, label: `${t("Header3")} (${keyComboToString("Alt", "3")})` },
+    const headerItems: PopoverActionItem[] = [
+        { action: "Header1", icon: <Header1Icon />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
+        { action: "Header2", icon: <Header2Icon />, label: `${t("Header2")} (${keyComboToString("Alt", "2")})` },
+        { action: "Header3", icon: <Header3Icon />, label: `${t("Header3")} (${keyComboToString("Alt", "3")})` },
     ];
-
-    const listItems: { action: RichInputAction, icon: React.ReactNode, label: string }[] = [
-        { action: "ListBullet", icon: <ListBulletIcon fill={palette.primary.contrastText} />, label: `${t("ListBulleted")} (${keyComboToString("Alt", "4")})` },
-        { action: "ListNumber", icon: <ListNumberIcon fill={palette.primary.contrastText} />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "5")})` },
-        { action: "ListCheckbox", icon: <ListCheckIcon fill={palette.primary.contrastText} />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "6")})` },
+    const formatItems: PopoverActionItem[] = [
+        { action: "Bold", icon: <BoldIcon />, label: `${t("Bold")} (${keyComboToString("Ctrl", "b")})` },
+        { action: "Italic", icon: <ItalicIcon />, label: `${t("Italic")} (${keyComboToString("Ctrl", "i")})` },
+        { action: "Underline", icon: <UnderlineIcon />, label: `${t("Underline")} (${keyComboToString("Ctrl", "u")})` },
+        { action: "Strikethrough", icon: <StrikethroughIcon />, label: `${t("Strikethrough")} (${keyComboToString("Ctrl", "Shift", "s")})` },
+        { action: "Spoiler", icon: <WarningIcon />, label: `${t("Spoiler")} (${keyComboToString("Ctrl", "l")})` },
+    ];
+    const listItems: PopoverActionItem[] = [
+        { action: "ListBullet", icon: <ListBulletIcon />, label: `${t("ListBulleted")} (${keyComboToString("Alt", "4")})` },
+        { action: "ListNumber", icon: <ListNumberIcon />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "5")})` },
+        { action: "ListCheckbox", icon: <ListCheckIcon />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "6")})` },
     ];
 
     return (
@@ -137,52 +186,46 @@ export const RichInputToolbar = ({
                     onClick={openHeaderSelect}
                     palette={palette}
                 />
-                <Popover
-                    id={`markdown-input-header-popover-${name}`}
-                    open={headerSelectOpen}
+                <ActionPopover
+                    idPrefix="header"
+                    isOpen={headerSelectOpen}
                     anchorEl={headerAnchorEl}
                     onClose={closeHeader}
-                    anchorOrigin={{
-                        vertical: "bottom",
-                        horizontal: "center",
-                    }}
-                >
-                    <Stack direction="row" spacing={0} sx={{
-                        background: palette.primary.main,
-                        color: palette.primary.contrastText,
-                    }}>
-                        {headerItems.map(({ action, icon, label }) => (
-                            <ToolButton
-                                key={action}
-                                icon={icon}
-                                label={label}
-                                onClick={() => { handleAction(action); }}
-                                palette={palette}
-                            />
-                        ))}
-                    </Stack>
-                </Popover>
-                <ToolButton
-                    disabled={disabled}
-                    icon={<BoldIcon fill={palette.primary.contrastText} />}
-                    label={`${t("Bold")} (${keyComboToString("Ctrl", "b")})`}
-                    onClick={() => { handleAction("Bold"); }}
+                    items={headerItems}
+                    handleAction={handleAction}
                     palette={palette}
                 />
-                <ToolButton
-                    disabled={disabled}
-                    icon={<ItalicIcon fill={palette.primary.contrastText} />}
-                    label={`${t("Italic")} (${keyComboToString("Ctrl", "i")})`}
-                    onClick={() => { handleAction("Italic"); }}
-                    palette={palette}
-                />
-                <ToolButton
-                    disabled={disabled}
-                    icon={<StrikethroughIcon fill={palette.primary.contrastText} />}
-                    label={`${t("Strikethrough")} (${keyComboToString("Ctrl", "Shift", "s")})`}
-                    onClick={() => { handleAction("Strikethrough"); }}
-                    palette={palette}
-                />
+                {/* Display format as popover on mobile, or display all options on desktop */}
+                {isMobile && (
+                    <>
+                        <ToolButton
+                            disabled={disabled}
+                            icon={<CaseSensitiveIcon fill={palette.primary.contrastText} />}
+                            label={t("TextFormat")}
+                            onClick={openFormatSelect}
+                            palette={palette}
+                        />
+                        <ActionPopover
+                            idPrefix="format"
+                            isOpen={formatSelectOpen}
+                            anchorEl={formatAnchorEl}
+                            onClose={closeFormat}
+                            items={formatItems}
+                            handleAction={handleAction}
+                            palette={palette}
+                        />
+                    </>
+                )}
+                {!isMobile && formatItems.map(({ action, icon, label }) => (
+                    <ToolButton
+                        key={action}
+                        disabled={disabled}
+                        icon={icon}
+                        label={label}
+                        onClick={() => { handleAction(action); }}
+                        palette={palette}
+                    />
+                ))}
                 <ToolButton
                     disabled={disabled}
                     icon={<ListIcon fill={palette.primary.contrastText} />}
@@ -190,31 +233,15 @@ export const RichInputToolbar = ({
                     onClick={openListSelect}
                     palette={palette}
                 />
-                <Popover
-                    id={`markdown-input-list-popover-${name}`}
-                    open={listSelectOpen}
+                <ActionPopover
+                    idPrefix="list"
+                    isOpen={listSelectOpen}
                     anchorEl={listAnchorEl}
                     onClose={closeList}
-                    anchorOrigin={{
-                        vertical: "bottom",
-                        horizontal: "center",
-                    }}
-                >
-                    <Stack direction="row" spacing={0} sx={{
-                        background: palette.primary.main,
-                        color: palette.primary.contrastText,
-                    }}>
-                        {listItems.map(({ action, icon, label }) => (
-                            <ToolButton
-                                key={action}
-                                icon={icon}
-                                label={label}
-                                onClick={() => { handleAction(action); }}
-                                palette={palette}
-                            />
-                        ))}
-                    </Stack>
-                </Popover>
+                    items={listItems}
+                    handleAction={handleAction}
+                    palette={palette}
+                />
                 <ToolButton
                     disabled={disabled}
                     icon={<LinkIcon fill={palette.primary.contrastText} />}
