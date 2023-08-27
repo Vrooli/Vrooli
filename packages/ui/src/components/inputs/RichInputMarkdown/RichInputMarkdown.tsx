@@ -48,12 +48,11 @@ const getLineEnd = (text: string, start: number) => {
 };
 
 /**
- * Determines line the specified index is on.
- * @param text The entire text
- * @param index The index to search for
- * @returns The line the cursor is on (or null), as well as its start and end index
+ * Finds the line the specified index is on.
+ * @returns The line's text, as well as its start and end index
  */
-const getLineAtIndex = (text: string, index: number): [string, number, number] => {
+const getLineAtIndex = (text: string | null | undefined, index: number): [string, number, number] => {
+    if (!text || index < 0 || index > text.length) return ["", 0, 0];
     const start = getLineStart(text, index);
     const end = getLineEnd(text, index);
     const line = text.substring(start, end);
@@ -352,14 +351,16 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             }
             // On enter key press
             if (e.key === "Enter") {
-                const { start, end, value } = e.target;
-                console.log("key was enter");
-                let [trimmedLine] = getLineAtIndex(value, start);
+                // Find the line the start of the selection is on
+                const { start, end, inputElement } = getSelection(id);
+                let [trimmedLine] = getLineAtIndex(inputElement?.value, start);
                 trimmedLine = trimmedLine.trimStart();
+                console.log("enter key trimmed line", trimmedLine, value, start, end, Object.entries(e.target));
                 const isNumberList = /^\d+\.\s/.test(trimmedLine);
                 const isCheckboxList = trimmedLine.startsWith("- [ ] ") || trimmedLine.startsWith("- [x] ");
                 const isBulletDashList = trimmedLine.startsWith("- ");
                 const isBulletStarList = trimmedLine.startsWith("* ");
+                console.log("key was enter", isNumberList, isCheckboxList, isBulletDashList, isBulletStarList);
                 // If the current line is a list
                 if (isNumberList || isCheckboxList || isBulletDashList || isBulletStarList) {
                     e.preventDefault();
@@ -376,8 +377,8 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                     } else if (isBulletStarList) {
                         textToInsert += "* ";
                     }
+                    console.log("enter key inserting text", textToInsert, start, end);
                     inputElement.value = replaceText(value, textToInsert, start, end);
-                    console.log("enter key new value", inputElement.value);
                     onChange(inputElement.value);
                 }
             }
