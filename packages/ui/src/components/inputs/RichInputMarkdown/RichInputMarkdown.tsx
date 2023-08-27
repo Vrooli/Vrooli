@@ -1,8 +1,9 @@
 import { useTheme } from "@mui/material";
-import { CSSProperties, FC, useCallback, useEffect, useMemo, useRef } from "react";
+import { CSSProperties, FC, useCallback, useEffect, useRef } from "react";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
+import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { RichInputAction } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputChildView, RichInputMarkdownProps } from "../types";
@@ -110,6 +111,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     disabled = false,
     error = false,
     getTaggableItems,
+    id,
     maxRows,
     minRows = 4,
     name,
@@ -125,21 +127,8 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     sx,
 }: RichInputMarkdownProps) => {
     const { palette, typography } = useTheme();
-    const id = useMemo(() => `markdown-input-${name}`, [name]);
-    const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Resize textarea to fit content
-    const LINE_HEIGHT_MULTIPLIER = 1.5;
-    useEffect(() => {
-        if (!textAreaRef.current || typeof value !== "string" || sx?.height) return;
-        const lines = (value.match(/\n/g)?.length || 0) + 1;
-        const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
-        const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
-        const maxRowsNum = maxRows ? Number.parseInt(maxRows + "") : lines;
-        const linesShown = Math.max(minRowsNum, Math.min(lines, maxRowsNum));
-        const padding = 34;
-        textAreaRef.current.style.height = `${linesShown * lineHeight + padding}px`;
-    }, [minRows, maxRows, typography, value, sx?.height]);
+    const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
     const insertHeader = useCallback((header: Headers) => {
         if (disabled) return;
@@ -408,7 +397,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             textarea?.removeEventListener("keydown", handleTextareaKeyDown);
             fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
         };
-    }, [bold, getTaggableItems, onChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, toggleMarkdown, undo, id, tagData, selectDropdownItem]);
+    }, [bold, getTaggableItems, onChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, toggleMarkdown, undo, id, tagData, selectDropdownItem, value]);
 
     return (
         <>

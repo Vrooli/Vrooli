@@ -11,6 +11,8 @@ import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
 import { RichInputAction, RichInputToolbar } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputBaseProps, RichInputChildView } from "../types";
 
+export const LINE_HEIGHT_MULTIPLIER = 1.5;
+
 /** TextField for entering rich text. Supports markdown and WYSIWYG */
 export const RichInputBase = ({
     actionButtons,
@@ -31,7 +33,7 @@ export const RichInputBase = ({
     value,
     sxs,
 }: RichInputBaseProps) => {
-    const { palette } = useTheme();
+    const { palette, typography } = useTheme();
     const isLeftHanded = useIsLeftHanded();
     console.log("richinputbase render", typeof getTaggableItems);
 
@@ -125,6 +127,24 @@ export const RichInputBase = ({
         setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `\`\`\`\n${context}\n\`\`\`\n\n` : undefined }));
     }, [disabled, internalValue]);
 
+    // Resize input area to fit content
+    const id = useMemo(() => `input-container-${name}`, [name]);
+    const resize = useCallback(() => {
+        const container = document.getElementById(id);
+        console.log('resizing', container)
+        if (!container || typeof internalValue !== "string" || sxs?.textArea?.height) return;
+        const lines = (internalValue.match(/\n/g)?.length || 0) + 1;
+        const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
+        const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
+        const maxRowsNum = maxRows ? Number.parseInt(maxRows + "") : lines;
+        const linesShown = Math.max(minRowsNum, Math.min(lines, maxRowsNum));
+        const padding = 34;
+        container.style.height = `${linesShown * lineHeight + padding}px`;
+    }, [minRows, maxRows, typography, internalValue, sxs?.textArea?.height]);
+    useEffect(() => {
+        resize();
+    }, [resize, isMarkdownOn]);
+
     return (
         <>
             {/* Assistant dialog for generating text */}
@@ -151,6 +171,7 @@ export const RichInputBase = ({
                     disabled={disabled}
                     error={error}
                     getTaggableItems={getTaggableItems}
+                    id={id}
                     maxRows={maxRows}
                     minRows={minRows}
                     name={name}

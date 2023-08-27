@@ -26,8 +26,8 @@ import "highlight.js/styles/monokai-sublime.css";
 import type { EditorThemeClasses } from "lexical";
 import { $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, createEditor, DEPRECATED_$isGridSelection, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalEditor, NodeKey, RangeSelection, SELECTION_CHANGE_COMMAND, TextFormatType, TextNode } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { linkColors } from "styles";
 import { ListObject } from "utils/display/listTools";
+import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { RichInputAction } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputChildView, RichInputLexicalProps } from "../types";
@@ -60,103 +60,102 @@ const rootTypeToRootName = {
 };
 
 const theme: EditorThemeClasses = {
-    blockCursor: "PlaygroundEditorTheme__blockCursor",
-    characterLimit: "PlaygroundEditorTheme__characterLimit",
-    code: "PlaygroundEditorTheme__code",
+    blockCursor: "RichInput__blockCursor",
+    characterLimit: "RichInput__characterLimit",
+    code: "RichInput__code",
     codeHighlight: {
-        atrule: "PlaygroundEditorTheme__tokenAttr",
-        attr: "PlaygroundEditorTheme__tokenAttr",
-        boolean: "PlaygroundEditorTheme__tokenProperty",
-        builtin: "PlaygroundEditorTheme__tokenSelector",
-        cdata: "PlaygroundEditorTheme__tokenComment",
-        char: "PlaygroundEditorTheme__tokenSelector",
-        class: "PlaygroundEditorTheme__tokenFunction",
-        "class-name": "PlaygroundEditorTheme__tokenFunction",
-        comment: "PlaygroundEditorTheme__tokenComment",
-        constant: "PlaygroundEditorTheme__tokenProperty",
-        deleted: "PlaygroundEditorTheme__tokenProperty",
-        doctype: "PlaygroundEditorTheme__tokenComment",
-        entity: "PlaygroundEditorTheme__tokenOperator",
-        function: "PlaygroundEditorTheme__tokenFunction",
-        important: "PlaygroundEditorTheme__tokenVariable",
-        inserted: "PlaygroundEditorTheme__tokenSelector",
-        keyword: "PlaygroundEditorTheme__tokenAttr",
-        namespace: "PlaygroundEditorTheme__tokenVariable",
-        number: "PlaygroundEditorTheme__tokenProperty",
-        operator: "PlaygroundEditorTheme__tokenOperator",
-        prolog: "PlaygroundEditorTheme__tokenComment",
-        property: "PlaygroundEditorTheme__tokenProperty",
-        punctuation: "PlaygroundEditorTheme__tokenPunctuation",
-        regex: "PlaygroundEditorTheme__tokenVariable",
-        selector: "PlaygroundEditorTheme__tokenSelector",
-        string: "PlaygroundEditorTheme__tokenSelector",
-        symbol: "PlaygroundEditorTheme__tokenProperty",
-        tag: "PlaygroundEditorTheme__tokenProperty",
-        url: "PlaygroundEditorTheme__tokenOperator",
-        variable: "PlaygroundEditorTheme__tokenVariable",
+        atrule: "RichInput__tokenAttr",
+        attr: "RichInput__tokenAttr",
+        boolean: "RichInput__tokenProperty",
+        builtin: "RichInput__tokenSelector",
+        cdata: "RichInput__tokenComment",
+        char: "RichInput__tokenSelector",
+        class: "RichInput__tokenFunction",
+        "class-name": "RichInput__tokenFunction",
+        comment: "RichInput__tokenComment",
+        constant: "RichInput__tokenProperty",
+        deleted: "RichInput__tokenProperty",
+        doctype: "RichInput__tokenComment",
+        entity: "RichInput__tokenOperator",
+        function: "RichInput__tokenFunction",
+        important: "RichInput__tokenVariable",
+        inserted: "RichInput__tokenSelector",
+        keyword: "RichInput__tokenAttr",
+        namespace: "RichInput__tokenVariable",
+        number: "RichInput__tokenProperty",
+        operator: "RichInput__tokenOperator",
+        prolog: "RichInput__tokenComment",
+        property: "RichInput__tokenProperty",
+        punctuation: "RichInput__tokenPunctuation",
+        regex: "RichInput__tokenVariable",
+        selector: "RichInput__tokenSelector",
+        string: "RichInput__tokenSelector",
+        symbol: "RichInput__tokenProperty",
+        tag: "RichInput__tokenProperty",
+        url: "RichInput__tokenOperator",
+        variable: "RichInput__tokenVariable",
     },
     embedBlock: {
-        base: "PlaygroundEditorTheme__embedBlock",
-        focus: "PlaygroundEditorTheme__embedBlockFocus",
+        base: "RichInput__embedBlock",
+        focus: "RichInput__embedBlockFocus",
     },
-    hashtag: "PlaygroundEditorTheme__hashtag",
+    hashtag: "RichInput__hashtag",
     heading: {
-        h1: "PlaygroundEditorTheme__h1",
-        h2: "PlaygroundEditorTheme__h2",
-        h3: "PlaygroundEditorTheme__h3",
-        h4: "PlaygroundEditorTheme__h4",
-        h5: "PlaygroundEditorTheme__h5",
-        h6: "PlaygroundEditorTheme__h6",
+        h1: "RichInput__h1",
+        h2: "RichInput__h2",
+        h3: "RichInput__h3",
+        h4: "RichInput__h4",
+        h5: "RichInput__h5",
+        h6: "RichInput__h6",
     },
     image: "editor-image",
-    indent: "PlaygroundEditorTheme__indent",
-    link: "PlaygroundEditorTheme__link",
+    indent: "RichInput__indent",
     list: {
-        listitem: "PlaygroundEditorTheme__listItem",
-        listitemChecked: "PlaygroundEditorTheme__listItemChecked",
-        listitemUnchecked: "PlaygroundEditorTheme__listItemUnchecked",
+        listitem: "RichInput__listItem",
+        listitemChecked: "RichInput__listItemChecked",
+        listitemUnchecked: "RichInput__listItemUnchecked",
         nested: {
-            listitem: "PlaygroundEditorTheme__nestedListItem",
+            listitem: "RichInput__nestedListItem",
         },
         olDepth: [
-            "PlaygroundEditorTheme__ol1",
-            "PlaygroundEditorTheme__ol2",
-            "PlaygroundEditorTheme__ol3",
-            "PlaygroundEditorTheme__ol4",
-            "PlaygroundEditorTheme__ol5",
+            "RichInput__ol1",
+            "RichInput__ol2",
+            "RichInput__ol3",
+            "RichInput__ol4",
+            "RichInput__ol5",
         ],
-        ul: "PlaygroundEditorTheme__ul",
+        ul: "RichInput__ul",
     },
-    ltr: "PlaygroundEditorTheme__ltr",
-    mark: "PlaygroundEditorTheme__mark",
-    markOverlap: "PlaygroundEditorTheme__markOverlap",
-    paragraph: "PlaygroundEditorTheme__paragraph",
-    quote: "PlaygroundEditorTheme__quote",
-    rtl: "PlaygroundEditorTheme__rtl",
-    table: "PlaygroundEditorTheme__table",
-    tableAddColumns: "PlaygroundEditorTheme__tableAddColumns",
-    tableAddRows: "PlaygroundEditorTheme__tableAddRows",
-    tableCell: "PlaygroundEditorTheme__tableCell",
-    tableCellActionButton: "PlaygroundEditorTheme__tableCellActionButton",
+    ltr: "RichInput__ltr",
+    mark: "RichInput__mark",
+    markOverlap: "RichInput__markOverlap",
+    paragraph: "RichInput__paragraph",
+    quote: "RichInput__quote",
+    rtl: "RichInput__rtl",
+    table: "RichInput__table",
+    tableAddColumns: "RichInput__tableAddColumns",
+    tableAddRows: "RichInput__tableAddRows",
+    tableCell: "RichInput__tableCell",
+    tableCellActionButton: "RichInput__tableCellActionButton",
     tableCellActionButtonContainer:
-        "PlaygroundEditorTheme__tableCellActionButtonContainer",
-    tableCellEditing: "PlaygroundEditorTheme__tableCellEditing",
-    tableCellHeader: "PlaygroundEditorTheme__tableCellHeader",
-    tableCellPrimarySelected: "PlaygroundEditorTheme__tableCellPrimarySelected",
-    tableCellResizer: "PlaygroundEditorTheme__tableCellResizer",
-    tableCellSelected: "PlaygroundEditorTheme__tableCellSelected",
-    tableCellSortedIndicator: "PlaygroundEditorTheme__tableCellSortedIndicator",
-    tableResizeRuler: "PlaygroundEditorTheme__tableCellResizeRuler",
-    tableSelected: "PlaygroundEditorTheme__tableSelected",
+        "RichInput__tableCellActionButtonContainer",
+    tableCellEditing: "RichInput__tableCellEditing",
+    tableCellHeader: "RichInput__tableCellHeader",
+    tableCellPrimarySelected: "RichInput__tableCellPrimarySelected",
+    tableCellResizer: "RichInput__tableCellResizer",
+    tableCellSelected: "RichInput__tableCellSelected",
+    tableCellSortedIndicator: "RichInput__tableCellSortedIndicator",
+    tableResizeRuler: "RichInput__tableCellResizeRuler",
+    tableSelected: "RichInput__tableSelected",
     text: {
-        bold: "PlaygroundEditorTheme__textBold",
-        code: "PlaygroundEditorTheme__textCode",
-        italic: "PlaygroundEditorTheme__textItalic",
-        strikethrough: "PlaygroundEditorTheme__textStrikethrough",
-        subscript: "PlaygroundEditorTheme__textSubscript",
-        superscript: "PlaygroundEditorTheme__textSuperscript",
-        underline: "PlaygroundEditorTheme__textUnderline",
-        underlineStrikethrough: "PlaygroundEditorTheme__textUnderlineStrikethrough",
+        bold: "RichInput__textBold",
+        code: "RichInput__textCode",
+        italic: "RichInput__textItalic",
+        strikethrough: "RichInput__textStrikethrough",
+        subscript: "RichInput__textSubscript",
+        superscript: "RichInput__textSuperscript",
+        underline: "RichInput__textUnderline",
+        underlineStrikethrough: "RichInput__textUnderlineStrikethrough",
     },
 };
 
@@ -229,6 +228,7 @@ export const RichInputLexical = ({
     disabled = false,
     error = false,
     getTaggableItems,
+    id,
     maxRows,
     minRows = 4,
     name,
@@ -243,7 +243,7 @@ export const RichInputLexical = ({
     value,
     sx,
 }: RichInputLexicalProps) => {
-    const { palette, spacing } = useTheme();
+    const { palette, spacing, typography } = useTheme();
 
     const onError = (error: Error) => {
         console.error(error);
@@ -478,34 +478,40 @@ export const RichInputLexical = ({
 
     return (
         <LexicalComposerContext.Provider value={composerContext}>
-            <Box className="editor-container" sx={{
-                border: `1px solid ${error ? "red" : "black"}`,
-                borderRadius: "0 0 0.5rem 0.5rem",
-                padding: "12px",
-                wordBreak: "break-word",
-                overflow: "auto",
-                backgroundColor: palette.background.paper,
-                color: palette.text.primary,
-                position: "relative",
-                ...linkColors(palette),
-                ...sx,
-            }}>
+            <Box
+                id={id}
+                sx={{
+                    position: "relative",
+                    display: "grid",
+                    padding: "16.5px 14px",
+                    minWidth: "-webkit-fill-available",
+                    maxWidth: "-webkit-fill-available",
+                    borderColor: error ? palette.error.main : palette.divider,
+                    borderRadius: "0 0 4px 4px",
+                    borderTop: "none",
+                    fontFamily: typography.fontFamily,
+                    fontSize: typography.fontSize + 2,
+                    lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
+                    backgroundColor: palette.background.paper,
+                    color: palette.text.primary,
+                    ...sx,
+                }}>
                 <RichTextPlugin
                     contentEditable={<ContentEditable
-                        className="editor-input"
-                        // content={content ?? ""}
                         style={{
                             outline: "none",
-                            border: "1px solid red",
+                            resize: "none",
+                            overflow: "auto",
                         } as CSSProperties}
                     />}
                     placeholder={
                         <div style={{
+                            color: palette.background.textSecondary,
                             position: "absolute",
+                            padding: "16.5px 14px",
                             pointerEvents: "none",
                             top: 0,
                             left: 0,
-                            padding: spacing(1),
                         }}
                         >
                             {placeholder ?? "Enter some text..."}

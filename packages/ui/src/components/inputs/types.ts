@@ -170,6 +170,7 @@ export type RichInputBaseProps = Omit<TextFieldProps, "onChange"> & {
 export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
 
 export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "disableAssistant" | "helperText" | "maxChars" | "sxs"> {
+    id: string;
     openAssistantDialog: (selectedText: string) => unknown;
     redo: () => unknown;
     toggleMarkdown: () => unknown;
