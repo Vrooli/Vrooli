@@ -1,11 +1,8 @@
-import { CodeHighlightNode, CodeNode } from "@lexical/code";
-import { LinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
-import { $isListNode, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListItemNode, ListNode } from "@lexical/list";
-// import { AutocompleteNode, ImageNode, KeywordNode} from "@lexical/node";
-import { $isCodeNode, CODE_LANGUAGE_MAP } from "@lexical/code";
+import { $isCodeNode, CodeHighlightNode, CodeNode, CODE_LANGUAGE_MAP } from "@lexical/code";
 import { HashtagNode } from "@lexical/hashtag";
-import { $isLinkNode, AutoLinkNode } from "@lexical/link";
-import { $convertFromMarkdownString, TRANSFORMERS } from "@lexical/markdown";
+import { $isLinkNode, AutoLinkNode, LinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
+import { $isListNode, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListItemNode, ListNode } from "@lexical/list";
+import { $convertFromMarkdownString, TextMatchTransformer, TRANSFORMERS } from "@lexical/markdown";
 import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
 import { InitialEditorStateType } from "@lexical/react/LexicalComposer";
 import { createLexicalComposerContext, LexicalComposerContext, LexicalComposerContextType } from "@lexical/react/LexicalComposerContext";
@@ -23,8 +20,8 @@ import { $isTableNode } from "@lexical/table";
 import { $findMatchingParent, $getNearestNodeOfType } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import type { EditorThemeClasses } from "lexical";
-import { $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, createEditor, DEPRECATED_$isGridSelection, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalEditor, NodeKey, RangeSelection, SELECTION_CHANGE_COMMAND, TextFormatType, TextNode } from "lexical";
+import type { DOMConversionOutput, EditorConfig, EditorThemeClasses } from "lexical";
+import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalEditor, NodeKey, RangeSelection, SELECTION_CHANGE_COMMAND, TextFormatType, TextNode } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
@@ -222,6 +219,131 @@ export function getSelectedNode(
     }
 }
 
+export class SpoilerNode extends ElementNode {
+    static getType(): string {
+        return "spoiler";
+    }
+
+    constructor(key?: NodeKey) {
+        super(key);
+    }
+
+    static clone(node: SpoilerNode): SpoilerNode {
+        return new SpoilerNode(node.__key);
+    }
+
+    createDOM(config: EditorConfig): HTMLElement {
+        const element = document.createElement("span");
+        element.style.backgroundColor = "black";
+        element.style.color = "black";
+        // Any other styles or attributes you want to apply to the spoiler element.
+        return element;
+    }
+
+    updateDOM(
+        prevNode: SpoilerNode,
+        span: HTMLElement,
+        config: EditorConfig,
+    ): boolean {
+        // Assuming you might want to update some styles or attributes in the future, but for now, it's a no-op
+        // Simply checks that the element is a spoiler and updates if needed
+        if (!span.classList.contains("spoiler")) {
+            span.classList.add("spoiler");
+            span.style.backgroundColor = "black";
+            span.style.color = "black";
+            // Add other updates if needed
+            return true; // Indicates that the DOM was updated
+        }
+        return false; // Indicates that no updates were necessary
+    }
+
+    static importDOM(): DOMConversionMap | null {
+        return {
+            span: (node: Node) => {
+                // Check if the span has the correct class or attribute to identify it as a spoiler
+                if ((node as HTMLElement).classList.contains("spoiler")) {
+                    return {
+                        conversion: SpoilerNode.fromDOMElement,
+                        priority: 1,
+                    };
+                }
+                return null;
+            },
+        };
+    }
+
+    static fromDOMElement(element: HTMLElement): DOMConversionOutput {
+        // Creates a new SpoilerNode from the given DOM element
+        return { node: new SpoilerNode() };
+    }
+
+    isInline(): true {
+        return true;
+    }
+}
+export function $createSpoilerNode(): SpoilerNode {
+    return $applyNodeReplacement(new SpoilerNode());
+}
+
+// Custom transformers for syntax not supported by CommonMark (Markdown's spec)
+const UNDERLINE: TextMatchTransformer = {
+    dependencies: [],
+    export: (node, exportChildren, exportFormat) => {
+        if (node.hasStyle("textDecoration", "underline")) {
+            return `<u>${exportChildren(node as ElementNode)}</u>`;
+        }
+        return null;
+    },
+    importRegExp: /<u>(.*?)<\/u>/g,
+    regExp: /<u>(.*?)<\/u>/g,
+    replace: (textNode, match) => {
+        const newTextContent = match[1];
+        const newTextNode = new TextNode(newTextContent);
+        newTextNode.setStyle("textDecoration: underline;");
+        textNode.replace(newTextNode);
+    },
+    trigger: "<u>",
+    type: "text-match",
+};
+const SPOILER: TextMatchTransformer = {
+    dependencies: [],
+    export: (node, exportChildren, exportFormat) => {
+        if (node.hasStyle("backgroundColor", "black") && node.hasStyle("color", "black")) {
+            return `||${exportChildren(node as ElementNode)}||`;
+        }
+        return null;
+    },
+    importRegExp: /\|\|(.*?)\|\|/,
+    regExp: /\|\|(.*?)\|\|$/,
+    replace: (textNode, match) => {
+        // Extract the matched spoiler text
+        const spoilerText = match[0];
+        console.log("SPOILER TEXT", match, textNode);
+
+        // Create a new styled text node with the matched spoiler text
+        const spoilerTextNode = new TextNode(spoilerText);
+        console.log("SPOILER TEXT NODE", spoilerTextNode);
+        spoilerTextNode.setStyle("backgroundColor: black;");
+        spoilerTextNode.setStyle("color: black;");
+
+        // Create a SpoilerNode
+        const spoilerNode = $createSpoilerNode();
+        spoilerNode.append(spoilerTextNode);
+
+        // Replace the original text node with the spoiler node
+        textNode.replace(spoilerNode);
+    },
+    trigger: "||",
+    type: "text-match",
+};
+
+const CUSTOM_TEXT_TRANSFORMERS: Array<TextMatchTransformer> = [
+    UNDERLINE,
+    SPOILER,
+];
+
+const ALL_TRANSFORMERS = [...TRANSFORMERS, ...CUSTOM_TEXT_TRANSFORMERS];
+
 /** TextField for entering WYSIWYG text */
 export const RichInputLexical = ({
     autoFocus = false,
@@ -252,9 +374,10 @@ export const RichInputLexical = ({
     /** Configuration for lexical editor */
     const initialConfig = useMemo(() => ({
         editable: true,
-        editorState: () => $convertFromMarkdownString(value, TRANSFORMERS),
+        // Will need custom transformers if we want to support custom markdown syntax (e.g. underline, spoiler)
+        editorState: () => $convertFromMarkdownString(value, ALL_TRANSFORMERS),
         namespace: "MyEditor",
-        nodes: [AutoLinkNode, CodeNode, CodeHighlightNode, HashtagNode, HeadingNode, HorizontalRuleNode, LinkNode, ListNode, ListItemNode, QuoteNode],
+        nodes: [AutoLinkNode, CodeNode, CodeHighlightNode, HashtagNode, HeadingNode, HorizontalRuleNode, LinkNode, ListNode, ListItemNode, QuoteNode, SpoilerNode],
         onError,
         theme,
     }), [value]);
@@ -444,13 +567,6 @@ export const RichInputLexical = ({
         });
     };
     const toggleFormat = (formatType: TextFormatType) => {
-        // composerContext[0].update(() => {
-        //     const selection = $getSelection();
-        //     console.log("got selection", selection, $isRangeSelection(selection));
-        //     if ($isRangeSelection(selection)) {
-        //         selection.toggleFormat(formatType);
-        //     }
-        // });
         composerContext[0].dispatchCommand(FORMAT_TEXT_COMMAND, formatType);
     };
     (RichInputLexical as unknown as RichInputChildView).handleAction = (action: RichInputAction) => {
@@ -525,7 +641,7 @@ export const RichInputLexical = ({
                 <LinkPlugin />
                 <ListPlugin />
                 <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
-                <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+                <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
             </Box>
         </LexicalComposerContext.Provider>
     );

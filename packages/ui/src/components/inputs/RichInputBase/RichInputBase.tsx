@@ -131,7 +131,6 @@ export const RichInputBase = ({
     const id = useMemo(() => `input-container-${name}`, [name]);
     const resize = useCallback(() => {
         const container = document.getElementById(id);
-        console.log('resizing', container)
         if (!container || typeof internalValue !== "string" || sxs?.textArea?.height) return;
         const lines = (internalValue.match(/\n/g)?.length || 0) + 1;
         const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
@@ -140,7 +139,7 @@ export const RichInputBase = ({
         const linesShown = Math.max(minRowsNum, Math.min(lines, maxRowsNum));
         const padding = 34;
         container.style.height = `${linesShown * lineHeight + padding}px`;
-    }, [minRows, maxRows, typography, internalValue, sxs?.textArea?.height]);
+    }, [id, minRows, maxRows, typography, internalValue, sxs?.textArea?.height]);
     useEffect(() => {
         resize();
     }, [resize, isMarkdownOn]);
