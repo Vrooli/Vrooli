@@ -94,10 +94,10 @@ export const RichInputBase = ({
     // Get current view 
     const CurrentViewComponent = useMemo(() => isMarkdownOn ? RichInputMarkdown : RichInputLexical, [isMarkdownOn]);
     // Map view-specific functions to this component
-    const handleAction: RichInputChildView["handleAction"] = useCallback((action: RichInputAction) => {
+    const handleAction: RichInputChildView["handleAction"] = useCallback((action: RichInputAction, data?: unknown) => {
         console.log("in RichInputBase handleAction", action, CurrentViewComponent, (CurrentViewComponent as unknown as RichInputChildView)?.handleAction);
         if (CurrentViewComponent && (CurrentViewComponent as unknown as RichInputChildView).handleAction) {
-            (CurrentViewComponent as unknown as RichInputChildView).handleAction(action);
+            (CurrentViewComponent as unknown as RichInputChildView).handleAction(action, data);
         }
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         return () => { };
@@ -124,7 +124,7 @@ export const RichInputBase = ({
         else context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
         // Open the assistant dialog
         console.log("context here", context);
-        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `\`\`\`\n${context}\n\`\`\`\n\n` : undefined }));
+        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `"""\n${context}\n"""\n` : undefined }));
     }, [disabled, internalValue]);
 
     // Resize input area to fit content

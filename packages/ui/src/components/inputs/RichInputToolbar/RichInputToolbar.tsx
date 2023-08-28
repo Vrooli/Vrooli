@@ -1,9 +1,9 @@
-import { Box, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useWindowSize } from "hooks/useWindowSize";
-import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
-import { useContext, useMemo, useState } from "react";
+import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, TableIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
@@ -24,6 +24,7 @@ export type RichInputAction =
     "Redo" |
     "Spoiler" |
     "Strikethrough" |
+    "Table" |
     "Underline" |
     "Undo";
 
@@ -105,6 +106,85 @@ const usePopover = (initialState = null) => {
     return [anchorEl, openPopover, closePopover, isPopoverOpen] as const;
 };
 
+const TablePopover = ({ isOpen, anchorEl, onClose, handleTableInsert, palette, t }) => {
+    const [hoveredRow, setHoveredRow] = useState(1);
+    const [hoveredCol, setHoveredCol] = useState(1);
+    const [canHover, setCanHover] = useState(true);
+
+    const maxRows = 10;
+    const maxCols = 5;
+
+    useEffect(() => {
+        if (window.matchMedia("(hover: none)").matches) {
+            setCanHover(false);
+        }
+    }, []);
+
+    return (
+        <Popover
+            open={isOpen}
+            anchorEl={anchorEl}
+            onClose={onClose}
+            anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        >
+            <Stack
+                direction="column"
+                justifyContent="center"
+                alignItems="center"
+                spacing={1}
+                p={2}
+                sx={{ background: palette.background.paper, color: palette.background.contrastText }}
+            >
+                <Typography align="center" variant="h6" pb={1}>
+                    {t("TableSelectSize")}
+                </Typography>
+                <Box>
+                    {[...Array(maxRows)].map((_, rowIndex) => (
+                        <Box key={rowIndex} display="flex">
+                            {[...Array(maxCols)].map((_, colIndex) => (
+                                <Box
+                                    key={colIndex}
+                                    component="button"
+                                    onMouseEnter={canHover ? () => {
+                                        setHoveredRow(rowIndex + 1);
+                                        setHoveredCol(colIndex + 1);
+                                        // eslint-disable-next-line @typescript-eslint/no-empty-function
+                                    } : () => { }}
+                                    onClick={() => {
+                                        setHoveredRow(rowIndex + 1);
+                                        setHoveredCol(colIndex + 1);
+                                        // Submit immediately if the user can hover
+                                        if (canHover) {
+                                            handleTableInsert(rowIndex + 1, colIndex + 1);
+                                        }
+                                    }}
+                                    sx={{
+                                        width: 25,
+                                        height: 25,
+                                        border: `1px solid ${palette.text.primary}`,
+                                        background: (rowIndex < hoveredRow && colIndex < hoveredCol) ?
+                                            palette.secondary.light :
+                                            "transparent",
+                                        cursor: "pointer",
+                                    }}
+                                />
+                            ))}
+                        </Box>
+                    ))}
+                </Box>
+                <Typography align="center" variant="body2" sx={{ marginTop: 1 }}>
+                    {hoveredRow} x {hoveredCol}
+                </Typography>
+                {!canHover && (
+                    <Button variant="contained" onClick={() => handleTableInsert(hoveredRow, hoveredCol)} sx={{ marginTop: 2 }}>
+                        {t("Submit")}
+                    </Button>
+                )}
+            </Stack>
+        </Popover>
+    );
+};
+
 export const RichInputToolbar = ({
     canRedo,
     canUndo,
@@ -119,7 +199,7 @@ export const RichInputToolbar = ({
     canUndo: boolean;
     disableAssistant?: boolean;
     disabled?: boolean;
-    handleAction: (action: RichInputAction) => unknown;
+    handleAction: (action: RichInputAction, data?: unknown) => unknown;
     isMarkdownOn: boolean;
     name: string,
     sx?: SxType;
@@ -134,6 +214,11 @@ export const RichInputToolbar = ({
     const [headerAnchorEl, openHeaderSelect, closeHeader, headerSelectOpen] = usePopover();
     const [formatAnchorEl, openFormatSelect, closeFormat, formatSelectOpen] = usePopover();
     const [listAnchorEl, openListSelect, closeList, listSelectOpen] = usePopover();
+    const [tableAnchorEl, openTableSelect, closeTable, tableSelectOpen] = usePopover();
+    const handleTableInsert = (rows: number, cols: number) => {
+        handleAction("Table", { rows, cols });
+        closeTable();
+    };
 
     const headerItems: PopoverActionItem[] = [
         { action: "Header1", icon: <Header1Icon />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
@@ -228,6 +313,13 @@ export const RichInputToolbar = ({
                 ))}
                 <ToolButton
                     disabled={disabled}
+                    icon={<LinkIcon fill={palette.primary.contrastText} />}
+                    label={`${t("Link")} (${keyComboToString("Ctrl", "k")})`}
+                    onClick={() => { handleAction("Link"); }}
+                    palette={palette}
+                />
+                <ToolButton
+                    disabled={disabled}
                     icon={<ListIcon fill={palette.primary.contrastText} />}
                     label={t("ListInsert")}
                     onClick={openListSelect}
@@ -244,10 +336,18 @@ export const RichInputToolbar = ({
                 />
                 <ToolButton
                     disabled={disabled}
-                    icon={<LinkIcon fill={palette.primary.contrastText} />}
-                    label={`${t("Link")} (${keyComboToString("Ctrl", "k")})`}
-                    onClick={() => { handleAction("Link"); }}
+                    icon={<TableIcon fill={palette.primary.contrastText} />}
+                    label={t("TableInsert")}
+                    onClick={openTableSelect}
                     palette={palette}
+                />
+                <TablePopover
+                    isOpen={tableSelectOpen}
+                    anchorEl={tableAnchorEl}
+                    onClose={closeTable}
+                    handleTableInsert={handleTableInsert}
+                    palette={palette}
+                    t={t}
                 />
             </Stack>
             {/* Group for undo, redo, and switching between Markdown as WYSIWYG */}

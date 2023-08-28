@@ -327,74 +327,18 @@ const registerCustomCommands = (editor: LexicalEditor): (() => void) => {
                         spoilerNode.remove();
                     });
                 } else if (nodes.length > 0) {
-                    // // Apply spoiler effect
-                    // const spoilerNode = $createSpoilerNode();
-
-                    // // Pre-insert the spoiler node to its position in the hierarchy.
-                    // // TODO this adds the spoiler to the whole line. Need to fix
-                    // const firstNode = nodes[0];
-                    // firstNode.insertBefore(spoilerNode);
-
-                    // // Move nodes into the spoiler node.
-                    // for (const node of nodes) {
-                    //     if (!(node instanceof SpoilerNode)) {
-                    //         console.log("adding node to spoiler", node.getTextContent());
-                    //         spoilerNode.append(node);  // Assuming this moves the node
-                    //     }
-                    // }
-                    // // Adjust the selection to the entire spoilerNode
-                    // spoilerNode.select();
-
-
-                    // const spoilerNode = $createSpoilerNode();
-
-                    // // For the first node, if it's partially selected, split and take the part that's within the selection
-                    // let startNode = nodes[0];
-                    // console.log("first node", startNode.getTextContent());
-                    // if (startNode.getTextContent().length !== selection.anchor.offset) {
-                    //     startNode = startNode.splitText(selection.anchor.offset);
-                    // }
-                    // console.log("got start node", (startNode as unknown as any[]).map(node => node.getTextContent()));
-
-                    // // For the last node, if it's partially selected, split and take the part that's within the selection
-                    // const endNode = nodes[nodes.length - 1];
-                    // if (endNode.getTextContent().length !== selection.focus.offset) {
-                    //     endNode.splitText(selection.focus.offset);
-                    // }
-                    // console.log("got end node", endNode);
-
-                    // // Now, from the startNode to endNode, wrap everything in between in the spoilerNode
-                    // let currentNode = startNode;
-                    // while (currentNode !== endNode) {
-                    //     spoilerNode.append(currentNode);
-                    //     const next = currentNode.getNextSibling();
-                    //     if (next === null) {
-                    //         break;
-                    //     }
-                    //     currentNode = next!;
-                    // }
-                    // spoilerNode.append(endNode);
-
-                    // const parent = startNode.getParent();
-                    // if (parent === null) {
-                    //     return false;
-                    // }
-                    // console.log("got parent", parent);
-                    // parent.insertBefore(spoilerNode, startNode);
-                    // spoilerNode.select();
-
-
-
-
                     const spoilerNode = $createSpoilerNode();
 
                     const startNode = nodes[0];
                     console.log("got start node", startNode.getTextContent());
                     const endNode = nodes[nodes.length - 1];
+                    console.log("got end node", endNode.getTextContent());
                     const startParent = startNode.getParent();
+                    console.log("start parent at beginning", startParent?.getTextContent());
+                    const nodeAfterStartNode = startNode.getNextSibling();
 
-                    // Get offsets
-                    const [startOffset, endOffset] = [selection.anchor.offset, selection.focus.offset - selection.anchor.offset].sort();
+                    // Get offsets from smallest to largest
+                    const [startOffset, endOffset] = [selection.anchor.offset, selection.focus.offset].sort((a, b) => a - b);
                     console.log("got offsets", startOffset, endOffset);
 
                     // Split the startNode if needed
@@ -407,30 +351,32 @@ const registerCustomCommands = (editor: LexicalEditor): (() => void) => {
                     }
                     console.log("got start node", startNode.getTextContent());
 
-                    // Split the endNode if needed
-                    if (endOffset < endNode.getTextContentSize()) {
-                        const afterText = endNode.getTextContent().substring(endOffset);
-                        const newNode = new TextNode(afterText);
-                        console.log("new node 2", newNode.getTextContent());
-                        endNode.insertAfter(newNode);
-                        endNode.setTextContent(endNode.getTextContent().substring(0, endOffset));
-                    }
-                    console.log("got end node", endNode.getTextContent());
-
-                    // At this point, our selection should be bounded by complete TextNodes.
-                    // We now loop through all nodes and move them into the spoilerNode.
-                    for (const node of nodes) {
-                        if (!(node instanceof SpoilerNode)) {
-                            console.log("adding node to spoiler", node.getTextContent());
-                            spoilerNode.append(node);
+                    // If the spoiler spans multiple nodes:
+                    if (startNode !== endNode) {
+                        let currentNode = startNode.getNextSibling();
+                        while (currentNode && currentNode !== endNode) {
+                            spoilerNode.append(currentNode);
+                            currentNode = currentNode.getNextSibling();
                         }
                     }
 
+                    // Split the endNode if needed
+                    if (endOffset < endNode.getTextContentSize()) {
+                        const afterText = endNode.getTextContent().substring(endOffset - startOffset);
+                        const newNode = new TextNode(afterText);
+                        console.log("new node 2", newNode.getTextContent());
+                        endNode.insertAfter(newNode);
+                        endNode.setTextContent(endNode.getTextContent().substring(0, endOffset - startOffset));
+                    }
+                    console.log("got end node", endNode.getTextContent());
+
+                    // Append the (possibly split) endNode to spoilerNode
+                    spoilerNode.append(endNode);
+
                     // Insert the spoilerNode in the correct location
                     console.log("insert the spoiler node", startNode.getTextContent(), spoilerNode.getTextContent());
-                    // startNode.getParent()?.insertBefore(spoilerNode);
                     if (startParent) {
-                        startParent.insertBefore(spoilerNode);
+                        startParent.insertAfter(spoilerNode);
                     } else {
                         // Handle cases where the startParent is not available
                         console.error("Failed to find a parent for the startNode!");

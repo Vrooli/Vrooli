@@ -982,6 +982,13 @@ export const SuccessIcon = (props: SvgProps) => (
     />
 );
 
+export const TableIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"
+    />
+);
+
 export const TagIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
@@ -1023,7 +1030,6 @@ export const UnderlineIcon = (props: SvgProps) => (
         d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"
     />
 );
-
 
 export const UndoIcon = (props: SvgProps) => (
     <SvgPath

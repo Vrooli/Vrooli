@@ -221,6 +221,38 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
         onChange(newValue);
     }, [disabled, id, onChange]);
 
+    const insertTable = useCallback(({ rows, cols }: { rows: number, cols: number }) => {
+        console.log("in insertTable", rows, cols);
+        if (disabled) return;
+        const { start, inputElement } = getSelection(id);
+        if (!inputElement) return;
+        // Generate table markdown based on rows and cols
+        let tableStr = "|";
+        for (let c = 0; c < cols; c++) {
+            tableStr += " Header |";
+        }
+        tableStr += "\n|";
+        for (let c = 0; c < cols; c++) {
+            tableStr += " ------- |";
+        }
+        for (let r = 0; r < rows; r++) {
+            tableStr += "\n|";
+            for (let c = 0; c < cols; c++) {
+                tableStr += "   |";
+            }
+        }
+        console.log("got tableStr", tableStr);
+        // Insert the generated table into the text
+        inputElement.value = replaceText(
+            inputElement.value,
+            tableStr + "\n", // Add an extra newline for separation
+            start,
+            start,
+        );
+        onChange(inputElement.value);
+    }, [disabled, id, onChange]);
+
+
     const tagData = useTagDropdown({ getTaggableItems });
     const selectDropdownItem = useCallback((item: ListObject) => {
         // Tagged item is inserted as a link
@@ -239,7 +271,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
         tagData.setAnchorEl(null);
     }, [id, onChange, tagData]);
 
-    (RichInputMarkdown as unknown as RichInputChildView).handleAction = (action: RichInputAction) => {
+    (RichInputMarkdown as unknown as RichInputChildView).handleAction = (action: RichInputAction, data?: unknown) => {
         const actionMap: { [key in RichInputAction]: (() => unknown) } = {
             "Assistant": () => openAssistantDialog(getSelection(id).selected),
             "Bold": bold,
@@ -255,6 +287,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "Redo": redo,
             "Spoiler": spoiler,
             "Strikethrough": strikethrough,
+            "Table": () => insertTable(data as { rows: number, cols: number }),
             "Underline": underline,
             "Undo": undo,
         };
@@ -420,6 +453,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                 onBlur={onBlur}
                 onChange={(e) => { onChange(e.target.value); }}
                 tabIndex={tabIndex}
+                spellCheck
                 style={{
                     padding: "16.5px 14px",
                     minWidth: "-webkit-fill-available",
