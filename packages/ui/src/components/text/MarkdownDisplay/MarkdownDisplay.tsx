@@ -1,5 +1,5 @@
 import { endpointGetApi, endpointGetChat, endpointGetComment, endpointGetNote, endpointGetOrganization, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetSmartContract, endpointGetStandard, endpointGetTag, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
-import { Box, Checkbox, CircularProgress, IconButton, Link, useTheme } from "@mui/material";
+import { Box, Checkbox, CircularProgress, IconButton, Link, TypographyProps, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import hljs from "highlight.js";
 import "highlight.js/styles/monokai-sublime.css";
@@ -9,6 +9,7 @@ import usePress from "hooks/usePress";
 import { CopyIcon } from "icons";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SxType } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -66,9 +67,10 @@ const Blockquote = ({ children }) => {
 
 
 /**
- * Preprocess Markdown text to replace single newline characters with double newlines, 
- * except those inside code blocks. This makes the behavior of Markdown 
- * more intuitive for users.
+ * Preprocess Markdown text to:
+ * 1. Replace single newline characters with double newlines, except those inside code blocks.
+ * 2. Convert custom `||spoiler||` syntax to an HTML-like `<spoiler></spoiler>` for further rendering.
+ * These adjustments make the behavior of Markdown more intuitive for users and add custom functionality.
  *
  * @param {string} content - The input Markdown text.
  * @returns {string} - The processed Markdown text.
@@ -77,7 +79,11 @@ const processMarkdown = (content: string): string => {
     // Initialize state variables
     let isInCodeBlock = false;
     let result = "";
-    // Iterate over each character in the input
+
+    // Convert ||spoiler|| to <spoiler>spoiler</spoiler>
+    content = content.replace(/\|\|([\s\S]+?)\|\|/g, "<spoiler>$1</spoiler>");
+
+    // Iterate over each character in the processed content
     for (let i = 0; i < content.length; i++) {
         if (content[i] === "\n") {
             // If it's a newline not preceded by a newline and we're not inside a code block, add an extra newline
@@ -87,7 +93,8 @@ const processMarkdown = (content: string): string => {
             // Add the newline itself
             result += "\n";
         } else if (content[i] === "`") {
-            // If it's a backtick and the two preceding characters are also backticks, toggle the isInCodeBlock flag
+            // If it's a backtick and the two preceding characters are also backticks, toggle the isInCodeBlock flag.
+            // This assumes that code blocks are initiated and closed with triple backticks (```).
             if (content[i - 1] === "`" && content[i - 2] === "`") {
                 isInCodeBlock = !isInCodeBlock;
             }
@@ -271,7 +278,30 @@ function parseMarkdownCheckboxes(content: string) {
     return checkboxIndices;
 }
 
-
+const spoilerStyles = {
+    cursor: "pointer",
+    transition: "color 0.4s, background 0.4s",
+};
+const revealedStyles = {
+    color: "inherit",
+    background: "rgba(0, 0, 0, 0.3)",
+};
+const hiddenStyles = {
+    color: "transparent",
+    background: "black",
+};
+const Spoiler = ({ children }) => {
+    const [revealed, setRevealed] = useState(false);
+    const currentStyles = revealed ? revealedStyles : hiddenStyles;
+    return (
+        <span
+            style={{ ...spoilerStyles, ...currentStyles }}
+            onClick={() => setRevealed(!revealed)}
+        >
+            {children}
+        </span>
+    );
+};
 
 export const MarkdownDisplay = ({
     content,
@@ -285,7 +315,6 @@ export const MarkdownDisplay = ({
     onChange?: (content: string) => void;
     sx?: SxType;
     variant?: TypographyProps["variant"];
-    zIndex: number;
 }) => {
     const { palette, typography } = useTheme();
     const id = useMemo(() => uuid(), []);
@@ -296,6 +325,9 @@ export const MarkdownDisplay = ({
             code: CodeBlock,
             blockquote: Blockquote,
             a: withCustomLinkProps({}),
+            spoiler: {
+                component: Spoiler,
+            },
             input: withCustomCheckboxProps({
                 onChange: (checkboxId: string, updatedState: boolean) => {
                     if (!content || !onChange) return;

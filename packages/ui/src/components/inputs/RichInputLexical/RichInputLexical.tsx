@@ -20,7 +20,7 @@ import { $isTableNode } from "@lexical/table";
 import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorThemeClasses, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, NodeKey, RangeSelection, SELECTION_CHANGE_COMMAND, TextFormatType, TextNode } from "lexical";
+import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorThemeClasses, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, NodeKey, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
@@ -218,6 +218,12 @@ export function getSelectedNode(
     }
 }
 
+type SerializedSpoilerNode = Spread<
+    {
+        children: any[];
+    },
+    SerializedLexicalNode
+>;
 // Create a custom node for spoilers
 export class SpoilerNode extends ElementNode {
     static getType(): string {
@@ -285,6 +291,26 @@ export class SpoilerNode extends ElementNode {
 
     isInline(): true {
         return true;
+    }
+
+    static importJSON(serializedNode: SerializedSpoilerNode): SpoilerNode {
+        if (serializedNode.type === "spoiler" && serializedNode.version === 1) {
+            const node = new SpoilerNode();
+            serializedNode.children.forEach(childJSON => {
+                node.append(childJSON);
+            });
+            return node;
+        }
+        throw new Error("Invalid serialized spoiler node.");
+    }
+
+    exportJSON(): SerializedSpoilerNode {
+        const childrenJSON = this.getChildren().map(child => child.exportJSON());
+        return {
+            type: "spoiler",
+            version: 1,
+            children: childrenJSON,
+        } as const;
     }
 }
 export function $createSpoilerNode(): SpoilerNode {
@@ -413,7 +439,8 @@ const UNDERLINE: TextMatchTransformer = {
     trigger: "<u>",
     type: "text-match",
 };
-const SPOILER: TextMatchTransformer = {
+// Spoiler with ||spoiler|| syntax
+const SPOILER_LINES: TextMatchTransformer = {
     dependencies: [],
     export: (node, exportChildren, exportFormat) => {
         if (node.hasStyle("backgroundColor", "black") && node.hasStyle("color", "black")) {
@@ -442,10 +469,43 @@ const SPOILER: TextMatchTransformer = {
     trigger: "||",
     type: "text-match",
 };
+// Spoiler with <spoiler>spoiler</spoiler> syntax
+const SPOILER_TAGS: TextMatchTransformer = {
+    dependencies: [],
+    export: (node, exportChildren, exportFormat) => {
+        if (node.hasStyle("backgroundColor", "black") && node.hasStyle("color", "black")) {
+            return `<spoiler>${exportChildren(node as ElementNode)}</spoiler>`;
+        }
+        return null;
+    },
+    importRegExp: /<spoiler>(.*?)<\/spoiler>/,
+    regExp: /<spoiler>(.*?)<\/spoiler>$/,
+    replace: (textNode, match) => {
+        // Extract the matched spoiler text
+        const spoilerText = match[1];
+        console.log("SPOILER TEXT", match, textNode);
+
+        // Create a new styled text node with the matched spoiler text
+        const spoilerTextNode = new TextNode(spoilerText);
+        console.log("SPOILER TEXT NODE", spoilerTextNode);
+
+        // Create a SpoilerNode
+        const spoilerNode = $createSpoilerNode();
+        spoilerNode.append(spoilerTextNode);
+
+        // Replace the original text node with the spoiler node
+        textNode.replace(spoilerNode);
+    },
+    trigger: "<spoiler>",
+    type: "text-match",
+};
+
+
 
 const CUSTOM_TEXT_TRANSFORMERS: Array<TextMatchTransformer> = [
     UNDERLINE,
-    SPOILER,
+    SPOILER_LINES,
+    SPOILER_TAGS,
 ];
 
 const ALL_TRANSFORMERS = [...TRANSFORMERS, ...CUSTOM_TEXT_TRANSFORMERS];
@@ -697,6 +757,7 @@ export const RichInputLexical = ({
             "Redo": redo,
             "Spoiler": toggleSpoiler,
             "Strikethrough": () => toggleFormat("strikethrough"),
+            "Table": () => { }, //TODO
             "Underline": () => toggleFormat("underline"),
             "Undo": undo,
         };
