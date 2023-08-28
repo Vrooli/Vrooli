@@ -161,7 +161,7 @@ const TablePopover = ({ isOpen, anchorEl, onClose, handleTableInsert, palette, t
                                     sx={{
                                         width: 25,
                                         height: 25,
-                                        border: `1px solid ${palette.text.primary}`,
+                                        border: `1px solid ${palette.divider}`,
                                         background: (rowIndex < hoveredRow && colIndex < hoveredCol) ?
                                             palette.secondary.light :
                                             "transparent",

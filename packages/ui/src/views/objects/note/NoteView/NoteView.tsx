@@ -61,6 +61,7 @@ export const NoteView = ({
                 display={display}
                 onClose={onClose}
                 title={firstString(name, t("Note", { count: 1 }))}
+                helpText={description}
                 below={availableLanguages.length > 1 && <SelectLanguageMenu
                     currentLanguage={language}
                     handleCurrent={setLanguage}

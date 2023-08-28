@@ -105,11 +105,6 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Search}?type=${SearchPageTabOption.Organization}`,
     },
     {
-        label: "SearchQuestion",
-        keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Question}`,
-    },
-    {
         label: "SearchProject",
         keywords: searchKeywords,
         value: `${LINKS.Search}?type=${SearchPageTabOption.Project}`,

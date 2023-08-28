@@ -57,6 +57,7 @@ export const NoteUpsert = ({
                 enableReinitialize={true}
                 initialValues={existing}
                 onSubmit={(values, helpers) => {
+                    console.log("NoteUpsert onSubmit", values, transformNoteValues(values, existing, isCreate));
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;

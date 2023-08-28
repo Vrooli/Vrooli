@@ -1,4 +1,4 @@
-import { endpointGetFeedPopular, PopularSearchInput, PopularSearchResult, uuidValidate } from "@local/shared";
+import { endpointGetFeedPopular, PopularSearchInput, PopularSearchResult } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -17,29 +17,7 @@ import { getObjectUrl } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 
-/**
- * Strips URL for comparison against the current URL.
- * @param url URL to strip
- * @returns Stripped URL
- */
-const stripUrl = (url: string) => {
-    // Split by '/' and remove empty strings
-    const urlParts = new URL(url).pathname.split("/").filter(Boolean);
-    // If last part is a UUID, or equal to "add" or "edit", remove it
-    // For example, navigating from viewing the graph of an existing routine 
-    // to creating a new multi-step routine (/routine/1234?build=true -> /routine/add?build=true) 
-    // requires a reload
-    if (urlParts.length > 1 &&
-        (uuidValidate(urlParts[urlParts.length - 1]) ||
-            urlParts[urlParts.length - 1] === "add" ||
-            urlParts[urlParts.length - 1] === "edit")) {
-        urlParts.pop();
-    }
-    return urlParts.join("/");
-};
-
 const titleId = "command-palette-dialog-title";
-const zIndex = 10000;
 
 export const CommandPalette = () => {
     const session = useContext(SessionContext);
@@ -90,6 +68,7 @@ export const CommandPalette = () => {
         const queryItems = listToAutocomplete(parseData(data, "Popular"), languages);
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
     }, [t, searchString, data, languages, shortcutsItems]);
+    console.log("autocomplete options", autocompleteOptions);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -102,11 +81,8 @@ export const CommandPalette = () => {
         // Get object url
         const newLocation = getObjectUrl(newValue);
         if (!newLocation) return;
-        // If new pathname is the same, reload page
-        const shouldReload = stripUrl(`${window.location.origin}${newLocation}`) === stripUrl(window.location.href);
         // Set new location
         setLocation(newLocation);
-        if (shouldReload) window.location.reload();
     }, [close, setLocation]);
 
     return (

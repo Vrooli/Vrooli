@@ -56,6 +56,7 @@ export const transformNoteValues = (values: NoteVersionShape, existing: NoteVers
 
 export const validateNoteValues = async (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) => {
     const transformedValues = transformNoteValues(values, existing, isCreate);
+    console.log("validating note value", values, transformedValues);
     const validationSchema = noteVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
@@ -81,9 +82,10 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name", "text"],
+        fields: ["description", "name", "pages[0].text"],
         validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
+    console.log("noteform", props.errors, translationErrors);
 
     return (
         <>
@@ -112,7 +114,7 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
             >
                 <TranslatedRichInput
                     language={language}
-                    name="text"
+                    name="pages[0].text"
                     placeholder={t("PleaseBeNice")}
                     minRows={10}
                     sxs={{
