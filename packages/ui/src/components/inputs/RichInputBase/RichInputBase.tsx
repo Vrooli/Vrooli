@@ -36,12 +36,12 @@ export const RichInputBase = ({
 }: RichInputBaseProps) => {
     const { palette, typography } = useTheme();
     const isLeftHanded = useIsLeftHanded();
-    console.log("richinputbase render", typeof getTaggableItems);
 
     // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
     const stack = useRef<string[]>([value]);
     const [stackIndex, setStackIndex] = useState<number>(0);
-    const stackSize = useRef<number>(value?.length ?? 0);
+    const stackSize = useRef<number>(value?.length ?? 0); // Used to keep track of the total number of characters in the stack
+    const changeTimeout = useRef<NodeJS.Timeout | null>(null); // Used to group changes together
 
     // Internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value ?? "");
@@ -56,6 +56,21 @@ export const RichInputBase = ({
     }, [value]);
     // Debounce text change
     const onChangeDebounced = useDebounce(onChange, 200);
+
+    const addToStack = useCallback((updatedText: string) => {
+        const newstack = [...stack.current];
+        newstack.splice(stackIndex + 1, newstack.length - stackIndex - 1);
+        newstack.push(updatedText);
+        stackSize.current += updatedText.length;
+        if (stackSize.current > MAX_STACK_SIZE) {
+            while (stackSize.current > MAX_STACK_SIZE) {
+                stackSize.current -= newstack[0].length;
+                newstack.shift();
+            }
+        }
+        stack.current = newstack;
+        setStackIndex(newstack.length - 1);
+    }, [stackIndex]);
 
     /** Moves back one in the change stack */
     const undo = useCallback(() => {
@@ -77,26 +92,24 @@ export const RichInputBase = ({
      * Adds, to change stack, and removes anything from the change stack after the current index
      */
     const handleChange = useCallback((updatedText: string) => {
-        console.log("handleChange", updatedText, stackIndex, stack.current);
-        // Add to change stack
-        const newstack = [...stack.current];
-        newstack.splice(stackIndex + 1, newstack.length - stackIndex - 1);
-        newstack.push(updatedText);
-        stackSize.current += updatedText.length;
-        // Remove oldest item(s) if stack is too long
-        if (stackSize.current > MAX_STACK_SIZE) {
-            console.info("RichInputBase: change stack is too long, removing oldest items");
-            // Remove as many items as needed to get back to the max stack size
-            while (stackSize.current > MAX_STACK_SIZE) {
-                stackSize.current -= newstack[0].length;
-                newstack.shift();
-            }
-        }
-        stack.current = newstack;
-        setStackIndex(newstack.length - 1);
         setInternalValue(updatedText);
         onChangeDebounced(updatedText);
-    }, [stackIndex, onChangeDebounced]);
+        // Check for delimiter or pause in typing
+        if (changeTimeout.current) {
+            clearTimeout(changeTimeout.current);
+        }
+        // Wait for 1 second of inactivity before adding to the stack
+        changeTimeout.current = setTimeout(() => {
+            addToStack(updatedText);
+        }, 500);
+        // If a space (or another delimiter) is typed, add to stack immediately
+        if (updatedText.endsWith(" ")) {
+            if (changeTimeout.current) {
+                clearTimeout(changeTimeout.current);
+            }
+            addToStack(updatedText);
+        }
+    }, [onChangeDebounced, addToStack]);
 
     const [isMarkdownOn, setIsMarkdownOn] = useState(getCookieShowMarkdown() ?? true); //TODO default to false once lexical view is better
     const toggleMarkdown = useCallback(() => {
