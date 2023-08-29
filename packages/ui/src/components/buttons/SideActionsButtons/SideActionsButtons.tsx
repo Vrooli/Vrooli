@@ -23,7 +23,7 @@ export const SideActionsButtons = ({
         <Stack direction="row" spacing={2} sx={{
             position: "absolute",
             display: "flex",
-            alignItems: "center",
+            alignItems: "end",
             justifyContent: "center",
             zIndex,
             bottom: 0,

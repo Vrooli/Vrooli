@@ -182,7 +182,7 @@ export type RichInputMarkdownProps = RichInputChildProps;
 export type RichInputLexicalProps = RichInputChildProps;
 
 export interface RichInputChildView {
-    handleAction: (action: RichInputAction) => unknown;
+    handleAction: (action: Exclude<RichInputAction, "Mode">, data?: unknown) => unknown;
 }
 
 export type PasswordTextFieldProps = TextFieldProps & {

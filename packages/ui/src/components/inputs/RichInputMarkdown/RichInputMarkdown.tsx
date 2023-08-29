@@ -5,7 +5,6 @@ import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
-import { RichInputAction } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputChildView, RichInputMarkdownProps } from "../types";
 
 enum Headers {
@@ -271,8 +270,8 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
         tagData.setAnchorEl(null);
     }, [id, onChange, tagData]);
 
-    (RichInputMarkdown as unknown as RichInputChildView).handleAction = (action: RichInputAction, data?: unknown) => {
-        const actionMap: { [key in RichInputAction]: (() => unknown) } = {
+    (RichInputMarkdown as unknown as RichInputChildView).handleAction = (action, data) => {
+        const actionMap = {
             "Assistant": () => openAssistantDialog(getSelection(id).selected),
             "Bold": bold,
             "Header1": () => insertHeader(Headers.H1),
@@ -283,7 +282,6 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "ListBullet": insertBulletList,
             "ListCheckbox": insertCheckboxList,
             "ListNumber": insertNumberList,
-            "Mode": toggleMarkdown,
             "Redo": redo,
             "Spoiler": spoiler,
             "Strikethrough": strikethrough,
@@ -462,7 +460,6 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                     resize: "none",
                     borderColor: error ? palette.error.main : palette.divider,
                     borderRadius: "0 0 4px 4px",
-                    borderTop: "none",
                     fontFamily: typography.fontFamily,
                     fontSize: typography.fontSize + 2,
                     lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,

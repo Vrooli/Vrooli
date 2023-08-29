@@ -12,6 +12,7 @@ import { RichInputAction, RichInputToolbar } from "../RichInputToolbar/RichInput
 import { RichInputBaseProps, RichInputChildView } from "../types";
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
+const MAX_STACK_SIZE = 1000000; // Total characters stored in the change stack. 1 million characters will be about 1-1.5 MB
 
 /** TextField for entering rich text. Supports markdown and WYSIWYG */
 export const RichInputBase = ({
@@ -38,8 +39,9 @@ export const RichInputBase = ({
     console.log("richinputbase render", typeof getTaggableItems);
 
     // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
-    const changeStack = useRef<string[]>([value]);
-    const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
+    const stack = useRef<string[]>([value]);
+    const [stackIndex, setStackIndex] = useState<number>(0);
+    const stackSize = useRef<number>(value?.length ?? 0);
 
     // Internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value ?? "");
@@ -47,7 +49,7 @@ export const RichInputBase = ({
         // If new value is one of the recent items in the stack 
         // (i.e. debounce is firing while user is still typing),
         // then don't update the internal value
-        const recentItems = changeStack.current.slice(Math.max(changeStack.current.length - 5, 0));
+        const recentItems = stack.current.slice(Math.max(stack.current.length - 5, 0));
         if (value === "" || !recentItems.includes(value)) {
             setInternalValue(value);
         }
@@ -55,53 +57,71 @@ export const RichInputBase = ({
     // Debounce text change
     const onChangeDebounced = useDebounce(onChange, 200);
 
+    /** Moves back one in the change stack */
+    const undo = useCallback(() => {
+        if (disabled || stackIndex <= 0) return;
+        setStackIndex(stackIndex - 1);
+        setInternalValue(stack.current[stackIndex - 1]);
+        onChangeDebounced(stack.current[stackIndex - 1]);
+    }, [stackIndex, disabled, onChangeDebounced]);
+    const canUndo = useMemo(() => stackIndex > 0 && stack.current.length > 0, [stackIndex]);
+    /** Moves forward one in the change stack */
+    const redo = useCallback(() => {
+        if (disabled || stackIndex >= stack.current.length - 1) return;
+        setStackIndex(stackIndex + 1);
+        setInternalValue(stack.current[stackIndex + 1]);
+        onChangeDebounced(stack.current[stackIndex + 1]);
+    }, [stackIndex, disabled, onChangeDebounced]);
+    const canRedo = useMemo(() => stackIndex < stack.current.length - 1 && stack.current.length > 0, [stackIndex]);
+    /**
+     * Adds, to change stack, and removes anything from the change stack after the current index
+     */
+    const handleChange = useCallback((updatedText: string) => {
+        console.log("handleChange", updatedText, stackIndex, stack.current);
+        // Add to change stack
+        const newstack = [...stack.current];
+        newstack.splice(stackIndex + 1, newstack.length - stackIndex - 1);
+        newstack.push(updatedText);
+        stackSize.current += updatedText.length;
+        // Remove oldest item(s) if stack is too long
+        if (stackSize.current > MAX_STACK_SIZE) {
+            console.info("RichInputBase: change stack is too long, removing oldest items");
+            // Remove as many items as needed to get back to the max stack size
+            while (stackSize.current > MAX_STACK_SIZE) {
+                stackSize.current -= newstack[0].length;
+                newstack.shift();
+            }
+        }
+        stack.current = newstack;
+        setStackIndex(newstack.length - 1);
+        setInternalValue(updatedText);
+        onChangeDebounced(updatedText);
+    }, [stackIndex, onChangeDebounced]);
+
     const [isMarkdownOn, setIsMarkdownOn] = useState(getCookieShowMarkdown() ?? true); //TODO default to false once lexical view is better
     const toggleMarkdown = useCallback(() => {
         setIsMarkdownOn(!isMarkdownOn);
         setCookieShowMarkdown(!isMarkdownOn);
     }, [isMarkdownOn]);
 
-    /** Moves back one in the change stack */
-    const undo = useCallback(() => {
-        if (disabled || changeStackIndex <= 0) return;
-        setChangeStackIndex(changeStackIndex - 1);
-        setInternalValue(changeStack.current[changeStackIndex - 1]);
-        onChangeDebounced(changeStack.current[changeStackIndex - 1]);
-    }, [changeStackIndex, disabled, onChangeDebounced]);
-    const canUndo = useMemo(() => changeStackIndex > 0 && changeStack.current.length > 0, [changeStackIndex]);
-    /** Moves forward one in the change stack */
-    const redo = useCallback(() => {
-        if (disabled || changeStackIndex >= changeStack.current.length - 1) return;
-        setChangeStackIndex(changeStackIndex + 1);
-        setInternalValue(changeStack.current[changeStackIndex + 1]);
-        onChangeDebounced(changeStack.current[changeStackIndex + 1]);
-    }, [changeStackIndex, disabled, onChangeDebounced]);
-    const canRedo = useMemo(() => changeStackIndex < changeStack.current.length - 1 && changeStack.current.length > 0, [changeStackIndex]);
-    /**
-     * Adds, to change stack, and removes anything from the change stack after the current index
-     */
-    const handleChange = useCallback((updatedText: string) => {
-        console.log("handleChange", updatedText, changeStackIndex, changeStack.current);
-        const newChangeStack = [...changeStack.current];
-        newChangeStack.splice(changeStackIndex + 1, newChangeStack.length - changeStackIndex - 1);
-        newChangeStack.push(updatedText);
-        changeStack.current = newChangeStack;
-        setChangeStackIndex(newChangeStack.length - 1);
-        setInternalValue(updatedText);
-        onChangeDebounced(updatedText);
-    }, [changeStackIndex, onChangeDebounced]);
-
     // Get current view 
     const CurrentViewComponent = useMemo(() => isMarkdownOn ? RichInputMarkdown : RichInputLexical, [isMarkdownOn]);
     // Map view-specific functions to this component
-    const handleAction: RichInputChildView["handleAction"] = useCallback((action: RichInputAction, data?: unknown) => {
+    const handleAction = useCallback((action: RichInputAction, data?: unknown) => {
         console.log("in RichInputBase handleAction", action, CurrentViewComponent, (CurrentViewComponent as unknown as RichInputChildView)?.handleAction);
-        if (CurrentViewComponent && (CurrentViewComponent as unknown as RichInputChildView).handleAction) {
+        // We can handle Mode without passing to the view
+        if (action === "Mode") {
+            toggleMarkdown();
+        }
+        // Otherwise, pass to the view
+        else if (CurrentViewComponent && (CurrentViewComponent as unknown as RichInputChildView).handleAction) {
             (CurrentViewComponent as unknown as RichInputChildView).handleAction(action, data);
+        } else {
+            console.error("RichInputBase: CurrentViewComponent does not have a handleAction function");
         }
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         return () => { };
-    }, [CurrentViewComponent]);
+    }, [CurrentViewComponent, toggleMarkdown]);
 
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatViewProps>({
         chatInfo: assistantChatInfo,

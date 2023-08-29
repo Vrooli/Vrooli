@@ -5,14 +5,14 @@ import { $isListNode, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, IN
 import { $convertFromMarkdownString, TextMatchTransformer, TRANSFORMERS } from "@lexical/markdown";
 import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
 import { InitialEditorStateType } from "@lexical/react/LexicalComposer";
-import { createLexicalComposerContext, LexicalComposerContext, LexicalComposerContextType } from "@lexical/react/LexicalComposerContext";
+import { createLexicalComposerContext, LexicalComposerContext, LexicalComposerContextType, useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
-import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
+import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { $createHeadingNode, $isHeadingNode, HeadingNode, HeadingTagType, QuoteNode } from "@lexical/rich-text";
 import { $isAtNodeEnd, $isParentElementRTL, $setBlocksType } from "@lexical/selection";
@@ -25,7 +25,6 @@ import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useSta
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
-import { RichInputAction } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputChildView, RichInputLexicalProps } from "../types";
 import "./theme.css";
 
@@ -510,8 +509,8 @@ const CUSTOM_TEXT_TRANSFORMERS: Array<TextMatchTransformer> = [
 
 const ALL_TRANSFORMERS = [...TRANSFORMERS, ...CUSTOM_TEXT_TRANSFORMERS];
 
-/** TextField for entering WYSIWYG text */
-export const RichInputLexical = ({
+/** Actual components of RichInputLexical. Needed so that we can use the lexical provider */
+const RichInputLexicalComponents = ({
     autoFocus = false,
     disabled = false,
     error = false,
@@ -532,63 +531,15 @@ export const RichInputLexical = ({
     sx,
 }: RichInputLexicalProps) => {
     const { palette, spacing, typography } = useTheme();
+    const [editor] = useLexicalComposerContext();
 
-    const onError = (error: Error) => {
-        console.error(error);
-    };
-
-    /** Configuration for lexical editor */
-    const initialConfig = useMemo(() => ({
-        editable: true,
-        // Will need custom transformers if we want to support custom markdown syntax (e.g. underline, spoiler)
-        editorState: () => $convertFromMarkdownString(value, ALL_TRANSFORMERS),
-        namespace: "MyEditor",
-        nodes: [AutoLinkNode, CodeNode, CodeHighlightNode, HashtagNode, HeadingNode, HorizontalRuleNode, LinkNode, ListNode, ListItemNode, QuoteNode, SpoilerNode],
-        onError,
-        theme,
-    }), [value]);
-
-    /** Lexical editor context, for finding and manipulating state */
-    const composerContext: [LexicalEditor, LexicalComposerContextType] = useMemo(() => {
-        const {
-            editorState: initialEditorState,
-            namespace,
-            nodes,
-            onError,
-            theme,
-        } = initialConfig;
-        const context: LexicalComposerContextType = createLexicalComposerContext(
-            null,
-            theme,
-        );
-        const newEditor = createEditor({
-            editable: initialConfig.editable,
-            namespace,
-            nodes,
-            onError: (error) => onError(error),
-            theme,
-        });
-        initializeEditor(newEditor, initialEditorState);
-        const editor = newEditor;
-        return [editor, context];
-        // We only do this for init
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-    useLayoutEffect(() => {
-        const isEditable = initialConfig.editable;
-        const [editor] = composerContext;
-        editor.setEditable(isEditable !== undefined ? isEditable : true);
-        registerCustomCommands(editor);
-        // We only do this for init
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
     const tagData = useTagDropdown({ getTaggableItems });
     const selectDropdownItem = useCallback((item: ListObject) => {
         //TODO
     }, []);
 
     /** Store current text properties */
-    const [activeEditor, setActiveEditor] = useState(composerContext[0]);
+    const [activeEditor, setActiveEditor] = useState(editor);
     const [blockType, setBlockType] = useState<keyof typeof blockTypeToBlockName>("paragraph");
     const [rootType, setRootType] = useState<keyof typeof rootTypeToRootName>("root");
     const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(null);
@@ -605,29 +556,7 @@ export const RichInputLexical = ({
     const [canRedo, setCanRedo] = useState(false);
     const [isRTL, setIsRTL] = useState(false);
     const [codeLanguage, setCodeLanguage] = useState<string>("");
-    const [isEditable, setIsEditable] = useState(() => composerContext[0].isEditable());
-    useEffect(() => {
-        console.log("current editor status", {
-            activeEditor,
-            blockType,
-            rootType,
-            selectedElementKey,
-            elementFormat,
-            isLink,
-            isBold,
-            isItalic,
-            isUnderline,
-            isStrikethrough,
-            isSubscript,
-            isSuperscript,
-            isCode,
-            canUndo,
-            canRedo,
-            isRTL,
-            codeLanguage,
-            isEditable,
-        });
-    }, [activeEditor, blockType, rootType, selectedElementKey, elementFormat, isLink, isBold, isItalic, isUnderline, isStrikethrough, isSubscript, isSuperscript, isCode, canUndo, canRedo, isRTL, codeLanguage, isEditable]);
+    const [isEditable, setIsEditable] = useState(() => editor.isEditable());
     const $updateToolbar = useCallback(() => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
@@ -710,7 +639,7 @@ export const RichInputLexical = ({
         }
     }, [activeEditor]);
     useEffect(() => {
-        return composerContext[0].registerCommand(
+        return editor.registerCommand(
             SELECTION_CHANGE_COMMAND,
             (_payload, newEditor) => {
                 $updateToolbar();
@@ -719,11 +648,18 @@ export const RichInputLexical = ({
             },
             COMMAND_PRIORITY_CRITICAL,
         );
-    }, [composerContext, $updateToolbar]);
+    }, [editor, $updateToolbar]);
+
+    const triggerEditorChange = useCallback(() => {
+        console.log("updating editor value", value);
+        editor.update(() => {
+            $convertFromMarkdownString(value, ALL_TRANSFORMERS);
+        }, HISTORY_MERGE_OPTIONS);
+    }, [editor, value]);
 
     // Toolbar actions
     const toggleHeading = (headingSize: HeadingTagType) => {
-        composerContext[0].update(() => {
+        editor.update(() => {
             const selection = $getSelection();
             if (
                 $isRangeSelection(selection) ||
@@ -734,15 +670,15 @@ export const RichInputLexical = ({
         });
     };
     const toggleFormat = (formatType: TextFormatType) => {
-        composerContext[0].dispatchCommand(FORMAT_TEXT_COMMAND, formatType);
+        editor.dispatchCommand(FORMAT_TEXT_COMMAND, formatType);
     };
     const toggleSpoiler = () => {
-        composerContext[0].dispatchCommand(SPOILER_COMMAND, (void 0));
+        editor.dispatchCommand(SPOILER_COMMAND, (void 0));
     };
-    (RichInputLexical as unknown as RichInputChildView).handleAction = (action: RichInputAction) => {
+    (RichInputLexical as unknown as RichInputChildView).handleAction = (action, data) => {
         console.log("in RichInputlExical handleAction", action);
-        const dispatch = composerContext[0].dispatchCommand;
-        const actionMap: { [key in RichInputAction]: (() => unknown) } = {
+        const dispatch = editor.dispatchCommand;
+        const actionMap = {
             "Assistant": () => openAssistantDialog(""),
             "Bold": () => toggleFormat("bold"),
             "Header1": () => toggleHeading("h1"),
@@ -753,69 +689,135 @@ export const RichInputLexical = ({
             "ListBullet": () => dispatch(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
             "ListCheckbox": () => dispatch(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
             "ListNumber": () => dispatch(INSERT_ORDERED_LIST_COMMAND, (void 0)),
-            "Mode": toggleMarkdown,
-            "Redo": redo,
+            "Redo": () => {
+                redo();
+                triggerEditorChange();
+            },
             "Spoiler": toggleSpoiler,
             "Strikethrough": () => toggleFormat("strikethrough"),
             "Table": () => { }, //TODO
             "Underline": () => toggleFormat("underline"),
-            "Undo": undo,
+            "Undo": () => {
+                undo();
+                triggerEditorChange();
+            },
         };
         const actionFunction = actionMap[action];
         if (actionFunction) actionFunction();
     };
 
     return (
+        <Box
+            id={id}
+            sx={{
+                position: "relative",
+                display: "grid",
+                padding: "16.5px 14px",
+                minWidth: "-webkit-fill-available",
+                maxWidth: "-webkit-fill-available",
+                borderColor: error ? palette.error.main : palette.divider,
+                borderRadius: "0 0 4px 4px",
+                borderTop: "none",
+                fontFamily: typography.fontFamily,
+                fontSize: typography.fontSize + 2,
+                lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
+                backgroundColor: palette.background.paper,
+                color: palette.text.primary,
+                ...sx,
+            }}>
+            <RichTextPlugin
+                contentEditable={<ContentEditable
+                    style={{
+                        outline: "none",
+                        resize: "none",
+                        overflow: "auto",
+                    } as CSSProperties}
+                />}
+                placeholder={
+                    <div style={{
+                        color: palette.background.textSecondary,
+                        position: "absolute",
+                        padding: "16.5px 14px",
+                        pointerEvents: "none",
+                        top: 0,
+                        left: 0,
+                    }}
+                    >
+                        {placeholder ?? "Enter some text..."}
+                    </div>
+                }
+                ErrorBoundary={LexicalErrorBoundary}
+            />
+            <CheckListPlugin />
+            <LinkPlugin />
+            <ListPlugin />
+            <OnChangePlugin onChange={() => { console.log("onchangeeee"); }} />
+            <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
+            <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
+        </Box>
+    );
+};
+
+/** TextField for entering WYSIWYG text */
+export const RichInputLexical = ({
+    value,
+    ...props
+}: RichInputLexicalProps) => {
+
+    const onError = (error: Error) => {
+        console.error(error);
+    };
+
+    /** Configuration for lexical editor */
+    const initialConfig = useMemo(() => ({
+        editable: true,
+        // Will need custom transformers if we want to support custom markdown syntax (e.g. underline, spoiler)
+        editorState: () => $convertFromMarkdownString(value, ALL_TRANSFORMERS),
+        namespace: "RichInputEditor",
+        nodes: [AutoLinkNode, CodeNode, CodeHighlightNode, HashtagNode, HeadingNode, HorizontalRuleNode, LinkNode, ListNode, ListItemNode, QuoteNode, SpoilerNode],
+        onError,
+        theme,
+    }), [value]);
+
+
+    /** Lexical editor context, for finding and manipulating state */
+    const composerContext: [LexicalEditor, LexicalComposerContextType] = useMemo(() => {
+        const {
+            editorState: initialEditorState,
+            namespace,
+            nodes,
+            onError,
+            theme,
+        } = initialConfig;
+        const context: LexicalComposerContextType = createLexicalComposerContext(
+            null,
+            theme,
+        );
+        const newEditor = createEditor({
+            editable: initialConfig.editable,
+            namespace,
+            nodes,
+            onError: (error) => onError(error),
+            theme,
+        });
+        initializeEditor(newEditor, initialEditorState);
+        const editor = newEditor;
+        return [editor, context];
+        // We only do this for init
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    useLayoutEffect(() => {
+        const isEditable = initialConfig.editable;
+        const [editor] = composerContext;
+        editor.setEditable(isEditable !== undefined ? isEditable : true);
+        registerCustomCommands(editor);
+        // We only do this for init
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    return (
         <LexicalComposerContext.Provider value={composerContext}>
-            <Box
-                id={id}
-                sx={{
-                    position: "relative",
-                    display: "grid",
-                    padding: "16.5px 14px",
-                    minWidth: "-webkit-fill-available",
-                    maxWidth: "-webkit-fill-available",
-                    borderColor: error ? palette.error.main : palette.divider,
-                    borderRadius: "0 0 4px 4px",
-                    borderTop: "none",
-                    fontFamily: typography.fontFamily,
-                    fontSize: typography.fontSize + 2,
-                    lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
-                    backgroundColor: palette.background.paper,
-                    color: palette.text.primary,
-                    ...sx,
-                }}>
-                <RichTextPlugin
-                    contentEditable={<ContentEditable
-                        style={{
-                            outline: "none",
-                            resize: "none",
-                            overflow: "auto",
-                        } as CSSProperties}
-                    />}
-                    placeholder={
-                        <div style={{
-                            color: palette.background.textSecondary,
-                            position: "absolute",
-                            padding: "16.5px 14px",
-                            pointerEvents: "none",
-                            top: 0,
-                            left: 0,
-                        }}
-                        >
-                            {placeholder ?? "Enter some text..."}
-                        </div>
-                    }
-                    ErrorBoundary={LexicalErrorBoundary}
-                />
-                {/* <OnChangePlugin onChange={onChange} /> */}
-                <CheckListPlugin />
-                <HistoryPlugin />
-                <LinkPlugin />
-                <ListPlugin />
-                <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
-                <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
-            </Box>
+            <RichInputLexicalComponents value={value} {...props} />
         </LexicalComposerContext.Provider>
     );
 };
