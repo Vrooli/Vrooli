@@ -62,6 +62,7 @@ export const RichInputBase = ({
         newstack.splice(stackIndex + 1, newstack.length - stackIndex - 1);
         newstack.push(updatedText);
         stackSize.current += updatedText.length;
+        // If the stack is too big, remove the oldest items
         if (stackSize.current > MAX_STACK_SIZE) {
             while (stackSize.current > MAX_STACK_SIZE) {
                 stackSize.current -= newstack[0].length;
@@ -98,7 +99,7 @@ export const RichInputBase = ({
         if (changeTimeout.current) {
             clearTimeout(changeTimeout.current);
         }
-        // Wait for 1 second of inactivity before adding to the stack
+        // Wait for inactivity before adding to the stack
         changeTimeout.current = setTimeout(() => {
             addToStack(updatedText);
         }, 500);
@@ -121,7 +122,6 @@ export const RichInputBase = ({
     const CurrentViewComponent = useMemo(() => isMarkdownOn ? RichInputMarkdown : RichInputLexical, [isMarkdownOn]);
     // Map view-specific functions to this component
     const handleAction = useCallback((action: RichInputAction, data?: unknown) => {
-        console.log("in RichInputBase handleAction", action, CurrentViewComponent, (CurrentViewComponent as unknown as RichInputChildView)?.handleAction);
         // We can handle Mode without passing to the view
         if (action === "Mode") {
             toggleMarkdown();

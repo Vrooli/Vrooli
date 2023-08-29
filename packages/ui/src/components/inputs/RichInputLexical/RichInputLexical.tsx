@@ -2,7 +2,7 @@ import { $isCodeNode, CodeHighlightNode, CodeNode, CODE_LANGUAGE_MAP } from "@le
 import { HashtagNode } from "@lexical/hashtag";
 import { $isLinkNode, AutoLinkNode, LinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { $isListNode, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListItemNode, ListNode } from "@lexical/list";
-import { $convertFromMarkdownString, TextMatchTransformer, TRANSFORMERS } from "@lexical/markdown";
+import { $convertFromMarkdownString, ElementTransformer, TextMatchTransformer, TRANSFORMERS } from "@lexical/markdown";
 import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
 import { InitialEditorStateType } from "@lexical/react/LexicalComposer";
 import { createLexicalComposerContext, LexicalComposerContext, LexicalComposerContextType, useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -20,7 +20,7 @@ import { $isTableNode } from "@lexical/table";
 import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorThemeClasses, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, NodeKey, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode } from "lexical";
+import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorThemeClasses, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
@@ -498,13 +498,25 @@ const SPOILER_TAGS: TextMatchTransformer = {
     trigger: "<spoiler>",
     type: "text-match",
 };
+// Empty lines are converted to <br> tags
+export const EMPTY_LINE_BREAKS: ElementTransformer = {
+    dependencies: [ParagraphNode],
+    export: () => { return null; },
+    regExp: /^$/,
+    replace: (textNode, nodes, _, isImport) => {
+        if (isImport && nodes.length === 1) {
+            console.log(textNode);
+            nodes[0].replace($createParagraphNode());
+        }
+    },
+    type: "element",
+};
 
-
-
-const CUSTOM_TEXT_TRANSFORMERS: Array<TextMatchTransformer> = [
+const CUSTOM_TEXT_TRANSFORMERS: Array<TextMatchTransformer | ElementTransformer> = [
     UNDERLINE,
     SPOILER_LINES,
     SPOILER_TAGS,
+    EMPTY_LINE_BREAKS,
 ];
 
 const ALL_TRANSFORMERS = [...TRANSFORMERS, ...CUSTOM_TEXT_TRANSFORMERS];
@@ -558,6 +570,7 @@ const RichInputLexicalComponents = ({
     const [codeLanguage, setCodeLanguage] = useState<string>("");
     const [isEditable, setIsEditable] = useState(() => editor.isEditable());
     const $updateToolbar = useCallback(() => {
+        console.log("updating toolbar");
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
             const anchorNode = selection.anchor.getNode();
@@ -774,7 +787,7 @@ export const RichInputLexical = ({
         // Will need custom transformers if we want to support custom markdown syntax (e.g. underline, spoiler)
         editorState: () => $convertFromMarkdownString(value, ALL_TRANSFORMERS),
         namespace: "RichInputEditor",
-        nodes: [AutoLinkNode, CodeNode, CodeHighlightNode, HashtagNode, HeadingNode, HorizontalRuleNode, LinkNode, ListNode, ListItemNode, QuoteNode, SpoilerNode],
+        nodes: [AutoLinkNode, CodeNode, CodeHighlightNode, HashtagNode, HeadingNode, HorizontalRuleNode, LineBreakNode, LinkNode, ListNode, ListItemNode, ParagraphNode, QuoteNode, SpoilerNode],
         onError,
         theme,
     }), [value]);
