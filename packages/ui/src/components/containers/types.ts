@@ -1,6 +1,6 @@
 import { CommentFor, CommonKey } from "@local/shared";
 import { TextFieldProps } from "@mui/material";
-import { MarkdownInputProps, TranslatedMarkdownInputProps, TranslatedTextFieldProps } from "components/inputs/types";
+import { RichInputProps, TranslatedRichInputProps, TranslatedTextFieldProps } from "components/inputs/types";
 import { ReactNode } from "react";
 import { SvgComponent, SvgProps, SxType } from "types";
 
@@ -92,8 +92,8 @@ interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends Bas
 }
 
 export type PropsByComponentType = {
-    Markdown: Omit<MarkdownInputProps, "name" | "zIndex">;
-    TranslatedMarkdown: Omit<TranslatedMarkdownInputProps, "name" | "zIndex">;
+    Markdown: Omit<RichInputProps, "name" | "zIndex">;
+    TranslatedMarkdown: Omit<TranslatedRichInputProps, "name" | "zIndex">;
     TranslatedTextField: Omit<TranslatedTextFieldProps, "name">;
     TextField: Omit<TextFieldProps, "error" | "helpText" | "name" | "onBlur" | "onChange" | "value">;
 };

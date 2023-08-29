@@ -12,28 +12,22 @@ export enum DeviceOS {
     Unknown = "Unknown",
 }
 
-/**
- *  Windows keys which differ on other operating systems
- */
+/**  Windows keys which differ on other operating systems */
 export enum WindowsKey {
     Ctrl = "Ctrl",
     Alt = "Alt",
     Enter = "Enter",
 }
 
-/**
- * Windows to Mac key mapping
- */
+/** Windows to Mac key mapping */
 export enum MacKeyFromWindows {
     Ctrl = "⌘",
     Alt = "⌥",
     Enter = "↩",
 }
 
-/**
- * All keys allowed in a key combination
- */
-export type KeyComboOption = `${WindowsKey}` | "Shift" | "Tab" | "Backspace" | "Delete" | "Escape" | "Space" | "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "Home" | "End" | "PageUp" | "PageDown" | "Insert" | "F1" | "F2" | "F3" | "F4" | "F5" | "F6" | "F7" | "F8" | "F9" | "F10" | "F11" | "F12" | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+/** All keys allowed in a key combination */
+export type KeyComboOption = `${WindowsKey}` | "Shift" | "Tab" | "Backspace" | "Delete" | "Escape" | "Space" | "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "Home" | "End" | "PageUp" | "PageDown" | "Insert" | "F1" | "F2" | "F3" | "F4" | "F5" | "F6" | "F7" | "F8" | "F9" | "F10" | "F11" | "F12" | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 
 /**
  * Finds the device name, type, and operating system using navigator. 

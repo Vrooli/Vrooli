@@ -138,7 +138,10 @@ export const SideMenu = () => {
                 fetch: switchCurrentAccount,
                 inputs: { id: user.id },
                 successMessage: () => ({ messageKey: "LoggedInAs", messageVariables: { name: user.name ?? user.handle ?? "" } }),
-                onSuccess: (data) => { PubSub.get().publishSession(data); },
+                onSuccess: (data) => {
+                    PubSub.get().publishSession(data);
+                    window.location.reload();
+                },
             });
         }
     }, [handleClose, isMobile, userId, setLocation, switchCurrentAccount]);

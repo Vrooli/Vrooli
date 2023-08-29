@@ -45,7 +45,7 @@ export interface EllipsisActionButtonProps {
 
 export interface BottomActionsGridProps {
     children: OrArray<JSX.Element | null | undefined>;
-    display: ViewDisplayType;
+    display: ViewDisplayType
     sx?: SxType;
 }
 
@@ -54,6 +54,7 @@ export interface BottomActionsButtonsProps {
     disabledSubmit?: boolean;
     display: ViewDisplayType;
     errors?: { [key: string]: string | string[] | null | undefined };
+    hideButtons?: boolean;
     /** Hides button text on mobile */
     hideTextOnMobile?: boolean;
     isCreate: boolean;
@@ -131,7 +132,6 @@ export interface SideActionsButtonsProps {
     display: ViewDisplayType;
     /** If true, displays higher up */
     hasGridActions?: boolean;
-    isLeftHanded?: boolean;
     sx?: SxType;
 }
 

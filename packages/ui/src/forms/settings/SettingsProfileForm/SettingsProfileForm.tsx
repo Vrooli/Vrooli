@@ -3,7 +3,7 @@ import { TextField } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { SessionContext } from "contexts/SessionContext";
 import { Field } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -64,7 +64,7 @@ export const SettingsProfileForm = ({
                     />
                     <Field fullWidth name="name" label={t("Name")} as={TextField} />
                     <Field fullWidth name="handle" label={t("Handle")} as={TextField} />
-                    <TranslatedMarkdownInput
+                    <TranslatedRichInput
                         language={language}
                         maxChars={2048}
                         minRows={4}

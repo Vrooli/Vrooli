@@ -2,10 +2,12 @@ import { Comment, CommentFor, ResourceListFor, StandardVersion, Tag } from "@loc
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
+import { CSSProperties } from "react";
 import { SvgComponent, SxType } from "types";
 import { ListObject } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
+import { RichInputAction } from "./RichInputToolbar/RichInputToolbar";
 
 export interface CharLimitIndicatorProps {
     chars: number;
@@ -132,7 +134,7 @@ export interface LinkInputProps {
     onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => unknown;
 }
 
-export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
+export type RichInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
@@ -165,7 +167,23 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     };
 }
 
-export type MarkdownInputProps = Omit<MarkdownInputBaseProps, "onChange" | "value">
+export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
+
+export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "disableAssistant" | "helperText" | "maxChars" | "sxs"> {
+    id: string;
+    openAssistantDialog: (selectedText: string) => unknown;
+    redo: () => unknown;
+    toggleMarkdown: () => unknown;
+    undo: () => unknown;
+    sx?: CSSProperties;
+}
+
+export type RichInputMarkdownProps = RichInputChildProps;
+export type RichInputLexicalProps = RichInputChildProps;
+
+export interface RichInputChildView {
+    handleAction: (action: Exclude<RichInputAction, "Mode">, data?: unknown) => unknown;
+}
 
 export type PasswordTextFieldProps = TextFieldProps & {
     autoComplete?: string;
@@ -285,7 +303,7 @@ export interface ToggleSwitchProps {
     sx?: SxType;
 }
 
-export interface TranslatedMarkdownInputProps {
+export interface TranslatedRichInputProps {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;

@@ -12,7 +12,7 @@ import { useContext, useMemo } from "react";
 import { CommentUpsertInputProps } from "../types";
 
 /**
- * MarkdownInput/CommentContainer wrapper for creating comments
+ * RichInput/CommentContainer wrapper for creating comments
  */
 export const CommentUpsertInput = ({
     comment,

@@ -1,4 +1,4 @@
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
 import { Field } from "formik";
 import { TextProps } from "forms/types";
 import { useMemo } from "react";
@@ -14,7 +14,7 @@ export const GeneratedTextInput = ({
 
     if (props.isMarkdown) {
         return (
-            <MarkdownInput
+            <RichInput
                 disabled={disabled}
                 name={fieldData.fieldName}
                 placeholder={props.placeholder ?? fieldData.label}

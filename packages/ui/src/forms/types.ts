@@ -1,6 +1,7 @@
-import { InputType } from "@local/shared";
+import { InputType, NoteVersion, Reminder, ReminderCreateInput } from "@local/shared";
 import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
+import { MakeLazyRequest } from "hooks/useLazyFetch";
 import { ReactNode } from "react";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
@@ -101,6 +102,9 @@ export interface NodeRoutineListFormProps extends BaseObjectFormProps<NodeWithRo
 export type FocusModeFormProps = BaseObjectFormProps<FocusModeShape>
 export type MeetingFormProps = BaseObjectFormProps<MeetingShape>
 export interface NoteFormProps extends BaseObjectFormProps<NoteVersionShape> {
+    disabled: boolean;
+    handleClose: (_?: unknown, reason?: "backdropClick" | "escapeKeyDown" | undefined) => void;
+    handleDeleted: (data: NoteVersion) => void;
     versions: string[];
 }
 export type OrganizationFormProps = BaseObjectFormProps<OrganizationShape>
@@ -110,6 +114,10 @@ export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShap
 export type QuestionFormProps = BaseObjectFormProps<QuestionShape>
 export interface ReminderFormProps extends BaseObjectFormProps<ReminderShape> {
     index?: number;
+    fetchCreate: MakeLazyRequest<ReminderCreateInput, Reminder>;
+    handleClose: (_?: unknown, reason?: "backdropClick" | "escapeKeyDown" | undefined) => void;
+    handleCreated: (data: Reminder) => void;
+    handleDeleted: (data: Reminder) => void;
     reminderListId?: string;
 }
 export type ReportFormProps = BaseObjectFormProps<ReportShape>
@@ -245,7 +253,7 @@ export interface TextProps {
     defaultValue?: string;
     /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
     autoComplete?: string;
-    /** If true, displays MarkdownInput instead of TextField */
+    /** If true, displays RichInput instead of TextField */
     isMarkdown?: boolean;
     /** Maximum number of characters for the text field. Defaults to 1000 */
     maxChars?: number;

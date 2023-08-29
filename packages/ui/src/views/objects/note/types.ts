@@ -1,6 +1,4 @@
 import { NoteVersion } from "@local/shared";
-import { ObjectViewProps } from "views/types";
-import { UpsertProps } from "../types";
+import { CrudProps } from "../types";
 
-export type NoteUpsertProps = UpsertProps<NoteVersion>
-export type NoteViewProps = ObjectViewProps<NoteVersion>
+export type NoteCrudProps = CrudProps<NoteVersion>;

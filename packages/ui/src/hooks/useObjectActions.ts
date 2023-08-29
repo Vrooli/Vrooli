@@ -114,8 +114,8 @@ export const useObjectActions = ({
         closeBookmarkDialog,
         hasBookmarkingSupport,
     } = useBookmarker({
-        objectId: object?.id,
-        objectType: objectType as BookmarkFor,
+        objectId: object?.root?.id ?? object?.id, // Can only bookmark root objects
+        objectType: objectType.replace("Version", "") as BookmarkFor,
         onActionComplete,
     });
     const { handleCopy, hasCopyingSupport } = useCopier({
@@ -125,8 +125,8 @@ export const useObjectActions = ({
         onActionComplete,
     });
     const { handleVote, hasVotingSupport } = useVoter({
-        objectId: object?.id,
-        objectType: objectType as ReactionFor,
+        objectId: object?.root?.id ?? object?.id, // Can only vote on root objects
+        objectType: objectType.replace("Version", "") as ReactionFor,
         onActionComplete,
     });
 

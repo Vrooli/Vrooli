@@ -3,7 +3,7 @@ import { Avatar, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ChatBubbleStatus } from "components/ChatBubbleStatus/ChatBubbleStatus";
-import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
+import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";
@@ -143,7 +143,7 @@ export const ChatBubble = ({
                             minHeight: "50px",
                         }}
                     /> : <>
-                        <MarkdownInputBase
+                        <RichInputBase
                             fullWidth
                             maxChars={1500}
                             minRows={editingText?.split("\n").length ?? 1}
