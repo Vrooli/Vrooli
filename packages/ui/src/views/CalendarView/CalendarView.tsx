@@ -1,7 +1,6 @@
-import { calculateOccurrences, CommonKey, Schedule, ScheduleFor, ScheduleSearchResult } from "@local/shared";
+import { calculateOccurrences, Schedule, ScheduleSearchResult } from "@local/shared";
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -21,37 +20,9 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
-import { CalendarPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { CalendarPageTabOption, calendarTabParams } from "utils/search/objectToSearch";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { CalendarViewProps } from "views/types";
-
-// Data for each tab. Ordered by tab index
-export const calendarTabParams = [{
-    titleKey: "All" as CommonKey,
-    searchType: SearchType.Schedule,
-    tabType: CalendarPageTabOption.All,
-    where: () => ({}),
-}, {
-    titleKey: "Meeting" as CommonKey,
-    searchType: SearchType.Schedule,
-    tabType: CalendarPageTabOption.Meeting,
-    where: () => ({ scheduleFor: ScheduleFor.Meeting }),
-}, {
-    titleKey: "Routine" as CommonKey,
-    searchType: SearchType.Schedule,
-    tabType: CalendarPageTabOption.RunRoutine,
-    where: () => ({ scheduleFor: ScheduleFor.RunRoutine }),
-}, {
-    titleKey: "Project" as CommonKey,
-    searchType: SearchType.Schedule,
-    tabType: CalendarPageTabOption.RunProject,
-    where: () => ({ scheduleFor: ScheduleFor.RunProject }),
-}, {
-    titleKey: "FocusMode" as CommonKey,
-    searchType: SearchType.Schedule,
-    tabType: CalendarPageTabOption.FocusMode,
-    where: () => ({ scheduleFor: ScheduleFor.FocusMode }),
-}];
 
 const sectionStyle = (breakpoints: Breakpoints, spacing: any) => ({
     display: "flex",
@@ -155,6 +126,7 @@ export const CalendarView = ({
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
+    const { t } = useTranslation();
     const display = toDisplay(isOpen);
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
@@ -305,23 +277,23 @@ export const CalendarView = ({
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
             />
             {/* Add event button */}
-            <SideActionButtons
+            <SideActionsButtons
                 // Treat as a dialog when build view is open
                 display={display}
             >
-                <ColorIconButton
-                    aria-label="create event"
-                    background={palette.secondary.main}
+                <IconButton
+                    aria-label={t("CreateEvent")}
                     onClick={handleAddSchedule}
                     sx={{
+                        background: palette.secondary.main,
                         padding: 0,
                         width: "54px",
                         height: "54px",
                     }}
                 >
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton>
-            </SideActionButtons>
+                </IconButton>
+            </SideActionsButtons>
             <TopBar
                 ref={ref}
                 display={display}

@@ -1,6 +1,6 @@
 import { Bookmark, BookmarkList, bookmarkListValidation, DUMMY_ID, Session, uuid } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemText, Stack, TextField, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
@@ -161,7 +161,7 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                     </Button>
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors}
                 isCreate={isCreate}

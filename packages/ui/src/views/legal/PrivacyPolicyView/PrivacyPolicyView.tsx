@@ -1,4 +1,3 @@
-import { CommonKey, LINKS } from "@local/shared";
 import { Box } from "@mui/material";
 import privacyMarkdown from "assets/policy/privacy.md";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -9,6 +8,7 @@ import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
+import { policyTabParams } from "utils/search/objectToSearch";
 import { convertToDot, valueFromDot } from "utils/shape/general";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { PrivacyPolicyViewProps } from "../types";
@@ -35,18 +35,6 @@ export enum PolicyTabOption {
     Privacy = "Privacy",
     Terms = "Terms",
 }
-
-export const policyTabParams = [
-    {
-        titleKey: "Privacy" as CommonKey,
-        href: LINKS.Privacy,
-        tabType: PolicyTabOption.Privacy,
-    }, {
-        titleKey: "Terms" as CommonKey,
-        href: LINKS.Terms,
-        tabType: PolicyTabOption.Terms,
-    },
-];
 
 export const PrivacyPolicyView = ({
     isOpen,

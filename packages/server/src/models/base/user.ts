@@ -107,6 +107,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
         sortBy: UserSortBy,
         searchFields: {
             createdTimeFrame: true,
+            excludeIds: true,
             isBot: true,
             maxBookmarks: true,
             maxViews: true,
@@ -154,7 +155,12 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
-            owner: (userId) => ({ id: userId }),
+            owner: (userId) => ({
+                OR: [
+                    { id: userId },
+                    { isBot: true, invitedByUser: { id: userId } },
+                ],
+            }),
         },
         // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
     },

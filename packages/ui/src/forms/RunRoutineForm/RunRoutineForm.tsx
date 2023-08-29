@@ -1,6 +1,6 @@
 import { DUMMY_ID, RunRoutine, runRoutineValidation, RunStatus, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -168,7 +168,7 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
                     {/* TODO */}
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={isCreate}

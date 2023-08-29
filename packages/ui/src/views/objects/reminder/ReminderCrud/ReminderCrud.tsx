@@ -1,20 +1,14 @@
-import { DeleteOneInput, DeleteType, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, Reminder, ReminderCreateInput, ReminderUpdateInput, Success } from "@local/shared";
+import { endpointGetReminder, endpointPostReminder, endpointPutReminder, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm/ReminderForm";
 import { useFormDialog } from "hooks/useFormDialog";
-import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { DeleteIcon } from "icons";
-import { useCallback, useContext } from "react";
-import { useTranslation } from "react-i18next";
-import { getDisplay } from "utils/display/listTools";
+import { useContext } from "react";
 import { toDisplay } from "utils/display/pageTools";
-import { firstString } from "utils/display/stringTools";
 import { PubSub } from "utils/pubsub";
 import { ReminderShape } from "utils/shape/models/reminder";
 import { ReminderCrudProps } from "../types";
@@ -28,7 +22,6 @@ export const ReminderCrud = ({
     overrideObject,
 }: ReminderCrudProps) => {
     const session = useContext(SessionContext);
-    const { t } = useTranslation();
     const display = toDisplay(isOpen);
 
     const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Reminder, ReminderShape>({
@@ -37,7 +30,6 @@ export const ReminderCrud = ({
         overrideObject: overrideObject as Reminder,
         transform: (existing) => reminderInitialValues(session, existing),
     });
-    console.log("reminderUpsert render", existing);
 
     const {
         fetch,
@@ -59,59 +51,13 @@ export const ReminderCrud = ({
     });
     const { formRef, handleClose } = useFormDialog({ handleCancel });
 
-    // Handle delete
-    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
-    const handleDelete = useCallback((id: string) => {
-        fetchLazyWrapper<DeleteOneInput, Success>({
-            fetch: deleteMutation,
-            inputs: { id: existing.id, objectType: DeleteType.Reminder },
-            successCondition: (data) => data.success,
-            successMessage: () => ({
-                messageKey: "ObjectDeleted",
-                messageVariables: { objectName: existing.name },
-                buttonKey: "Undo",
-                buttonClicked: () => {
-                    fetchLazyWrapper<ReminderCreateInput, Reminder>({
-                        fetch: fetchCreate,
-                        inputs: transformReminderValues({
-                            ...existing,
-                            // Make sure not to set any extra fields, 
-                            // so this is treated as a "Connect" instead of a "Create"
-                            reminderList: {
-                                __typename: "ReminderList" as const,
-                                id: existing.reminderList.id,
-                            },
-                        }, existing, true) as ReminderCreateInput,
-                        successCondition: (data) => !!data.id,
-                        onSuccess: (data) => { handleCreated(data); },
-                    });
-                },
-            }),
-            onSuccess: () => {
-                handleDeleted(existing as Reminder);
-            },
-            errorMessage: () => ({ messageKey: "FailedToDelete" }),
-        });
-    }, [deleteMutation, existing, fetchCreate, handleCreated, handleDeleted]);
-
     return (
         <MaybeLargeDialog
             display={display}
-            id="reminder-upsert-dialog"
+            id="reminder-crud-dialog"
             isOpen={isOpen ?? false}
             onClose={handleClose}
         >
-            <TopBar
-                display={display}
-                onClose={handleClose}
-                title={firstString(getDisplay(existing).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
-                // Show delete button only when updating
-                options={!isCreate ? [{
-                    Icon: DeleteIcon,
-                    label: t("Delete"),
-                    onClick: handleDelete as () => void,
-                }] : []}
-            />
             <Formik
                 enableReinitialize={true}
                 initialValues={existing}
@@ -131,8 +77,12 @@ export const ReminderCrud = ({
             >
                 {(formik) => <ReminderForm
                     display={display}
+                    fetchCreate={fetchCreate}
+                    handleClose={handleClose}
+                    handleCreated={handleCreated}
+                    handleDeleted={handleDeleted}
                     isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading}
+                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
                     onClose={handleClose}

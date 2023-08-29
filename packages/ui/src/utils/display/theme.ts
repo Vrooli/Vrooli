@@ -88,6 +88,11 @@ const lightTheme = createTheme({
                 },
             ],
         },
+        MuiIconButton: {
+            defaultProps: {
+                disableRipple: true, // GlobalStyles overrides highlighting behavior
+            },
+        },
     },
 });
 
@@ -154,6 +159,11 @@ const darkTheme = createTheme({
                     },
                 },
             ],
+        },
+        MuiIconButton: {
+            defaultProps: {
+                disableRipple: true, // GlobalStyles overrides highlighting behavior
+            },
         },
     },
 });

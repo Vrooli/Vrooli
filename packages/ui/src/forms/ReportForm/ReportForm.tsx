@@ -1,8 +1,8 @@
 import { DUMMY_ID, Report, ReportFor, reportValidation, Session } from "@local/shared";
 import { TextField } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -106,7 +106,7 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                         helperText={t("ReasonCustomHelp")}
                         as={TextField}
                     />}
-                    <MarkdownInput
+                    <RichInput
                         maxChars={8192}
                         maxRows={10}
                         minRows={4}
@@ -115,7 +115,7 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                     />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={isCreate}

@@ -1,7 +1,7 @@
 import { isOfType } from "@local/shared";
 import { TextField, Typography, useTheme } from "@mui/material";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
@@ -11,7 +11,7 @@ import { EditableTextCollapseProps, EditTextComponent, PropsByComponentType } fr
 
 /**
  * A text collapse that supports editing mode, either with 
- * a TextField or MarkdownInput
+ * a TextField or RichInput
  */
 export function EditableTextCollapse<T extends EditTextComponent>({
     component,
@@ -40,8 +40,8 @@ export function EditableTextCollapse<T extends EditTextComponent>({
             }}
         >
             {/* Editing components */}
-            {isEditing && component === "Markdown" && <MarkdownInput name={name} {...(props as PropsByComponentType["Markdown"])} />}
-            {isEditing && component === "TranslatedMarkdown" && <TranslatedMarkdownInput name={name} {...(props as PropsByComponentType["TranslatedMarkdown"])} />}
+            {isEditing && component === "Markdown" && <RichInput name={name} {...(props as PropsByComponentType["Markdown"])} />}
+            {isEditing && component === "TranslatedMarkdown" && <TranslatedRichInput name={name} {...(props as PropsByComponentType["TranslatedMarkdown"])} />}
             {isEditing && component === "TranslatedTextField" && <TranslatedTextField name={name} {...(props as PropsByComponentType["TranslatedTextField"])} />}
             {isEditing && component === "TextField" && <Field name={name} as={TextField} {...(props as PropsByComponentType["TextField"])} />}
             {/* Display components */}

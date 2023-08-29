@@ -1,6 +1,6 @@
 import { DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
 import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector } from "components/inputs/Selector/Selector";
@@ -238,7 +238,7 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
                     {/* TODO */}
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={errors as any}
                 isCreate={isCreate}

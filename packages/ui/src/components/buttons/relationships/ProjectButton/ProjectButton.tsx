@@ -1,6 +1,5 @@
 import { exists } from "@local/shared";
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemProjectVersion } from "components/lists/types";
@@ -102,13 +101,12 @@ export function ProjectButton({
             >
                 <TextShrink id="project" sx={{ ...commonLabelProps() }}>{t("Project", { count: 1 })}</TextShrink>
                 <Tooltip title={tooltip}>
-                    <ColorIconButton
-                        background={palette.primary.light}
-                        sx={{ ...smallButtonProps(isEditing, true) }}
+                    <IconButton
                         onClick={handleProjectClick}
+                        sx={{ ...smallButtonProps(isEditing, true), background: palette.primary.light }}
                     >
                         {Icon && <Icon {...commonIconProps()} />}
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
             </Stack>
         </>

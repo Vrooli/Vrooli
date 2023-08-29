@@ -1,7 +1,6 @@
 import { LINKS, SOCIALS } from "@local/shared";
-import { BottomNavigation, BottomNavigationAction, Box, Tooltip, Typography, useTheme } from "@mui/material";
+import { BottomNavigation, BottomNavigationAction, Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -65,9 +64,9 @@ export const ContactInfo = ({
                             onClick={(e) => { e.preventDefault(); handleLink(e, link); }}
                             href={link}
                             icon={
-                                <ColorIconButton background={palette.secondary.main} >
+                                <IconButton sx={{ background: palette.secondary.main }} >
                                     <Icon fill={palette.secondary.contrastText} />
-                                </ColorIconButton>
+                                </IconButton>
                             }
                             sx={{
                                 alignItems: "center",
@@ -94,9 +93,9 @@ export const ContactInfo = ({
                             onClick={(e) => { e.preventDefault(); handleLink(e, link); }}
                             href={link}
                             icon={
-                                <ColorIconButton background={palette.secondary.main} >
+                                <IconButton sx={{ background: palette.secondary.main }}>
                                     <Icon fill={palette.secondary.contrastText} />
-                                </ColorIconButton>
+                                </IconButton>
                             }
                             sx={{
                                 alignItems: "center",

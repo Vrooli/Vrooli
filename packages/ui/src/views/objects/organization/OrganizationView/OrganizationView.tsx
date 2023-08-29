@@ -1,9 +1,8 @@
-import { BookmarkFor, CommonKey, endpointGetOrganization, LINKS, Organization, ResourceList, uuidValidate, VisibilityType } from "@local/shared";
-import { Box, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, endpointGetOrganization, LINKS, Organization, ResourceList, uuidValidate } from "@local/shared";
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ResourceListVertical } from "components/lists/resource";
@@ -24,38 +23,13 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
-import { placeholderColor, YouInflated } from "utils/display/listTools";
+import { placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { OrganizationPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { OrganizationPageTabOption, organizationTabParams } from "utils/search/objectToSearch";
 import { OrganizationViewProps } from "../types";
-
-type TabWhereParams = {
-    organizationId: string;
-    permissions: YouInflated;
-}
-const tabColor = (palette: Palette) => ({ active: palette.secondary.main, inactive: palette.background.textSecondary });
-const tabParams = [{
-    color: tabColor,
-    titleKey: "Resource" as CommonKey,
-    searchType: SearchType.Resource,
-    tabType: OrganizationPageTabOption.Resource,
-    where: () => ({}),
-}, {
-    color: tabColor,
-    titleKey: "Project" as CommonKey,
-    searchType: SearchType.Project,
-    tabType: OrganizationPageTabOption.Project,
-    where: ({ organizationId, permissions }: TabWhereParams) => ({ ownedByOrganizationId: organizationId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
-}, {
-    color: tabColor,
-    titleKey: "Member" as CommonKey,
-    searchType: SearchType.Member,
-    tabType: OrganizationPageTabOption.Member,
-    where: ({ organizationId }: TabWhereParams) => ({ organizationId }),
-}];
 
 export const OrganizationView = ({
     isOpen,
@@ -116,7 +90,7 @@ export const OrganizationView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<OrganizationPageTabOption>({ tabParams, display });
+    } = useTabs<OrganizationPageTabOption>({ tabParams: organizationTabParams, display });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -316,15 +290,15 @@ export const OrganizationView = ({
                     }
                 </Box>
             </Box>
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
                 {/* Toggle search filters */}
-                {currTab.tabType !== OrganizationPageTabOption.Resource ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
+                {currTab.tabType !== OrganizationPageTabOption.Resource ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton> : null}
-            </SideActionButtons>
+                </IconButton> : null}
+            </SideActionsButtons>
         </>
     );
 };

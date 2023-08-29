@@ -1,5 +1,5 @@
 import { Stack } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
 import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
 import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
@@ -47,7 +47,7 @@ export const SettingsDisplayForm = ({
                     <LeftHandedCheckbox />
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={false}

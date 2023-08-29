@@ -1,10 +1,10 @@
 import { DUMMY_ID, Node, NodeLink, orDefault, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
@@ -204,7 +204,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             language={language}
                             name="name"
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="description"
                             maxChars={2048}
@@ -212,7 +212,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             minRows={2}
                             placeholder={t("Description")}
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="instructions"
                             maxChars={8192}
@@ -338,7 +338,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                     </FormSection>
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

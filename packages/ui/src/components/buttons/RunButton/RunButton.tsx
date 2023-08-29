@@ -1,5 +1,5 @@
 import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine, uuidValidate } from "@local/shared";
-import { Box, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { RunPickerMenu } from "components/dialogs/RunPickerMenu/RunPickerMenu";
 import { PlayIcon } from "icons";
@@ -11,7 +11,6 @@ import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getProjectVersionStatus, getRoutineVersionStatus } from "utils/runUtils";
 import { RunView } from "views/runs";
-import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { RunButtonProps } from "../types";
 
 /**
@@ -140,18 +139,18 @@ export const RunButton = ({
             <Tooltip title="Run Routine" placement="top">
                 {/* Button wrapped in div so it can be pressed when disabled */}
                 <Box onClick={runStart}>
-                    <ColorIconButton
+                    <IconButton
                         aria-label="run-routine"
                         disabled={status === Status.Invalid}
-                        background={palette.secondary.main}
                         sx={{
+                            background: palette.secondary.main,
                             padding: 0,
                             width: "54px",
                             height: "54px",
                         }}
                     >
                         <PlayIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 </Box>
             </Tooltip>
         </>

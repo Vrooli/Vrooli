@@ -1,11 +1,11 @@
 import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
 import { Button, Grid, Stack, TextField } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -132,7 +132,7 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                             language={language}
                             name="name"
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="summary"
                             maxChars={1024}
@@ -140,7 +140,7 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                             maxRows={8}
                             placeholder={t("Summary")}
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="details"
                             maxChars={8192}
@@ -216,7 +216,7 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                         versions={versions}
                     />
                 </FormContainer>
-                <GridSubmitButtons
+                <BottomActionsButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}

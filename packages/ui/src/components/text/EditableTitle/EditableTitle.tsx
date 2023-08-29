@@ -1,12 +1,12 @@
-import { IconButton, TextField } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { TextField } from "@mui/material";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { Field, useField, useFormikContext } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { EditIcon } from "icons";
+import { DeleteIcon, EditIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
@@ -15,6 +15,8 @@ import { Title } from "../Title/Title";
 import { TitleProps } from "../types";
 
 export interface EditableTitleProps extends TitleProps {
+    handleDelete?: () => unknown;
+    isDeletable?: boolean;
     isEditable?: boolean;
     isTitleTranslated?: boolean;
     isSubtitleTranslated?: boolean;
@@ -27,6 +29,8 @@ export interface EditableTitleProps extends TitleProps {
 }
 
 export const EditableTitle = ({
+    handleDelete,
+    isDeletable = false,
     isEditable = true,
     isTitleTranslated = true,
     isSubtitleTranslated = true,
@@ -119,36 +123,36 @@ export const EditableTitle = ({
         };
     }, [getFieldValue, titleField, isTitleTranslated, subtitleField, isSubtitleTranslated]);
 
+    const titleOptions = useMemo(() => {
+        const options: TitleProps["options"] = [];
+        if (isEditable) {
+            options.push({
+                Icon: EditIcon,
+                label: t("Edit"),
+                onClick: handleOpenDialog,
+            });
+        }
+        if (isDeletable) {
+            options.push({
+                Icon: DeleteIcon,
+                label: t("Delete"),
+                onClick: () => {
+                    if (typeof handleDelete === "function") handleDelete();
+                    else console.error("handleDelete is not a function");
+                },
+            });
+        }
+        return options;
+    }, [isEditable, isDeletable, t, handleOpenDialog, handleDelete]);
+
     return (
         <>
             <Title
                 title={title}
                 help={subtitle}
                 {...titleProps}
-                sxs={{
-                    ...titleProps.sxs,
-                    stack: {
-                        ...(isEditable ? { paddingRight: 0 } : {}),
-                        ...titleProps.sxs?.stack,
-                    },
-                }}
+                options={titleOptions}
             />
-            {isEditable && (
-                <IconButton
-                    aria-label={t("Edit")}
-                    color="secondary"
-                    size="small"
-                    onClick={handleOpenDialog}
-                    sx={{
-                        paddingRight: (titleProps.sxs?.stack as Record<string, unknown>)?.paddingRight ||
-                            (titleProps.sxs?.stack as Record<string, unknown>)?.padding ||
-                            2,
-                    }}
-                >
-                    <EditIcon />
-                </IconButton>
-            )}
-
             <LargeDialog
                 id="editable-title-dialog"
                 isOpen={isDialogOpen}
@@ -173,14 +177,14 @@ export const EditableTitle = ({
                             label={titleLabel || t("Name")}
                             as={TextField}
                         />}
-                        {(language && isSubtitleTranslated && subtitleField) ? <TranslatedMarkdownInput
+                        {(language && isSubtitleTranslated && subtitleField) ? <TranslatedRichInput
                             language={language}
                             name={subtitleField}
                             maxChars={1024}
                             minRows={4}
                             maxRows={8}
                             placeholder={subtitleLabel || t("Description")}
-                        /> : subtitleField ? <MarkdownInput
+                        /> : subtitleField ? <RichInput
                             name={subtitleField}
                             maxChars={1024}
                             minRows={4}
@@ -189,7 +193,7 @@ export const EditableTitle = ({
                         /> : null}
                     </FormContainer>
                 </BaseForm>
-                <GridSubmitButtons
+                <BottomActionsButtons
                     display="dialog"
                     errors={validationEnabled ? formik.errors : {}}
                     isCreate={false}

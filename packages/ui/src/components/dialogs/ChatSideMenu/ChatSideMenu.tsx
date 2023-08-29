@@ -1,46 +1,22 @@
-import { CommonKey } from "@local/shared";
-import { Box, IconButton, Palette, SwipeableDrawer, useTheme } from "@mui/material";
+import { Box, IconButton, SwipeableDrawer, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
-import { CloseIcon, CommentIcon, RoutineIcon, SearchIcon, StandardIcon } from "icons";
+import { CloseIcon, SearchIcon } from "icons";
 import React, { useCallback, useEffect, useState } from "react";
 import { noSelect } from "styles";
 import { PubSub } from "utils/pubsub";
-import { ChatPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { ChatPageTabOption, chatTabParams } from "utils/search/objectToSearch";
 
 export const chatSideMenuDisplayData = {
     persistentOnDesktop: true,
     sideForRightHanded: "left",
 } as const;
 
-const tabParams = [{
-    Icon: CommentIcon,
-    color: (palette: Palette) => palette.primary.contrastText,
-    titleKey: "Chat" as CommonKey,
-    searchType: SearchType.Chat,
-    tabType: ChatPageTabOption.Chat,
-    where: () => ({}),
-}, {
-    Icon: RoutineIcon,
-    color: (palette: Palette) => palette.primary.contrastText,
-    titleKey: "Routine" as CommonKey,
-    searchType: SearchType.Routine,
-    tabType: ChatPageTabOption.Routine,
-    where: () => ({}),
-}, {
-    Icon: StandardIcon,
-    color: (palette: Palette) => palette.primary.contrastText,
-    titleKey: "Prompt" as CommonKey,
-    searchType: SearchType.Standard,
-    tabType: ChatPageTabOption.Prompt,
-    where: () => ({}),
-}];
-
-const zIndex = 1300;
+const zIndex = 2000;
 const id = "chat-side-menu";
 
 export const ChatSideMenu = () => {
@@ -54,7 +30,7 @@ export const ChatSideMenu = () => {
         searchType,
         tabs,
         where,
-    } = useTabs<ChatPageTabOption>({ tabParams, display: "dialog" });
+    } = useTabs<ChatPageTabOption>({ tabParams: chatTabParams, display: "dialog" });
 
     // Handle opening and closing
     const { isOpen, close } = useSideMenu(id, isMobile);

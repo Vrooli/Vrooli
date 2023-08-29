@@ -1,6 +1,5 @@
 import { exists } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemMeeting } from "components/lists/types";
@@ -10,6 +9,7 @@ import { AddIcon, OrganizationIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { highlightStyle } from "styles";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
@@ -107,7 +107,7 @@ export function MeetingButton({
                             borderRadius: 8,
                             paddingRight: 2,
                             ...largeButtonProps(isEditing, true),
-                            ...buttonSx(palette.primary.light, !isEditing),
+                            ...highlightStyle(palette.primary.light, !isEditing),
                         }}
                     >
                         {Icon && (

@@ -1,87 +1,24 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { CommonKey, GqlModelType, VisibilityType } from "@local/shared";
-import { ListItemIcon, ListItemText, Menu, MenuItem, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { GqlModelType } from "@local/shared";
+import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, useTheme } from "@mui/material";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, ApiIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SearchIcon, SmartContractIcon, StandardIcon } from "icons";
+import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
+import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrlBase } from "utils/navigation/openObject";
-import { MyStuffPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { MyStuffPageTabOption, myStuffTabParams, SearchType } from "utils/search/objectToSearch";
 import { MyStuffViewProps } from "../types";
-
-// Data for each tab TODO add bot tab
-const tabParams = [{
-    Icon: RoutineIcon,
-    titleKey: "Routine" as CommonKey,
-    searchType: SearchType.Routine,
-    tabType: MyStuffPageTabOption.Routine,
-    where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
-}, {
-    Icon: ProjectIcon,
-    titleKey: "Project" as CommonKey,
-    searchType: SearchType.Project,
-    tabType: MyStuffPageTabOption.Project,
-    where: () => ({ visibility: VisibilityType.Own }),
-}, {
-    Icon: MonthIcon,
-    titleKey: "Schedule" as CommonKey,
-    searchType: SearchType.Schedule,
-    tabType: MyStuffPageTabOption.Schedule,
-    where: () => ({ visibility: VisibilityType.Own }),
-}, {
-    Icon: ReminderIcon,
-    titleKey: "Reminder" as CommonKey,
-    searchType: SearchType.Reminder,
-    tabType: MyStuffPageTabOption.Reminder,
-    where: () => ({ visibility: VisibilityType.Own }),
-}, {
-    Icon: NoteIcon,
-    titleKey: "Note" as CommonKey,
-    searchType: SearchType.Note,
-    tabType: MyStuffPageTabOption.Note,
-    where: () => ({ visibility: VisibilityType.Own }),
-}, {
-    Icon: HelpIcon,
-    titleKey: "Question" as CommonKey,
-    searchType: SearchType.Question,
-    tabType: MyStuffPageTabOption.Question,
-    where: () => ({ visibility: VisibilityType.Own }),
-}, {
-    Icon: OrganizationIcon,
-    titleKey: "Organization" as CommonKey,
-    searchType: SearchType.Organization,
-    tabType: MyStuffPageTabOption.Organization,
-    where: (userId: string) => ({ memberUserIds: [userId] }),
-}, {
-    Icon: StandardIcon,
-    titleKey: "Standard" as CommonKey,
-    searchType: SearchType.Standard,
-    tabType: MyStuffPageTabOption.Standard,
-    where: () => ({ visibility: VisibilityType.Own }),
-}, {
-    Icon: ApiIcon,
-    titleKey: "Api" as CommonKey,
-    searchType: SearchType.Api,
-    tabType: MyStuffPageTabOption.Api,
-    where: () => ({ visibility: VisibilityType.Own }),
-}, {
-    Icon: SmartContractIcon,
-    titleKey: "SmartContract" as CommonKey,
-    searchType: SearchType.SmartContract,
-    tabType: MyStuffPageTabOption.SmartContract,
-    where: () => ({ visibility: VisibilityType.Own }),
-}];
 
 export const MyStuffView = ({
     isOpen,
@@ -106,7 +43,7 @@ export const MyStuffView = ({
      * so user isn't overwhelmed with tabs for objects they never worked with. 
      * Always keeps routines, projects, and notes
      */
-    const filteredTabs = useMemo(() => tabParams.filter(tab => {
+    const filteredTabs = useMemo(() => myStuffTabParams.filter(tab => {
         switch (tab.tabType) {
             case MyStuffPageTabOption.Api:
                 return Boolean(apisCount);
@@ -146,10 +83,7 @@ export const MyStuffView = ({
         else setSelectCreateTypeAnchorEl(null);
     }, [setLocation]);
 
-    const focusSearch = useCallback(() => {
-        const searchInput = document.getElementById("search-bar-my-stuff-list");
-        searchInput?.focus();
-    }, []);
+    const focusSearch = () => { scrollIntoFocusedView("search-bar-my-stuff-list"); };
 
     return (
         <>
@@ -161,7 +95,7 @@ export const MyStuffView = ({
                 onClose={() => onSelectCreateTypeClose()}
             >
                 {/* Never show 'All' */}
-                {tabParams.filter((t) => ![SearchType.Popular].includes(t.searchType)).map(tab => (
+                {myStuffTabParams.filter((t) => ![SearchType.Popular].includes(t.searchType)).map(tab => (
                     <MenuItem
                         key={tab.searchType}
                         onClick={() => onSelectCreateTypeClose(tab.searchType as SearchType)}
@@ -194,22 +128,22 @@ export const MyStuffView = ({
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                where={where(userId ?? "")}
+                where={where({ userId: userId ?? "" })}
                 sxs={{ search: { marginTop: 2 } }}
             />}
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
-                <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >
+                <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton>
+                </IconButton>
                 {userId ? (
-                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={onCreateStart} >
+                    <IconButton aria-label={t("Add")} onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 ) : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

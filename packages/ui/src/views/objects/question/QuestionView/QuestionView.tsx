@@ -1,7 +1,6 @@
 import { CommentFor, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
-import { Box, Stack, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
@@ -131,17 +130,17 @@ export const QuestionView = ({
                     {comments}
                 </Stack>}
             </Formik>
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                    <IconButton aria-label={t("UpdateQuestion")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 ) : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

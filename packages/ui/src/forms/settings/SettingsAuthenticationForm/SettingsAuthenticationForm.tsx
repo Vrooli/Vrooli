@@ -1,5 +1,5 @@
 import { TextField } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
@@ -50,7 +50,7 @@ export const SettingsAuthenticationForm = ({
                     />
                 </FormSection>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors}
                 isCreate={false}

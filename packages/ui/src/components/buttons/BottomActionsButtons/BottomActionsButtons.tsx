@@ -9,15 +9,16 @@ import { CancelIcon, CreateIcon, SaveIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
-import { GridActionButtons } from "../GridActionButtons/GridActionButtons";
-import { SideActionButtons } from "../SideActionButtons/SideActionButtons";
-import { GridSubmitButtonsProps } from "../types";
+import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
+import { SideActionsButtons } from "../SideActionsButtons/SideActionsButtons";
+import { BottomActionsButtonsProps } from "../types";
 
-export const GridSubmitButtons = ({
+export const BottomActionsButtons = ({
     disabledCancel,
     disabledSubmit,
     display,
     errors,
+    hideButtons = false,
     hideTextOnMobile = false,
     isCreate,
     loading = false,
@@ -25,7 +26,7 @@ export const GridSubmitButtons = ({
     onSetSubmitting,
     onSubmit,
     sideActionButtons,
-}: GridSubmitButtonsProps) => {
+}: BottomActionsButtonsProps) => {
     const { t } = useTranslation();
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
@@ -45,12 +46,13 @@ export const GridSubmitButtons = ({
     }, [hasErrors, openPopover, disabledSubmit, onSubmit]);
 
     return (
-        <GridActionButtons display={display}>
-            {/* We display side actions in this component because positioning is easier */}
-            {sideActionButtons ? <SideActionButtons hasGridActions={true} {...sideActionButtons} /> : null}
+        <BottomActionsGrid display={display}>
             <Popover />
+            {/* We display side actions in this component because positioning is easier.
+            We set "display" to "dialog" so that it doesn't set its own bottom margin */}
+            {sideActionButtons ? <SideActionsButtons hasGridActions={!hideButtons} {...sideActionButtons} display="dialog" /> : null}
             {/* Create/Save button. On hover or press, displays formik errors if disabled */}
-            <Grid item xs={6}>
+            {!hideButtons ? <Grid item xs={6}>
                 <Box onClick={handleSubmit}>
                     <Button
                         aria-label={t(isCreate ? "Create" : "Save")}
@@ -63,9 +65,9 @@ export const GridSubmitButtons = ({
                         sx={{ "& span": iconStyle }}
                     >{hideTextOnMobile && isMobile ? "" : t(isCreate ? "Create" : "Save")}</Button>
                 </Box>
-            </Grid>
+            </Grid> : null}
             {/* Cancel button */}
-            <Grid item xs={6}>
+            {!hideButtons ? <Grid item xs={6}>
                 <Button
                     aria-label={t("Cancel")}
                     disabled={loading || (disabledCancel !== undefined ? disabledCancel : false)}
@@ -75,7 +77,7 @@ export const GridSubmitButtons = ({
                     variant="outlined"
                     sx={{ "& span": iconStyle }}
                 >{hideTextOnMobile && isMobile ? "" : t("Cancel")}</Button>
-            </Grid>
-        </GridActionButtons>
+            </Grid> : null}
+        </BottomActionsGrid>
     );
 };

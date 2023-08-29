@@ -1,3 +1,8 @@
+import { CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType } from "@local/shared";
+import { Palette } from "@mui/material";
+import { ApiIcon, CommentIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
+import { YouInflated } from "utils/display/listTools";
+import { PolicyTabOption } from "views/legal";
 import { apiSearchParams } from "./schemas/api";
 import { apiVersionSearchParams } from "./schemas/apiVersion";
 import { SearchParams } from "./schemas/base";
@@ -149,6 +154,7 @@ export enum MemberManagePageTabOption {
 }
 
 export enum MyStuffPageTabOption {
+    All = "All",
     Api = "Api",
     Note = "Note",
     Organization = "Organization",
@@ -206,9 +212,332 @@ export enum ChatPageTabOption {
     Prompt = "Prompt",
 }
 
-/**
- * Maps search types to values needed to query and display results
- */
+export const searchViewTabParams = [{
+    Icon: VisibleIcon,
+    titleKey: "All" as CommonKey,
+    searchType: SearchType.Popular,
+    tabType: SearchPageTabOption.All,
+    where: () => ({}),
+}, {
+    Icon: RoutineIcon,
+    titleKey: "Routine" as CommonKey,
+    searchType: SearchType.Routine,
+    tabType: SearchPageTabOption.Routine,
+    where: () => ({ isInternal: false }),
+}, {
+    Icon: ProjectIcon,
+    titleKey: "Project" as CommonKey,
+    searchType: SearchType.Project,
+    tabType: SearchPageTabOption.Project,
+    where: () => ({}),
+}, {
+    Icon: HelpIcon,
+    titleKey: "Question" as CommonKey,
+    searchType: SearchType.Question,
+    tabType: SearchPageTabOption.Question,
+    where: () => ({}),
+}, {
+    Icon: NoteIcon,
+    titleKey: "Note" as CommonKey,
+    searchType: SearchType.Note,
+    tabType: SearchPageTabOption.Note,
+    where: () => ({}),
+}, {
+    Icon: OrganizationIcon,
+    titleKey: "Organization" as CommonKey,
+    searchType: SearchType.Organization,
+    tabType: SearchPageTabOption.Organization,
+    where: () => ({}),
+}, {
+    Icon: UserIcon,
+    titleKey: "User" as CommonKey,
+    searchType: SearchType.User,
+    tabType: SearchPageTabOption.User,
+    where: () => ({}),
+}, {
+    Icon: StandardIcon,
+    titleKey: "Standard" as CommonKey,
+    searchType: SearchType.Standard,
+    tabType: SearchPageTabOption.Standard,
+    where: () => ({ isInternal: false, type: "JSON" }),
+}, {
+    Icon: ApiIcon,
+    titleKey: "Api" as CommonKey,
+    searchType: SearchType.Api,
+    tabType: SearchPageTabOption.Api,
+    where: () => ({}),
+}, {
+    Icon: SmartContractIcon,
+    titleKey: "SmartContract" as CommonKey,
+    searchType: SearchType.SmartContract,
+    tabType: SearchPageTabOption.SmartContract,
+    where: () => ({}),
+}];
+
+export const calendarTabParams = [{
+    titleKey: "All" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: CalendarPageTabOption.All,
+    where: () => ({}),
+}, {
+    titleKey: "Meeting" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: CalendarPageTabOption.Meeting,
+    where: () => ({ scheduleFor: ScheduleFor.Meeting }),
+}, {
+    titleKey: "Routine" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: CalendarPageTabOption.RunRoutine,
+    where: () => ({ scheduleFor: ScheduleFor.RunRoutine }),
+}, {
+    titleKey: "Project" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: CalendarPageTabOption.RunProject,
+    where: () => ({ scheduleFor: ScheduleFor.RunProject }),
+}, {
+    titleKey: "FocusMode" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: CalendarPageTabOption.FocusMode,
+    where: () => ({ scheduleFor: ScheduleFor.FocusMode }),
+}];
+
+export const chatTabParams = [{
+    Icon: CommentIcon,
+    color: (palette: Palette) => palette.primary.contrastText,
+    titleKey: "Chat" as CommonKey,
+    searchType: SearchType.Chat,
+    tabType: ChatPageTabOption.Chat,
+    where: () => ({}),
+}, {
+    Icon: RoutineIcon,
+    color: (palette: Palette) => palette.primary.contrastText,
+    titleKey: "Routine" as CommonKey,
+    searchType: SearchType.Routine,
+    tabType: ChatPageTabOption.Routine,
+    where: () => ({}),
+}, {
+    Icon: StandardIcon,
+    color: (palette: Palette) => palette.primary.contrastText,
+    titleKey: "Prompt" as CommonKey,
+    searchType: SearchType.Standard,
+    tabType: ChatPageTabOption.Prompt,
+    where: () => ({}),
+}];
+
+export const historyTabParams = [{
+    titleKey: "View" as CommonKey,
+    searchType: SearchType.View,
+    tabType: HistoryPageTabOption.Viewed,
+    where: () => ({}),
+}, {
+    titleKey: "Bookmark" as CommonKey,
+    searchType: SearchType.BookmarkList,
+    tabType: HistoryPageTabOption.Bookmarked,
+    where: () => ({}),
+}, {
+    titleKey: "Active" as CommonKey,
+    searchType: SearchType.RunProjectOrRunRoutine,
+    tabType: HistoryPageTabOption.RunsActive,
+    where: () => ({ statuses: [RunStatus.InProgress, RunStatus.Scheduled] }),
+}, {
+    titleKey: "Complete" as CommonKey,
+    searchType: SearchType.RunProjectOrRunRoutine,
+    tabType: HistoryPageTabOption.RunsCompleted,
+    where: () => ({ statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed] }),
+}];
+
+export const findObjectTabParams = [
+    ...searchViewTabParams,
+    {
+        Icon: FocusModeIcon,
+        titleKey: "FocusMode" as CommonKey,
+        searchType: SearchType.FocusMode,
+        tabType: CalendarPageTabOption.FocusMode,
+        where: () => ({}),
+    }, {
+        Icon: OrganizationIcon,
+        titleKey: "Meeting" as CommonKey,
+        searchType: SearchType.Meeting,
+        tabType: CalendarPageTabOption.Meeting,
+        where: () => ({}),
+    }, {
+        Icon: RoutineIcon,
+        titleKey: "RunRoutine" as CommonKey,
+        searchType: SearchType.RunRoutine,
+        tabType: CalendarPageTabOption.RunRoutine,
+        where: () => ({}),
+    }, {
+        Icon: ProjectIcon,
+        titleKey: "RunProject" as CommonKey,
+        searchType: SearchType.RunProject,
+        tabType: CalendarPageTabOption.RunProject,
+        where: () => ({}),
+    },
+];
+
+export const inboxTabParams = [{
+    titleKey: "Message" as CommonKey,
+    searchType: SearchType.Chat,
+    tabType: InboxPageTabOption.Message,
+    where: () => ({}),
+}, {
+    titleKey: "Notification" as CommonKey,
+    searchType: SearchType.Notification,
+    tabType: InboxPageTabOption.Notification,
+    where: () => ({}),
+}];
+
+export const myStuffTabParams = [{
+    Icon: VisibleIcon,
+    titleKey: "All" as CommonKey,
+    searchType: SearchType.Popular,
+    tabType: MyStuffPageTabOption.All,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: RoutineIcon,
+    titleKey: "Routine" as CommonKey,
+    searchType: SearchType.Routine,
+    tabType: MyStuffPageTabOption.Routine,
+    where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
+}, {
+    Icon: ProjectIcon,
+    titleKey: "Project" as CommonKey,
+    searchType: SearchType.Project,
+    tabType: MyStuffPageTabOption.Project,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: MonthIcon,
+    titleKey: "Schedule" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: MyStuffPageTabOption.Schedule,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: ReminderIcon,
+    titleKey: "Reminder" as CommonKey,
+    searchType: SearchType.Reminder,
+    tabType: MyStuffPageTabOption.Reminder,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: NoteIcon,
+    titleKey: "Note" as CommonKey,
+    searchType: SearchType.Note,
+    tabType: MyStuffPageTabOption.Note,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: HelpIcon,
+    titleKey: "Question" as CommonKey,
+    searchType: SearchType.Question,
+    tabType: MyStuffPageTabOption.Question,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: OrganizationIcon,
+    titleKey: "Organization" as CommonKey,
+    searchType: SearchType.Organization,
+    tabType: MyStuffPageTabOption.Organization,
+    where: ({ userId }) => ({ memberUserIds: [userId] }),
+}, {
+    Icon: UserIcon,
+    titleKey: "Bot" as CommonKey,
+    searchType: SearchType.User,
+    tabType: MyStuffPageTabOption.User,
+    where: ({ userId }) => ({ visibility: VisibilityType.Own, isBot: true, excludeIds: [userId] }),
+}, {
+    Icon: StandardIcon,
+    titleKey: "Standard" as CommonKey,
+    searchType: SearchType.Standard,
+    tabType: MyStuffPageTabOption.Standard,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: ApiIcon,
+    titleKey: "Api" as CommonKey,
+    searchType: SearchType.Api,
+    tabType: MyStuffPageTabOption.Api,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: SmartContractIcon,
+    titleKey: "SmartContract" as CommonKey,
+    searchType: SearchType.SmartContract,
+    tabType: MyStuffPageTabOption.SmartContract,
+    where: () => ({ visibility: VisibilityType.Own }),
+}];
+
+export const memberTabParams = [{
+    titleKey: "Member" as CommonKey,
+    searchType: SearchType.Member,
+    tabType: MemberManagePageTabOption.Member,
+    where: (organizationId: string) => ({ organizationId }),
+}, {
+    titleKey: "Invite" as CommonKey,
+    searchType: SearchType.MemberInvite,
+    tabType: MemberManagePageTabOption.MemberInvite,
+    where: (organizationId: string) => ({ organizationId, statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] }),
+}];
+
+type OrganizationTabWhereParams = {
+    organizationId: string;
+    permissions: YouInflated;
+}
+const organizationTabColor = (palette: Palette) => ({ active: palette.secondary.main, inactive: palette.background.textSecondary });
+export const organizationTabParams = [{
+    color: organizationTabColor,
+    titleKey: "Resource" as CommonKey,
+    searchType: SearchType.Resource,
+    tabType: OrganizationPageTabOption.Resource,
+    where: () => ({}),
+}, {
+    color: organizationTabColor,
+    titleKey: "Project" as CommonKey,
+    searchType: SearchType.Project,
+    tabType: OrganizationPageTabOption.Project,
+    where: ({ organizationId, permissions }: OrganizationTabWhereParams) => ({ ownedByOrganizationId: organizationId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
+}, {
+    color: organizationTabColor,
+    titleKey: "Member" as CommonKey,
+    searchType: SearchType.Member,
+    tabType: OrganizationPageTabOption.Member,
+    where: ({ organizationId }: OrganizationTabWhereParams) => ({ organizationId }),
+}];
+
+type UserTabWhereParams = {
+    userId: string;
+    permissions: YouInflated;
+}
+const userTabColor = (palette: Palette) => ({ active: palette.secondary.main, inactive: palette.background.textSecondary });
+export const userTabParams = [{
+    color: userTabColor,
+    titleKey: "Details" as CommonKey,
+    searchType: SearchType.User, // Ignored
+    tabType: UserPageTabOption.Details,
+    where: () => ({}),
+}, {
+    color: userTabColor,
+    titleKey: "Project" as CommonKey,
+    searchPlaceholderKey: "SearchProject" as CommonKey,
+    searchType: SearchType.Project,
+    tabType: UserPageTabOption.Project,
+    where: ({ userId, permissions }: UserTabWhereParams) => ({ ownedByUserId: userId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
+}, {
+    color: userTabColor,
+    titleKey: "Organization" as CommonKey,
+    searchPlaceholderKey: "SearchOrganization" as CommonKey,
+    searchType: SearchType.Organization,
+    tabType: UserPageTabOption.Organization,
+    where: ({ userId }: UserTabWhereParams) => ({ memberUserIds: [userId], visibility: VisibilityType.All }),
+}];
+
+export const policyTabParams = [
+    {
+        titleKey: "Privacy" as CommonKey,
+        href: LINKS.Privacy,
+        tabType: PolicyTabOption.Privacy,
+    }, {
+        titleKey: "Terms" as CommonKey,
+        href: LINKS.Terms,
+        tabType: PolicyTabOption.Terms,
+    },
+];
+
+/** Maps search types to values needed to query and display results */
 export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     Api: apiSearchParams,
     ApiVersion: apiVersionSearchParams,

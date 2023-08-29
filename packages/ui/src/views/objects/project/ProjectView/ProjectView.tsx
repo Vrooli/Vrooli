@@ -1,9 +1,8 @@
 import { BookmarkFor, endpointGetProjectVersion, LINKS, ProjectVersion } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -188,17 +187,17 @@ export const ProjectView = ({
                 /> */}
             </Box>
             {/* Edit button (if canUpdate) */}
-            <SideActionButtons
+            <SideActionsButtons
                 // Treat as a dialog when build view is open
                 display={display}
                 sx={{ position: "fixed" }}
             >
                 {permissions.canUpdate ? (
-                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                    <IconButton aria-label={t("UpdateProject")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 ) : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

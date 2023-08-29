@@ -2,12 +2,13 @@
  * Prompts user to select which link the new node should be added on
  */
 import { Grid, useTheme } from "@mui/material";
-import { GridActionButtonsProps } from "../types";
+import { BottomActionsGridProps } from "../types";
 
-export const GridActionButtons = ({
+export const BottomActionsGrid = ({
     children,
     display,
-}: GridActionButtonsProps) => {
+    sx,
+}: BottomActionsGridProps) => {
     const { palette } = useTheme();
 
     return (
@@ -30,6 +31,7 @@ export const GridActionButtons = ({
             "@media print": {
                 display: "none",
             },
+            ...sx,
         }}
         >
             {children}

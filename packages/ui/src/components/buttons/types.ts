@@ -1,5 +1,5 @@
 import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
-import { ButtonProps, IconButtonProps } from "@mui/material";
+import { ButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
 import { NavigableObject, PartialWithType, SvgProps, SxType } from "types";
@@ -17,7 +17,7 @@ export interface AdvancedSearchButtonProps {
 export interface BuildEditButtonsProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;
-    errors: GridSubmitButtonsProps["errors"];
+    errors: BottomActionsButtonsProps["errors"];
     handleCancel: () => unknown;
     handleScaleChange: (delta: number) => unknown;
     handleSubmit: () => unknown;
@@ -32,15 +32,6 @@ export type CameraButtonProps = {
     onTranscriptChange: (result: string) => unknown;
 }
 
-export interface ColorIconButtonProps extends IconButtonProps {
-    background: string;
-    children: JSX.Element | null | undefined;
-    disabled?: boolean;
-    href?: string;
-    onClick?: (event: React.MouseEvent<HTMLElement>) => unknown;
-    sx?: SxType;
-}
-
 export interface CommentsButtonProps {
     /** Defaults to 0 */
     commentsCount: number | null;
@@ -52,16 +43,18 @@ export interface EllipsisActionButtonProps {
     children: JSX.Element | null | undefined;
 }
 
-export interface GridActionButtonsProps {
+export interface BottomActionsGridProps {
     children: OrArray<JSX.Element | null | undefined>;
-    display: ViewDisplayType;
+    display: ViewDisplayType
+    sx?: SxType;
 }
 
-export interface GridSubmitButtonsProps {
+export interface BottomActionsButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
     display: ViewDisplayType;
     errors?: { [key: string]: string | string[] | null | undefined };
+    hideButtons?: boolean;
     /** Hides button text on mobile */
     hideTextOnMobile?: boolean;
     isCreate: boolean;
@@ -69,7 +62,7 @@ export interface GridSubmitButtonsProps {
     onCancel: () => unknown;
     onSetSubmitting?: (isSubmitting: boolean) => unknown;
     onSubmit?: () => unknown;
-    sideActionButtons?: Omit<SideActionButtonsProps, "hasGridActions">;
+    sideActionButtons?: Omit<SideActionsButtonsProps, "display" | "hasGridActions">;
 }
 
 export interface HelpButtonProps extends ButtonProps {
@@ -134,12 +127,11 @@ export interface ShareButtonProps {
     object: NavigableObject | null | undefined;
 }
 
-export interface SideActionButtonsProps {
+export interface SideActionsButtonsProps {
     children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
     /** If true, displays higher up */
     hasGridActions?: boolean;
-    isLeftHanded?: boolean;
     sx?: SxType;
 }
 

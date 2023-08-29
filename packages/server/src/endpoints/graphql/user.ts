@@ -214,6 +214,7 @@ export const typeDef = gql`
     }
 
     input UserSearchInput {
+        excludeIds: [ID!]
         maxBookmarks: Int
         maxViews: Int
         memberInOrganizationId: ID

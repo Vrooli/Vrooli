@@ -1,15 +1,16 @@
 import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPutChatMessage } from "@local/shared";
 import { Avatar, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ChatBubbleStatus } from "components/ChatBubbleStatus/ChatBubbleStatus";
-import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
+import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { BotIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { extractImageUrl } from "utils/display/imageTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
 
@@ -104,13 +105,15 @@ export const ChatBubble = ({
             <Stack direction="row" spacing={1}>
                 {!isOwn && (
                     <Avatar
-                        // src={message.user.avatar} TODO
+                        src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, 50)}
                         alt={message.user?.name ?? message.user?.handle}
                         // onClick handlers...
                         sx={{
                             bgcolor: message.user.isBot ? "grey" : undefined,
                             boxShadow: 2,
                             cursor: "pointer",
+                            // Bots show up as squares, to distinguish them from users
+                            ...(message.user?.isBot ? { borderRadius: "8px" } : {}),
                         }}
                     >
                         {message.user.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
@@ -140,7 +143,7 @@ export const ChatBubble = ({
                             minHeight: "50px",
                         }}
                     /> : <>
-                        <MarkdownInputBase
+                        <RichInputBase
                             fullWidth
                             maxChars={1500}
                             minRows={editingText?.split("\n").length ?? 1}
@@ -149,7 +152,7 @@ export const ChatBubble = ({
                             value={editingText ?? ""}
                         />
                         <Grid container spacing={1} mt={2}>
-                            <GridSubmitButtons
+                            <BottomActionsButtons
                                 disabledCancel={isCreating || isUpdating}
                                 disabledSubmit={isCreating || isUpdating}
                                 display="page"

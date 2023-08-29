@@ -1,18 +1,20 @@
 import { Stack } from "@mui/material";
+import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useZIndex } from "hooks/useZIndex";
-import { SideActionButtonsProps } from "../types";
+import { SideActionsButtonsProps } from "../types";
 
 /**
  * Buttons displayed on bottom left or right of screen
  */
-export const SideActionButtons = ({
+export const SideActionsButtons = ({
     children,
     display,
     hasGridActions = false,
-    isLeftHanded,
     sx,
-}: SideActionButtonsProps) => {
+}: SideActionsButtonsProps) => {
     const zIndex = useZIndex();
+    const isLeftHanded = useIsLeftHanded();
+
 
     const gridActionsHeight = hasGridActions ? "70px" : "0px";
     const bottomNavHeight = display === "page" ? "56px" : "0px";
@@ -21,7 +23,7 @@ export const SideActionButtons = ({
         <Stack direction="row" spacing={2} sx={{
             position: "absolute",
             display: "flex",
-            alignItems: "center",
+            alignItems: "end",
             justifyContent: "center",
             zIndex,
             bottom: 0,

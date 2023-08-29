@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "route";
 import { convertFormikForSearch, convertSearchForFormik } from "utils/search/inputToSearch";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
-import { GridActionButtons } from "../GridActionButtons/GridActionButtons";
+import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
 import { searchButtonStyle } from "../styles";
 import { AdvancedSearchButtonProps } from "../types";
 
@@ -111,7 +111,7 @@ const AdvancedSearchDialog = ({
                         />}
                     </Box>
                     {/* Search/Cancel buttons */}
-                    <GridActionButtons display="dialog">
+                    <BottomActionsGrid display="dialog">
                         <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                             <Button
                                 fullWidth
@@ -129,7 +129,7 @@ const AdvancedSearchDialog = ({
                                 variant="outlined"
                             >{t("Cancel")}</Button>
                         </Grid>
-                    </GridActionButtons>
+                    </BottomActionsGrid>
                 </>}
             </Formik>
         </LargeDialog>

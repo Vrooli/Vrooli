@@ -1,9 +1,9 @@
 import { DUMMY_ID, orDefault, Question, questionTranslationValidation, questionValidation, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { SessionContext } from "contexts/SessionContext";
@@ -104,7 +104,7 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                             language={language}
                             name="name"
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="description"
                             placeholder={t("Description")}
@@ -127,7 +127,7 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                     <TagSelector name="tags" />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

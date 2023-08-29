@@ -76,6 +76,11 @@ export const DashboardView = ({
     }, [searchString, activeFocusMode]);
     useDisplayServerError(errors);
 
+    useEffect(() => {
+        if (searchString && searchString.length) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
+        else setLocation(LINKS.Home, { replace: true });
+    }, [searchString, setLocation]);
+
     /** Only show tabs if:
     * 1. The user is logged in 
     * 2. The user has at least two focusModes
@@ -157,10 +162,6 @@ export const DashboardView = ({
         setLocation(LINKS.Calendar);
     }, [setLocation]);
 
-    const onClick = useCallback(() => {
-        if (searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
-    }, [searchString, setLocation]);
-
     const [reminders, setReminders] = useState<Reminder[]>([]);
     useEffect(() => {
         if (data?.reminders) {
@@ -216,7 +217,7 @@ export const DashboardView = ({
     }, [data?.schedules, session]);
 
     return (
-        <PageContainer>
+        <PageContainer sx={{ marginBottom: 2 }}>
             {/* Main content */}
             <TopBar
                 display={display}
@@ -283,7 +284,6 @@ export const DashboardView = ({
                         items={upcomingEvents}
                         keyPrefix="event-list-item"
                         loading={loading}
-                        onClick={onClick}
                     />
                 </ListTitleContainer>
                 {/* Reminders */}
@@ -315,7 +315,6 @@ export const DashboardView = ({
                         items={notes}
                         keyPrefix="note-list-item"
                         loading={loading}
-                        onClick={onClick}
                     />
                 </ListTitleContainer>
             </Box>

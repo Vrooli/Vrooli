@@ -4,7 +4,7 @@ import { socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Resizable, useDimensionContext } from "components/Resizable/Resizable";
 import { SessionContext } from "contexts/SessionContext";
@@ -12,7 +12,7 @@ import { Formik, FormikProps } from "formik";
 import { chatInitialValues } from "forms/ChatForm/ChatForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
-import { AddIcon, ListIcon } from "icons";
+import { ListIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -39,9 +39,9 @@ const NewMessageContainer = ({
     console.log("newmessagecontainer dimensions", dimensions);
 
     return (
-        <MarkdownInput
+        <RichInput
             actionButtons={[{
-                Icon: AddIcon,
+                Icon: SendIcon,
                 onClick: () => {
                     if (!chat) {
                         PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
@@ -63,6 +63,7 @@ const NewMessageContainer = ({
                 users = users.filter(p => p.id !== getCurrentUser(session).id);
                 // Filter out users that don't match the search string
                 users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
+                console.log("got taggable items", users, searchString);
                 return users;
             }}
             maxChars={1500}
@@ -117,7 +118,7 @@ export const ChatView = ({
         transform: (existing) => chatInitialValues(session, existing),
     });
     const [createChat, { loading: isCreateLoading, errors: createErrors }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
-    console.log("GOT CHAT", chat);
+    console.log("GOT CHAT", chat, isOpen);
 
     // useEffect(() => {
     //     if (chat || !isOpen) return;
@@ -386,6 +387,7 @@ export const ChatView = ({
                         <Resizable
                             id="chat-message-input"
                             min={150}
+                            max={"50vh"}
                             position="top"
                             sx={{
                                 position: "sticky",
@@ -399,7 +401,7 @@ export const ChatView = ({
                     </>}
                 </Formik>
             </MaybeLargeDialog>
-            <ChatSideMenu />
+            {isOpen && <ChatSideMenu />}
         </>
     );
 };

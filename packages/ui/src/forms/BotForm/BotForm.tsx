@@ -1,9 +1,9 @@
 import { botTranslationValidation, botValidation, DUMMY_ID, Session, User } from "@local/shared";
 import { Slider, Stack, TextField, Typography } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { SessionContext } from "contexts/SessionContext";
@@ -121,7 +121,7 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                             label={t("Handle")}
                             as={TextField}
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             maxChars={2048}
                             minRows={4}
@@ -241,7 +241,7 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                     </FormSection>
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}

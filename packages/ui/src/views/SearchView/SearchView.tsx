@@ -1,85 +1,22 @@
-import { CommonKey, GqlModelType, LINKS } from "@local/shared";
-import { ListItemIcon, ListItemText, Menu, MenuItem, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { GqlModelType, LINKS } from "@local/shared";
+import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, useTheme } from "@mui/material";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
+import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
+import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { SearchPageTabOption, SearchType, searchViewTabParams } from "utils/search/objectToSearch";
 import { SearchViewProps } from "../types";
-
-// Data for each tab
-export const searchViewTabParams = [{
-    Icon: VisibleIcon,
-    titleKey: "All" as CommonKey,
-    searchType: SearchType.Popular,
-    tabType: SearchPageTabOption.All,
-    where: () => ({}),
-}, {
-    Icon: RoutineIcon,
-    titleKey: "Routine" as CommonKey,
-    searchType: SearchType.Routine,
-    tabType: SearchPageTabOption.Routine,
-    where: () => ({ isInternal: false }),
-}, {
-    Icon: ProjectIcon,
-    titleKey: "Project" as CommonKey,
-    searchType: SearchType.Project,
-    tabType: SearchPageTabOption.Project,
-    where: () => ({}),
-}, {
-    Icon: HelpIcon,
-    titleKey: "Question" as CommonKey,
-    searchType: SearchType.Question,
-    tabType: SearchPageTabOption.Question,
-    where: () => ({}),
-}, {
-    Icon: NoteIcon,
-    titleKey: "Note" as CommonKey,
-    searchType: SearchType.Note,
-    tabType: SearchPageTabOption.Note,
-    where: () => ({}),
-}, {
-    Icon: OrganizationIcon,
-    titleKey: "Organization" as CommonKey,
-    searchType: SearchType.Organization,
-    tabType: SearchPageTabOption.Organization,
-    where: () => ({}),
-}, {
-    Icon: UserIcon,
-    titleKey: "User" as CommonKey,
-    searchType: SearchType.User,
-    tabType: SearchPageTabOption.User,
-    where: () => ({}),
-}, {
-    Icon: StandardIcon,
-    titleKey: "Standard" as CommonKey,
-    searchType: SearchType.Standard,
-    tabType: SearchPageTabOption.Standard,
-    where: () => ({ isInternal: false, type: "JSON" }),
-}, {
-    Icon: ApiIcon,
-    titleKey: "Api" as CommonKey,
-    searchType: SearchType.Api,
-    tabType: SearchPageTabOption.Api,
-    where: () => ({}),
-}, {
-    Icon: SmartContractIcon,
-    titleKey: "SmartContract" as CommonKey,
-    searchType: SearchType.SmartContract,
-    tabType: SearchPageTabOption.SmartContract,
-    where: () => ({}),
-}];
 
 /**
  * Search page for organizations, projects, routines, standards, users, and other main objects
@@ -127,10 +64,7 @@ export const SearchView = ({
         else setSelectCreateTypeAnchorEl(null);
     }, [setLocation]);
 
-    const focusSearch = useCallback(() => {
-        const searchInput = document.getElementById("search-bar-main-search-page-list");
-        searchInput?.focus();
-    }, []);
+    const focusSearch = () => { scrollIntoFocusedView("search-bar-main-search-page-list"); };
 
     return (
         <>
@@ -178,19 +112,19 @@ export const SearchView = ({
                 where={where()}
                 sxs={{ search: { marginTop: 2 } }}
             />}
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
-                <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >
+                <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton>
+                </IconButton>
                 {userId ? (
-                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={onCreateStart} >
+                    <IconButton aria-label={t("Add")} onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 ) : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

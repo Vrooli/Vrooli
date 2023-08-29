@@ -3,7 +3,7 @@
  */
 import { NodeType, uuid } from "@local/shared";
 import { Autocomplete, Box, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getTranslation } from "utils/display/translationTools";
@@ -200,7 +200,7 @@ export const LinkDialog = ({
                 {conditions}
                 {deleteOption}
             </DialogContent>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display="dialog"
                 errors={errors}
                 isCreate={isAdd}

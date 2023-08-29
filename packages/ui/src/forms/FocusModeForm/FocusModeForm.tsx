@@ -1,6 +1,6 @@
 import { DUMMY_ID, FocusMode, focusModeValidation, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -205,7 +205,7 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                     <TagSelector name="hidden" />
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={isCreate}

@@ -425,6 +425,17 @@ export function App() {
                                     backgroundColor: "#18587d85",
                                 },
                             },
+                            // Custom IconButton hover highlighting, which doesn't hide background color
+                            ".MuiIconButton-root": {
+                                "&:hover": {
+                                    filter: "brightness(1.3)",
+                                },
+                                "&.Mui-disabled": {
+                                    pointerEvents: "none",
+                                    filter: "grayscale(1) opacity(0.5)",
+                                },
+                                transition: "filter 0.2s ease-in-out",
+                            },
                             // Style bullet points in unordered lists
                             ul: {
                                 listStyle: "circle",

@@ -9,7 +9,8 @@ import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
-import { PolicyTabOption, policyTabParams } from "../PrivacyPolicyView/PrivacyPolicyView";
+import { policyTabParams } from "utils/search/objectToSearch";
+import { PolicyTabOption } from "../PrivacyPolicyView/PrivacyPolicyView";
 import { TermsViewProps } from "../types";
 
 export const TermsView = ({

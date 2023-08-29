@@ -1,19 +1,24 @@
-import { DUMMY_ID, Reminder, reminderValidation, Session, uuid } from "@local/shared";
+import { DeleteOneInput, DeleteType, DUMMY_ID, endpointPostDeleteOne, Reminder, ReminderCreateInput, reminderValidation, Session, Success, uuid } from "@local/shared";
 import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { fetchLazyWrapper } from "api";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderFormProps } from "forms/types";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon, DeleteIcon, DragIcon, ListNumberIcon } from "icons";
-import { forwardRef } from "react";
+import { forwardRef, useCallback } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { getDisplay } from "utils/display/listTools";
+import { firstString } from "utils/display/stringTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
 import { ReminderItemShape } from "utils/shape/models/reminderItem";
@@ -58,6 +63,10 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
     display,
     dirty,
     index,
+    fetchCreate,
+    handleClose,
+    handleCreated,
+    handleDeleted,
     isCreate,
     isLoading,
     isOpen,
@@ -68,6 +77,41 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
 }, ref) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
+
+    // Handle delete
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const handleDelete = useCallback((id: string) => {
+        fetchLazyWrapper<DeleteOneInput, Success>({
+            fetch: deleteMutation,
+            inputs: { id: values.id, objectType: DeleteType.Reminder },
+            successCondition: (data) => data.success,
+            successMessage: () => ({
+                messageKey: "ObjectDeleted",
+                messageVariables: { objectName: values.name },
+                buttonKey: "Undo",
+                buttonClicked: () => {
+                    fetchLazyWrapper<ReminderCreateInput, Reminder>({
+                        fetch: fetchCreate,
+                        inputs: transformReminderValues({
+                            ...values,
+                            // Make sure not to set any extra fields, 
+                            // so this is treated as a "Connect" instead of a "Create"
+                            reminderList: {
+                                __typename: "ReminderList" as const,
+                                id: values.reminderList.id,
+                            },
+                        }, values, true) as ReminderCreateInput,
+                        successCondition: (data) => !!data.id,
+                        onSuccess: (data) => { handleCreated(data); },
+                    });
+                },
+            }),
+            onSuccess: () => {
+                handleDeleted(values as Reminder);
+            },
+            errorMessage: () => ({ messageKey: "FailedToDelete" }),
+        });
+    }, [deleteMutation, fetchCreate, handleCreated, handleDeleted, values]);
 
     const [reminderItemsField, , reminderItemsHelpers] = useField("reminderItems");
 
@@ -107,12 +151,23 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
 
     return (
         <>
+            <TopBar
+                display={display}
+                onClose={handleClose}
+                title={firstString(getDisplay(values).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
+                // Show delete button only when updating
+                options={!isCreate ? [{
+                    Icon: DeleteIcon,
+                    label: t("Delete"),
+                    onClick: handleDelete as () => void,
+                }] : []}
+            />
             <DragDropContext onDragEnd={onDragEnd}>
                 <BaseForm
                     dirty={dirty}
                     display={display}
-                    isLoading={isLoading}
-                    maxWidth={600}
+                    isLoading={isLoading || isDeleteLoading}
+                    maxWidth={700}
                     ref={ref}
                 >
                     <FormContainer>
@@ -126,7 +181,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                             label={t("Name")}
                             as={TextField}
                         />
-                        <MarkdownInput
+                        <RichInput
                             maxChars={2048}
                             maxRows={10}
                             minRows={4}
@@ -174,7 +229,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                                                                         label={t("Name")}
                                                                         as={TextField}
                                                                     />
-                                                                    <MarkdownInput
+                                                                    <RichInput
                                                                         maxChars={2048}
                                                                         maxRows={6}
                                                                         minRows={2}
@@ -234,7 +289,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                     </FormContainer>
                 </BaseForm>
             </DragDropContext>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={isCreate}

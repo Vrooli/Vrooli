@@ -1,6 +1,6 @@
 import { Comment, CommentFor, commentTranslationValidation, commentValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { CommentFormProps } from "forms/types";
@@ -73,14 +73,14 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
                 ref={ref}
             >
                 <FormContainer>
-                    <TranslatedMarkdownInput
+                    <TranslatedRichInput
                         language={language}
                         name="text"
                         placeholder={t("PleaseBeNice")}
                         minRows={3}
                     />
                 </FormContainer>
-                <GridSubmitButtons
+                <BottomActionsButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}

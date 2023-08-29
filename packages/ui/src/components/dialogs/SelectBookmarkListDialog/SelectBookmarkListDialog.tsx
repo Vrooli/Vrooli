@@ -3,7 +3,7 @@
  */
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
 import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SessionContext } from "contexts/SessionContext";
 import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -157,7 +157,7 @@ export const SelectBookmarkListDialog = ({
                     {listItems}
                 </List>
                 {/* Search/Cancel buttons */}
-                <GridSubmitButtons
+                <BottomActionsButtons
                     display={"dialog"}
                     isCreate={false}
                     loading={isFindLoading || isCreateLoading || isDeleteLoading}

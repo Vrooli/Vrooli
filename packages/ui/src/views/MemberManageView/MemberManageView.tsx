@@ -1,7 +1,6 @@
-import { CommonKey, MemberInviteStatus } from "@local/shared";
+import { CommonKey } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -12,20 +11,9 @@ import { AddIcon, LockIcon, SearchIcon, UnlockIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { MemberManagePageTabOption, SearchType } from "utils/search/objectToSearch";
+import { scrollIntoFocusedView } from "utils/display/scroll";
+import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
 import { MemberManageViewProps } from "../types";
-
-const tabParams = [{
-    titleKey: "Member" as CommonKey,
-    searchType: SearchType.Member,
-    tabType: MemberManagePageTabOption.Member,
-    where: (organizationId: string) => ({ organizationId }),
-}, {
-    titleKey: "Invite" as CommonKey,
-    searchType: SearchType.MemberInvite,
-    tabType: MemberManagePageTabOption.MemberInvite,
-    where: (organizationId: string) => ({ organizationId, statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] }),
-}];
 
 /**
  * View members and invited members of an organization
@@ -45,7 +33,7 @@ export const MemberManageView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<MemberManagePageTabOption>({ tabParams, display });
+    } = useTabs<MemberManagePageTabOption>({ tabParams: memberTabParams, display });
 
     const [isOpenToNewMembersField, , isOpenToNewMembersHelpers] = useField("isOpenToNewMembers");
 
@@ -54,10 +42,7 @@ export const MemberManageView = ({
         setInviteDialogOpen(true);
     }, []);
 
-    const focusSearch = useCallback(() => {
-        const searchInput = document.getElementById("search-bar-member-manage-list");
-        searchInput?.focus();
-    }, []);
+    const focusSearch = () => { scrollIntoFocusedView("search-bar-member-manage-list"); };
 
     return (
         <MaybeLargeDialog
@@ -126,17 +111,17 @@ export const MemberManageView = ({
                 where={where(organizationId)}
                 sxs={{ search: { marginTop: 2 } }}
             />}
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}
             >
-                <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >
+                <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton>
-                <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={onInviteStart} >
+                </IconButton>
+                <IconButton aria-label={t("CreateInvite")} onClick={onInviteStart} sx={{ background: palette.secondary.main }}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton>
-            </SideActionButtons>
+                </IconButton>
+            </SideActionsButtons>
         </MaybeLargeDialog>
     );
 };

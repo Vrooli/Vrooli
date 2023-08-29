@@ -88,6 +88,24 @@ const adjustDimensions = (dimensions: Dimensions, position: Position, max?: numb
     return dimensions;
 };
 
+const parseDimension = (value?: string | number) => {
+    if (typeof value === "number") {
+        return value;
+    }
+    if (value?.endsWith("vh")) {
+        const vh = parseFloat(value);
+        return window.innerHeight * (vh / 100);
+    }
+    if (value?.endsWith("vw")) {
+        const vw = parseFloat(value);
+        return window.innerWidth * (vw / 100);
+    }
+    if (value?.endsWith("px")) {
+        return parseFloat(value);
+    }
+    return undefined;
+};
+
 export const Resizable = ({
     children,
     id,
@@ -105,9 +123,12 @@ export const Resizable = ({
 }) => {
     const { palette } = useTheme();
     const containerRef = useRef<HTMLDivElement | null>(null);
+
+    const minPixels = useMemo(() => parseDimension(min), [min]);
+    const maxPixels = useMemo(() => parseDimension(max), [max]);
     const isVerticalResize = ["top", "bottom"].includes(position);
     const storedDimensions = useMemo(() => id ? getCookieDimensions(id) : null, [id]);
-    const [dimensions, setDimensions] = useState<Dimensions>(areDimensionsValid(storedDimensions, position, max, min) ? (storedDimensions as Dimensions) : getDefaultDimensions(position, max, min));
+    const [dimensions, setDimensions] = useState<Dimensions>(areDimensionsValid(storedDimensions, position, maxPixels, minPixels) ? (storedDimensions as Dimensions) : getDefaultDimensions(position, maxPixels, minPixels));
 
     // Set initial dimensions
     useEffect(() => {
@@ -121,10 +142,10 @@ export const Resizable = ({
         const newDimensions = adjustDimensions({
             width: rect.width,
             height: rect.height,
-        }, position, max, min);
+        }, position, maxPixels, minPixels);
         setDimensions(newDimensions);
         setCookieDimensions(id, newDimensions);
-    }, [id, max, min, position]);
+    }, [id, maxPixels, minPixels, position]);
 
     const handleResize = (event: MouseEvent & TouchEvent) => {
         event.preventDefault();
@@ -148,7 +169,7 @@ export const Resizable = ({
                 const diffX = currentX - startX;
                 newWidth = position === "right" ? startWidth + diffX : startWidth - diffX;
             }
-            const newDimensions = adjustDimensions({ width: newWidth, height: newHeight }, position, max, min);
+            const newDimensions = adjustDimensions({ width: newWidth, height: newHeight }, position, maxPixels, minPixels);
             if (isVerticalResize) containerRef.current.style.height = `${newDimensions.height}px`;
             else containerRef.current.style.width = `${newDimensions.width}px`;
             setDimensions(newDimensions);
@@ -170,7 +191,7 @@ export const Resizable = ({
             const newDimensions = adjustDimensions({
                 width: rect.width,
                 height: rect.height,
-            }, position, max, min);
+            }, position, maxPixels, minPixels);
             setDimensions(newDimensions);
             setCookieDimensions(id, newDimensions);
         };
@@ -179,7 +200,7 @@ export const Resizable = ({
         return () => {
             window.removeEventListener("resize", handleResize);
         };
-    }, [id, max, min, position]);
+    }, [id, maxPixels, minPixels, position]);
 
     return (
         <Box

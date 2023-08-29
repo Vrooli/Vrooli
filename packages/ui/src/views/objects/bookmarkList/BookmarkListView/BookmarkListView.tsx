@@ -1,8 +1,7 @@
 import { Bookmark, BookmarkCreateInput, BookmarkList, endpointGetBookmarkList, endpointPostBookmark, uuid } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box, IconButton, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SiteSearchBar } from "components/inputs/search";
@@ -126,16 +125,14 @@ export const BookmarkListView = ({
                 </Box>}
             />
             <>
-                <SideActionButtons display={display} >
-                    {/* Edit button */}
-                    <ColorIconButton aria-label="Edit list" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                <SideActionsButtons display={display} >
+                    <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
-                    {/* Add button */}
-                    <ColorIconButton aria-label="Add bookmark" background={palette.secondary.main} onClick={openSearch} >
+                    </IconButton>
+                    <IconButton aria-label={t("AddBookmark")} onClick={openSearch} sx={{ background: palette.secondary.main }}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
-                </SideActionButtons>
+                    </IconButton>
+                </SideActionsButtons>
                 <ListContainer
                     emptyText={t("NoResults", { ns: "error" })}
                     isEmpty={bookmarks.length === 0 && !isLoading}

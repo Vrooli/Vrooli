@@ -77,13 +77,18 @@ export function ObjectListItemBase<T extends ListObject>({
     }, []);
     const closeContextMenu = useCallback(() => setAnchorEl(null), []);
 
-    const link = useMemo(() => (data && (typeof canNavigate !== "function" || canNavigate(data))) ? getObjectUrl(data) : "", [data, canNavigate]);
+    const link = useMemo(() => (
+        data &&
+        (typeof canNavigate !== "function" || canNavigate(data))) &&
+        typeof onClick !== "function" ?
+        getObjectUrl(data) :
+        "", [data, canNavigate, onClick]);
     const handleClick = useCallback((target: EventTarget) => {
         if (!target.id || !target.id.startsWith(LIST_PREFIX)) return;
         // If data not supplied, don't open
         if (data === null) return;
         // If onClick is supplied, call it instead of navigating
-        if (onClick) {
+        if (typeof onClick === "function") {
             onClick(data);
             return;
         }
@@ -170,6 +175,8 @@ export function ObjectListItemBase<T extends ListObject>({
                             width: isMobile ? "40px" : "50px",
                             height: isMobile ? "40px" : "50px",
                             pointerEvents: "none",
+                            // Bots show up as squares, to distinguish them from users
+                            ...(participants[0]?.user?.isBot ? { borderRadius: "8px" } : {}),
                         }}
                     />
                 );
@@ -285,8 +292,8 @@ export function ObjectListItemBase<T extends ListObject>({
                 id={`${LIST_PREFIX}${id}`}
                 disablePadding
                 button
-                component={link ? "a" : "div"}
-                href={link}
+                component={link.length > 0 ? "a" : "div"}
+                href={link.length > 0 ? link : undefined}
                 {...pressEvents}
                 sx={{
                     display: "flex",

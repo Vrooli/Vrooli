@@ -1,7 +1,7 @@
 import { Grid, Slider, TextField, Typography } from "@mui/material";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { Field, useFormikContext } from "formik";
 import { FieldDataText } from "forms/types";
@@ -51,7 +51,7 @@ export const TextStandardInput = ({
             </Grid>
             <Grid item xs={12}>
                 {values.isMarkdown ?
-                    <MarkdownInput
+                    <RichInput
                         disabled={!isEditing}
                         name="defaultValue"
                         placeholder={t("DefaultValue")}
