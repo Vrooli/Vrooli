@@ -27,7 +27,7 @@ const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/
 const { BotUpsert } = lazily(() => import("../../../views/objects/bot/BotUpsert/BotUpsert"));
 const { FocusModeUpsert } = lazily(() => import("../../../views/objects/focusMode/FocusModeUpsert/FocusModeUpsert"));
 const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/MeetingUpsert/MeetingUpsert"));
-const { NoteUpsert } = lazily(() => import("../../../views/objects/note/NoteUpsert/NoteUpsert"));
+const { NoteCrud } = lazily(() => import("../../../views/objects/note/NoteCrud/NoteCrud"));
 const { OrganizationUpsert } = lazily(() => import("../../../views/objects/organization/OrganizationUpsert/OrganizationUpsert"));
 const { ProjectUpsert } = lazily(() => import("../../../views/objects/project/ProjectUpsert/ProjectUpsert"));
 const { QuestionUpsert } = lazily(() => import("../../../views/objects/question/QuestionUpsert/QuestionUpsert"));
@@ -56,7 +56,7 @@ const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Elem
     Api: ApiUpsert,
     FocusMode: FocusModeUpsert,
     Meeting: MeetingUpsert,
-    Note: NoteUpsert,
+    Note: NoteCrud,
     Organization: OrganizationUpsert,
     Project: ProjectUpsert,
     Question: QuestionUpsert,

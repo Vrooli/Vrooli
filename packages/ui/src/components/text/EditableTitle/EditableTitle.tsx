@@ -6,7 +6,7 @@ import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/Trans
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { Field, useField, useFormikContext } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { EditIcon } from "icons";
+import { DeleteIcon, EditIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
@@ -15,6 +15,8 @@ import { Title } from "../Title/Title";
 import { TitleProps } from "../types";
 
 export interface EditableTitleProps extends TitleProps {
+    handleDelete?: () => unknown;
+    isDeletable?: boolean;
     isEditable?: boolean;
     isTitleTranslated?: boolean;
     isSubtitleTranslated?: boolean;
@@ -27,6 +29,8 @@ export interface EditableTitleProps extends TitleProps {
 }
 
 export const EditableTitle = ({
+    handleDelete,
+    isDeletable = false,
     isEditable = true,
     isTitleTranslated = true,
     isSubtitleTranslated = true,
@@ -119,17 +123,35 @@ export const EditableTitle = ({
         };
     }, [getFieldValue, titleField, isTitleTranslated, subtitleField, isSubtitleTranslated]);
 
+    const titleOptions = useMemo(() => {
+        const options: TitleProps["options"] = [];
+        if (isEditable) {
+            options.push({
+                Icon: EditIcon,
+                label: t("Edit"),
+                onClick: handleOpenDialog,
+            });
+        }
+        if (isDeletable) {
+            options.push({
+                Icon: DeleteIcon,
+                label: t("Delete"),
+                onClick: () => {
+                    if (typeof handleDelete === "function") handleDelete();
+                    else console.error("handleDelete is not a function");
+                },
+            });
+        }
+        return options;
+    }, [isEditable, isDeletable, t, handleOpenDialog, handleDelete]);
+
     return (
         <>
             <Title
                 title={title}
                 help={subtitle}
                 {...titleProps}
-                options={isEditable ? [{
-                    Icon: EditIcon,
-                    label: t("Edit"),
-                    onClick: handleOpenDialog,
-                }] : []}
+                options={titleOptions}
             />
             <LargeDialog
                 id="editable-title-dialog"

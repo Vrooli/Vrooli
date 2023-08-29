@@ -149,7 +149,7 @@ export const Navbar = forwardRef(({
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const logoState = useMemo(() => {
         if (isMobile && startComponent) return "none";
-        if (isMobile && (title || titleComponent)) return "icon";
+        if (isMobile && (title || titleComponent)) return "none"; // Used to be "icon"
         return "full";
     }, [isMobile, startComponent, title, titleComponent]);
     const isLeftHanded = useIsLeftHanded();
@@ -182,6 +182,7 @@ export const Navbar = forwardRef(({
                         background: palette.primary.dark,
                         minHeight: "64px!important",
                         position: "fixed", // Allows items to be displayed below the navbar
+                        justifyContent: "center",
                         zIndex,
                     }}>
                     <Stack direction="row" spacing={0} alignItems="center" sx={{

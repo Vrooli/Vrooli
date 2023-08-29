@@ -18,6 +18,7 @@ export const BottomActionsButtons = ({
     disabledSubmit,
     display,
     errors,
+    hideButtons = false,
     hideTextOnMobile = false,
     isCreate,
     loading = false,
@@ -49,9 +50,9 @@ export const BottomActionsButtons = ({
             <Popover />
             {/* We display side actions in this component because positioning is easier.
             We set "display" to "dialog" so that it doesn't set its own bottom margin */}
-            {sideActionButtons ? <SideActionsButtons hasGridActions={true} {...sideActionButtons} display="dialog" /> : null}
+            {sideActionButtons ? <SideActionsButtons hasGridActions={!hideButtons} {...sideActionButtons} display="dialog" /> : null}
             {/* Create/Save button. On hover or press, displays formik errors if disabled */}
-            <Grid item xs={6}>
+            {!hideButtons ? <Grid item xs={6}>
                 <Box onClick={handleSubmit}>
                     <Button
                         aria-label={t(isCreate ? "Create" : "Save")}
@@ -64,9 +65,9 @@ export const BottomActionsButtons = ({
                         sx={{ "& span": iconStyle }}
                     >{hideTextOnMobile && isMobile ? "" : t(isCreate ? "Create" : "Save")}</Button>
                 </Box>
-            </Grid>
+            </Grid> : null}
             {/* Cancel button */}
-            <Grid item xs={6}>
+            {!hideButtons ? <Grid item xs={6}>
                 <Button
                     aria-label={t("Cancel")}
                     disabled={loading || (disabledCancel !== undefined ? disabledCancel : false)}
@@ -76,7 +77,7 @@ export const BottomActionsButtons = ({
                     variant="outlined"
                     sx={{ "& span": iconStyle }}
                 >{hideTextOnMobile && isMobile ? "" : t("Cancel")}</Button>
-            </Grid>
+            </Grid> : null}
         </BottomActionsGrid>
     );
 };

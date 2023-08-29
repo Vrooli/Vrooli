@@ -1,4 +1,2 @@
 
-export * from "./NoteUpsert/NoteUpsert";
-export * from "./NoteView/NoteView";
-
+export * from "./NoteCrud/NoteCrud";

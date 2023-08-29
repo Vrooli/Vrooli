@@ -46,7 +46,7 @@ const { StartView } = lazily(() => import("./views/StartView/StartView"));
 const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/StatsSiteView"));
 const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
 const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
-const { NoteUpsert, NoteView } = lazily(() => import("./views/objects/note"));
+const { NoteCrud } = lazily(() => import("./views/objects/note"));
 const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/objects/organization"));
 const { ProjectUpsert, ProjectView } = lazily(() => import("./views/objects/project"));
 const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
@@ -177,13 +177,13 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <MyStuffView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/add`} excludePageContainer mustBeLoggedIn={true} {...props}>
-                    <NoteUpsert isCreate={true} />
+                    <NoteCrud isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/edit/:rootId/:versionId`} excludePageContainer mustBeLoggedIn={true} {...props}>
-                    <NoteUpsert isCreate={false} />
+                    <NoteCrud isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/:rootId/:versionId?`} excludePageContainer {...props}>
-                    <NoteView />
+                    <NoteCrud isCreate={false} />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Inbox}

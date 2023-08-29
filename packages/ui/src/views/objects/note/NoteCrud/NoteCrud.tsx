@@ -7,33 +7,37 @@ import { NoteForm, noteInitialValues, transformNoteValues, validateNoteValues } 
 import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useContext } from "react";
+import { useContext, useMemo } from "react";
+import { getYou, ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { NoteVersionShape } from "utils/shape/models/noteVersion";
-import { NoteUpsertProps } from "../types";
+import { NoteCrudProps } from "../types";
 
-export const NoteUpsert = ({
+export const NoteCrud = ({
     isCreate,
     isOpen,
     onCancel,
     onCompleted,
+    onDeleted,
     overrideObject,
-}: NoteUpsertProps) => {
+}: NoteCrudProps) => {
     const session = useContext(SessionContext);
     const display = toDisplay(isOpen);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
         ...endpointGetNoteVersion,
         objectType: "NoteVersion",
         overrideObject,
         transform: (data) => noteInitialValues(session, data),
     });
+    const { canUpdate } = useMemo(() => getYou(existing as ListObject), [existing]);
 
     const {
         fetch,
         handleCancel,
         handleCompleted,
+        handleDeleted,
         isCreateLoading,
         isUpdateLoading,
     } = useUpsertActions<NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput>({
@@ -43,21 +47,26 @@ export const NoteUpsert = ({
         isCreate,
         onCancel,
         onCompleted,
+        onDeleted,
     });
     const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <MaybeLargeDialog
             display={display}
-            id="note-upsert-dialog"
+            id="note-crud-dialog"
             isOpen={isOpen ?? false}
             onClose={handleClose}
+            sxs={{ paper: { height: "100%" } }}
         >
             <Formik
                 enableReinitialize={true}
                 initialValues={existing}
                 onSubmit={(values, helpers) => {
-                    console.log("NoteUpsert onSubmit", values, transformNoteValues(values, existing, isCreate));
+                    if (!(isCreate || canUpdate)) {
+                        PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+                        return;
+                    }
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
@@ -72,17 +81,22 @@ export const NoteUpsert = ({
                 validate={async (values) => await validateNoteValues(values, existing, isCreate)}
             >
                 {(formik) =>
-                    <NoteForm
-                        display={display}
-                        isCreate={isCreate}
-                        isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                        isOpen={true}
-                        onCancel={handleCancel}
-                        onClose={handleClose}
-                        ref={formRef}
-                        versions={[]}
-                        {...formik}
-                    />
+                    <>
+                        <NoteForm
+                            disabled={!(isCreate || canUpdate)}
+                            display={display}
+                            handleClose={handleClose}
+                            handleDeleted={handleDeleted}
+                            isCreate={isCreate}
+                            isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
+                            isOpen={true}
+                            onCancel={handleCancel}
+                            onClose={handleClose}
+                            ref={formRef}
+                            versions={[]}
+                            {...formik}
+                        />
+                    </>
                 }
             </Formik>
         </MaybeLargeDialog>

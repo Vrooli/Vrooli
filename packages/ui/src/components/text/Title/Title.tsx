@@ -20,6 +20,7 @@ export const Title = ({
             alignItems="center"
             sx={{
                 padding: 2,
+                wordBreak: "break-word",
                 ...sxs?.stack,
             }}
         >
