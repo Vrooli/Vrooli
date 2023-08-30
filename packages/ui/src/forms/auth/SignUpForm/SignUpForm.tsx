@@ -43,6 +43,11 @@ export const SignUpForm = ({
                     confirmPassword: "",
                 }}
                 onSubmit={(values, helpers) => {
+                    if (values.password !== values.confirmPassword) {
+                        PubSub.get().publishSnack({ messageKey: "PasswordsDontMatch", severity: "Error" });
+                        helpers.setSubmitting(false);
+                        return;
+                    }
                     fetchLazyWrapper<EmailSignUpInput, Session>({
                         fetch: emailSignUp,
                         inputs: {

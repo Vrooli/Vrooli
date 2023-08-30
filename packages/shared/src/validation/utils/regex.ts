@@ -7,6 +7,3 @@ export const walletAddressRegex = /^addr1[a-zA-Z0-9]{98}$/;
 
 // Handle (i.e. 3-16 characters, no special characters)
 export const handleRegex = /^[a-zA-Z0-9]{3,16}$/;
-
-// See https://stackoverflow. com/a/21456918/10240279 for more options
-export const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/;

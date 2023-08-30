@@ -117,6 +117,7 @@
     "PageNotFound": "Page not found.",
     "PageNotFoundDetails": "Looks like you've followed a broken link or entered a URL that doesn't exist on this site",
     "PageRestricted": "Page restricted. Please log in.",
+    "PasswordsDontMatch": "Passwords don't match.",
     "PhoneInUse": "Phone number taken.",
     "PhoneInUseDetails": "Phone number has already been verified by another account. If you believe this is a mistake, please contact us.",
     "PushDeviceNotFound": "Push device not found.",

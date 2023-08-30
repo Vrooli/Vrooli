@@ -9,8 +9,8 @@ import * as yup from "yup";
 import { enumToYup } from "./builders";
 import { blankToUndefined } from "./builders/blankToUndefined";
 import { toPosInt } from "./builders/toPosInt";
-import { maxNumErr, maxStrErr, minNumErr, minStrErr, passwordErr, reqErr } from "./errors";
-import { handleRegex, passwordRegex, urlRegex } from "./regex";
+import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
+import { handleRegex, urlRegex } from "./regex";
 import { minVersionTest } from "./versions";
 
 // db fields
@@ -82,7 +82,7 @@ export const permissions = yup.string().transform(blankToUndefined).max(8192, ma
 export const response = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
 export const message = yup.string().transform(blankToUndefined).max(4096, maxStrErr);
 export const theme = yup.string().transform(blankToUndefined).max(128, maxStrErr);
-export const password = yup.string().min(8).max(50).matches(passwordRegex, passwordErr);
+export const password = yup.string().min(8).max(256);
 export const details = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
 export const summary = yup.string().transform(blankToUndefined).max(1024, maxStrErr);
 export const reportReason = yup.string().transform(blankToUndefined).min(1, minStrErr).max(128, maxStrErr);
