@@ -1,7 +1,7 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, exists, Success, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
@@ -29,7 +29,7 @@ export const useBookmarker = ({
     const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     // In most cases, we must query for bookmarks to remove them, since 
     // we usually only know that an object has a bookmark - not the bookmarks themselves
-    const [getData, { data, loading }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointGetBookmarks);
+    const [getData] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointGetBookmarks);
 
     const hasBookmarkingSupport = exists(BookmarkFor[objectType]);
 
@@ -77,34 +77,43 @@ export const useBookmarker = ({
         });
     }, [bookmarkLists, addBookmark, objectType, objectId, onActionComplete]);
 
+    const isRemoveProcessingRef = useRef<boolean>(false);
     const handleRemove = useCallback(async () => {
-        // First we must query for bookmarks on this object. There may be more than one.
-        getData({
-            //Lowercase first letter of objectType and add "Id"
+        if (isRemoveProcessingRef.current || !objectId) return;
+        isRemoveProcessingRef.current = true;
+
+        // Fetch bookmarks for the given objectId and objectType.
+        const result = await getData({
             [`${objectType[0].toLowerCase()}${objectType.slice(1)}Id`]: objectId,
         });
-    }, [getData, objectId, objectType]);
-    useEffect(() => {
-        if (!data || loading) return;
-        const bookmarks = data?.edges.map(edge => edge.node);
-        // If there are no bookmarks, show error snack
-        if (bookmarks === undefined || bookmarks.length === 0) {
+
+        // Extract bookmarks from the result.
+        const bookmarks = result?.data?.edges.map(edge => edge.node);
+
+        // If no bookmarks are found, display an error.
+        if (!bookmarks || bookmarks.length === 0) {
             PubSub.get().publishSnack({ message: "Could not find bookmark", severity: "Error" });
-        }
-        // If there is exactly one bookmark, delete it
-        else if (bookmarks.length === 1) {
-            fetchLazyWrapper<DeleteOneInput, Success>({
-                fetch: deleteOne,
-                inputs: { id: bookmarks[0].id, objectType: DeleteType.Bookmark },
-                onSuccess: (data) => { onActionComplete(ObjectActionComplete.BookmarkUndo, data); },
-            });
+            isRemoveProcessingRef.current = false;
             return;
         }
-        // If there is more than one bookmark, open dialog to select which one to delete
-        else {
-            setIsBookmarkDialogOpen(true);
+
+        // If there's only one bookmark, delete it.
+        if (bookmarks.length === 1) {
+            const deletionResult = await deleteOne({
+                id: bookmarks[0].id,
+                objectType: DeleteType.Bookmark,
+            });
+            if (deletionResult.data?.success) {
+                onActionComplete(ObjectActionComplete.BookmarkUndo, deletionResult.data);
+            }
+            isRemoveProcessingRef.current = false;
+            return;
         }
-    }, [data, loading, deleteOne, onActionComplete]);
+
+        // If there are multiple bookmarks, open a dialog for the user to select which to delete.
+        setIsBookmarkDialogOpen(true);
+        isRemoveProcessingRef.current = false;
+    }, [getData, deleteOne, objectId, objectType, onActionComplete]);
 
 
     const handleBookmark = useCallback((isAdding: boolean) => {

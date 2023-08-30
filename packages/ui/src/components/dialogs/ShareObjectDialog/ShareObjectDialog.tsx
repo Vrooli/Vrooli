@@ -44,13 +44,15 @@ export const ShareObjectDialog = ({
 
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : "Check out this object on Vrooli", [object]);
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split("?")[0].split("#")[0], [object]);
+    console.log("shareobjectdialog", url, object);
 
     const emailUrl = useMemo(() => `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`, [title, url]);
     const twitterUrl = useMemo(() => `https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`, [url]);
     const linkedInUrl = useMemo(() => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`, [title, url]);
 
     const copyLink = () => {
-        navigator.clipboard.writeText(url);
+        console.log("copying link", url);
+        navigator.clipboard.writeText(`${window.location.origin}${url}`);
         PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
     };
 
@@ -110,7 +112,7 @@ export const ShareObjectDialog = ({
                     <QRCode
                         size={200}
                         style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                        value={window.location.href}
+                        value={`${window.location.origin}${url}`}
                     />
                 </Box>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">

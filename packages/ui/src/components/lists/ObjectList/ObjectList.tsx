@@ -1,11 +1,48 @@
 import { Bookmark, GqlModelType, isOfType, Reaction, View } from "@local/shared";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { useObjectActions } from "hooks/useObjectActions";
 import { useStableCallback } from "hooks/useStableCallback";
 import { useStableObject } from "hooks/useStableObject";
-import { memo, useMemo } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { lazily } from "react-lazily";
+import { useLocation } from "route";
 import { NavigableObject } from "types";
+import { ObjectAction } from "utils/actions/objectActions";
 import { ListObject } from "utils/display/listTools";
-import { ObjectListItem } from "../ObjectListItem/ObjectListItem";
+import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { ActionsType, ListActions, ObjectListItemProps } from "../types";
+
+// Custom list item components
+const { ChatListItem } = lazily(() => import("../ChatListItem/ChatListItem"));
+const { MemberListItem } = lazily(() => import("../MemberListItem/MemberListItem"));
+const { NotificationListItem } = lazily(() => import("../NotificationListItem/NotificationListItem"));
+const { ReminderListItem } = lazily(() => import("../ReminderListItem/ReminderListItem"));
+const { RunProjectListItem } = lazily(() => import("../RunProjectListItem/RunProjectListItem"));
+const { RunRoutineListItem } = lazily(() => import("../RunRoutineListItem/RunRoutineListItem"));
+const getListItemComponent = (objectType: `${GqlModelType}` | "CalendarEvent") => {
+    switch (objectType) {
+        case "Chat": return ChatListItem;
+        case "Member": return MemberListItem;
+        case "Notification": return NotificationListItem;
+        case "Reminder": return ReminderListItem;
+        case "RunProject": return RunProjectListItem;
+        case "RunRoutine": return RunRoutineListItem;
+        default: return ObjectListItemBase;
+    }
+};
+
+function ObjectListItem<T extends ListObject>({
+    objectType,
+    ...props
+}: ObjectListItemProps<T>) {
+    const ListItem = useMemo<(props: any) => JSX.Element>(() => getListItemComponent(objectType), [objectType]);
+    return (
+        <ListItem
+            objectType={objectType}
+            {...props}
+        />
+    );
+}
 
 const MemoizedObjectListItem = memo<ObjectListItemProps<ListObject>>(ObjectListItem, (prevProps, nextProps) => {
     // Add custom comparison if needed. For now, a shallow comparison will suffice.
@@ -40,8 +77,29 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
     loading,
     onClick,
 }: ObjectListProps<T>) => {
+    const [, setLocation] = useLocation();
     const stableItems = useStableObject(items);
     const stableOnClick = useStableCallback(onClick);
+
+    // Handle context menu
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const [object, setObject] = useState<ListObject | null>(null);
+    const handleContextMenu = useCallback((target: EventTarget, object: ListObject | null) => {
+        if (!object) return;
+        setAnchorEl(target as HTMLElement);
+        setObject(object);
+    }, []);
+    const closeContextMenu = useCallback(() => {
+        setAnchorEl(null);
+        // Don't remove object, since dialogs opened from context menu may need it
+    }, []);
+    const actionData = useObjectActions({
+        canNavigate,
+        object,
+        objectType: object?.__typename ?? "Routine" as GqlModelType,
+        setLocation,
+        setObject,
+    });
 
     // Generate real list items
     const realItems = useMemo(() => {
@@ -55,6 +113,7 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
                     key={`${keyPrefix}-${curr.id}`}
                     canNavigate={canNavigate}
                     data={curr as ListObject}
+                    handleContextMenu={handleContextMenu}
                     hideUpdateButton={hideUpdateButton}
                     loading={false}
                     objectType={curr.__typename}
@@ -62,7 +121,7 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
                 />
             );
         });
-    }, [stableItems, canNavigate, hideUpdateButton, stableOnClick, keyPrefix]);
+    }, [stableItems, canNavigate, handleContextMenu, hideUpdateButton, stableOnClick, keyPrefix]);
 
     // Generate dummy items
     const dummyListItems = useMemo(() => {
@@ -71,6 +130,7 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
                 <MemoizedObjectListItem
                     key={`${keyPrefix}-dummy-${index}`}
                     data={null}
+                    handleContextMenu={handleContextMenu}
                     hideUpdateButton={hideUpdateButton}
                     loading={true}
                     objectType={dummy}
@@ -78,11 +138,21 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
             ));
         }
         return [];
-    }, [loading, dummyItems, keyPrefix, hideUpdateButton]);
+    }, [loading, dummyItems, keyPrefix, handleContextMenu, hideUpdateButton]);
 
     return (
         <>
+            {/* Context menus */}
+            <ObjectActionMenu
+                actionData={actionData}
+                anchorEl={anchorEl}
+                exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
+                object={object}
+                onClose={closeContextMenu}
+            />
+            {/* Actual results */}
             {realItems}
+            {/* Placeholders while loading more data */}
             {dummyListItems}
         </>
     );

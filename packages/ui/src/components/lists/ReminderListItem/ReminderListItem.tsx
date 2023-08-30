@@ -6,6 +6,46 @@ import { ReminderListItemProps } from "components/lists/types";
 import { DeleteIcon, ScheduleIcon } from "icons";
 import { useCallback, useMemo } from "react";
 
+//  // Internal state
+//  const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);
+//  useEffect(() => {
+//      setAllReminders(reminders);
+//  }, [reminders]);
+
+//  const handleUpdated = useCallback((index: number, reminder: Reminder) => {
+//      const newList = [...allReminders];
+//      newList[index] = reminder;
+//      setAllReminders(newList);
+//      handleUpdate && handleUpdate(newList);
+//  }, [allReminders, handleUpdate]);
+
+//  // Handle update mutation
+//  const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
+//  useDisplayServerError(updateErrors);
+//  const saveUpdate = useCallback((updated: Reminder) => {
+//      const index = allReminders.findIndex((reminder) => reminder.id === updated.id);
+//      if (index < 0) return;
+//      const original = allReminders[index];
+//      // Don't wait for the mutation to call handleUpdated
+//      handleUpdated(index, updated);
+//      // Call the mutation
+//      fetchLazyWrapper<ReminderUpdateInput, Reminder>({
+//          fetch: updateMutation,
+//          inputs: shapeReminder.update(original, updated),
+//          successCondition: (data) => !!data.id,
+//          successMessage: () => ({ messageKey: "ObjectUpdated", messageVariables: { objectName: updated.name } }),
+//      });
+//  }, [allReminders, handleUpdated, updateMutation]);
+
+//  const handleDeleted = useCallback((id: string) => {
+//      const index = allReminders.findIndex((reminder) => reminder.id === id);
+//      if (index < 0) return;
+//      const newList = [...allReminders];
+//      newList.splice(index, 1);
+//      setAllReminders(newList);
+//      handleUpdate && handleUpdate(newList);
+//  }, [allReminders, handleUpdate]);
+
 /**
  * A list item for a reminder, which can contain sub-items 
  * if the reminder has steps. 
@@ -36,6 +76,7 @@ export function ReminderListItem({
         }
     }, [onAction, data]);
     const handleCheck = useCallback(() => {
+        console.log("in handle check", onAction, data);
         if (checkDisabled || !data) return;
         const updatedItems = data.reminderItems.length > 0 ?
             { ...(data.reminderItems.map(item => ({ ...item, isComplete: !checked }))) } :

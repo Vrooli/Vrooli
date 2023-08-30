@@ -4,7 +4,6 @@ import { ListTitleContainer } from "components/containers/ListTitleContainer/Lis
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { SiteSearchBar } from "components/inputs/search";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ReminderList } from "components/lists/reminder";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -14,7 +13,7 @@ import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useFetch } from "hooks/useFetch";
 import { useReactSearch } from "hooks/useReactSearch";
 import { PageTab } from "hooks/useTabs";
-import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon } from "icons";
+import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon, ReminderIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -168,9 +167,6 @@ export const DashboardView = ({
             setReminders(data.reminders);
         }
     }, [data]);
-    const handleReminderUpdate = useCallback((updatedReminders: Reminder[]) => {
-        setReminders(updatedReminders);
-    }, []);
 
     const reminderListId = useMemo(() => {
         // First, try to find list using foccus mode
@@ -186,8 +182,6 @@ export const DashboardView = ({
             setNotes(data.notes);
         }
     }, [data]);
-
-    const openCreateNote = useCallback(() => { setLocation(`${LINKS.Note}/add`); }, []);
 
     // Calculate upcoming events using schedules 
     const upcomingEvents = useMemo(() => {
@@ -287,13 +281,28 @@ export const DashboardView = ({
                     />
                 </ListTitleContainer>
                 {/* Reminders */}
-                <ReminderList
-                    handleUpdate={handleReminderUpdate}
+                <ListTitleContainer
+                    Icon={ReminderIcon}
                     id="main-reminder-list"
-                    loading={loading}
-                    listId={reminderListId}
-                    reminders={reminders}
-                />
+                    isEmpty={reminders.length === 0 && !loading}
+                    title={t("Reminder", { count: 2 })}
+                    options={[{
+                        Icon: OpenInNewIcon,
+                        label: t("SeeAll"),
+                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminder}`); },
+                    }, {
+                        Icon: AddIcon,
+                        label: t("Create"),
+                        onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
+                    }]}
+                >
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Reminder")}
+                        items={reminders}
+                        keyPrefix="reminder-list-item"
+                        loading={loading}
+                    />
+                </ListTitleContainer>
                 {/* Notes */}
                 <ListTitleContainer
                     Icon={NoteIcon}
@@ -307,7 +316,7 @@ export const DashboardView = ({
                     }, {
                         Icon: AddIcon,
                         label: t("Create"),
-                        onClick: openCreateNote,
+                        onClick: () => { setLocation(`${LINKS.Note}/add`); },
                     }]}
                 >
                     <ObjectList

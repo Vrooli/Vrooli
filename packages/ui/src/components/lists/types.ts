@@ -32,6 +32,7 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     canNavigate?: (item: NavigableObject) => boolean | void;
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
+    handleContextMenu: (target: EventTarget, object: ListObject | null) => unknown;
     /** If update button should be hidden */
     hideUpdateButton?: boolean;
     /** If data is still being fetched */

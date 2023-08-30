@@ -4,11 +4,9 @@ import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
-import { useObjectActions } from "hooks/useObjectActions";
 import usePress from "hooks/usePress";
 import { useWindowSize } from "hooks/useWindowSize";
 import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
@@ -17,7 +15,6 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { SvgComponent } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
@@ -46,10 +43,10 @@ export function ObjectListItemBase<T extends ListObject>({
     canNavigate,
     belowSubtitle,
     belowTags,
+    handleContextMenu,
     hideUpdateButton,
     loading,
     data,
-    objectType,
     onClick,
     subtitleOverride,
     titleOverride,
@@ -69,13 +66,6 @@ export function ObjectListItemBase<T extends ListObject>({
     const { canBookmark, canComment, canUpdate, canReact, isBookmarked, reaction } = useMemo(() => getYou(data), [data]);
     const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
     const { score } = useMemo(() => getCounts(data), [data]);
-
-    // Context menu
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const handleContextMenu = useCallback((target: EventTarget) => {
-        setAnchorEl(target as HTMLElement);
-    }, []);
-    const closeContextMenu = useCallback(() => setAnchorEl(null), []);
 
     const link = useMemo(() => (
         data &&
@@ -120,9 +110,9 @@ export function ObjectListItemBase<T extends ListObject>({
     }, [canNavigate, data, editUrl, setLocation]);
 
     const pressEvents = usePress({
-        onLongPress: handleContextMenu,
+        onLongPress: (target) => { handleContextMenu(target, data); },
         onClick: handleClick,
-        onRightClick: handleContextMenu,
+        onRightClick: (target) => { handleContextMenu(target, data); },
     });
 
     /**
@@ -269,24 +259,8 @@ export function ObjectListItemBase<T extends ListObject>({
         );
     }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
-    const actionData = useObjectActions({
-        canNavigate,
-        object,
-        objectType,
-        setLocation,
-        setObject,
-    });
-
     return (
         <>
-            {/* Context menu */}
-            <ObjectActionMenu
-                actionData={actionData}
-                anchorEl={anchorEl}
-                exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
-                object={object}
-                onClose={closeContextMenu}
-            />
             {/* List item */}
             <ListItem
                 id={`${LIST_PREFIX}${id}`}

@@ -14,9 +14,10 @@ import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import { $createHeadingNode, $isHeadingNode, HeadingNode, HeadingTagType, QuoteNode } from "@lexical/rich-text";
 import { $isAtNodeEnd, $isParentElementRTL, $setBlocksType } from "@lexical/selection";
-import { $isTableNode } from "@lexical/table";
+import { $isTableNode, TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
@@ -767,6 +768,7 @@ const RichInputLexicalComponents = ({
             <OnChangePlugin onChange={() => { console.log("onchangeeee"); }} />
             <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
+            <TablePlugin />
         </Box>
     );
 };
@@ -787,7 +789,7 @@ export const RichInputLexical = ({
         // Will need custom transformers if we want to support custom markdown syntax (e.g. underline, spoiler)
         editorState: () => $convertFromMarkdownString(value, ALL_TRANSFORMERS),
         namespace: "RichInputEditor",
-        nodes: [AutoLinkNode, CodeNode, CodeHighlightNode, HashtagNode, HeadingNode, HorizontalRuleNode, LineBreakNode, LinkNode, ListNode, ListItemNode, ParagraphNode, QuoteNode, SpoilerNode],
+        nodes: [AutoLinkNode, CodeNode, CodeHighlightNode, HashtagNode, HeadingNode, HorizontalRuleNode, LineBreakNode, LinkNode, ListNode, ListItemNode, ParagraphNode, QuoteNode, SpoilerNode, TableNode, TableCellNode, TableRowNode],
         onError,
         theme,
     }), [value]);
