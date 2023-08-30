@@ -99,7 +99,7 @@ export const preShapeRoot = async ({
             const original = originalData.find(r => r.id === update.id);
             if (!original) throw new CustomError("0412", "InternalError", userData.languages, { id: update?.id });
             const isRootPrivate = update.isPrivate ?? original.isPrivate;
-            // Convert original verions to map for easy lookup
+            // Convert original versions to map for easy lookup
             const updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, any>);
             // Combine updated versions with original versions
             if (update.versionsUpdate) {

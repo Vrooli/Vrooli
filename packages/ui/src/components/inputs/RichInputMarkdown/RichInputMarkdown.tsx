@@ -434,7 +434,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             textarea?.removeEventListener("keydown", handleTextareaKeyDown);
             fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
         };
-    }, [bold, getTaggableItems, onChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, toggleMarkdown, undo, id, tagData, selectDropdownItem, value, spoiler]);
+    }, [bold, getTaggableItems, onChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, toggleMarkdown, undo, id, tagData, selectDropdownItem, value, spoiler, underline]);
 
     return (
         <>

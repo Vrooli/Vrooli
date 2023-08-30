@@ -260,8 +260,9 @@ export interface LargeDialogProps {
     sxs?: { paper?: SxType; }
 }
 
-export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "onClose"> {
+export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "isOpen" | "onClose"> {
     display: ViewDisplayType;
+    isOpen?: boolean;
     onClose?: () => unknown;
 }
 

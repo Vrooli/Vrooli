@@ -1,4 +1,4 @@
-import { BookmarkFor, CopyType, DeleteType, exists, LINKS, ReactionFor, ReportFor, setDotNotationValue } from "@local/shared";
+import { BookmarkFor, CopyType, Count, DeleteType, exists, LINKS, ReactionFor, ReportFor, setDotNotationValue, Success } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { SetLocation } from "route";
@@ -62,9 +62,13 @@ const openDialogIfExists = (dialog: (() => void) | null | undefined) => {
     dialog();
 };
 
-/**
- * Hook for updating state and navigating upon completing an action
- */
+const toSuccess = (data: unknown) => {
+    if ((data as Success).__typename === "Success") return (data as Success).success === true;
+    if ((data as Count).__typename === "Count") return (data as Count).count > 0;
+    return exists(data);
+};
+
+/** Hook for updating state and navigating upon completing an action */
 export const useObjectActions = ({
     canNavigate,
     object,
@@ -86,8 +90,12 @@ export const useObjectActions = ({
             case ObjectActionComplete.Bookmark:
             case ObjectActionComplete.BookmarkUndo: {
                 const isBookmarkedLocation = getYouDot(object, "isBookmarked");
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful && isBookmarkedLocation && object) setObject(setDotNotationValue(object, isBookmarkedLocation as any, wasSuccessful));
+                const wasSuccessful = toSuccess(data);
+                console.log("completedbookmark", action, data);
+                if (wasSuccessful && isBookmarkedLocation) {
+                    console.log("updating object", object);
+                    setObject(setDotNotationValue(object, isBookmarkedLocation as any, action === ObjectActionComplete.Bookmark));
+                }
                 break;
             }
             case ObjectActionComplete.Fork: {
@@ -101,7 +109,7 @@ export const useObjectActions = ({
             case ObjectActionComplete.VoteUp: {
                 const reactionLocation = getYouDot(object, "reaction");
                 const emoji = action === ObjectActionComplete.VoteUp ? "👍" : action === ObjectActionComplete.VoteDown ? "👎" : null;
-                if (data.success && reactionLocation && object) setObject(setDotNotationValue(object, reactionLocation as any, emoji));
+                if (toSuccess(data) && reactionLocation) setObject(setDotNotationValue(object, reactionLocation as any, emoji));
                 break;
             }
         }

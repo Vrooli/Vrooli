@@ -56,12 +56,18 @@ export const LargeDialog = ({
 export const MaybeLargeDialog = ({
     children,
     display,
+    isOpen,
     onClose,
     ...props
 }: MaybeLargeDialogProps) => {
     return display === "dialog" ? (
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        <LargeDialog onClose={onClose ?? (() => { })} {...props}>
+        <LargeDialog
+            onClose={onClose ?? (() => {
+                console.warn("onClose not passed to MaybeLargeDialog");
+            })}
+            isOpen={isOpen ?? false}
+            {...props}
+        >
             {children}
         </LargeDialog>
     ) : (
