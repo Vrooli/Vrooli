@@ -1,7 +1,6 @@
-import { InputType, NoteVersion, Reminder, ReminderCreateInput } from "@local/shared";
+import { InputType, NoteVersion, Reminder } from "@local/shared";
 import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
-import { MakeLazyRequest } from "hooks/useLazyFetch";
 import { Dispatch, ReactNode, SetStateAction } from "react";
 import { Forms } from "utils/consts";
 import { ListObject } from "utils/display/listTools";
@@ -116,12 +115,8 @@ export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShap
     versions: string[];
 }
 export type QuestionFormProps = BaseObjectFormProps<QuestionShape>
-export interface ReminderFormProps extends BaseObjectFormProps<ReminderShape> {
+export interface ReminderFormProps extends ImprovedFormProps<Reminder, ReminderShape> {
     index?: number;
-    fetchCreate: MakeLazyRequest<ReminderCreateInput, Reminder>;
-    handleClose: (_?: unknown, reason?: "backdropClick" | "escapeKeyDown" | undefined) => void;
-    handleCreated: (data: Reminder) => void;
-    handleDeleted: (data: Reminder) => void;
     reminderListId?: string;
 }
 export type ReportFormProps = BaseObjectFormProps<ReportShape>
