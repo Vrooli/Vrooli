@@ -1,17 +1,17 @@
 import * as yup from "yup";
-import { blankToUndefined, bool, description, id, intPositiveOrZero, language, maxStrErr, name, opt, req, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import { bool, description, id, intPositiveOrZero, language, maxStrErr, name, opt, req, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { noteValidation } from "./note";
 
-const text = yup.string().transform(blankToUndefined).max(65536, maxStrErr);
+const text = yup.string().max(65536, maxStrErr);
 
 export const notePageValidation: YupModel = {
     create: ({ o }) => yupObj({
         pageIndex: req(intPositiveOrZero),
-        text: req(text),
+        text: text.defined().strict(true),
     }, [], [], o),
     update: ({ o }) => yupObj({
         pageIndex: opt(intPositiveOrZero),
-        text: opt(text),
+        text: text.defined().strict(true).optional(),
     }, [], [], o),
 };
 
