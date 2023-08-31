@@ -76,7 +76,7 @@ const processTranslatedBatchHelper = async (
     prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
 ): Promise<void> => {
-    const model = ObjectMap[objectType]! as ModelLogic<any, any>;
+    const model = ObjectMap[objectType]!;
     // Extract sentences from the batch
     const sentences = extractTranslatedSentences(batch, model);
     if (sentences.length === 0) return;

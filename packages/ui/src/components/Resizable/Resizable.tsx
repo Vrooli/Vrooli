@@ -1,5 +1,5 @@
 import { Box, useTheme } from "@mui/material";
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, MouseEventHandler, TouchEventHandler, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SxType } from "types";
 import { getCookieDimensions, setCookieDimensions } from "utils/cookies";
 

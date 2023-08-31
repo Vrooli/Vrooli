@@ -169,7 +169,7 @@ const NoteForm = ({
             });
         };
         PubSub.get().publishAlertDialog({
-            messageKey: "DeleteNoteConfirm",
+            messageKey: "DeleteConfirm",
             buttons: [{
                 labelKey: "Delete",
                 onClick: performDelete,

@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { Trigger } from "../events";
+import { CustomError, Trigger } from "../events";
 import { TransferModel } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 
@@ -89,11 +89,11 @@ export const onCommonRoot = async ({ created, deletedIds, objectType, preMap, pr
     for (let i = 0; i < deletedIds.length; i++) {
         const objectId = deletedIds[i];
         // Get trigger info
-        const {
-            hasBeenTransferred,
-            hasParent,
-            wasCompleteAndPublic,
-        } = preMap[objectType].triggerMap[objectId];
+        const preData = preMap[objectType];
+        if (!preData || !preData.triggerMap || !preData.triggerMap[objectId]) {
+            throw new CustomError("0085", "InternalError", ["en"]);
+        }
+        const { hasBeenTransferred, hasParent, wasCompleteAndPublic } = preData.triggerMap[objectId];
         // Trigger objectDeleted
         await Trigger(prisma, userData.languages).objectDeleted({
             deletedById: userData.id,

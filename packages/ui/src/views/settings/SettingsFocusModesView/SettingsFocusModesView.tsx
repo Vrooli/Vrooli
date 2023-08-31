@@ -50,7 +50,7 @@ export const SettingsFocusModesView = ({
         }
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            messageKey: "DeleteFocusModeConfirm",
+            messageKey: "DeleteConfirm",
             buttons: [
                 {
                     labelKey: "Yes", onClick: () => {

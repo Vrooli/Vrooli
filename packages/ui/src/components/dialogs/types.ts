@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
@@ -34,10 +34,9 @@ export interface DeleteAccountDialogProps {
 
 export interface DeleteDialogProps {
     handleClose: (wasDeleted: boolean) => unknown;
+    handleDelete: () => unknown;
     isOpen: boolean;
-    objectId: string;
     objectName: string;
-    objectType: DeleteType;
 }
 
 export interface DialogTitleProps extends Omit<TitleProps, "sxs"> {

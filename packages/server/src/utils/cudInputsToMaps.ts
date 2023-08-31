@@ -51,10 +51,11 @@ export const cudInputsToMaps = async ({
     // Filter out objects that are strings (i.e. Deletes), since the rest of the function only works with objects
     const inputs = manyList.filter(object => {
         const isString = typeof object.data === "string";
-        // If string, add to idsByType and idsByAction. Deletes don't have an input, so we can ignore the inputsByType map
+        // If string, add to return objects
         if (isString) {
             idsByType[objectType] = [...(idsByType[objectType] ?? []), object.data as string];
             idsByAction["Delete"] = [...(idsByAction["Delete"] ?? []), object.data as string];
+            inputsByType[objectType] = { Create: [], Update: [], Delete: [object.data as string] };
         }
         return !isString;
     });

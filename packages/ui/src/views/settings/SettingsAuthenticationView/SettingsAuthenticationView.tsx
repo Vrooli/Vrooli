@@ -191,7 +191,7 @@ export const SettingsAuthenticationView = ({
                                     PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                     return;
                                 }
-                                if (typeof values.newPassword === "string" && values.newPassword.length > 0 && values.newPasswordConfirmation !== values.newPasswordConfirmation) {
+                                if (typeof values.newPassword === "string" && values.newPassword.length > 0 && values.newPassword !== (values as any).newPasswordConfirmation) {
                                     PubSub.get().publishSnack({ messageKey: "PasswordsDontMatch", severity: "Error" });
                                     helpers.setSubmitting(false);
                                     return;
@@ -204,7 +204,7 @@ export const SettingsAuthenticationView = ({
                                     },
                                     onSuccess: (data) => { onProfileUpdate(data); },
                                     onCompleted: () => { helpers.setSubmitting(false); },
-                                    successMessage: () => ({ messageKey: "Success " }),
+                                    successMessage: () => ({ messageKey: "Success" }),
                                 });
                             }}
                             validationSchema={profileEmailUpdateFormValidation}

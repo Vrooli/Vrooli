@@ -16,7 +16,7 @@ export const LINKS = {
     Inbox: "/inbox",
     MyStuff: "/my",
     Note: "/note",
-    Organization: "/org",
+    Organization: "/team",
     Premium: "/premium",
     Privacy: "/privacy", // Privacy policy
     Profile: "/profile",
