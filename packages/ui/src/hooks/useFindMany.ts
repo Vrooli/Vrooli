@@ -203,6 +203,26 @@ export const useFindMany = <DataType extends Record<string, any>>({
     }, [getData, stableCanSearch, stableWhere]);
 
     const [allData, setAllData] = useState<DataType[]>([]);
+    const updateItem = useCallback((item: DataType) => {
+        setAllData(curr => {
+            const index = curr.findIndex(i => i.id === item.id);
+            if (index === -1) return curr;
+            const copy = [...curr];
+            copy[index] = item;
+            return copy;
+        });
+    }, []);
+    const removeItem = useCallback((id: string, idField?: string) => {
+        console.log("in usefindmany removeItem", id);
+        setAllData(curr => {
+            const index = curr.findIndex(i => i[idField ?? "id"] === id);
+            console.log("in usefindmany removeItem - found item?", index);
+            if (index === -1) return curr;
+            const copy = [...curr];
+            copy.splice(index, 1);
+            return copy;
+        });
+    }, []);
 
     // Handle advanced search params
     const [advancedSearchParams, setSearchParams] = useState<object | null>(params.current.advancedSearchParams);
@@ -365,6 +385,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         defaultSortBy: params?.current?.defaultSortBy,
         loading,
         loadMore,
+        removeItem,
         searchString: params?.current?.searchString,
         setAdvancedSearchParams,
         setAllData,
@@ -374,5 +395,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
         sortBy: params?.current?.sortBy,
         sortByOptions: params?.current?.sortByOptions,
         timeFrame: params?.current?.timeFrame,
+        updateItem,
     };
 };

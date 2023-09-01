@@ -84,6 +84,7 @@ export const useDeleter = ({
             successCondition: (data) => data.success,
             successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { objectName } }),
             onSuccess: () => {
+                onActionComplete(ObjectActionComplete.Delete, true);
                 // If we're on the page for the object being deleted, navigate away
                 const onObjectsPage = window.location.pathname.startsWith(LINKS[objectType]);
                 if (!onObjectsPage) return;
@@ -93,7 +94,6 @@ export const useDeleter = ({
                 } else {
                     setLocation(LINKS.Home);
                 }
-                onActionComplete(ObjectActionComplete.Delete, true);
             },
             errorMessage: () => ({ messageKey: "FailedToDelete" }),
             onError: () => {

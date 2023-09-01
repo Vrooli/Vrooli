@@ -1,10 +1,10 @@
-import { Chat, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, Success } from "@local/shared";
+import { Chat, endpointPutNotificationsMarkAllAsRead, Notification, Success } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ListActions } from "components/lists/types";
+import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useDisplayServerError } from "hooks/useDisplayServerError";
@@ -14,7 +14,7 @@ import { useTabs } from "hooks/useTabs";
 import { AddIcon, CompleteIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { ArgsType } from "types";
 import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { InboxPageTabOption, inboxTabParams } from "utils/search/objectToSearch";
@@ -28,7 +28,6 @@ export const InboxView = ({
     isOpen,
     onClose,
 }: InboxViewProps) => {
-    const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
     const display = toDisplay(isOpen);
@@ -44,42 +43,19 @@ export const InboxView = ({
     const {
         allData,
         loading,
+        removeItem,
         loadMore,
         setAllData,
+        updateItem,
     } = useFindMany<InboxObject>({
         searchType,
         where: where(),
     });
     console.log("alldata", allData);
 
-    const [deleteMutation, { errors: deleteErrors }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
-    const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
+
     const [markAllAsReadMutation, { errors: markAllErrors }] = useLazyFetch<undefined, Success>(endpointPutNotificationsMarkAllAsRead);
-    useDisplayServerError(deleteErrors ?? markErrors ?? markAllErrors);
-
-    const onDelete = useCallback((id: string, objectType: InboxType) => {
-        fetchLazyWrapper<DeleteOneInput, Success>({
-            fetch: deleteMutation,
-            inputs: { id, objectType: objectType as DeleteType },
-            successCondition: (data) => data.success,
-            onSuccess: () => {
-                setAllData(n => n.filter(n => n.id !== id));
-            },
-        });
-    }, [deleteMutation, setAllData]);
-
-    const onMarkAsRead = useCallback((id: string, objectType: InboxType) => {
-        // TODO handle chats
-        if (objectType === "Chat") return;
-        fetchLazyWrapper<FindByIdInput, Success>({
-            fetch: markAsReadMutation,
-            inputs: { id },
-            successCondition: (data) => data.success,
-            onSuccess: () => {
-                setAllData(n => n.map(n => n.id === id ? { ...n, isRead: true } : n));
-            },
-        });
-    }, [markAsReadMutation, setAllData]);
+    useDisplayServerError(markAllErrors);
 
     const onMarkAllAsRead = useCallback(() => {
         // TODO handle chats
@@ -107,16 +83,17 @@ export const InboxView = ({
         return [openCreateChat, AddIcon, "CreateChat"] as const;
     }, [currTab.tabType, onMarkAllAsRead, openCreateChat]);
 
-    const onAction = useCallback((action: keyof ListActions, data: unknown) => {
+    const onAction = useCallback((action: keyof ObjectListActions<InboxObject>, ...data: unknown[]) => {
+        console.log("inboxview onaction", action, data);
         switch (action) {
-            case "Delete":
-                onDelete(data as InboxType, searchType as InboxType);
+            case "Deleted":
+                removeItem(...(data as ArgsType<ObjectListActions<InboxObject>["Deleted"]>));
                 break;
-            case "MarkAsRead":
-                onMarkAsRead(data as string, searchType as InboxType);
+            case "Updated":
+                updateItem(...(data as ArgsType<ObjectListActions<InboxObject>["Updated"]>));
                 break;
         }
-    }, [onDelete, onMarkAsRead, searchType]);
+    }, [removeItem, updateItem]);
 
     // If near the bottom of the page, load more data
     const handleScroll = useCallback(() => {

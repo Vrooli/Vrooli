@@ -1,5 +1,9 @@
+import { endpointPutNotification, FindByIdInput, Success } from "@local/shared";
 import { Chip, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { DeleteIcon, VisibleIcon } from "icons";
+import { fetchLazyWrapper } from "api";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { VisibleIcon } from "icons";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { NotificationListItemProps } from "../types";
@@ -11,6 +15,18 @@ export function NotificationListItem({
 }: NotificationListItemProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
+
+    const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
+    const onMarkAsRead = useCallback((id: string) => {
+        fetchLazyWrapper<FindByIdInput, Success>({
+            fetch: markAsReadMutation,
+            inputs: { id },
+            successCondition: (data) => data.success,
+            onSuccess: () => {
+                onAction("Deleted", id);
+            },
+        });
+    }, [markAsReadMutation]);
 
     return (
         <ObjectListItemBase
@@ -36,11 +52,6 @@ export function NotificationListItem({
                             <VisibleIcon fill={palette.secondary.main} />
                         </IconButton>
                     </Tooltip>}
-                    <Tooltip title={t("Delete")}>
-                        <IconButton edge="end" size="small" onClick={() => data && onAction("Delete", data.id)}>
-                            <DeleteIcon fill={palette.secondary.main} />
-                        </IconButton>
-                    </Tooltip>
                 </Stack>
             }
             data={data}

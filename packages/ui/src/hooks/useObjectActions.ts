@@ -1,8 +1,8 @@
 import { Count, exists, GqlModelType, LINKS, ReportFor, setDotNotationValue, Success } from "@local/shared";
+import { ObjectListItemProps } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { SetLocation } from "route";
-import { NavigableObject } from "types";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYou, getYouDot, ListObject } from "utils/display/listTools";
@@ -14,15 +14,12 @@ import { useDeleter } from "./useDeleter";
 import { useVoter } from "./useVoter";
 
 export type UseObjectActionsProps = {
-    /** Checks if navigation away from the current page is allowed */
-    canNavigate?: ((item: NavigableObject) => boolean | void) | null | undefined
     object: ListObject | null | undefined;
     objectType: ListObject["__typename"];
-    onClick?: (item: NavigableObject) => void;
     openAddCommentDialog?: () => void;
     setLocation: SetLocation;
     setObject: Dispatch<SetStateAction<any>>;
-}
+} & Pick<ObjectListItemProps<any>, "canNavigate" | "onAction" | "onClick">
 
 export type UseObjectActionsReturn = {
     availableActions: ObjectAction[];
@@ -71,6 +68,7 @@ export const useObjectActions = ({
     object,
     objectType,
     onClick,
+    onAction,
     openAddCommentDialog,
     setLocation,
     setObject,
@@ -95,6 +93,10 @@ export const useObjectActions = ({
                 }
                 break;
             }
+            case ObjectActionComplete.Delete:
+                console.log("onactioncomplete delete", object, onAction);
+                if (typeof onAction === "function") onAction("Deleted", object.id ?? "");
+                break;
             case ObjectActionComplete.Fork: {
                 // Data is in first key with a value
                 const forkData: any = Object.values(data).find((v) => typeof v === "object");
@@ -110,7 +112,7 @@ export const useObjectActions = ({
                 break;
             }
         }
-    }, [object, setLocation, setObject]);
+    }, [object, onAction, setLocation, setObject]);
 
     // Hooks for specific actions
     const {

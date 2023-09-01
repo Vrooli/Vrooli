@@ -10,11 +10,11 @@ import { PlusIcon } from "icons";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { NavigableObject } from "types";
+import { ArgsType, NavigableObject } from "types";
 import { ListObject } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
 import { ObjectList } from "../ObjectList/ObjectList";
-import { SearchListProps } from "../types";
+import { ObjectListActions, SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({
     canNavigate = () => true,
@@ -42,6 +42,7 @@ export function SearchList<DataType extends NavigableObject>({
         autocompleteOptions,
         loading,
         loadMore,
+        removeItem,
         searchString,
         setAdvancedSearchParams,
         setSortBy,
@@ -50,6 +51,7 @@ export function SearchList<DataType extends NavigableObject>({
         sortBy,
         sortByOptions,
         timeFrame,
+        updateItem,
     } = useFindMany<DataType>({
         canSearch,
         resolve,
@@ -57,6 +59,17 @@ export function SearchList<DataType extends NavigableObject>({
         take,
         where,
     });
+
+    const onAction = useCallback((action: keyof ObjectListActions<DataType>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted":
+                removeItem(...(data as ArgsType<ObjectListActions<DataType>["Deleted"]>));
+                break;
+            case "Updated":
+                updateItem(...(data as ArgsType<ObjectListActions<DataType>["Updated"]>));
+                break;
+        }
+    }, [removeItem, updateItem]);
 
     // Handle infinite scroll
     const containerRef = useRef<HTMLDivElement>(null);
@@ -179,6 +192,7 @@ export function SearchList<DataType extends NavigableObject>({
                     items={allData as ListObject[]}
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
+                    onAction={onAction}
                     onClick={onItemClick}
                 />
             </ListContainer>

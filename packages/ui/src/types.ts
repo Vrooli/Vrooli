@@ -52,6 +52,8 @@ export type Wrap<T, K extends string> = { [P in K]: T };
 /** Wrapper for GraphQL input types */
 export type IWrap<T> = { input: T }
 
+/** Extracts the arguments from a function */
+export type ArgsType<T> = T extends (...args: infer U) => any ? U : never;
 
 /** An object connected to routing */
 export type NavigableObject = Omit<ListObject, "__typename"> & {

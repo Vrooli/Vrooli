@@ -1,4 +1,4 @@
-import { Api, Chat, CommonKey, FocusMode, Meeting, Member, Note, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
+import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
@@ -20,7 +20,7 @@ export type ActionFunctions<T> = {
     [K in keyof T]: T[K] extends (...args: infer U) => any ? U : never;
 };
 
-export type ActionsType<T extends ListObject, A = CommonActions<T>> = { onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => unknown }
+export type ActionsType<T extends ListObject> = { onAction: <K extends keyof ObjectListActions<T>>(action: K, ...args: ActionFunctions<ObjectListActions<T>>[K]) => unknown }
 
 type ObjectListItemBaseProps<T extends ListObject> = {
     /**
@@ -42,46 +42,19 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     titleOverride?: string;
     toTheRight?: React.ReactNode;
 }
-export type ObjectListItemProps<
-    T extends ListObject,
-    A extends Record<string, ((...args: any[]) => unknown)> = CommonActions<T>
-> = ObjectListItemBaseProps<T> & ActionsType<T, A>;
+export type ObjectListItemProps<T extends ListObject> = ObjectListItemBaseProps<T> & ActionsType<T>;
 
-export type CommonActions<T> = {
-    Delete: (id: string) => void;
-    Update: (data: T) => void;
-};
-export type ChatListItemActions = CommonActions<Chat> & {
-    MarkAsRead: (id: string) => void;
-};
-export type NotificationListItemActions = CommonActions<Notification> & {
-    MarkAsRead: (id: string) => void;
+export type ObjectListActions<T> = {
+    Deleted: (id: string) => void;
+    Updated: (data: T) => void;
 };
 
-/**
- * Maps object types to their list item's custom actions.
- * Not all object types have custom actions.
- */
-export interface ListActions {
-    Api: CommonActions<Api>
-    Chat: ChatListItemActions;
-    Member: CommonActions<Member>;
-    Note: CommonActions<Note>;
-    Notification: NotificationListItemActions;
-    Organization: CommonActions<Organization>;
-    Reminder: CommonActions<Reminder>;
-    RunProject: CommonActions<RunProject>;
-    RunRoutine: CommonActions<RunRoutine>;
-}
-export type ObjectListActions<T extends ListObject["__typename"]> = T extends keyof ListActions ? ListActions[T] : CommonActions<any>;
-
-
-export type ChatListItemProps = ObjectListItemProps<Chat, ListActions["Chat"]>
-export type MemberListItemProps = ObjectListItemProps<Member, ListActions["Member"]>
-export type NotificationListItemProps = ObjectListItemProps<Notification, ListActions["Notification"]>
-export type ReminderListItemProps = ObjectListItemProps<Reminder, ListActions["Reminder"]>
-export type RunProjectListItemProps = ObjectListItemProps<RunProject, ListActions["RunProject"]>
-export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine, ListActions["RunRoutine"]>
+export type ChatListItemProps = ObjectListItemProps<Chat>
+export type MemberListItemProps = ObjectListItemProps<Member>
+export type NotificationListItemProps = ObjectListItemProps<Notification>
+export type ReminderListItemProps = ObjectListItemProps<Reminder>
+export type RunProjectListItemProps = ObjectListItemProps<RunProject>
+export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
 export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;

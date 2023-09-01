@@ -10,7 +10,7 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { ListObject } from "utils/display/listTools";
 import { noop } from "utils/objects";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { ObjectListActions, ObjectListItemProps } from "../types";
+import { ObjectListItemProps } from "../types";
 
 // Custom list item components
 const { ChatListItem } = lazily(() => import("../ChatListItem/ChatListItem"));
@@ -34,7 +34,7 @@ const getListItemComponent = (objectType: `${GqlModelType}` | "CalendarEvent") =
 function ObjectListItem<T extends ListObject>({
     objectType,
     ...props
-}: ObjectListItemProps<T, ObjectListActions<T["__typename"]>>) {
+}: ObjectListItemProps<T>) {
     const ListItem = useMemo<(props: any) => JSX.Element>(() => getListItemComponent(objectType), [objectType]);
     return (
         <ListItem
@@ -44,15 +44,15 @@ function ObjectListItem<T extends ListObject>({
     );
 }
 
-const MemoizedObjectListItem = memo<ObjectListItemProps<ListObject, ObjectListActions<ListObject["__typename"]>>>(ObjectListItem, (prevProps, nextProps) => {
+const MemoizedObjectListItem = memo<ObjectListItemProps<ListObject>>(ObjectListItem, (prevProps, nextProps) => {
     // Add custom comparison if needed. For now, a shallow comparison will suffice.
     return JSON.stringify(prevProps) === JSON.stringify(nextProps);
 });
 
 type ObjectListItemPropsForMultiple<T extends OrArray<ListObject>> = T extends ListObject ?
-    ObjectListItemProps<T, ObjectListActions<T["__typename"]>> :
+    ObjectListItemProps<T> :
     T extends Array<ListObject> ?
-    ObjectListItemProps<T[number], ObjectListActions<T[number]["__typename"]>> :
+    ObjectListItemProps<T[number]> :
     never;
 
 export type ObjectListProps<T extends OrArray<ListObject>> = Pick<ObjectListItemPropsForMultiple<T>, "canNavigate" | "hideUpdateButton" | "loading" | "onAction" | "onClick"> & {
@@ -95,6 +95,7 @@ export const ObjectList = <T extends OrArray<ListObject>>({
         canNavigate,
         object,
         objectType: object?.__typename ?? "Routine" as GqlModelType,
+        onAction,
         setLocation,
         setObject,
     });

@@ -167,6 +167,32 @@ export const DashboardView = ({
             setReminders(data.reminders);
         }
     }, [data]);
+    const onReminderAction = useCallback((action: keyof ObjectListActions<DataType>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const id = data[0] as string;
+                setReminders(curr => {
+                    const index = curr.findIndex(reminder => reminder.id === id);
+                    if (index === -1) return curr;
+                    const copy = [...curr];
+                    copy.splice(index, 1);
+                    return copy;
+                });
+                break;
+            }
+            case "Updated": {
+                const updated = data[0] as Reminder;
+                setReminders(curr => {
+                    const index = curr.findIndex(reminder => reminder.id === updated.id);
+                    if (index === -1) return curr;
+                    const copy = [...curr];
+                    copy[index] = updated;
+                    return copy;
+                });
+                break;
+            }
+        }
+    }, []);
 
     const reminderListId = useMemo(() => {
         // First, try to find list using foccus mode
@@ -278,6 +304,7 @@ export const DashboardView = ({
                         items={upcomingEvents}
                         keyPrefix="event-list-item"
                         loading={loading}
+                        onAction={onEventAction}
                     />
                 </ListTitleContainer>
                 {/* Reminders */}
@@ -301,6 +328,7 @@ export const DashboardView = ({
                         items={reminders}
                         keyPrefix="reminder-list-item"
                         loading={loading}
+                        onAction={onReminderAction}
                     />
                 </ListTitleContainer>
                 {/* Notes */}
@@ -324,6 +352,7 @@ export const DashboardView = ({
                         items={notes}
                         keyPrefix="note-list-item"
                         loading={loading}
+                        onAction={onNoteActiom}
                     />
                 </ListTitleContainer>
             </Box>
