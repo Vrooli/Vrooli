@@ -19,7 +19,9 @@ export type UseObjectActionsProps = {
     openAddCommentDialog?: () => void;
     setLocation: SetLocation;
     setObject: Dispatch<SetStateAction<any>>;
-} & Pick<ObjectListItemProps<any>, "canNavigate" | "onAction" | "onClick">
+} & Pick<ObjectListItemProps<any>, "canNavigate" | "onClick"> & {
+    onAction?: ObjectListItemProps<any>["onAction"];
+}
 
 export type UseObjectActionsReturn = {
     availableActions: ObjectAction[];

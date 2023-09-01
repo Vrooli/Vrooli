@@ -87,6 +87,7 @@ export const useDeleter = ({
                 onActionComplete(ObjectActionComplete.Delete, true);
                 // If we're on the page for the object being deleted, navigate away
                 const onObjectsPage = window.location.pathname.startsWith(LINKS[objectType]);
+                setIsDeleteDialogOpen(false);
                 if (!onObjectsPage) return;
                 const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
                 if (hasPreviousPage) {
@@ -104,6 +105,7 @@ export const useDeleter = ({
 
     const handleDelete = useCallback(() => {
         const confirmationType = ObjectsToConfirmLevel[objectType as DeleteType];
+        console.log();
         if (confirmationType === "none") {
             // Delete without confirmation
             doDelete();
@@ -136,7 +138,7 @@ export const useDeleter = ({
         DeleteDialogComponent = <DeleteDialog
             isOpen={isDeleteDialogOpen}
             handleClose={closeDeleteDialog}
-            handleDelete={handleDelete}
+            handleDelete={doDelete}
             objectName={objectName}
         />;
     } else {

@@ -1,10 +1,11 @@
-import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, Reminder, ResourceList, uuid } from "@local/shared";
+import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { SiteSearchBar } from "components/inputs/search";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ResourceListHorizontal } from "components/lists/resource";
+import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { HomePrompt } from "components/text/HomePrompt/HomePrompt";
@@ -27,6 +28,7 @@ import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
+import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { DashboardViewProps } from "../types";
 
 /** View displayed for Home page when logged in */
@@ -167,28 +169,16 @@ export const DashboardView = ({
             setReminders(data.reminders);
         }
     }, [data]);
-    const onReminderAction = useCallback((action: keyof ObjectListActions<DataType>, ...data: unknown[]) => {
+    const onReminderAction = useCallback((action: keyof ObjectListActions<Reminder>, ...data: unknown[]) => {
         switch (action) {
             case "Deleted": {
                 const id = data[0] as string;
-                setReminders(curr => {
-                    const index = curr.findIndex(reminder => reminder.id === id);
-                    if (index === -1) return curr;
-                    const copy = [...curr];
-                    copy.splice(index, 1);
-                    return copy;
-                });
+                setReminders(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
                 break;
             }
             case "Updated": {
                 const updated = data[0] as Reminder;
-                setReminders(curr => {
-                    const index = curr.findIndex(reminder => reminder.id === updated.id);
-                    if (index === -1) return curr;
-                    const copy = [...curr];
-                    copy[index] = updated;
-                    return copy;
-                });
+                setReminders(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
                 break;
             }
         }
@@ -208,10 +198,29 @@ export const DashboardView = ({
             setNotes(data.notes);
         }
     }, [data]);
+    const onNoteAction = useCallback((action: keyof ObjectListActions<Note>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const id = data[0] as string;
+                setNotes(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
+                break;
+            }
+            case "Updated": {
+                const updated = data[0] as Note;
+                setNotes(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
+                break;
+            }
+        }
+    }, []);
 
     // Calculate upcoming events using schedules 
+    const [schedules, setSchedules] = useState<Schedule[]>([]);
+    useEffect(() => {
+        if (data?.schedules) {
+            setSchedules(data.schedules);
+        }
+    }, [data]);
     const upcomingEvents = useMemo(() => {
-        const schedules = data?.schedules ?? [];
         // Initialize result
         const result: CalendarEvent[] = [];
         // Loop through schedules
@@ -234,7 +243,25 @@ export const DashboardView = ({
         // Sort events by start date, and return the first 10
         result.sort((a, b) => a.start.getTime() - b.start.getTime());
         return result.slice(0, 10);
-    }, [data?.schedules, session]);
+    }, [schedules, session]);
+    const onEventAction = useCallback((action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const eventId = data[0] as string;
+                const event = upcomingEvents.find(event => event.id === eventId);
+                if (!event) return;
+                const schedule = event.schedule;
+                setSchedules(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === schedule.id)));
+                break;
+            }
+            case "Updated": {
+                const updatedEvent = data[0] as CalendarEvent;
+                const schedule = updatedEvent.schedule;
+                setSchedules(curr => updateArray(curr, curr.findIndex(item => item.id === schedule.id), schedule));
+                break;
+            }
+        }
+    }, [upcomingEvents]);
 
     return (
         <PageContainer sx={{ marginBottom: 2 }}>
@@ -352,7 +379,7 @@ export const DashboardView = ({
                         items={notes}
                         keyPrefix="note-list-item"
                         loading={loading}
-                        onAction={onNoteActiom}
+                        onAction={onNoteAction}
                     />
                 </ListTitleContainer>
             </Box>

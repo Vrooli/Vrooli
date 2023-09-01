@@ -8,6 +8,7 @@ import { ListObject, listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
+import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
@@ -203,25 +204,12 @@ export const useFindMany = <DataType extends Record<string, any>>({
     }, [getData, stableCanSearch, stableWhere]);
 
     const [allData, setAllData] = useState<DataType[]>([]);
-    const updateItem = useCallback((item: DataType) => {
-        setAllData(curr => {
-            const index = curr.findIndex(i => i.id === item.id);
-            if (index === -1) return curr;
-            const copy = [...curr];
-            copy[index] = item;
-            return copy;
-        });
-    }, []);
     const removeItem = useCallback((id: string, idField?: string) => {
         console.log("in usefindmany removeItem", id);
-        setAllData(curr => {
-            const index = curr.findIndex(i => i[idField ?? "id"] === id);
-            console.log("in usefindmany removeItem - found item?", index);
-            if (index === -1) return curr;
-            const copy = [...curr];
-            copy.splice(index, 1);
-            return copy;
-        });
+        setAllData(curr => deleteArrayIndex(curr, curr.findIndex(i => i[idField ?? "id"] === id)));
+    }, []);
+    const updateItem = useCallback((item: DataType, idField?: string) => {
+        setAllData(curr => updateArray(curr, curr.findIndex(i => i[idField ?? "id"] === item[idField ?? "id"]), item));
     }, []);
 
     // Handle advanced search params

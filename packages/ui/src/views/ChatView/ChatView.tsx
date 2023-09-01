@@ -32,7 +32,7 @@ const NewMessageContainer = ({
     formik,
 }: {
     chat: ChatShape,
-    formik: FormikProps<unknown>
+    formik: FormikProps<{ editingMessage: string, newMessage: string }>
 }) => {
     const session = useContext(SessionContext);
     const dimensions = useDimensionContext();
