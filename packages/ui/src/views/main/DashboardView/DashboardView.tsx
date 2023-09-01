@@ -184,14 +184,6 @@ export const DashboardView = ({
         }
     }, []);
 
-    const reminderListId = useMemo(() => {
-        // First, try to find list using foccus mode
-        const sessionReminderListId = activeFocusMode?.mode?.reminderList?.id;
-        // If that doesn't work, try to find list using the reminders and hope for the best
-        const reminderList = reminders.length > 0 ? reminders[0].reminderList.id : null;
-        return sessionReminderListId ?? reminderList ?? "";
-    }, [activeFocusMode, reminders]);
-
     const [notes, setNotes] = useState<Note[]>([]);
     useEffect(() => {
         if (data?.notes) {

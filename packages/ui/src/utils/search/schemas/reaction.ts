@@ -9,4 +9,4 @@ export const reactionSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const reactionSearchParams = () => toParams(reactionSearchSchema(), endpointGetReactions, ReactionSortBy, ReactionSortBy.DateUpdatedDesc);
+export const reactionSearchParams = () => toParams(reactionSearchSchema(), endpointGetReactions, undefined, ReactionSortBy, ReactionSortBy.DateUpdatedDesc);

@@ -1,4 +1,4 @@
-import { endpointGetMeetings, MeetingSortBy } from "@local/shared";
+import { endpointGetMeeting, endpointGetMeetings, MeetingSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const meetingSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const meetingSearchParams = () => toParams(meetingSearchSchema(), endpointGetMeetings, MeetingSortBy, MeetingSortBy.AttendeesDesc);
+export const meetingSearchParams = () => toParams(meetingSearchSchema(), endpointGetMeetings, endpointGetMeeting, MeetingSortBy, MeetingSortBy.AttendeesDesc);

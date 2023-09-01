@@ -1,4 +1,4 @@
-import { endpointGetPullRequests, PullRequestSortBy } from "@local/shared";
+import { endpointGetPullRequest, endpointGetPullRequests, PullRequestSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const pullRequestSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const pullRequestSearchParams = () => toParams(pullRequestSearchSchema(), endpointGetPullRequests, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc);
+export const pullRequestSearchParams = () => toParams(pullRequestSearchSchema(), endpointGetPullRequests, endpointGetPullRequest, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc);

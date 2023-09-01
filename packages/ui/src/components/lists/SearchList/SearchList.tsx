@@ -74,7 +74,6 @@ export function SearchList<DataType extends NavigableObject>({
     // Handle infinite scroll
     const containerRef = useRef<HTMLDivElement>(null);
     const getScrollingContainer = useCallback((element: HTMLElement | null): HTMLElement | Document | null => {
-        console.log("getting scrolling ccontainer start", display, element);
         // If display is "page", use document instead
         if (display === "page") return document;
         // Traverse up the DOM
@@ -86,10 +85,8 @@ export function SearchList<DataType extends NavigableObject>({
             // If inline, find the first component with overflowY set to "scroll" or "auto"
             const overflowY = window.getComputedStyle(element).overflowY; //TODO need to fix this to get ChatSideMenu infinite scroll to work, but in a way that doesn't break FindObjectDialog
             if (display === "partial" && (overflowY === "scroll" || overflowY === "auto")) {
-                console.log("getScrollingContainer overflowY END", display, overflowY, element);
                 return element;
             }
-            console.log("getScrollingContainer overflowY continue", display, overflowY, element);
             element = element.parentElement;
         }
         return null;
@@ -139,8 +136,19 @@ export function SearchList<DataType extends NavigableObject>({
         // Determine object from selected label
         const selectedItem = allData.find(o => (o as any)?.id === newValue?.id);
         if (!selectedItem) return;
+        // If onItemClick is supplied, call it instead of navigating
+        if (typeof onItemClick === "function") {
+            onItemClick(selectedItem);
+            return;
+        }
+        // If canNavigate is supplied, call it
+        if (canNavigate) {
+            const shouldContinue = canNavigate(selectedItem);
+            if (shouldContinue === false) return;
+        }
+        // Navigate to the object's page
         openObject(selectedItem, setLocation);
-    }, [allData, setLocation]);
+    }, [allData, canNavigate, onItemClick, setLocation]);
 
     return (
         <>

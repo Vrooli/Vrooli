@@ -16,6 +16,7 @@ import { useFetch } from "hooks/useFetch";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { EmailIcon, PhoneIcon } from "icons";
 import { useTranslation } from "react-i18next";
+import { pagePaddingBottom } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "../types";
 
@@ -129,7 +130,7 @@ export const SettingsNotificationsView = ({
                 onClose={onClose}
                 title={t("Notification", { count: 2 })}
             />
-            <Stack direction="row">
+            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <Formik

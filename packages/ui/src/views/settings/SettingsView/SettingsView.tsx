@@ -9,6 +9,7 @@ import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedI
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { pagePaddingBottom } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { SettingsData, SettingsViewProps } from "../types";
 
@@ -118,7 +119,7 @@ export const SettingsView = ({
                 onClose={onClose}
                 title={t("Settings")}
             />
-            <Box>
+            <Box sx={{ paddingBottom: pagePaddingBottom }}>
                 <Title
                     title={t("Account")}
                     variant="header"

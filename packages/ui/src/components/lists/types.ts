@@ -1,4 +1,4 @@
-import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
+import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
@@ -73,6 +73,7 @@ export interface DateRangeMenuProps {
 export type RelationshipItemFocusMode = Pick<FocusMode, "id" | "name"> &
 {
     __typename: "FocusMode";
+    reminderList?: Partial<ReminderList>;
 };
 export type RelationshipItemMeeting = Pick<Meeting, "id"> &
 {

@@ -9,4 +9,4 @@ export const viewSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const viewSearchParams = () => toParams(viewSearchSchema(), endpointGetViews, ViewSortBy, ViewSortBy.LastViewedDesc);
+export const viewSearchParams = () => toParams(viewSearchSchema(), endpointGetViews, undefined, ViewSortBy, ViewSortBy.LastViewedDesc);

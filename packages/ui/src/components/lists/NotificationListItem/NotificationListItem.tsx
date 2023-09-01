@@ -1,10 +1,12 @@
 import { endpointPutNotification, FindByIdInput, Success } from "@local/shared";
 import { Chip, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { VisibleIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { PubSub } from "utils/pubsub";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { NotificationListItemProps } from "../types";
 
@@ -17,16 +19,21 @@ export function NotificationListItem({
     const { t } = useTranslation();
 
     const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
-    const onMarkAsRead = useCallback((id: string) => {
+    useDisplayServerError(markErrors);
+    const onMarkAsRead = useCallback(() => {
+        if (!data) {
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
         fetchLazyWrapper<FindByIdInput, Success>({
             fetch: markAsReadMutation,
-            inputs: { id },
+            inputs: { id: data.id },
             successCondition: (data) => data.success,
             onSuccess: () => {
-                onAction("Deleted", id);
+                onAction("Deleted", data.id);
             },
         });
-    }, [markAsReadMutation]);
+    }, [data, markAsReadMutation, onAction]);
 
     return (
         <ObjectListItemBase
@@ -48,7 +55,7 @@ export function NotificationListItem({
             toTheRight={
                 <Stack direction="row" spacing={1}>
                     {!data?.isRead && <Tooltip title={t("MarkAsRead")}>
-                        <IconButton edge="end" size="small" onClick={() => data && onAction("MarkAsRead", data.id)}>
+                        <IconButton edge="end" size="small" onClick={onMarkAsRead}>
                             <VisibleIcon fill={palette.secondary.main} />
                         </IconButton>
                     </Tooltip>}

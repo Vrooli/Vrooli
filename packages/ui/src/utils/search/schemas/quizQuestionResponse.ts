@@ -1,4 +1,4 @@
-import { endpointGetQuizQuestionResponses, QuizQuestionResponseSortBy } from "@local/shared";
+import { endpointGetQuizQuestionResponse, endpointGetQuizQuestionResponses, QuizQuestionResponseSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const quizQuestionResponseSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const quizQuestionResponseSearchParams = () => toParams(quizQuestionResponseSearchSchema(), endpointGetQuizQuestionResponses, QuizQuestionResponseSortBy, QuizQuestionResponseSortBy.DateCreatedDesc);
+export const quizQuestionResponseSearchParams = () => toParams(quizQuestionResponseSearchSchema(), endpointGetQuizQuestionResponses, endpointGetQuizQuestionResponse, QuizQuestionResponseSortBy, QuizQuestionResponseSortBy.DateCreatedDesc);

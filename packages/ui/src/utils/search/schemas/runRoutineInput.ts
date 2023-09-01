@@ -9,4 +9,4 @@ export const runRoutineInputSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const runRoutineInputSearchParams = () => toParams(runRoutineInputSearchSchema(), endpointGetRunRoutineInputs, RunRoutineInputSortBy, RunRoutineInputSortBy.DateCreatedDesc);
+export const runRoutineInputSearchParams = () => toParams(runRoutineInputSearchSchema(), endpointGetRunRoutineInputs, undefined, RunRoutineInputSortBy, RunRoutineInputSortBy.DateCreatedDesc);

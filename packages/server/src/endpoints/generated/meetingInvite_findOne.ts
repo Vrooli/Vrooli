@@ -157,6 +157,56 @@ export const meetingInvite_findOne = {
               "label": true,
               "__typename": "Label"
             },
+            "reminderList": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "reminders": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "name": true,
+                "description": true,
+                "dueDate": true,
+                "index": true,
+                "isComplete": true,
+                "reminderItems": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "name": true,
+                  "description": true,
+                  "dueDate": true,
+                  "index": true,
+                  "isComplete": true,
+                  "__typename": "ReminderItem"
+                },
+                "__typename": "Reminder"
+              },
+              "__typename": "ReminderList"
+            },
+            "resourceList": {
+              "id": true,
+              "created_at": true,
+              "translations": {
+                "id": true,
+                "language": true,
+                "description": true,
+                "name": true
+              },
+              "resources": {
+                "id": true,
+                "index": true,
+                "link": true,
+                "usedFor": true,
+                "translations": {
+                  "id": true,
+                  "language": true,
+                  "description": true,
+                  "name": true
+                }
+              }
+            },
             "schedule": {
               "id": true,
               "created_at": true,

@@ -1,4 +1,4 @@
-import { endpointGetIssues, IssueSortBy } from "@local/shared";
+import { endpointGetIssue, endpointGetIssues, IssueSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, votesContainer, votesFields } from "./common";
@@ -17,4 +17,4 @@ export const issueSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const issueSearchParams = () => toParams(issueSearchSchema(), endpointGetIssues, IssueSortBy, IssueSortBy.ScoreDesc);
+export const issueSearchParams = () => toParams(issueSearchSchema(), endpointGetIssues, endpointGetIssue, IssueSortBy, IssueSortBy.ScoreDesc);

@@ -3,12 +3,14 @@ import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemFocusMode } from "components/lists/types";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { AddIcon, FocusModeIcon } from "icons";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { highlightStyle } from "styles";
+import { getFocusModeInfo } from "utils/authentication/session";
 import { largeButtonProps } from "../styles";
 import { FocusModeButtonProps } from "../types";
 
@@ -16,19 +18,28 @@ export function FocusModeButton({
     isEditing,
     objectType,
 }: FocusModeButtonProps) {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
-    const [field, , helpers] = useField("focusMode");
+    const { all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
 
-    const isAvailable = useMemo(() => ["Reminder", "Schedule"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
+    // Schedules set the focus mode directly, while reminders use the focus mode to set the reminder list
+    const [focusModeField, , focusModeHelpers] = useField("focusMode");
+    const [reminderListField, , reminderListHelpers] = useField("reminderList");
+
+    const isAvailable = useMemo(() =>
+        (objectType === "Reminder" && ["object"].includes(typeof reminderListField.value)) ||
+        (objectType === "Schedule" && ["object"].includes(typeof focusModeField.value))
+        , [objectType, reminderListField.value, focusModeField.value]);
 
     // Focus mode dialog
     const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isAvailable) return;
         ev.stopPropagation();
-        const focusMode = field?.value;
+        // Find current focus mode, either from focusModeField or by finding the correct focus mode in allFocusModes that has the reminder list
+        const focusMode = focusModeField?.value ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id);
         // If not editing, navigate to display settings
         if (!isEditing) {
             if (focusMode) setLocation(LINKS.SettingsFocusModes);
@@ -36,19 +47,20 @@ export function FocusModeButton({
         else {
             // If focus mode was set, remove
             if (focusMode) {
-                exists(helpers) && helpers.setValue(null);
+                if (exists(focusModeField.value && focusModeHelpers)) focusModeHelpers.setValue(null);
+                else if (exists(reminderListField.value && reminderListHelpers)) reminderListHelpers.setValue(null);
             }
             // Otherwise, open select dialog
             else setDialogOpen(true);
         }
-    }, [isAvailable, field?.value, isEditing, setLocation, helpers]);
+    }, [isAvailable, focusModeField.value, allFocusModes, isEditing, reminderListField.value, setLocation, focusModeHelpers, reminderListHelpers]);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, [setDialogOpen]);
     const handleSelect = useCallback((focusMode: RelationshipItemFocusMode) => {
-        const focusModeId = field?.value?.id;
-        if (focusMode?.id === focusModeId) return;
-        exists(helpers) && helpers.setValue(focusMode);
+        console.log("setting focus mode", focusMode);
+        if (exists(focusModeField.value && focusModeHelpers)) focusModeHelpers.setValue(focusMode);
+        else if (exists(reminderListField.value && reminderListHelpers && focusMode?.reminderList)) reminderListHelpers.setValue(focusMode.reminderList);
         closeDialog();
-    }, [field?.value?.id, helpers, closeDialog]);
+    }, [focusModeField.value, focusModeHelpers, reminderListField.value, reminderListHelpers, closeDialog]);
 
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
@@ -58,7 +70,8 @@ export function FocusModeButton({
     }, [isDialogOpen, handleSelect, closeDialog]);
 
     const { Icon, tooltip } = useMemo(() => {
-        const focusMode = field?.value;
+        const focusMode = focusModeField?.value ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id);
+        console.log("getting icon and tooltip", focusMode);
         // If no data, marked as unset
         if (!focusMode) return {
             Icon: AddIcon,
@@ -69,7 +82,7 @@ export function FocusModeButton({
             Icon: FocusModeIcon,
             tooltip: t(`FocusModeTogglePress${isEditing ? "Editable" : ""}`, { focusMode: focusModeName }),
         };
-    }, [isEditing, field?.value, t]);
+    }, [focusModeField?.value, allFocusModes, t, isEditing, reminderListField?.value?.id]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;
@@ -77,7 +90,7 @@ export function FocusModeButton({
         <>
             {/* Popup for selecting focus mode */}
             {findType && <FindObjectDialog
-                find="List"
+                find="Full"
                 isOpen={Boolean(findType)}
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
@@ -89,6 +102,7 @@ export function FocusModeButton({
                 justifyContent="center"
                 sx={{
                     marginTop: "auto",
+                    cursor: "pointer",
                 }}
             >
                 <Tooltip title={tooltip}>
@@ -110,7 +124,7 @@ export function FocusModeButton({
                             </IconButton>
                         )}
                         <Typography variant="body1" sx={{ color: "white" }}>
-                            {field?.value?.name ?? t("FocusMode", { count: 1 })}
+                            {focusModeField?.value?.name ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id)?.name ?? t("FocusMode", { count: 1 })}
                         </Typography>
                     </Stack>
                 </Tooltip>
