@@ -56,6 +56,7 @@ export const SignUpForm = ({
                             theme: theme.palette.mode ?? "light",
                         },
                         onSuccess: (data) => {
+                            setupPush();
                             PubSub.get().publishSession(data);
                             PubSub.get().publishAlertDialog({
                                 messageKey: "WelcomeVerifyEmail",
@@ -63,9 +64,6 @@ export const SignUpForm = ({
                                 buttons: [{
                                     labelKey: "Ok", onClick: () => {
                                         setLocation(LINKS.Home);
-                                        // Set up push notifications
-                                        setupPush();
-                                        // Start the tutorial
                                         PubSub.get().publishTutorial();
                                     },
                                 }],
