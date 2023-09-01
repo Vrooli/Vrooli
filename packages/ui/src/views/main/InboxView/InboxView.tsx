@@ -4,7 +4,7 @@ import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ChatListItemActions, NotificationListItemActions } from "components/lists/types";
+import { ListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useDisplayServerError } from "hooks/useDisplayServerError";
@@ -107,13 +107,13 @@ export const InboxView = ({
         return [openCreateChat, AddIcon, "CreateChat"] as const;
     }, [currTab.tabType, onMarkAllAsRead, openCreateChat]);
 
-    const onAction = useCallback((action: keyof (ChatListItemActions | NotificationListItemActions), id: string) => {
+    const onAction = useCallback((action: keyof ListActions, data: unknown) => {
         switch (action) {
             case "Delete":
-                onDelete(id, searchType as InboxType);
+                onDelete(data as InboxType, searchType as InboxType);
                 break;
             case "MarkAsRead":
-                onMarkAsRead(id, searchType as InboxType);
+                onMarkAsRead(data as string, searchType as InboxType);
                 break;
         }
     }, [onDelete, onMarkAsRead, searchType]);

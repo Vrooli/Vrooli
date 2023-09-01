@@ -23,7 +23,7 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectEditUrl, getObjectUrl } from "utils/navigation/openObject";
 import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
-import { ObjectListItemProps } from "../types";
+import { ObjectListActions, ObjectListItemProps } from "../types";
 
 const LIST_PREFIX = "list-item-";
 const EDIT_PREFIX = "edit-list-item-";
@@ -51,7 +51,7 @@ export function ObjectListItemBase<T extends ListObject>({
     subtitleOverride,
     titleOverride,
     toTheRight,
-}: ObjectListItemProps<T>) {
+}: ObjectListItemProps<T, ObjectListActions<T["__typename"]>>) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();

@@ -44,7 +44,6 @@ export const ShareObjectDialog = ({
 
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : "Check out this object on Vrooli", [object]);
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split("?")[0].split("#")[0], [object]);
-    console.log("shareobjectdialog", url, object);
 
     const emailUrl = useMemo(() => `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`, [title, url]);
     const twitterUrl = useMemo(() => `https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`, [url]);

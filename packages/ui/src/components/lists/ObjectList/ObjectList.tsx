@@ -1,4 +1,4 @@
-import { Bookmark, GqlModelType, isOfType, Reaction, View } from "@local/shared";
+import { Bookmark, GqlModelType, isOfType, OrArray, Reaction, View } from "@local/shared";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useStableCallback } from "hooks/useStableCallback";
@@ -6,11 +6,11 @@ import { useStableObject } from "hooks/useStableObject";
 import { memo, useCallback, useMemo, useState } from "react";
 import { lazily } from "react-lazily";
 import { useLocation } from "route";
-import { NavigableObject } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { ListObject } from "utils/display/listTools";
+import { noop } from "utils/objects";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { ActionsType, ListActions, ObjectListItemProps } from "../types";
+import { ObjectListActions, ObjectListItemProps } from "../types";
 
 // Custom list item components
 const { ChatListItem } = lazily(() => import("../ChatListItem/ChatListItem"));
@@ -34,7 +34,7 @@ const getListItemComponent = (objectType: `${GqlModelType}` | "CalendarEvent") =
 function ObjectListItem<T extends ListObject>({
     objectType,
     ...props
-}: ObjectListItemProps<T>) {
+}: ObjectListItemProps<T, ObjectListActions<T["__typename"]>>) {
     const ListItem = useMemo<(props: any) => JSX.Element>(() => getListItemComponent(objectType), [objectType]);
     return (
         <ListItem
@@ -44,42 +44,40 @@ function ObjectListItem<T extends ListObject>({
     );
 }
 
-const MemoizedObjectListItem = memo<ObjectListItemProps<ListObject>>(ObjectListItem, (prevProps, nextProps) => {
+const MemoizedObjectListItem = memo<ObjectListItemProps<ListObject, ObjectListActions<ListObject["__typename"]>>>(ObjectListItem, (prevProps, nextProps) => {
     // Add custom comparison if needed. For now, a shallow comparison will suffice.
     return JSON.stringify(prevProps) === JSON.stringify(nextProps);
 });
 
-export type ObjectListProps<T extends keyof ListActions | undefined> = {
-    /**
-     * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
-     * If the callback returns false, the list item will not be selected.
-     */
-    canNavigate?: (item: NavigableObject) => boolean | void,
+type ObjectListItemPropsForMultiple<T extends OrArray<ListObject>> = T extends ListObject ?
+    ObjectListItemProps<T, ObjectListActions<T["__typename"]>> :
+    T extends Array<ListObject> ?
+    ObjectListItemProps<T[number], ObjectListActions<T[number]["__typename"]>> :
+    never;
+
+export type ObjectListProps<T extends OrArray<ListObject>> = Pick<ObjectListItemPropsForMultiple<T>, "canNavigate" | "hideUpdateButton" | "loading" | "onAction" | "onClick"> & {
     /** List of dummy items types to display while loading */
     dummyItems?: (GqlModelType | `${GqlModelType}`)[];
-    /** True if update button should be hidden */
-    hideUpdateButton?: boolean,
     /** The list of item data. Objects like view and star are converted to their respective objects. */
     items?: readonly ListObject[],
     /** Each list item's key will be `${keyPrefix}-${id}` */
     keyPrefix: string,
-    /** Whether the list is loading */
-    loading: boolean,
-    onClick?: (item: NavigableObject) => void,
-} & (T extends keyof ListActions ? ActionsType<ListActions[T & keyof ListActions]> : object);
+};
 
-export const ObjectList = <T extends keyof ListActions | undefined>({
+export const ObjectList = <T extends OrArray<ListObject>>({
     canNavigate,
     dummyItems,
     keyPrefix,
     hideUpdateButton,
     items,
     loading,
+    onAction,
     onClick,
 }: ObjectListProps<T>) => {
     const [, setLocation] = useLocation();
     const stableItems = useStableObject(items);
     const stableOnClick = useStableCallback(onClick);
+    const stableOnAction = useStableCallback(onAction);
 
     // Handle context menu
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -117,11 +115,12 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
                     hideUpdateButton={hideUpdateButton}
                     loading={false}
                     objectType={curr.__typename}
+                    onAction={stableOnAction}
                     onClick={stableOnClick}
                 />
             );
         });
-    }, [stableItems, canNavigate, handleContextMenu, hideUpdateButton, stableOnClick, keyPrefix]);
+    }, [stableItems, canNavigate, handleContextMenu, hideUpdateButton, stableOnAction, stableOnClick, keyPrefix]);
 
     // Generate dummy items
     const dummyListItems = useMemo(() => {
@@ -134,6 +133,7 @@ export const ObjectList = <T extends keyof ListActions | undefined>({
                     hideUpdateButton={hideUpdateButton}
                     loading={true}
                     objectType={dummy}
+                    onAction={noop}
                 />
             ));
         }

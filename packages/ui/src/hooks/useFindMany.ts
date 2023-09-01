@@ -99,6 +99,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
 }: UseFindManyProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
+    console.log("search type", searchType);
 
     // Limit rerenders of params
     const stableCanSearch = useStableCallback(canSearch);
@@ -169,8 +170,8 @@ export const useFindMany = <DataType extends Record<string, any>>({
     useDisplayServerError(errors);
     /** Function for fetching new data, only when there isn't data currently being fetched */
     const getData = useCallback(() => {
-        console.log("getData?", readyToSearch(params.current), params.current);
         if (!readyToSearch(params.current)) return;
+        console.log("getting data and setting lastParms.current", params.current);
         lastParams.current = deepClone(params.current);
         params.current.loading = true;
         getPageData({
@@ -186,6 +187,10 @@ export const useFindMany = <DataType extends Record<string, any>>({
             ...params.current.advancedSearchParams,
         }, params.current.endpoint as string);
     }, [getPageData, take]);
+    useEffect(() => {
+        console.log("settings params.current.loading", loading);
+        params.current.loading = loading;
+    }, [loading]);
 
     // Fetch data when canSearch changes to true
     useEffect(() => {
@@ -193,6 +198,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         const newCanSearch = typeof stableCanSearch === "function" ? stableCanSearch(stableWhere) : true;
         params.current.canSearch = newCanSearch;
         // Get data if we couldn't before
+        console.log("calling getData from here? 1", readyToSearch(params.current), oldCanSearch, newCanSearch, params.current.endpoint);
         if (readyToSearch(params.current) && !oldCanSearch && newCanSearch) getData();
     }, [getData, stableCanSearch, stableWhere]);
 
@@ -212,8 +218,10 @@ export const useFindMany = <DataType extends Record<string, any>>({
         // Update the URL
         updateUrl();
         // Fetch new data
+        console.log("calling getData from here? 2", readyToSearch(params.current), params.current.endpoint, advancedSearchParams);
         getData();
         // Update state
+        console.log("setting search params from useFindMany", advancedSearchParams);
         setSearchParams(advancedSearchParams);
     }, [getData, updateUrl]);
 
@@ -233,6 +241,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         };
         setAllData([]);
         updateUrl();
+        console.log("calling getData from here? 3", readyToSearch(params.current), params.current.endpoint);
         getData();
     }, [updateUrl, searchType, getData]);
 
@@ -252,6 +261,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
                     (after.current as any)[afterKeyLower + "After"] = value;
                 }
             }
+            console.log("calling getData from here? 4", readyToSearch(params.current), params.current.endpoint);
             getData();
         } else {
             params.current.hasMore = false;
@@ -260,7 +270,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
-        params.current.loading = false;
+        // params.current.loading = false;
         // If params have changed since this fetch started, invalidate it and refetch
         const last = {
             advancedSearchParams: lastParams.current.advancedSearchParams,
@@ -279,14 +289,14 @@ export const useFindMany = <DataType extends Record<string, any>>({
             where: params.current.where,
         };
         if (JSON.stringify(last) !== JSON.stringify(current)) {
-            console.log("THEY WERE DIFFERENT", last.timeFrame, current.timeFrame);
             setAllData([]);
+            console.log("calling getData from here? 5", readyToSearch(params.current), params.current.endpoint);
             getData();
             return;
         }
         // Parse data
         const parsedData = parseData(pageData, searchType, stableResolve);
-        console.log("got parsed data", parsedData);
+        console.log("got parsed data", parsedData, current, searchType);
         if (!parsedData) {
             setAllData([]);
             return;
@@ -324,6 +334,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         params.current.sortBy = newSortBy;
         setAllData([]);
         updateUrl();
+        console.log("calling getData from here? 6", readyToSearch(params.current));
         getData();
     }, [getData, updateUrl]);
 
@@ -333,6 +344,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         console.log("setting searcch string", searchString);
         setAllData([]);
         updateUrl();
+        console.log("calling getData from here? 7", readyToSearch(params.current));
         getData();
     }, [getData, updateUrl]);
 
@@ -341,6 +353,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         params.current.timeFrame = timeFrame;
         setAllData([]);
         updateUrl();
+        console.log("calling getData from here? 8", readyToSearch(params.current));
         getData();
     }, [getData, updateUrl]);
 

@@ -1,5 +1,5 @@
 import { Box, useTheme } from "@mui/material";
-import React, { createContext, MouseEventHandler, TouchEventHandler, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SxType } from "types";
 import { getCookieDimensions, setCookieDimensions } from "utils/cookies";
 
@@ -116,8 +116,8 @@ export const Resizable = ({
 }: {
     children: React.ReactNode,
     id: string,
-    max?: number,
-    min?: number,
+    max?: string | number,
+    min?: string | number,
     position?: Position,
     sx?: SxType,
 }) => {
@@ -147,21 +147,36 @@ export const Resizable = ({
         setCookieDimensions(id, newDimensions);
     }, [id, maxPixels, minPixels, position]);
 
-    const handleResize = (event: MouseEvent & TouchEvent) => {
+    const handleResize = (event: MouseEvent | TouchEvent) => {
         event.preventDefault();
         if (!containerRef.current) return;
-        const isTouchEvent = event.touches && event.touches.length;
-        const startX = isTouchEvent ? (event.touches[0]?.clientX ?? 0) : event.clientX;
-        const startY = isTouchEvent ? (event.touches[0]?.clientY ?? 0) : event.clientY;
+        let isTouchEvent = false;
+        let startX: number;
+        let startY: number;
+        if ("touches" in event) {
+            isTouchEvent = true;
+            startX = event.touches[0]?.clientX ?? 0;
+            startY = event.touches[0]?.clientY ?? 0;
+        } else {
+            startX = event.clientX;
+            startY = event.clientY;
+        }
         const { width: startWidth, height: startHeight } = containerRef.current.getBoundingClientRect();
         let newWidth = startWidth;
         let newHeight = startHeight;
 
-        const handleMove = (moveEvent: MouseEvent & TouchEvent) => {
+        const handleMove = (moveEvent: MouseEvent | TouchEvent) => {
             if (!containerRef.current) return;
             moveEvent.preventDefault();
-            const currentX = isTouchEvent ? (moveEvent.touches[0]?.clientX ?? 0) : moveEvent.clientX;
-            const currentY = isTouchEvent ? (moveEvent.touches[0]?.clientY ?? 0) : moveEvent.clientY;
+            let currentX: number;
+            let currentY: number;
+            if ("touches" in moveEvent) {
+                currentX = moveEvent.touches[0]?.clientX ?? 0;
+                currentY = moveEvent.touches[0]?.clientY ?? 0;
+            } else {
+                currentX = moveEvent.clientX;
+                currentY = moveEvent.clientY;
+            }
             if (isVerticalResize) {
                 const diffY = currentY - startY;
                 newHeight = position === "bottom" ? startHeight + diffY : startHeight - diffY;
@@ -231,8 +246,8 @@ export const Resizable = ({
                             ? "0 1px solid rgba(0, 0, 0, 0.3)"
                             : "0 1px solid rgba(0, 0, 0, 0.3) 0",
                 }}
-                onMouseDown={handleResize as MouseEventHandler<HTMLDivElement>}
-                onTouchStart={handleResize as TouchEventHandler<HTMLDivElement>}
+                onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => handleResize(e.nativeEvent)}
+                onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => handleResize(e.nativeEvent)}
             ></div>
         </Box>
     );

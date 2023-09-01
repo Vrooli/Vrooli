@@ -45,6 +45,7 @@ export function NotificationListItem({
             }
             data={data}
             objectType="Notification"
+            onAction={onAction}
         />
     );
 }

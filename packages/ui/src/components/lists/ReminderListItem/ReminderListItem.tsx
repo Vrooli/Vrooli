@@ -124,6 +124,7 @@ export function ReminderListItem({
             data={data}
             loading={false}
             objectType="Reminder"
+            onAction={onAction}
             toTheRight={
                 <Stack id="list-item-right-stack" direction="row" spacing={1}>
                     {dueDateIcon}

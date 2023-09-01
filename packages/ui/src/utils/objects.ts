@@ -5,3 +5,7 @@
 export const noopSubmit = (values: unknown) => {
     console.warn("Formik onSubmit called unexpectedly with values:", values);
 };
+
+export const noop = () => {
+    console.warn("Noop called unexpectedly");
+};

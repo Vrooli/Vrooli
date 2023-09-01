@@ -1,4 +1,4 @@
-import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
+import { Api, Chat, CommonKey, FocusMode, Meeting, Member, Note, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
@@ -16,13 +16,11 @@ export interface ObjectActionsRowProps<T extends ListObject> {
 }
 
 
-type ActionFunctions<T> = {
+export type ActionFunctions<T> = {
     [K in keyof T]: T[K] extends (...args: infer U) => any ? U : never;
 };
 
-export type ActionsType<A = undefined> = A extends undefined
-    ? { onAction?: undefined }
-    : { onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => void }
+export type ActionsType<T extends ListObject, A = CommonActions<T>> = { onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => unknown }
 
 type ObjectListItemBaseProps<T extends ListObject> = {
     /**
@@ -44,19 +42,20 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     titleOverride?: string;
     toTheRight?: React.ReactNode;
 }
-export type ObjectListItemProps<T extends ListObject, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
+export type ObjectListItemProps<
+    T extends ListObject,
+    A extends Record<string, ((...args: any[]) => unknown)> = CommonActions<T>
+> = ObjectListItemBaseProps<T> & ActionsType<T, A>;
 
-export type ChatListItemActions = {
-    MarkAsRead: (id: string) => void;
+export type CommonActions<T> = {
     Delete: (id: string) => void;
+    Update: (data: T) => void;
 };
-export type NotificationListItemActions = {
+export type ChatListItemActions = CommonActions<Chat> & {
     MarkAsRead: (id: string) => void;
-    Delete: (id: string) => void;
 };
-export type ReminderListItemActions = {
-    Delete: (id: string) => void;
-    Update: (data: Reminder) => void;
+export type NotificationListItemActions = CommonActions<Notification> & {
+    MarkAsRead: (id: string) => void;
 };
 
 /**
@@ -64,23 +63,25 @@ export type ReminderListItemActions = {
  * Not all object types have custom actions.
  */
 export interface ListActions {
+    Api: CommonActions<Api>
     Chat: ChatListItemActions;
+    Member: CommonActions<Member>;
+    Note: CommonActions<Note>;
     Notification: NotificationListItemActions;
-    Reminder: ReminderListItemActions;
+    Organization: CommonActions<Organization>;
+    Reminder: CommonActions<Reminder>;
+    RunProject: CommonActions<RunProject>;
+    RunRoutine: CommonActions<RunRoutine>;
 }
+export type ObjectListActions<T extends ListObject["__typename"]> = T extends keyof ListActions ? ListActions[T] : CommonActions<any>;
 
 
-export type ChatListItemProps = ObjectListItemProps<Chat, ChatListItemActions>
-
-export type MemberListItemProps = ObjectListItemProps<Member>
-
-export type NotificationListItemProps = ObjectListItemProps<Notification, NotificationListItemActions>
-
-export type ReminderListItemProps = ObjectListItemProps<Reminder, ReminderListItemActions>
-
-export type RunProjectListItemProps = ObjectListItemProps<RunProject>
-
-export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
+export type ChatListItemProps = ObjectListItemProps<Chat, ListActions["Chat"]>
+export type MemberListItemProps = ObjectListItemProps<Member, ListActions["Member"]>
+export type NotificationListItemProps = ObjectListItemProps<Notification, ListActions["Notification"]>
+export type ReminderListItemProps = ObjectListItemProps<Reminder, ListActions["Reminder"]>
+export type RunProjectListItemProps = ObjectListItemProps<RunProject, ListActions["RunProject"]>
+export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine, ListActions["RunRoutine"]>
 
 export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;

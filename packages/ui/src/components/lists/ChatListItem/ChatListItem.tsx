@@ -36,6 +36,7 @@ export function ChatListItem({
             }
             data={data}
             objectType="Chat"
+            onAction={onAction}
         />
     );
 }

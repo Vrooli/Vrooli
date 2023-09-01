@@ -57,7 +57,6 @@ export function SearchList<DataType extends NavigableObject>({
         take,
         where,
     });
-    console.log("search type", searchType, allData);
 
     // Handle infinite scroll
     const containerRef = useRef<HTMLDivElement>(null);
