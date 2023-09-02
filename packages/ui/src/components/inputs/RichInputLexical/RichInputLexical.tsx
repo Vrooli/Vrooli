@@ -2,7 +2,7 @@ import { $isCodeNode, CodeHighlightNode, CodeNode, CODE_LANGUAGE_MAP } from "@le
 import { HashtagNode } from "@lexical/hashtag";
 import { $isLinkNode, AutoLinkNode, LinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { $isListNode, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListItemNode, ListNode } from "@lexical/list";
-import { $convertFromMarkdownString, ElementTransformer, TextMatchTransformer, TRANSFORMERS } from "@lexical/markdown";
+import { $convertFromMarkdownString, $convertToMarkdownString, ElementTransformer, TextMatchTransformer, TRANSFORMERS } from "@lexical/markdown";
 import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
 import { InitialEditorStateType } from "@lexical/react/LexicalComposer";
 import { createLexicalComposerContext, LexicalComposerContext, LexicalComposerContextType, useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -21,7 +21,7 @@ import { $isTableNode, TableCellNode, TableNode, TableRowNode } from "@lexical/t
 import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode } from "lexical";
+import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
@@ -415,8 +415,10 @@ const registerCustomCommands = (editor: LexicalEditor): (() => void) => {
 const UNDERLINE: TextMatchTransformer = {
     dependencies: [],
     export: (node, exportChildren, exportFormat) => {
-        if (node.hasStyle("textDecoration", "underline")) {
-            return `<u>${exportChildren(node as ElementNode)}</u>`;
+        const isUnderlined = (node as TextNode).__style === "text-decoration: underline;";
+        const shouldExportChildren = node instanceof ElementNode;
+        if (isUnderlined) {
+            return `<u>${shouldExportChildren ? exportChildren(node as ElementNode) : (node as TextNode).__text}</u>`;
         }
         return null;
     },
@@ -435,8 +437,10 @@ const UNDERLINE: TextMatchTransformer = {
 const SPOILER_LINES: TextMatchTransformer = {
     dependencies: [],
     export: (node, exportChildren, exportFormat) => {
-        if (node.hasStyle("backgroundColor", "black") && node.hasStyle("color", "black")) {
-            return `||${exportChildren(node as ElementNode)}||`;
+        const isSpoiler = (node as TextNode).__type === "spoiler";
+        const shouldExportChildren = node instanceof ElementNode;
+        if (isSpoiler) {
+            return `||${shouldExportChildren ? exportChildren(node as ElementNode) : (node as TextNode).__text}||`;
         }
         return null;
     },
@@ -465,8 +469,10 @@ const SPOILER_LINES: TextMatchTransformer = {
 const SPOILER_TAGS: TextMatchTransformer = {
     dependencies: [],
     export: (node, exportChildren, exportFormat) => {
-        if (node.hasStyle("backgroundColor", "black") && node.hasStyle("color", "black")) {
-            return `<spoiler>${exportChildren(node as ElementNode)}</spoiler>`;
+        const isSpoiler = (node as TextNode).__type === "spoiler";
+        const shouldExportChildren = node instanceof ElementNode;
+        if (isSpoiler) {
+            return `<spoiler>${shouldExportChildren ? exportChildren(node as ElementNode) : (node as TextNode).__text}</spoiler>`;
         }
         return null;
     },
@@ -651,6 +657,14 @@ const RichInputLexicalComponents = ({
         }, HISTORY_MERGE_OPTIONS);
     }, [editor, value]);
 
+    const handleChange = useCallback((editorState: EditorState) => {
+        const updatedMarkdown = editorState.read(() => {
+            const root = $getRoot();
+            return $convertToMarkdownString(ALL_TRANSFORMERS, root);
+        });
+        onChange(updatedMarkdown);
+    }, [onChange]);
+
     // Toolbar actions
     const toggleHeading = (headingSize: HeadingTagType) => {
         editor.update(() => {
@@ -750,7 +764,7 @@ const RichInputLexicalComponents = ({
             <CheckListPlugin />
             <LinkPlugin />
             <ListPlugin />
-            <OnChangePlugin onChange={() => { console.log("onchangeeee"); }} />
+            <OnChangePlugin onChange={handleChange} />
             <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
             <TablePlugin />
