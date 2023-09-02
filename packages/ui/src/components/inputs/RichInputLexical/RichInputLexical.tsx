@@ -16,17 +16,18 @@ import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import { $createHeadingNode, $isHeadingNode, HeadingNode, HeadingTagType, QuoteNode } from "@lexical/rich-text";
-import { $isAtNodeEnd, $isParentElementRTL, $setBlocksType } from "@lexical/selection";
+import { $isAtNodeEnd, $setBlocksType } from "@lexical/selection";
 import { $isTableNode, TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorThemeClasses, ElementFormatType, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode } from "lexical";
+import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
-import { RichInputChildView, RichInputLexicalProps } from "../types";
+import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
+import { RichInputAction, RichInputActiveStates, RichInputChildView, RichInputLexicalProps } from "../types";
 import "./theme.css";
 
 export const CAN_USE_DOM: boolean =
@@ -35,18 +36,17 @@ export const CAN_USE_DOM: boolean =
     typeof window.document.createElement !== "undefined";
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
 
-const blockTypeToBlockName = {
-    bullet: "Bulleted List",
-    check: "Check List",
-    code: "Code Block",
-    h1: "Heading 1",
-    h2: "Heading 2",
-    h3: "Heading 3",
-    h4: "Heading 4",
-    h5: "Heading 5",
-    h6: "Heading 6",
-    number: "Numbered List",
-    paragraph: "Normal",
+const blockTypeToActionName: { [x: string]: RichInputAction } = {
+    bullet: "ListBullet",
+    check: "ListCheckbox",
+    code: "Code",
+    h1: "Header1",
+    h2: "Header2",
+    h3: "Header3",
+    h4: "Header4",
+    h5: "Header5",
+    h6: "Header6",
+    number: "ListNumber",
     quote: "Quote",
 };
 
@@ -96,14 +96,6 @@ const theme: EditorThemeClasses = {
         focus: "RichInput__embedBlockFocus",
     },
     hashtag: "RichInput__hashtag",
-    heading: {
-        h1: "RichInput__h1",
-        h2: "RichInput__h2",
-        h3: "RichInput__h3",
-        h4: "RichInput__h4",
-        h5: "RichInput__h5",
-        h6: "RichInput__h6",
-    },
     image: "editor-image",
     indent: "RichInput__indent",
     list: {
@@ -532,6 +524,7 @@ const RichInputLexicalComponents = ({
     maxRows,
     minRows = 4,
     name,
+    onActiveStatesChange,
     onBlur,
     onChange,
     openAssistantDialog,
@@ -551,27 +544,17 @@ const RichInputLexicalComponents = ({
         //TODO
     }, []);
 
-    /** Store current text properties */
+    /** Store current text properties. Logic inspired by https://github.com/facebook/lexical/blob/9e83533d52fe934bd91aaa5baaf156f682577dcf/packages/lexical-playground/src/plugins/ToolbarPlugin/index.tsx#L484 */
     const [activeEditor, setActiveEditor] = useState(editor);
-    const [blockType, setBlockType] = useState<keyof typeof blockTypeToBlockName>("paragraph");
-    const [rootType, setRootType] = useState<keyof typeof rootTypeToRootName>("root");
+    const [activeStates, setActiveStates] = useState<RichInputActiveStates>({ ...defaultActiveStates });
     const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(null);
-    const [elementFormat, setElementFormat] = useState<ElementFormatType>("left");
     const [isLink, setIsLink] = useState(false);
-    const [isBold, setIsBold] = useState(false);
     const [isItalic, setIsItalic] = useState(false);
-    const [isUnderline, setIsUnderline] = useState(false);
-    const [isStrikethrough, setIsStrikethrough] = useState(false);
-    const [isSubscript, setIsSubscript] = useState(false);
-    const [isSuperscript, setIsSuperscript] = useState(false);
-    const [isCode, setIsCode] = useState(false);
-    const [canUndo, setCanUndo] = useState(false);
-    const [canRedo, setCanRedo] = useState(false);
-    const [isRTL, setIsRTL] = useState(false);
     const [codeLanguage, setCodeLanguage] = useState<string>("");
     const [isEditable, setIsEditable] = useState(() => editor.isEditable());
     const $updateToolbar = useCallback(() => {
-        console.log("updating toolbar");
+        const updatedStates: RichInputActiveStates = { ...defaultActiveStates };
+        console.log("updating toolbar", defaultActiveStates);
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
             const anchorNode = selection.anchor.getNode();
@@ -590,30 +573,24 @@ const RichInputLexicalComponents = ({
             const elementKey = element.getKey();
             const elementDOM = activeEditor.getElementByKey(elementKey);
 
-            // Update text format
-            setIsBold(selection.hasFormat("bold"));
-            setIsItalic(selection.hasFormat("italic"));
-            setIsUnderline(selection.hasFormat("underline"));
-            setIsStrikethrough(selection.hasFormat("strikethrough"));
-            setIsSubscript(selection.hasFormat("subscript"));
-            setIsSuperscript(selection.hasFormat("superscript"));
-            setIsCode(selection.hasFormat("code"));
-            setIsRTL($isParentElementRTL(selection));
-
-            // Update links
+            // Find text formats
+            updatedStates.Bold = selection.hasFormat("bold");
+            updatedStates.Italic = selection.hasFormat("italic");
+            updatedStates.Underline = selection.hasFormat("underline");
+            updatedStates.Strikethrough = selection.hasFormat("strikethrough");
+            // updatedStates.Subscript = selection.hasFormat("subscript");
+            // updatedStates.Superscript = selection.hasFormat("superscript");
+            // updatedStates.Code = selection.hasFormat("code");
+            // Check if link
             const node = getSelectedNode(selection);
             const parent = node.getParent();
             if ($isLinkNode(parent) || $isLinkNode(node)) {
-                setIsLink(true);
-            } else {
-                setIsLink(false);
+                updatedStates.Link = true;
             }
-
+            // Check if table
             const tableNode = $findMatchingParent(node, $isTableNode);
             if ($isTableNode(tableNode)) {
-                setRootType("table");
-            } else {
-                setRootType("root");
+                updatedStates.Table = true;
             }
 
             if (elementDOM !== null) {
@@ -626,17 +603,22 @@ const RichInputLexicalComponents = ({
                     const type = parentList
                         ? parentList.getListType()
                         : element.getListType();
-                    setBlockType(type);
+                    console.log('got block type 1', type)
+                    if (type in blockTypeToActionName) {
+                        updatedStates[blockTypeToActionName[type as keyof typeof blockTypeToActionName]] = true;
+                    }
                 } else {
                     const type = $isHeadingNode(element)
                         ? element.getTag()
                         : element.getType();
-                    if (type in blockTypeToBlockName) {
-                        setBlockType(type as keyof typeof blockTypeToBlockName);
+                    if (type in blockTypeToActionName) {
+                        console.log('got block type 2', type)
+                        updatedStates[blockTypeToActionName[type as keyof typeof blockTypeToActionName]] = true;
                     }
                     if ($isCodeNode(element)) {
                         const language =
                             element.getLanguage() as keyof typeof CODE_LANGUAGE_MAP;
+                        console.log('got code language', language)
                         setCodeLanguage(
                             language ? CODE_LANGUAGE_MAP[language] || language : "",
                         );
@@ -644,12 +626,10 @@ const RichInputLexicalComponents = ({
                     }
                 }
             }
-            // Handle buttons
-            setElementFormat(
-                ($isElementNode(node)
-                    ? node.getFormatType()
-                    : parent?.getFormatType()) || "left",
-            );
+            // TODO need to find spoilers, underlines, headers, code and quote blocks, and lists
+            console.log('updated states', updatedStates);
+            setActiveStates({ ...updatedStates });
+            onActiveStatesChange({ ...updatedStates });
         }
     }, [activeEditor]);
     useEffect(() => {
@@ -679,7 +659,7 @@ const RichInputLexicalComponents = ({
                 $isRangeSelection(selection) ||
                 DEPRECATED_$isGridSelection(selection)
             ) {
-                $setBlocksType(selection, () => blockType === headingSize ? $createParagraphNode() : $createHeadingNode(headingSize));
+                $setBlocksType(selection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createParagraphNode() : $createHeadingNode(headingSize));
             }
         });
     };
@@ -695,14 +675,19 @@ const RichInputLexicalComponents = ({
         const actionMap = {
             "Assistant": () => openAssistantDialog(""),
             "Bold": () => toggleFormat("bold"),
+            "Code": () => { }, //TODO
             "Header1": () => toggleHeading("h1"),
             "Header2": () => toggleHeading("h2"),
             "Header3": () => toggleHeading("h3"),
+            "Header4": () => toggleHeading("h4"),
+            "Header5": () => toggleHeading("h5"),
+            "Header6": () => toggleHeading("h6"),
             "Italic": () => toggleFormat("italic"),
             "Link": () => dispatch(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
             "ListBullet": () => dispatch(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
             "ListCheckbox": () => dispatch(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
             "ListNumber": () => dispatch(INSERT_ORDERED_LIST_COMMAND, (void 0)),
+            "Quote": () => { }, //TODO
             "Redo": () => {
                 redo();
                 triggerEditorChange();

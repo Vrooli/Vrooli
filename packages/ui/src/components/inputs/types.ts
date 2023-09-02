@@ -7,7 +7,6 @@ import { SvgComponent, SxType } from "types";
 import { ListObject } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
-import { RichInputAction } from "./RichInputToolbar/RichInputToolbar";
 
 export interface CharLimitIndicatorProps {
     chars: number;
@@ -172,6 +171,7 @@ export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
 export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "disableAssistant" | "helperText" | "maxChars" | "sxs"> {
     id: string;
     openAssistantDialog: (selectedText: string) => unknown;
+    onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
     redo: () => unknown;
     toggleMarkdown: () => unknown;
     undo: () => unknown;
@@ -183,6 +183,34 @@ export type RichInputLexicalProps = RichInputChildProps;
 
 export interface RichInputChildView {
     handleAction: (action: Exclude<RichInputAction, "Mode">, data?: unknown) => unknown;
+}
+
+export type RichInputAction =
+    "Assistant" |
+    "Bold" |
+    "Code" |
+    "Header1" |
+    "Header2" |
+    "Header3" |
+    "Header4" |
+    "Header5" |
+    "Header6" |
+    "Italic" |
+    "Link" |
+    "ListBullet" |
+    "ListCheckbox" |
+    "ListNumber" |
+    "Mode" |
+    "Quote" |
+    "Redo" |
+    "Spoiler" |
+    "Strikethrough" |
+    "Table" |
+    "Underline" |
+    "Undo";
+export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo">]: boolean };
+export interface RichInputToolbarView {
+    updateActiveStates: (activeStates: RichInputActiveStates) => unknown;
 }
 
 export type PasswordTextFieldProps = TextFieldProps & {

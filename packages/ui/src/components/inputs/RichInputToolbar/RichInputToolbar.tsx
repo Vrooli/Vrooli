@@ -2,33 +2,36 @@ import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Pa
 import { SessionContext } from "contexts/SessionContext";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useWindowSize } from "hooks/useWindowSize";
-import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, TableIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
+import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, TableIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { keyComboToString } from "utils/display/device";
-
-export type RichInputAction =
-    "Assistant" |
-    "Bold" |
-    "Header1" |
-    "Header2" |
-    "Header3" |
-    "Italic" |
-    "Link" |
-    "ListBullet" |
-    "ListCheckbox" |
-    "ListNumber" |
-    "Mode" |
-    "Redo" |
-    "Spoiler" |
-    "Strikethrough" |
-    "Table" |
-    "Underline" |
-    "Undo";
+import { RichInputAction, RichInputActiveStates, RichInputToolbarView } from "../types";
 
 type PopoverActionItem = { action: RichInputAction, icon: React.ReactNode, label: string };
+
+export const defaultActiveStates: RichInputActiveStates = {
+    Bold: false,
+    Code: false,
+    Header1: false,
+    Header2: false,
+    Header3: false,
+    Header4: false,
+    Header5: false,
+    Header6: false,
+    Italic: false,
+    Link: false,
+    ListBullet: false,
+    ListNumber: false,
+    ListCheckbox: false,
+    Quote: false,
+    Spoiler: false,
+    Strikethrough: false,
+    Table: false,
+    Underline: false,
+};
 
 const ToolButton = ({
     disabled,
@@ -62,7 +65,7 @@ const ToolButton = ({
 );
 
 const ActionPopover = ({
-    activeTools,
+    activeStates,
     idPrefix,
     isOpen,
     anchorEl,
@@ -88,7 +91,7 @@ const ActionPopover = ({
                     key={action}
                     onClick={() => { handleAction(action); }}
                     sx={{
-                        background: activeTools[action] ? palette.secondary.light : "transparent",
+                        background: activeStates[action] ? palette.secondary.light : "transparent",
                     }}
                 >
                     <ListItemIcon>
@@ -221,30 +224,30 @@ export const RichInputToolbar = ({
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
 
-    // Actions which store and active state
-    const [activeTools, setActiveTools] = useState<Record<string, boolean>>({
-        Header1: false,
-        Header2: false,
-        Header3: false,
-        Bold: false,
-        Italic: false,
-        Underline: false,
-        Strikethrough: false,
-        Spoiler: false,
-        ListBullet: false,
-        ListNumber: false,
-        ListCheckbox: false,
-    });
+    // Actions which store and active state. 
+    // This is currently ignored when markdown mode is on, since it's 
+    // a bitch to keep track of
+    const [activeStates, setActiveStates] = useState<RichInputActiveStates>(defaultActiveStates);
     const handleToggleAction = (action: string, data?: unknown) => {
-        // Update action's active state
-        if (action in activeTools) {
-            setActiveTools(prevState => ({
+        // Update action's active state, if we're not using markdown mode
+        if (!isMarkdownOn && action in activeStates) {
+            setActiveStates(prevState => ({
                 ...prevState,
                 [action]: !prevState[action],
             }));
         }
         // Trigger handleAction
         handleAction(action as RichInputAction, data);
+    };
+    useEffect(() => {
+        if (isMarkdownOn) {
+            setActiveStates(defaultActiveStates);
+        }
+    }, [isMarkdownOn]);
+    // Declare method for RichInputBase to change active states
+    (RichInputToolbar as unknown as RichInputToolbarView).updateActiveStates = (updatedStates) => {
+        console.log('toolbar state updating', updatedStates)
+        setActiveStates({ ...updatedStates });
     };
 
     const [headerAnchorEl, openHeaderSelect, closeHeader, headerSelectOpen] = usePopover();
@@ -260,6 +263,9 @@ export const RichInputToolbar = ({
         { action: "Header1", icon: <Header1Icon />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
         { action: "Header2", icon: <Header2Icon />, label: `${t("Header2")} (${keyComboToString("Alt", "2")})` },
         { action: "Header3", icon: <Header3Icon />, label: `${t("Header3")} (${keyComboToString("Alt", "3")})` },
+        { action: "Header4", icon: <Header4Icon />, label: `${t("Header4")} (${keyComboToString("Alt", "4")})` },
+        { action: "Header5", icon: <Header5Icon />, label: `${t("Header5")} (${keyComboToString("Alt", "5")})` },
+        { action: "Header6", icon: <Header6Icon />, label: `${t("Header6")} (${keyComboToString("Alt", "6")})` },
     ];
     const formatItems: PopoverActionItem[] = [
         { action: "Bold", icon: <BoldIcon />, label: `${t("Bold")} (${keyComboToString("Ctrl", "b")})` },
@@ -269,9 +275,9 @@ export const RichInputToolbar = ({
         { action: "Spoiler", icon: <WarningIcon />, label: `${t("Spoiler")} (${keyComboToString("Ctrl", "l")})` },
     ];
     const listItems: PopoverActionItem[] = [
-        { action: "ListBullet", icon: <ListBulletIcon />, label: `${t("ListBulleted")} (${keyComboToString("Alt", "4")})` },
-        { action: "ListNumber", icon: <ListNumberIcon />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "5")})` },
-        { action: "ListCheckbox", icon: <ListCheckIcon />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "6")})` },
+        { action: "ListBullet", icon: <ListBulletIcon />, label: `${t("ListBulleted")} (${keyComboToString("Alt", "7")})` },
+        { action: "ListNumber", icon: <ListNumberIcon />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "8")})` },
+        { action: "ListCheckbox", icon: <ListCheckIcon />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "9")})` },
     ];
 
     return (
@@ -303,13 +309,13 @@ export const RichInputToolbar = ({
                 <ToolButton
                     disabled={disabled}
                     icon={<HeaderIcon fill={palette.primary.contrastText} />}
-                    isActive={activeTools.Header1 || activeTools.Header2 || activeTools.Header3}
+                    isActive={activeStates.Header1 || activeStates.Header2 || activeStates.Header3}
                     label={t("HeaderInsert")}
                     onClick={openHeaderSelect}
                     palette={palette}
                 />
                 <ActionPopover
-                    activeTools={activeTools}
+                    activeStates={activeStates}
                     idPrefix="header"
                     isOpen={headerSelectOpen}
                     anchorEl={headerAnchorEl}
@@ -324,13 +330,13 @@ export const RichInputToolbar = ({
                         <ToolButton
                             disabled={disabled}
                             icon={<CaseSensitiveIcon fill={palette.primary.contrastText} />}
-                            isActive={activeTools.Bold || activeTools.Italic || activeTools.Underline || activeTools.Strikethrough || activeTools.Spoiler}
+                            isActive={activeStates.Bold || activeStates.Italic || activeStates.Underline || activeStates.Strikethrough || activeStates.Spoiler}
                             label={t("TextFormat")}
                             onClick={openFormatSelect}
                             palette={palette}
                         />
                         <ActionPopover
-                            activeTools={activeTools}
+                            activeStates={activeStates}
                             idPrefix="format"
                             isOpen={formatSelectOpen}
                             anchorEl={formatAnchorEl}
@@ -346,7 +352,7 @@ export const RichInputToolbar = ({
                         key={action}
                         disabled={disabled}
                         icon={icon}
-                        isActive={activeTools[action]}
+                        isActive={activeStates[action]}
                         label={label}
                         onClick={() => { handleToggleAction(action); }}
                         palette={palette}
@@ -362,13 +368,13 @@ export const RichInputToolbar = ({
                 <ToolButton
                     disabled={disabled}
                     icon={<ListIcon fill={palette.primary.contrastText} />}
-                    isActive={activeTools.ListBullet || activeTools.ListNumber || activeTools.ListCheckbox}
+                    isActive={activeStates.ListBullet || activeStates.ListNumber || activeStates.ListCheckbox}
                     label={t("ListInsert")}
                     onClick={openListSelect}
                     palette={palette}
                 />
                 <ActionPopover
-                    activeTools={activeTools}
+                    activeStates={activeStates}
                     idPrefix="list"
                     isOpen={listSelectOpen}
                     anchorEl={listAnchorEl}
@@ -414,7 +420,7 @@ export const RichInputToolbar = ({
                     onClick={() => { handleToggleAction("Redo"); }}
                     palette={palette}
                 />}
-                <Tooltip title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "7")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "7")})`} placement="top">
+                <Tooltip title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "0")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "0")})`} placement="top">
                     <Typography variant="body2" onClick={() => { handleToggleAction("Mode"); }} sx={{
                         cursor: "pointer",
                         margin: "auto",

@@ -352,6 +352,7 @@ export const getDisplay = (
                 fill={palette?.mode === "light" ? "#521f81" : "#a979d5"}
                 width="100%"
                 height="100%"
+                style={{ padding: "1px" }}
             />
         );
     }

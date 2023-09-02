@@ -288,7 +288,7 @@ const ReminderForm = ({
                                                                 boxShadow: 4,
                                                                 marginBottom: 2,
                                                                 padding: 2,
-                                                                background: palette.background.default,
+                                                                background: palette.mode === "light" ? palette.background.default : palette.background.paper,
                                                             }}>
                                                             <Stack
                                                                 direction="row"

@@ -93,7 +93,6 @@ export function SearchList<DataType extends NavigableObject>({
     }, [display]);
     const handleScroll = useCallback(() => {
         const container = getScrollingContainer(containerRef.current) ?? window;
-        console.log("didnt find container", container);
         if (!container) return;
         let scrolledY: number;
         let scrollableHeight: number;

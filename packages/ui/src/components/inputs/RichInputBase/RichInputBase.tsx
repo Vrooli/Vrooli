@@ -8,8 +8,8 @@ import { assistantChatInfo, ChatView } from "views/ChatView/ChatView";
 import { ChatViewProps } from "views/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
-import { RichInputAction, RichInputToolbar } from "../RichInputToolbar/RichInputToolbar";
-import { RichInputBaseProps, RichInputChildView } from "../types";
+import { RichInputToolbar } from "../RichInputToolbar/RichInputToolbar";
+import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputChildView, RichInputToolbarView } from "../types";
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
 const MAX_STACK_SIZE = 1000000; // Total characters stored in the change stack. 1 million characters will be about 1-1.5 MB
@@ -130,7 +130,7 @@ export const RichInputBase = ({
         else if (CurrentViewComponent && (CurrentViewComponent as unknown as RichInputChildView).handleAction) {
             (CurrentViewComponent as unknown as RichInputChildView).handleAction(action, data);
         } else {
-            console.error("RichInputBase: CurrentViewComponent does not have a handleAction function");
+            console.error("RichInputToolbar does not have a handleAction function");
         }
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         return () => { };
@@ -192,6 +192,13 @@ export const RichInputBase = ({
         }
     }, [id]);
 
+    const Toolbar = useMemo(() => RichInputToolbar, []);
+    const onActiveStatesChange = useCallback((activeStates: RichInputActiveStates) => {
+        if (Toolbar && (Toolbar as unknown as RichInputToolbarView).updateActiveStates) {
+            (Toolbar as unknown as RichInputToolbarView).updateActiveStates(activeStates);
+        }
+    }, [Toolbar]);
+
     return (
         <>
             {/* Assistant dialog for generating text */}
@@ -203,7 +210,7 @@ export const RichInputBase = ({
                 onMouseDown={handleMouseDown}
                 sx={{ ...(sxs?.root ?? {}) }}
             >
-                <RichInputToolbar
+                <Toolbar
                     canRedo={canRedo}
                     canUndo={canUndo}
                     disableAssistant={disableAssistant}
@@ -223,6 +230,7 @@ export const RichInputBase = ({
                     maxRows={maxRows}
                     minRows={minRows}
                     name={name}
+                    onActiveStatesChange={onActiveStatesChange}
                     onBlur={onBlur}
                     onChange={handleChange}
                     openAssistantDialog={openAssistantDialog}

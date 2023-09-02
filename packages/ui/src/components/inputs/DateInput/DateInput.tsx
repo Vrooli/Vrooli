@@ -75,6 +75,9 @@ export const DateInput = ({
             sx={{
                 background: palette.background.paper,
                 borderRadius: 1,
+                "& ::-webkit-calendar-picker-indicator": {
+                    filter: palette.mode === "dark" ? "invert(1)" : "invert(0)",
+                },
             }}
         />
     );
