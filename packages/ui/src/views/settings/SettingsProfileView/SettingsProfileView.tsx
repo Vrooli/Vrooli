@@ -15,7 +15,7 @@ import { useProfileQuery } from "hooks/useProfileQuery";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { FormSection } from "styles";
+import { FormSection, pagePaddingBottom } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
@@ -113,7 +113,7 @@ export const SettingsProfileView = ({
                 onClose={onClose}
                 title={t("Profile")}
             />
-            <Stack direction="row">
+            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <Formik

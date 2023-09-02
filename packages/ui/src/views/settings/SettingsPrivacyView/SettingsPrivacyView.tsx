@@ -11,6 +11,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { useTranslation } from "react-i18next";
+import { pagePaddingBottom } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { SettingsPrivacyFormProps, SettingsPrivacyViewProps } from "../types";
@@ -115,9 +116,9 @@ export const SettingsPrivacyView = ({
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                title={t("Authentication")}
+                title={t("Privacy")}
             />
-            <Stack direction="row">
+            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <Formik

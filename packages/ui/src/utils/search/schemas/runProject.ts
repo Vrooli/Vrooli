@@ -1,4 +1,4 @@
-import { endpointGetRunProjects, InputType, RunProjectSortBy, RunStatus } from "@local/shared";
+import { endpointGetRunProject, endpointGetRunProjects, InputType, RunProjectSortBy, RunStatus } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -29,4 +29,4 @@ export const runProjectSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const runProjectSearchParams = () => toParams(runProjectSearchSchema(), endpointGetRunProjects, RunProjectSortBy, RunProjectSortBy.DateStartedDesc);
+export const runProjectSearchParams = () => toParams(runProjectSearchSchema(), endpointGetRunProjects, endpointGetRunProject, RunProjectSortBy, RunProjectSortBy.DateStartedDesc);

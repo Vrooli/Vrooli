@@ -2,6 +2,7 @@ import { Box, Stack } from "@mui/material";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { useTranslation } from "react-i18next";
+import { pagePaddingBottom } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { SettingsDataViewProps } from "../types";
 
@@ -19,7 +20,7 @@ export const SettingsDataView = ({
                 onClose={onClose}
                 title={t("Data")}
             />
-            <Stack direction="row" mt={2}>
+            <Stack direction="row" mt={2} sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto">
                 </Box>

@@ -1,4 +1,4 @@
-import { endpointGetStandards, StandardSortBy } from "@local/shared";
+import { endpointGetStandard, endpointGetStandards, StandardSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
@@ -21,4 +21,4 @@ export const standardSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const standardSearchParams = () => toParams(standardSearchSchema(), endpointGetStandards, StandardSortBy, StandardSortBy.ScoreDesc);
+export const standardSearchParams = () => toParams(standardSearchSchema(), endpointGetStandards, endpointGetStandard, StandardSortBy, StandardSortBy.ScoreDesc);

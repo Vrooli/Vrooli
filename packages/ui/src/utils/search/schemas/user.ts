@@ -1,4 +1,4 @@
-import { endpointGetUsers, UserSortBy } from "@local/shared";
+import { endpointGetUser, endpointGetUsers, UserSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout } from "./common";
@@ -15,4 +15,4 @@ export const userSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const userSearchParams = () => toParams(userSearchSchema(), endpointGetUsers, UserSortBy, UserSortBy.BookmarksDesc);
+export const userSearchParams = () => toParams(userSearchSchema(), endpointGetUsers, endpointGetUser, UserSortBy, UserSortBy.BookmarksDesc);

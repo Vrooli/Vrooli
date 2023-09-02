@@ -40,4 +40,4 @@ export const projectOrRoutineSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const projectOrRoutineSearchParams = () => toParams(projectOrRoutineSearchSchema(), endpointGetUnionsProjectOrRoutines, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.BookmarksDesc);
+export const projectOrRoutineSearchParams = () => toParams(projectOrRoutineSearchSchema(), endpointGetUnionsProjectOrRoutines, undefined, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.BookmarksDesc);

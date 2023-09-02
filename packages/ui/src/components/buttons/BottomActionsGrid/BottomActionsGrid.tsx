@@ -2,6 +2,7 @@
  * Prompts user to select which link the new node should be added on
  */
 import { Grid, useTheme } from "@mui/material";
+import { pagePaddingBottom } from "styles";
 import { BottomActionsGridProps } from "../types";
 
 export const BottomActionsGrid = ({
@@ -22,7 +23,7 @@ export const BottomActionsGrid = ({
             // Position is sticky when used for a page or for large screens, and static when used for a dialog
             position: { xs: display === "page" ? "sticky" : "fixed", sm: "sticky" },
             // Displayed directly above BottomNav (pages only), which is only visible on mobile
-            bottom: { xs: display === "page" ? "calc(56px + env(safe-area-inset-bottom))" : 0, md: 0 },
+            bottom: { xs: display === "page" ? pagePaddingBottom : 0, md: 0 },
             paddingBottom: display === "page" ? undefined : "calc(12px + env(safe-area-inset-bottom))",
             // Background has transparent blur gradient when used for a page, 
             // and a solid color when used for a dialog

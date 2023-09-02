@@ -14,6 +14,7 @@ import { useTabs } from "hooks/useTabs";
 import { AddIcon, CompleteIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { pagePaddingBottom } from "styles";
 import { ArgsType } from "types";
 import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
@@ -140,6 +141,7 @@ export const InboxView = ({
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={allData.length === 0 && !loading}
+                sx={{ paddingBottom: pagePaddingBottom }}
             >
                 <ObjectList
                     dummyItems={new Array(5).fill(searchType)}

@@ -17,7 +17,7 @@ import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "icons";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { FormSection } from "styles";
+import { FormSection, pagePaddingBottom } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
@@ -144,7 +144,7 @@ export const SettingsAuthenticationView = ({
                 onClose={onClose}
                 title={t("Authentication")}
             />
-            <Stack direction="row" pt={2} pb={2}>
+            <Stack direction="row" pt={2} sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Stack direction="column" spacing={8} m="auto" pl={2} pr={2} sx={{ maxWidth: "min(100%, 500px)" }}>
                     <Box>

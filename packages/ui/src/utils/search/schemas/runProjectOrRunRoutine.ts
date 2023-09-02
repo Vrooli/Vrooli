@@ -9,4 +9,4 @@ export const runProjectOrRunRoutineSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const runProjectOrRunRoutineSearchParams = () => toParams(runProjectOrRunRoutineSearchSchema(), endpointGetUnionsRunProjectOrRunRoutines, RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSortBy.DateStartedDesc);
+export const runProjectOrRunRoutineSearchParams = () => toParams(runProjectOrRunRoutineSearchSchema(), endpointGetUnionsRunProjectOrRunRoutines, undefined, RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSortBy.DateStartedDesc);

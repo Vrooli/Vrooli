@@ -82,7 +82,7 @@ const readyToSearch = (params: FullSearchParams) => {
     return params.canSearch &&
         !params.loading &&
         params.hasMore &&
-        params.endpoint && params.endpoint.length > 0 &&
+        params.findManyEndpoint && params.findManyEndpoint.length > 0 &&
         params.sortBy && params.sortBy.length > 0;
 };
 
@@ -145,7 +145,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const params = useRef<FullSearchParams>({
         advancedSearchParams: null,
         canSearch: typeof stableCanSearch === "function" ? stableCanSearch(stableWhere ?? {}) : true,
-        endpoint: "",
+        findManyEndpoint: "",
         hasMore: true,
         // Start loading as "true" if we're allowed to search, to prevent flicker
         loading: typeof stableCanSearch === "function" ? stableCanSearch(stableWhere ?? {}) : true,
@@ -186,7 +186,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
             ...after.current,
             ...params.current.where,
             ...params.current.advancedSearchParams,
-        }, params.current.endpoint as string);
+        }, params.current.findManyEndpoint as string);
     }, [getPageData, take]);
     useEffect(() => {
         console.log("settings params.current.loading", loading);
@@ -199,7 +199,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         const newCanSearch = typeof stableCanSearch === "function" ? stableCanSearch(stableWhere) : true;
         params.current.canSearch = newCanSearch;
         // Get data if we couldn't before
-        console.log("calling getData from here? 1", readyToSearch(params.current), oldCanSearch, newCanSearch, params.current.endpoint);
+        console.log("calling getData from here? 1", readyToSearch(params.current), oldCanSearch, newCanSearch, params.current.findManyEndpoint);
         if (readyToSearch(params.current) && !oldCanSearch && newCanSearch) getData();
     }, [getData, stableCanSearch, stableWhere]);
 
@@ -220,13 +220,14 @@ export const useFindMany = <DataType extends Record<string, any>>({
         params.current.advancedSearchParams = advancedSearchParams;
         // If the params haven't changed, return
         if (JSON.stringify(oldAdvancedSearchParams) === JSON.stringify(advancedSearchParams)) return;
+        console.log("PARAMS HAVE CHANGED", oldAdvancedSearchParams, advancedSearchParams);
         // Reset the pagination cursor and hasMore
         after.current = {};
         params.current.hasMore = true;
         // Update the URL
         updateUrl();
         // Fetch new data
-        console.log("calling getData from here? 2", readyToSearch(params.current), params.current.endpoint, advancedSearchParams);
+        console.log("calling getData from here? 2", readyToSearch(params.current), params.current.findManyEndpoint, advancedSearchParams);
         getData();
         // Update state
         console.log("setting search params from useFindMany", advancedSearchParams);
@@ -249,7 +250,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         };
         setAllData([]);
         updateUrl();
-        console.log("calling getData from here? 3", readyToSearch(params.current), params.current.endpoint);
+        console.log("calling getData from here? 3", readyToSearch(params.current), params.current.findManyEndpoint);
         getData();
     }, [updateUrl, searchType, getData]);
 
@@ -269,7 +270,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
                     (after.current as any)[afterKeyLower + "After"] = value;
                 }
             }
-            console.log("calling getData from here? 4", readyToSearch(params.current), params.current.endpoint);
+            console.log("calling getData from here? 4", readyToSearch(params.current), params.current.findManyEndpoint);
             getData();
         } else {
             params.current.hasMore = false;
@@ -280,25 +281,19 @@ export const useFindMany = <DataType extends Record<string, any>>({
     useEffect(() => {
         // params.current.loading = false;
         // If params have changed since this fetch started, invalidate it and refetch
-        const last = {
-            advancedSearchParams: lastParams.current.advancedSearchParams,
-            endpoint: lastParams.current.endpoint,
-            searchString: lastParams.current.searchString,
-            sortBy: lastParams.current.sortBy,
-            timeFrame: lastParams.current.timeFrame,
-            where: lastParams.current.where,
-        };
-        const current = {
-            advancedSearchParams: params.current.advancedSearchParams,
-            endpoint: params.current.endpoint,
-            searchString: params.current.searchString,
-            sortBy: params.current.sortBy,
-            timeFrame: params.current.timeFrame,
-            where: params.current.where,
-        };
+        const toCompareShape = (obj: any) => ({
+            advancedSearchParams: obj.advancedSearchParams,
+            findManyEndpoint: obj.findManyEndpoint,
+            searchString: obj.searchString,
+            sortBy: obj.sortBy,
+            timeFrame: obj.timeFrame,
+            where: obj.where,
+        });
+        const last = toCompareShape(lastParams.current);
+        const current = toCompareShape(params.current);
         if (JSON.stringify(last) !== JSON.stringify(current)) {
             setAllData([]);
-            console.log("calling getData from here? 5", readyToSearch(params.current), params.current.endpoint);
+            console.log("calling getData from here? 5", readyToSearch(params.current), params.current.findManyEndpoint);
             getData();
             return;
         }

@@ -21,7 +21,7 @@ import { useCallback, useContext, useMemo } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
+import { getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay, getYou, ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
@@ -34,6 +34,37 @@ import { ReminderCrudProps } from "../types";
 
 export type NewReminderShape = Partial<Omit<Reminder, "reminderList">> & { reminderList: Partial<Reminder["reminderList"]> & { id: string } };
 
+const getFallbackReminderList = (session: Session | undefined, existing: Partial<NewReminderShape> | null | undefined) => {
+    const { active: activeFocusMode, all: allFocusModes } = getFocusModeInfo(session);
+    const activeMode = activeFocusMode?.mode;
+
+    // If reminderList exists, return it
+    if (existing?.reminderList) {
+        // Try to add the relevant focus mode to the reminder list so we can display it
+        const focusModeId = existing.reminderList.focusMode?.id;
+        return {
+            __typename: "ReminderList" as const,
+            id: existing.reminderList.id,
+            focusMode: focusModeId ? allFocusModes.find(f => f.id === focusModeId) : undefined,
+        };
+    }
+    // If active mode exists, return it
+    else if (activeMode?.id) {
+        return {
+            __typename: "ReminderList" as const,
+            id: activeMode.reminderList?.id ?? DUMMY_ID,
+            focusMode: activeMode,
+        };
+    }
+    // Otherwise, return a new reminder list with any existing focus mode
+    const focusWithReminderList = allFocusModes.find(f => f.reminderList?.id);
+    return {
+        __typename: "ReminderList" as const,
+        id: focusWithReminderList?.reminderList?.id ?? DUMMY_ID,
+        focusMode: focusWithReminderList,
+    };
+};
+
 const reminderInitialValues = (
     session: Session | undefined,
     existing?: Partial<NewReminderShape> | null | undefined,
@@ -45,15 +76,7 @@ const reminderInitialValues = (
     isComplete: false,
     reminderItems: [],
     ...existing,
-    reminderList: {
-        __typename: "ReminderList" as const,
-        id: existing?.reminderList?.id ?? DUMMY_ID,
-        // If there's no reminderListId, add additional fields to create a new reminderList
-        ...(existing?.reminderList?.id === undefined && {
-            focusMode: getCurrentUser(session)?.activeFocusMode?.mode,
-        }),
-        ...existing?.reminderList,
-    },
+    reminderList: existing?.reminderList || getFallbackReminderList(session, existing),
     description: existing?.description ?? "",
     name: existing?.name ?? "",
 });

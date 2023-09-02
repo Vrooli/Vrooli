@@ -18,6 +18,7 @@ import { useProfileQuery } from "hooks/useProfileQuery";
 import { SearchIcon } from "icons";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { pagePaddingBottom } from "styles";
 import { getSiteLanguage } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
@@ -95,7 +96,7 @@ export const SettingsDisplayView = ({
                 onClose={onClose}
                 title={t("Display")}
             />
-            <Stack direction="row">
+            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto">
                     <Formik
