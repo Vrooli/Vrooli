@@ -19,6 +19,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
+import { fontSizeToPixels } from "utils/display/textTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectEditUrl, getObjectUrl } from "utils/navigation/openObject";
 import { TagList } from "../TagList/TagList";
@@ -53,7 +54,7 @@ export function ObjectListItemBase<T extends ListObject>({
     toTheRight,
 }: ObjectListItemProps<T>) {
     const session = useContext(SessionContext);
-    const { breakpoints, palette } = useTheme();
+    const { breakpoints, palette, typography } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
@@ -64,7 +65,7 @@ export function ObjectListItemBase<T extends ListObject>({
 
     const profileColors = useMemo(() => placeholderColor(), []);
     const { canBookmark, canComment, canUpdate, canReact, isBookmarked, reaction } = useMemo(() => getYou(data), [data]);
-    const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
+    const { subtitle, title, adornments } = useMemo(() => getDisplay(data, getUserLanguages(session), palette), [data, session]);
     const { score } = useMemo(() => getCounts(data), [data]);
 
     const link = useMemo(() => (
@@ -259,6 +260,7 @@ export function ObjectListItemBase<T extends ListObject>({
         );
     }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
+    const titleId = `${LIST_PREFIX}title-stack-${id}`
     return (
         <>
             {/* List item */}
@@ -291,15 +293,20 @@ export function ObjectListItemBase<T extends ListObject>({
                     {/* Title */}
                     {loading ? <TextLoading /> :
                         (
-                            <Stack id={`${LIST_PREFIX}title-stack-${id}`} direction="row" spacing={1}>
-                                <ListItemText
-                                    primary={titleOverride ?? title}
-                                    sx={{
-                                        ...multiLineEllipsis(1),
-                                        lineBreak: "anywhere",
-                                        pointerEvents: "none",
-                                    }}
-                                />
+                            <Stack id={titleId} direction="row" spacing={0.5} sx={{
+                                lineBreak: "auto",
+                                wordBreak: "break-word",
+                                pointerEvents: "none",
+                            }}>
+                                <ListItemText primary={titleOverride ?? title} sx={{ display: "contents" }} />
+                                {adornments.map((Adornment) => (
+                                    <Box sx={{
+                                        width: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
+                                        height: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
+                                    }}>
+                                        {Adornment}
+                                    </Box>
+                                ))}
                             </Stack>
                         )
                     }

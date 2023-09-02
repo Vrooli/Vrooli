@@ -70,7 +70,7 @@ export const description = yup.string().transform(blankToUndefined).max(2048, ma
 export const helpText = yup.string().transform(blankToUndefined).max(2048, maxStrErr);
 export const referencing = yup.string().transform(blankToUndefined).max(2048, maxStrErr);
 export const language = yup.string().transform(blankToUndefined).min(2, minStrErr).max(3, maxStrErr); // Language code
-export const name = yup.string().transform(blankToUndefined).min(3, minStrErr).max(128, maxStrErr);
+export const name = yup.string().transform(blankToUndefined).min(3, minStrErr).max(50, maxStrErr);
 export const tag = yup.string().transform(blankToUndefined).min(2, minStrErr).max(64, maxStrErr);
 export const versionLabel = (minVersion = "0.0.1") => yup.string().transform(blankToUndefined).max(16, maxStrErr).test(...minVersionTest(minVersion));
 export const versionNotes = yup.string().transform(blankToUndefined).max(4092, maxStrErr);
