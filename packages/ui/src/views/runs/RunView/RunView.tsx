@@ -979,7 +979,7 @@ export const RunView = ({
         <MaybeLargeDialog
             display={display}
             id="run-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={onClose}
         >
             <Box sx={{ minHeight: "100vh" }}>

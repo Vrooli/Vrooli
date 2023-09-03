@@ -4,8 +4,8 @@ import { useDebounce } from "hooks/useDebounce";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
-import { assistantChatInfo, ChatView } from "views/ChatView/ChatView";
-import { ChatViewProps } from "views/types";
+import { assistantChatInfo, ChatCrud } from "views/objects/chat/ChatCrud/ChatCrud";
+import { ChatCrudProps } from "views/objects/chat/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
 import { RichInputToolbar } from "../RichInputToolbar/RichInputToolbar";
@@ -136,13 +136,13 @@ export const RichInputBase = ({
         return () => { };
     }, [CurrentViewComponent, toggleMarkdown]);
 
-    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatViewProps>({
-        chatInfo: assistantChatInfo,
+    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
+        isCreate: true,
         isOpen: false,
+        overrideObject: assistantChatInfo,
         task: "note",
-        onClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        onCompleted: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
     });
     const openAssistantDialog = useCallback((highlighted: string) => {
         if (disabled) return;
@@ -150,7 +150,6 @@ export const RichInputBase = ({
         const maxContextLength = 1500;
         let context = highlighted.trim();
         if (context.length > maxContextLength) context = context.substring(0, maxContextLength);
-        if (context.length > 0) context = context;
         // If there's not highlighted text, provide the full text if it's not too long
         else if (internalValue.length <= maxContextLength) context = internalValue;
         // Otherwise, provide the last 1500 characters
@@ -202,7 +201,7 @@ export const RichInputBase = ({
     return (
         <>
             {/* Assistant dialog for generating text */}
-            {!disableAssistant && <ChatView {...assistantDialogProps} />}
+            {!disableAssistant && <ChatCrud {...assistantDialogProps} />}
             <Stack
                 id={`markdown-input-base-${name}`}
                 direction="column"

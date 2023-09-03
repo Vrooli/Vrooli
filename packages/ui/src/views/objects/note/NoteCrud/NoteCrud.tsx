@@ -28,7 +28,6 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYou, ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
-import { firstString } from "utils/display/stringTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { noopSubmit } from "utils/objects";
 import { PubSub } from "utils/pubsub";
@@ -192,8 +191,6 @@ const NoteForm = ({
             <TopBar
                 display={display}
                 onClose={handleClose}
-                title={firstString(getDisplay(values as ListObject).title, t(isCreate ? "CreateNote" : disabled ? "Note" : "UpdateNote", { count: 1 }))}
-                help={getDisplay(values as ListObject).subtitle}
                 titleComponent={<EditableTitle
                     handleDelete={handleDelete}
                     isDeletable={!(isCreate || disabled)}
@@ -342,6 +339,5 @@ export const NoteCrud = ({
                 </>
             }
         </Formik>
-
     );
 };

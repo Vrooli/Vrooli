@@ -19,7 +19,6 @@ import { ArgsType } from "types";
 import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { InboxPageTabOption, inboxTabParams } from "utils/search/objectToSearch";
-import { ChatUpsert } from "views/objects/chat/ChatUpsert/ChatUpsert";
 import { InboxViewProps } from "../types";
 
 type InboxType = "Chat" | "Notification";
@@ -114,15 +113,6 @@ export const InboxView = ({
 
     return (
         <>
-            {/* Create chat dialog */}
-            <ChatUpsert
-                isCreate={true}
-                isOpen={isCreateChatOpen}
-                onCancel={closeCreateChat}
-                onCompleted={onChatCreated}
-                overrideObject={{ __typename: "Chat" }}
-            />
-            {/* Main content */}
             <TopBar
                 display={display}
                 hideTitleOnDesktop={true}

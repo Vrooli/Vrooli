@@ -30,6 +30,7 @@ export function ChatListItem({
             //     </Stack>
             // }
             data={data}
+            hideUpdateButton={true} // Chats don't have a dedicated update page
             objectType="Chat"
             onAction={onAction}
         />

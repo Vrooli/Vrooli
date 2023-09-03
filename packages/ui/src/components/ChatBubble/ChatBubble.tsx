@@ -159,7 +159,7 @@ export const ChatBubble = ({
             setHasError(true);
         }
     }, [createErrors, updateErrors]);
-    console.log("chatbubble render", hasError, message);
+    console.log("chatbubble render", isOwn, message, message.user?.name ?? message.user?.handle);
 
     const shouldRetry = useRef(true);
     useEffect(() => {
@@ -234,14 +234,14 @@ export const ChatBubble = ({
                         alt={message.user?.name ?? message.user?.handle}
                         // onClick handlers...
                         sx={{
-                            bgcolor: message.user.isBot ? "grey" : undefined,
+                            bgcolor: message.user?.isBot ? "grey" : undefined,
                             boxShadow: 2,
                             cursor: "pointer",
                             // Bots show up as squares, to distinguish them from users
                             ...(message.user?.isBot ? { borderRadius: "8px" } : {}),
                         }}
                     >
-                        {message.user.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                        {message.user?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
                     </Avatar>
                 )}
                 <Box
@@ -313,7 +313,7 @@ export const ChatBubble = ({
                 )}
             </Stack>
             {/* Reactions */}
-            <ChatBubbleReactions isBot={message.user.isBot} isOwn={isOwn} />
+            <ChatBubbleReactions isBot={message.user?.isBot ?? false} isOwn={isOwn} />
         </Stack>
     );
 };

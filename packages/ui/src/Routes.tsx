@@ -37,7 +37,7 @@ const {
 const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
 const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
 const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
-const { ChatView } = lazily(() => import("./views/ChatView/ChatView"));
+const { ChatCrud } = lazily(() => import("./views/objects/chat"));
 const { FormView } = lazily(() => import("./views/wrapper/FormView"));
 const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
@@ -146,8 +146,11 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 >
                     <CreateView />
                 </NavRoute>
+                <NavRoute path={`${LINKS.Chat}/add`} excludePageContainer {...props}>
+                    <ChatCrud isCreate={true} />
+                </NavRoute>
                 <NavRoute path={`${LINKS.Chat}/:id`} excludePageContainer {...props}>
-                    <ChatView />
+                    <ChatCrud isCreate={false} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ForgotPassword}/:code?`}

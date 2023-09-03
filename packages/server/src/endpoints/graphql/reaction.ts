@@ -40,6 +40,11 @@ export const typeDef = gql`
         to: ReactionTo!
     }
 
+    type ReactionSummary {
+        emoji: String!
+        count: Int!
+    }
+
     input ReactionSearchInput {
         after: String
         excludeLinkedToTag: Boolean

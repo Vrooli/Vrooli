@@ -27,7 +27,7 @@ export const StatsObjectView = <T extends ListObject>({
             display={display}
             id="object-stats-dialog"
             onClose={onClose}
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             titleId={titleId}
         >
             <TopBar

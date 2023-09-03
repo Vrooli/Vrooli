@@ -1,4 +1,8 @@
 import { Chat } from "@local/shared";
-import { UpsertProps } from "../types";
+import { AssistantTask } from "types";
+import { CrudProps } from "../types";
 
-export type ChatUpsertProps = UpsertProps<Chat>
+export type ChatCrudProps = CrudProps<Chat> & {
+    context?: string | null | undefined;
+    task?: AssistantTask;
+}

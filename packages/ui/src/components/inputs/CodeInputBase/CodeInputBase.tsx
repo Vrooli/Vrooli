@@ -21,8 +21,8 @@ import ReactDOMServer from "react-dom/server";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { assistantChatInfo, ChatView } from "views/ChatView/ChatView";
-import { ChatViewProps } from "views/types";
+import { assistantChatInfo, ChatCrud } from "views/objects/chat/ChatCrud/ChatCrud";
+import { ChatCrudProps } from "views/objects/chat/types";
 import { CodeInputBaseProps } from "../types";
 
 export enum StandardLanguage {
@@ -511,13 +511,13 @@ export const CodeInputBase = ({
     }, [mode]);
 
     // Handle assistant dialog
-    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatViewProps>({
-        chatInfo: assistantChatInfo,
+    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
+        isCreate: true,
         isOpen: false,
+        overrideObject: assistantChatInfo,
         task: "standard",
-        onClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        onCompleted: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
     });
     const openAssistantDialog = useCallback(() => {
         if (disabled) return;
@@ -596,7 +596,7 @@ export const CodeInputBase = ({
     return (
         <>
             {/* Assistant dialog for generating text */}
-            <ChatView {...assistantDialogProps} />
+            <ChatCrud {...assistantDialogProps} />
             <Stack direction="column" spacing={0} sx={{
                 borderRadius: 1.5,
                 overflow: "hidden",

@@ -53,7 +53,7 @@ export const RunRoutineUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="run-routine-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

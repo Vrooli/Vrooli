@@ -691,6 +691,7 @@ export type ChatMessage = {
   chat: Chat;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  reactionSummaries: Array<ReactionSummary>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
@@ -1341,6 +1342,7 @@ export enum GqlModelType {
   QuizQuestion = 'QuizQuestion',
   QuizQuestionResponse = 'QuizQuestionResponse',
   Reaction = 'Reaction',
+  ReactionSummary = 'ReactionSummary',
   Reminder = 'Reminder',
   ReminderItem = 'ReminderItem',
   ReminderList = 'ReminderList',
@@ -6347,6 +6349,12 @@ export enum ReactionSortBy {
   DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
+export type ReactionSummary = {
+  __typename: 'ReactionSummary';
+  count: Scalars['Int'];
+  emoji: Scalars['String'];
+};
+
 export type ReactionTo = Api | ChatMessage | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard;
 
 export type ReadAssetsInput = {
@@ -10248,6 +10256,7 @@ export type ResolversTypes = {
   ReactionSearchInput: ReactionSearchInput;
   ReactionSearchResult: ResolverTypeWrapper<ReactionSearchResult>;
   ReactionSortBy: ReactionSortBy;
+  ReactionSummary: ResolverTypeWrapper<ReactionSummary>;
   ReactionTo: ResolversTypes['Api'] | ResolversTypes['ChatMessage'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
   Reminder: ResolverTypeWrapper<Reminder>;
@@ -10952,6 +10961,7 @@ export type ResolversParentTypes = {
   ReactionEdge: ReactionEdge;
   ReactionSearchInput: ReactionSearchInput;
   ReactionSearchResult: ReactionSearchResult;
+  ReactionSummary: ReactionSummary;
   ReactionTo: ResolversParentTypes['Api'] | ResolversParentTypes['ChatMessage'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
   Reminder: Reminder;
@@ -11476,6 +11486,7 @@ export type ChatMessageResolvers<ContextType = any, ParentType extends Resolvers
   chat?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  reactionSummaries?: Resolver<Array<ResolversTypes['ReactionSummary']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -13296,6 +13307,12 @@ export type ReactionSearchResultResolvers<ContextType = any, ParentType extends 
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type ReactionSummaryResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReactionSummary'] = ResolversParentTypes['ReactionSummary']> = {
+  count?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  emoji?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type ReactionToResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReactionTo'] = ResolversParentTypes['ReactionTo']> = {
   __resolveType: TypeResolveFn<'Api' | 'ChatMessage' | 'Comment' | 'Issue' | 'Note' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
 };
@@ -14966,6 +14983,7 @@ export type Resolvers<ContextType = any> = {
   Reaction?: ReactionResolvers<ContextType>;
   ReactionEdge?: ReactionEdgeResolvers<ContextType>;
   ReactionSearchResult?: ReactionSearchResultResolvers<ContextType>;
+  ReactionSummary?: ReactionSummaryResolvers<ContextType>;
   ReactionTo?: ReactionToResolvers<ContextType>;
   Reminder?: ReminderResolvers<ContextType>;
   ReminderEdge?: ReminderEdgeResolvers<ContextType>;

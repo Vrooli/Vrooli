@@ -134,11 +134,8 @@ const ReminderForm = ({
     const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     const onSubmit = useCallback(() => {
-        console.log('onsubmit values', values);
-        console.log('onsubmit transformed', transformReminderValues(values, existing, isCreate));
         if (disabled) {
-            console.log('WAS DISABLED')
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
             return;
         }
         fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({

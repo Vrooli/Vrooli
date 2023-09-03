@@ -54,7 +54,7 @@ export const SmartContractUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="smart-contract-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

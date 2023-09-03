@@ -609,7 +609,7 @@ const RichInputLexicalComponents = ({
                     const type = parentList
                         ? parentList.getListType()
                         : element.getListType();
-                    console.log('got block type 1', type)
+                    console.log("got block type 1", type);
                     if (type in blockTypeToActionName) {
                         updatedStates[blockTypeToActionName[type as keyof typeof blockTypeToActionName]] = true;
                     }
@@ -618,13 +618,13 @@ const RichInputLexicalComponents = ({
                         ? element.getTag()
                         : element.getType();
                     if (type in blockTypeToActionName) {
-                        console.log('got block type 2', type)
+                        console.log("got block type 2", type);
                         updatedStates[blockTypeToActionName[type as keyof typeof blockTypeToActionName]] = true;
                     }
                     if ($isCodeNode(element)) {
                         const language =
                             element.getLanguage() as keyof typeof CODE_LANGUAGE_MAP;
-                        console.log('got code language', language)
+                        console.log("got code language", language);
                         setCodeLanguage(
                             language ? CODE_LANGUAGE_MAP[language] || language : "",
                         );
@@ -633,7 +633,7 @@ const RichInputLexicalComponents = ({
                 }
             }
             // TODO need to find spoilers, underlines, headers, code and quote blocks, and lists
-            console.log('updated states', updatedStates);
+            console.log("updated states", updatedStates);
             setActiveStates({ ...updatedStates });
             onActiveStatesChange({ ...updatedStates });
         }

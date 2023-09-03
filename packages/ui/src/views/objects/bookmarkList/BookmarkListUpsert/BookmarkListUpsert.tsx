@@ -53,7 +53,7 @@ export const BookmarkListUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="bookmark-list-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

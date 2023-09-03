@@ -163,7 +163,7 @@ export const UserView = ({
             }
         })
         // Navigate to chat page
-        setLocation(LINKS.Chat);
+        setLocation(`${LINKS.Chat}/add`);
     }, [user]);
 
     return (

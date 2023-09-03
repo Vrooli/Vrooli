@@ -53,7 +53,7 @@ export const StandardUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="standard-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

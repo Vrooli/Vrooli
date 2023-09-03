@@ -1,6 +1,6 @@
-import { Chat, RoutineVersion } from "@local/shared";
+import { RoutineVersion } from "@local/shared";
 import { ReactNode } from "react";
-import { AssistantTask, PartialWithType } from "types";
+import { PartialWithType } from "types";
 import { ListObject } from "utils/display/listTools";
 
 /**
@@ -29,23 +29,6 @@ export type AboutViewProps = ViewProps
 export type AwardsViewProps = ViewProps
 
 export type CalendarViewProps = ViewProps
-
-export type ChatViewProps = ViewProps & {
-    botSettings?: string | null | undefined;
-    /** 
-     * Info for finding an existing chat or starting a new one.
-     * 
-     * Pass an ID if you want to find an existing chat.
-     * 
-     * Pass `{ 
-     *     invites: [{ id: "abc-123"}, { id: "345-678"}],
-     *     //...other chat info like translations and labels (optional)
-     * }` to start a new chat with the given users.
-     * */
-    chatInfo?: Partial<Chat>;
-    context?: string | null | undefined;
-    task?: AssistantTask;
-}
 
 export type HistorySearchViewProps = ViewProps
 

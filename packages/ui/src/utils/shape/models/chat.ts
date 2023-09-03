@@ -12,9 +12,9 @@ export type ChatShape = Pick<Chat, "id" | "openToAnyoneWithInvite"> & {
     __typename: "Chat";
     invites?: ChatInviteShape[] | null;
     labels?: ({ id: string } | LabelShape)[];
-    messages: ChatMessage[]; // Ignored, but needed for ChatView
+    messages: ChatMessage[]; // Ignored, but needed for ChatCrud
     organization?: { id: string } | null;
-    participants: ChatParticipant[]; // Ignored, but needed for ChatView
+    participants: ChatParticipant[]; // Ignored, but needed for ChatCrud
     participantsDelete?: { id: string }[] | null;
     translations?: ChatTranslationShape[] | null;
 }
