@@ -1,4 +1,4 @@
-import { exists, LINKS } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
@@ -30,8 +30,8 @@ export function FocusModeButton({
     const [reminderListField, , reminderListHelpers] = useField("reminderList");
 
     const isAvailable = useMemo(() =>
-        (objectType === "Reminder" && ["object"].includes(typeof reminderListField.value)) ||
-        (objectType === "Schedule" && ["object"].includes(typeof focusModeField.value))
+        (objectType === "Reminder" && reminderListField.value !== undefined) ||
+        (objectType === "Schedule" && focusModeField.value !== undefined)
         , [objectType, reminderListField.value, focusModeField.value]);
 
     // Focus mode dialog
@@ -45,10 +45,10 @@ export function FocusModeButton({
             if (focusMode) setLocation(LINKS.SettingsFocusModes);
         }
         else {
-            // If focus mode was set, remove
-            if (focusMode) {
-                if (exists(focusModeField.value && focusModeHelpers)) focusModeHelpers.setValue(null);
-                else if (exists(reminderListField.value && reminderListHelpers)) reminderListHelpers.setValue(null);
+            // If focus mode was set, and this is a schedule, remove focus mode. 
+            // We don't remove for reminders because they are required to have a focus mode
+            if (focusMode && focusModeField.value !== undefined && focusModeHelpers) {
+                focusModeHelpers.setValue(null);
             }
             // Otherwise, open select dialog
             else setDialogOpen(true);
@@ -56,9 +56,13 @@ export function FocusModeButton({
     }, [isAvailable, focusModeField.value, allFocusModes, isEditing, reminderListField.value, setLocation, focusModeHelpers, reminderListHelpers]);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, [setDialogOpen]);
     const handleSelect = useCallback((focusMode: RelationshipItemFocusMode) => {
-        console.log("setting focus mode", focusMode);
-        if (exists(focusModeField.value && focusModeHelpers)) focusModeHelpers.setValue(focusMode);
-        else if (exists(reminderListField.value && reminderListHelpers && focusMode?.reminderList)) reminderListHelpers.setValue(focusMode.reminderList);
+        console.log("setting focus mode", focusMode, focusModeField.value, reminderListField.value);
+        if (focusModeField.value !== undefined && focusModeHelpers) focusModeHelpers.setValue(focusMode);
+        else if (reminderListField.value !== undefined && reminderListHelpers) {
+            // Add focus mode to reminder list
+            const { reminderList, ...rest } = focusMode;
+            reminderListHelpers.setValue({ ...reminderList, focusMode: rest });
+        }
         closeDialog();
     }, [focusModeField.value, focusModeHelpers, reminderListField.value, reminderListHelpers, closeDialog]);
 
@@ -70,7 +74,7 @@ export function FocusModeButton({
     }, [isDialogOpen, handleSelect, closeDialog]);
 
     const { Icon, tooltip } = useMemo(() => {
-        const focusMode = focusModeField?.value ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id);
+        const focusMode = focusModeField?.value ?? reminderListField?.value?.focusMode ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id);
         console.log("getting icon and tooltip", focusMode);
         // If no data, marked as unset
         if (!focusMode) return {
@@ -90,7 +94,7 @@ export function FocusModeButton({
         <>
             {/* Popup for selecting focus mode */}
             {findType && <FindObjectDialog
-                find="Full"
+                find="List"
                 isOpen={Boolean(findType)}
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}

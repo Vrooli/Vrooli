@@ -6476,6 +6476,8 @@ export type ReminderUpdateInput = {
   reminderItemsCreate?: InputMaybe<Array<ReminderItemCreateInput>>;
   reminderItemsDelete?: InputMaybe<Array<Scalars['ID']>>;
   reminderItemsUpdate?: InputMaybe<Array<ReminderItemUpdateInput>>;
+  reminderListConnect?: InputMaybe<Scalars['ID']>;
+  reminderListCreate?: InputMaybe<ReminderListCreateInput>;
 };
 
 export type Report = {

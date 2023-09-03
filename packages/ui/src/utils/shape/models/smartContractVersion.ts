@@ -3,8 +3,7 @@ import { ShapeModel } from "types";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { shapeSmartContract, SmartContractShape } from "./smartContract";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTranslation, "id" | "language" | "description" | "name" | "jsonVariable"> & {
     __typename?: "SmartContractVersionTranslation";

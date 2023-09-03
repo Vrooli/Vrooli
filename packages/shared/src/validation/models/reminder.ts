@@ -21,6 +21,7 @@ export const reminderValidation: YupModel = {
         dueDate: opt(yup.date()),
         index: opt(index),
     }, [
+        ["reminderList", ["Connect", "Create"], "one", "opt", reminderListValidation, ["reminders"]],
         ["reminderItems", ["Create", "Update", "Delete"], "many", "opt", reminderItemValidation],
     ], [], o),
 };

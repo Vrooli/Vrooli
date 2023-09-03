@@ -22,7 +22,7 @@ import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautif
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { getFocusModeInfo } from "utils/authentication/session";
-import { getDisplay, getYou, ListObject } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { noopSubmit } from "utils/objects";
@@ -43,8 +43,8 @@ const getFallbackReminderList = (session: Session | undefined, existing: Partial
         // Try to add the relevant focus mode to the reminder list so we can display it
         const focusModeId = existing.reminderList.focusMode?.id;
         return {
+            ...existing.reminderList,
             __typename: "ReminderList" as const,
-            id: existing.reminderList.id,
             focusMode: focusModeId ? allFocusModes.find(f => f.id === focusModeId) : undefined,
         };
     }
@@ -52,6 +52,7 @@ const getFallbackReminderList = (session: Session | undefined, existing: Partial
     else if (activeMode?.id) {
         return {
             __typename: "ReminderList" as const,
+            ...activeMode.reminderList,
             id: activeMode.reminderList?.id ?? DUMMY_ID,
             focusMode: activeMode,
         };
@@ -107,6 +108,7 @@ const ReminderForm = ({
     values,
     ...props
 }: ReminderFormProps) => {
+    const session = useContext(SessionContext);
     const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -132,17 +134,20 @@ const ReminderForm = ({
     const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     const onSubmit = useCallback(() => {
+        console.log('onsubmit values', values);
+        console.log('onsubmit transformed', transformReminderValues(values, existing, isCreate));
         if (disabled) {
+            console.log('WAS DISABLED')
             PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
             fetch,
             inputs: transformReminderValues(values, existing, isCreate),
-            onSuccess: (data) => { handleCompleted(data); },
+            onSuccess: (data) => { handleCompleted(data); handleUpdate(reminderInitialValues(session, data)) },
             onCompleted: () => { props.setSubmitting(false); },
         });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
+    }, [disabled, existing, fetch, handleCompleted, isCreate, props, session, values]);
 
     // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
@@ -195,6 +200,7 @@ const ReminderForm = ({
             {
                 id: uuid(),
                 index: reminderItemsField.value.length,
+                isComplete: false,
                 name: "",
                 description: "",
                 dueDate: null,
@@ -389,7 +395,6 @@ export const ReminderCrud = ({
         overrideObject: overrideObject as Reminder,
         transform: (existing) => reminderInitialValues(session, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing as ListObject), [existing]);
 
     return (
         <Formik
@@ -399,7 +404,7 @@ export const ReminderCrud = ({
             validate={async (values) => await validateReminderValues(values, existing, isCreate)}
         >
             {(formik) => <ReminderForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={false} // Can always update reminders
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

@@ -2,8 +2,7 @@ import { Chat, ChatCreateInput, ChatMessage, ChatParticipant, ChatTranslation, C
 import { ShapeModel } from "types";
 import { ChatInviteShape, shapeChatInvite } from "./chatInvite";
 import { LabelShape, shapeLabel } from "./label";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type ChatTranslationShape = Pick<ChatTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "ChatTranslation";

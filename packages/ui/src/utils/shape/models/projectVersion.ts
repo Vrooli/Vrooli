@@ -3,8 +3,7 @@ import { ShapeModel } from "types";
 import { ProjectShape, shapeProject } from "./project";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { ResourceListShape } from "./resourceList";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "ProjectVersionTranslation";

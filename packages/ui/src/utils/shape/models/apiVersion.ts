@@ -2,8 +2,7 @@ import { ApiVersion, ApiVersionCreateInput, ApiVersionTranslation, ApiVersionTra
 import { ShapeModel } from "types";
 import { ApiShape, shapeApi } from "./api";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, "id" | "language" | "details" | "name" | "summary"> & {
     __typename?: "ApiVersionTranslation";
