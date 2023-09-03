@@ -56,7 +56,6 @@ const areDimensionsValid = (
     max?: number,
     min?: number,
 ) => {
-    console.log("aredimensionsvalid?", dimensions, max, min);
     if (!dimensions) return false;
     const limit = (["top", "bottom"].includes(position)) ? dimensions.height : dimensions.width;
     const upperBound = (["top", "bottom"].includes(position)) ? window.innerHeight : window.innerWidth;

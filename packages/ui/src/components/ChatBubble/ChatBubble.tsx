@@ -1,18 +1,143 @@
 import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPutChatMessage } from "@local/shared";
 import { Avatar, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
+import { green, red } from "@mui/material/colors";
+import IconButton from "@mui/material/IconButton";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { ChatBubbleStatus } from "components/ChatBubbleStatus/ChatBubbleStatus";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { BotIcon, UserIcon } from "icons";
+import { BotIcon, EditIcon, ErrorIcon, ReportIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
+
+/**
+ * Displays a visual indicator for the status of a chat message (that you sent).
+ * It shows a CircularProgress that progresses as the message is sending,
+ * and changes color and icon based on the success or failure of the operation.
+ */
+const ChatBubbleStatus = ({
+    hasError,
+    isEditing,
+    isSending,
+    onEdit,
+    onRetry,
+}: {
+    isEditing: boolean;
+    /** Indicates if the message is still sending */
+    isSending: boolean;
+    /** Indicates if there has been an error in sending the message */
+    hasError: boolean;
+    onEdit: () => unknown;
+    onRetry: () => unknown;
+}) => {
+    const [progress, setProgress] = useState(0);
+    const [isCompleted, setIsCompleted] = useState(false);
+
+    useEffect(() => {
+        // Updates the progress value every 100ms, but stops at 90 if the message is still sending
+        let timer: NodeJS.Timeout;
+        if (isSending) {
+            timer = setInterval(() => {
+                setProgress((oldProgress) => {
+                    if (oldProgress === 100) {
+                        setIsCompleted(true);
+                        return 100;
+                    }
+                    const diff = 3;
+                    return Math.min(oldProgress + diff, isSending ? 90 : 100);
+                });
+            }, 50);
+        }
+
+        // Cleans up the interval when the component is unmounted or the message is not sending anymore
+        return () => {
+            if (timer) clearInterval(timer);
+        };
+    }, [isSending]);
+
+    useEffect(() => {
+        // Resets the progress and completion state after a delay when the sending has completed
+        if (isCompleted && !isSending) {
+            const timer = setTimeout(() => {
+                setProgress(0);
+                setIsCompleted(false);
+            }, 1000);
+            return () => {
+                clearTimeout(timer);
+            };
+        }
+    }, [isCompleted, isSending]);
+
+    // While the message is sending or has just completed, show a CircularProgress
+    if (isSending || isCompleted) {
+        return (
+            <CircularProgress
+                variant="determinate"
+                value={progress}
+                size={24}
+                sx={{ color: isSending ? "secondary.main" : hasError ? red[500] : green[500] }}
+            />
+        );
+    }
+
+    // If editing, don't show any icon
+    if (isEditing) {
+        return null;
+    }
+    // If there was an error, show an ErrorIcon
+    if (hasError) {
+        return (
+            <IconButton onClick={() => { onRetry(); }} sx={{ color: red[500] }}>
+                <ErrorIcon />
+            </IconButton>
+        );
+    }
+    // Otherwise, show an EditIcon
+    return (
+        <IconButton onClick={() => { onEdit(); }} sx={{ color: green[500] }}>
+            <EditIcon />
+        </IconButton>
+    );
+};
+
+
+/**
+ * Displays message reactions and actions (i.e. refresh and report). 
+ * Reactions are displayed as a list of emojis on the left, and bot actions are displayed
+ * as a list of icons on the right.
+ */
+const ChatBubbleReactions = ({
+    isBot,
+    isOwn,
+}: {
+    isBot: boolean,
+    isOwn: boolean,
+}) => {
+    const reactions = isOwn ? [] : ['👍', '👎'];
+
+    return (
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Stack direction="row" spacing={1} pl={6}>
+                {reactions.map((reaction) => (
+                    <IconButton key={reaction} size="small">
+                        {reaction}
+                    </IconButton>
+                ))}
+            </Stack>
+            <Stack direction="row" spacing={1}>
+                {isBot && <IconButton size="small">
+                    <ReportIcon />
+                </IconButton>}
+            </Stack>
+        </Box>
+    );
+}
 
 export const ChatBubble = ({
     index,
@@ -91,9 +216,9 @@ export const ChatBubble = ({
     return (
         <Stack
             key={index}
-            sx={{ display: "flex", justifyContent: isOwn ? "flex-end" : "flex-start", p: 2 }}
             direction="column"
             spacing={1}
+            p={2}
         >
             {/* User name display if it's not your message */}
             {!isOwn && (
@@ -102,7 +227,7 @@ export const ChatBubble = ({
                 </Typography>
             )}
             {/* Avatar, chat bubble, and status indicator */}
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} justifyContent={isOwn ? "flex-end" : "flex-start"}>
                 {!isOwn && (
                     <Avatar
                         src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, 50)}
@@ -188,7 +313,7 @@ export const ChatBubble = ({
                 )}
             </Stack>
             {/* Reactions */}
-            {/* TODO */}
+            <ChatBubbleReactions isBot={message.user.isBot} isOwn={isOwn} />
         </Stack>
     );
 };

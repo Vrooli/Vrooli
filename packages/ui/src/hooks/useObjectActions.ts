@@ -103,7 +103,6 @@ export const useObjectActions = ({
                 // Data is in first key with a value
                 const forkData: any = Object.values(data).find((v) => typeof v === "object");
                 openObject(forkData, setLocation);
-                window.location.reload();
                 break;
             }
             case ObjectActionComplete.VoteDown:

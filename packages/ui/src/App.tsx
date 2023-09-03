@@ -370,7 +370,6 @@ export function App() {
             PubSub.get().unsubscribe(sideMenuPub);
         });
     }, [checkSession, isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
-    console.log("contentMargins", contentMargins);
 
     // Handle websocket connection for tracking notifications
     useEffect(() => {

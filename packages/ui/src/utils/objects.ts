@@ -7,5 +7,5 @@ export const noopSubmit = (values: unknown) => {
 };
 
 export const noop = () => {
-    console.warn("Noop called unexpectedly");
+    console.warn("Noop called");
 };

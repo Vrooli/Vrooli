@@ -10,17 +10,6 @@ export interface ChatBubbleProps {
     onUpdated: (message: ChatMessage & { isUnsent: boolean }) => unknown;
 }
 
-export interface ChatBubbleStatusProps {
-    isEditing: boolean;
-    /** Indicates if the message is still sending */
-    isSending: boolean;
-    /** Indicates if there has been an error in sending the message */
-    hasError: boolean;
-    onEdit: () => unknown;
-    onRetry: () => unknown;
-}
-
-
 export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {
     isLoading?: boolean;
     showLabel?: boolean;

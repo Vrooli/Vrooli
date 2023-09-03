@@ -15,7 +15,7 @@ import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { ListIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { parseSearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
@@ -120,46 +120,14 @@ export const ChatView = ({
     const [createChat, { loading: isCreateLoading, errors: createErrors }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
     console.log("GOT CHAT", chat, isOpen);
 
-    // useEffect(() => {
-    //     if (chat || !isOpen) return;
-    //     // Check if the chat already exists, or if the URL has an id
-    //     let chatId = chatInfo?.id;
-    //     if (!chatId && window.location.pathname.startsWith(LINKS.Chat)) {
-    //         chatId = base36ToUuid(window.location.pathname.split("/")[2]);
-    //     }
-    //     const alreadyExists = chatId && uuidValidate(chatId);
-    //     // If so, find chat by id
-    //     if (alreadyExists) {
-    //         console.log("getting chat", chatInfo);
-    //         fetchLazyWrapper<FindByIdInput, Chat>({
-    //             fetch: getData,
-    //             inputs: { id: chatId as string },
-    //             onSuccess: (data) => {
-    //                 console.log("GOT CHAT!!!", data);
-    //                 setChat(data);
-    //             },
-    //         });
-    //     }
-    //     // Otherwise, start a new chat
-    //     else {
-    //         fetchLazyWrapper<ChatCreateInput, Chat>({
-    //             fetch: createChat,
-    //             inputs: shapeChat.create({
-    //                 openToAnyoneWithInvite: false,
-    //                 id: uuid(),
-    //                 ...chatInfo,
-    //                 __typename: "Chat",
-    //                 translations: orDefault(chatInfo?.translations, [{
-    //                     __typename: "ChatTranslation" as const,
-    //                     id: uuid(),
-    //                     language: lng,
-    //                     name: chatInfo?.participants?.length === 1 ? firstString(chatInfo.participants[0].user?.name) : "New Chat",
-    //                 }]),
-    //             }),
-    //             onSuccess: (data) => { setChat(data); },
-    //         });
-    //     }
-    // }, [chat, chatInfo, createChat, getData, isOpen, lng]);
+    // If there isn't a chat and there are URL params to create one, create it
+    useEffect(() => {
+        const urlParams = parseSearchParams();
+        if (chat) return;
+        console.log('THERE IS NO CHAT', urlParams); //TODO might need to add flag to useObjectFromUrl so we can tell if we tried to get the chat but it doesn't exist
+        // TODO create chat. Check for everything in ChatCreateInput except for id.
+        // Should use getDisplay to get title and subtitle
+    }, [chat]);
 
     // Handle websocket for chat messages (e.g. new message, new reactions, etc.)
     useEffect(() => {
@@ -252,7 +220,6 @@ export const ChatView = ({
         }
     }, [chat, lng, t, task]);
 
-    console.log("context in chatview", messages, chat?.messages);
     const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: true }); }, []);
     const closeSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: false }); }, []);
     useEffect(() => {
@@ -369,7 +336,7 @@ export const ChatView = ({
                             minHeight: "calc(100vh - 64px)",
                         }}>
                             {messages.map((message: ChatMessage, index) => {
-                                const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;
+                                const isOwn = message.user?.id === getCurrentUser(session).id;
                                 return <ChatBubble
                                     key={index}
                                     message={message}
@@ -401,7 +368,7 @@ export const ChatView = ({
                     </>}
                 </Formik>
             </MaybeLargeDialog>
-            {isOpen && <ChatSideMenu />}
+            <ChatSideMenu />
         </>
     );
 };

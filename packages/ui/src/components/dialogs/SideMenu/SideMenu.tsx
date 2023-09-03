@@ -23,6 +23,7 @@ import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getUserActions, NavAction, NAV_ACTION_TAGS } from "utils/navigation/userActions";
+import { noop } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { shapeProfile } from "utils/shape/models/profile";
@@ -70,7 +71,6 @@ export const SideMenu = () => {
     useEffect(() => {
         PubSub.get().publishSideMenu({ id, isOpen });
     }, [breakpoints, isOpen]);
-    console.log("is side menu open", isOpen, isMobile, isLeftHanded);
 
     // Display settings collapse
     const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
@@ -200,8 +200,7 @@ export const SideMenu = () => {
         <SwipeableDrawer
             anchor={isLeftHanded ? "left" : "right"}
             open={isOpen}
-            // eslint-disable-next-line @typescript-eslint/no-empty-function
-            onOpen={() => { }}
+            onOpen={noop}
             onClose={handleClose}
             PaperProps={{ id }}
             variant={isMobile ? "temporary" : "persistent"}

@@ -1,4 +1,4 @@
-import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User } from "@local/shared";
+import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
 import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -20,7 +20,7 @@ import { useTabs } from "hooks/useTabs";
 import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { setSearchParams, useLocation } from "route";
 import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
@@ -154,8 +154,16 @@ export const UserView = ({
 
     /** Starts a new chat */
     const handleStartChat = useCallback(() => {
-        if (!user) return;
-        // TODO
+        if (!user || !user.id) return;
+        // Create URL search params
+        setSearchParams(setLocation, {
+            invites: {
+                id: uuid(),
+                userConnect: user.id,
+            }
+        })
+        // Navigate to chat page
+        setLocation(LINKS.Chat);
     }, [user]);
 
     return (
