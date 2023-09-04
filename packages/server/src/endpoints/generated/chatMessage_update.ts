@@ -246,6 +246,11 @@ export const chatMessage_update = {
     "__typename": "User"
   },
   "score": true,
+  "reactionSummaries": {
+    "emoji": true,
+    "count": true,
+    "__typename": "ReactionSummary"
+  },
   "reportsCount": true,
   "you": {
     "canDelete": true,

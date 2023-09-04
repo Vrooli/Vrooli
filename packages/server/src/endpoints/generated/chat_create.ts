@@ -60,6 +60,11 @@ export const chat_create = {
       "__typename": "User"
     },
     "score": true,
+    "reactionSummaries": {
+      "emoji": true,
+      "count": true,
+      "__typename": "ReactionSummary"
+    },
     "reportsCount": true,
     "you": {
       "canDelete": true,
