@@ -54,7 +54,7 @@ export const ResourceUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="resource-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

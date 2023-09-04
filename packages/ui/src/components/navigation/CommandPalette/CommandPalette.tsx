@@ -68,7 +68,6 @@ export const CommandPalette = () => {
         const queryItems = listToAutocomplete(parseData(data, "Popular"), languages);
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
     }, [t, searchString, data, languages, shortcutsItems]);
-    console.log("autocomplete options", autocompleteOptions);
 
     /**
      * When an autocomplete item is selected, navigate to object

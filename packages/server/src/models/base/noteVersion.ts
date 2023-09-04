@@ -53,7 +53,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             },
             create: async ({ data, ...rest }) => {
                 const { translations } = await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
-                const translationCreatesPromises = translations.create?.map(async (translation) => ({
+                const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,
                     ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
@@ -74,12 +74,12 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             update: async ({ data, ...rest }) => {
                 // Translated pages require custom logic
                 const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
-                const translationCreatesPromises = translations.create?.map(async (translation) => ({
+                const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,
                     ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
                 }));
-                const translationUpdatesPromises = translations.update?.map(async (translation) => ({
+                const translationUpdatesPromises = translations?.update?.map(async (translation) => ({
                     where: translation.where,
                     data: {
                         ...translation.data,
@@ -91,7 +91,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                 }));
                 const translationCreates = await Promise.all(translationCreatesPromises ?? []);
                 const translationUpdates = await Promise.all(translationUpdatesPromises ?? []);
-                const translationDeletes = translations.delete;
+                const translationDeletes = translations?.delete;
                 return {
                     isPrivate: noNull(data.isPrivate),
                     versionLabel: noNull(data.versionLabel),

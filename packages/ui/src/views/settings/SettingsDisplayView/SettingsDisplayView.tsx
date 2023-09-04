@@ -1,21 +1,80 @@
 import { endpointPutProfile, ProfileUpdateInput, User, userValidation } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
+import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
+import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
+import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
+import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { SettingsDisplayForm } from "forms/settings";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { SearchIcon } from "icons";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { pagePaddingBottom } from "styles";
 import { getSiteLanguage } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
-import { SettingsDisplayViewProps } from "../types";
+import { SettingsDisplayFormProps, SettingsDisplayViewProps } from "../types";
+
+const SettingsDisplayForm = ({
+    display,
+    dirty,
+    isLoading,
+    onCancel,
+    values,
+    ...props
+}: SettingsDisplayFormProps) => {
+    const { t } = useTranslation();
+
+    return (
+        <>
+            <BaseForm
+                dirty={dirty}
+                display={display}
+                isLoading={isLoading}
+            >
+                <Title
+                    help={t("DisplayAccountHelp")}
+                    title={t("DisplayAccount")}
+                    variant="subheader"
+                />
+                <Stack direction="column" spacing={2} p={1}>
+                    <LanguageSelector />
+                    <FocusModeSelector />
+                </Stack>
+                <Title
+                    help={t("DisplayDeviceHelp")}
+                    title={t("DisplayDevice")}
+                    variant="subheader"
+                />
+                <Stack direction="column" spacing={2} p={1}>
+                    <ThemeSwitch />
+                    <TextSizeButtons />
+                    <LeftHandedCheckbox />
+                </Stack>
+            </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={props.errors as any}
+                isCreate={false}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
+        </>
+    );
+};
+
 
 export const SettingsDisplayView = ({
     isOpen,
@@ -37,7 +96,7 @@ export const SettingsDisplayView = ({
                 onClose={onClose}
                 title={t("Display")}
             />
-            <Stack direction="row">
+            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto">
                     <Formik

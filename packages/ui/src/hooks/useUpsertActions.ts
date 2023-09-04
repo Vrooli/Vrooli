@@ -4,6 +4,7 @@ import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { NavigableObject } from "types";
 import { setCookiePartialData } from "utils/cookies";
 import { ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
@@ -35,16 +36,16 @@ export const useUpsertActions = <
     endpointCreate: { endpoint: string, method: Method },
     endpointUpdate: { endpoint: string, method: Method },
     isCreate: boolean,
-    onCancel?: () => any, // Only used for dialog display
-    onCompleted?: (data: T) => any, // Only used for dialog display
-    onDeleted?: (id: string) => any, // Only used for dialog display
+    onCancel?: () => unknown, // Only used for dialog display
+    onCompleted?: (data: T) => unknown, // Only used for dialog display
+    onDeleted?: (id: string) => unknown, // Only used for dialog display
 }) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     const onAction = useCallback((action: ObjectDialogAction, item?: T) => {
         // URL of view page for the object
-        const viewUrl = item ? getObjectUrl(item as any) : undefined;
+        const viewUrl = item ? getObjectUrl(item as NavigableObject) : undefined;
         const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
         switch (action) {
             case ObjectDialogAction.Add:

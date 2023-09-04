@@ -342,7 +342,6 @@ export function App() {
         // Handle content margins when drawer(s) open/close
         const sideMenuPub = PubSub.get().subscribeSideMenu((data) => {
             const { persistentOnDesktop, sideForRightHanded } = menusDisplayData[data.id];
-            console.log("sideMenuPub", data, menusDisplayData[data.id], isMobile);
             // Ignore if dialog is not persistent on desktop
             if (!persistentOnDesktop) return;
             // Flip side when in left-handed mode
@@ -370,7 +369,6 @@ export function App() {
             PubSub.get().unsubscribe(sideMenuPub);
         });
     }, [checkSession, isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
-    console.log("contentMargins", contentMargins);
 
     // Handle websocket connection for tracking notifications
     useEffect(() => {

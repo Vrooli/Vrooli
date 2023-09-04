@@ -53,7 +53,7 @@ export const QuestionUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="question-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

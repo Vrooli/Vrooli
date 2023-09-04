@@ -53,7 +53,7 @@ export const BotUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="bot-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

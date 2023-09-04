@@ -86,7 +86,7 @@ export const ScheduleUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="schedule-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

@@ -1,4 +1,5 @@
 import https from "https";
+import { logger } from "../../events";
 
 export type EmbeddableType = "ApiVersion" | "Chat" | "Issue" | "Meeting" | "NoteVersion" | "Organization" | "Post" | "ProjectVersion" | "Question" | "Quiz" | "Reminder" | "RoutineVersion" | "RunProject" | "RunRoutine" | "SmartContractVersion" | "StandardVersion" | "Tag" | "User";
 
@@ -59,35 +60,40 @@ export const EmbeddingTables: { [key in EmbeddableType]: string } = {
  * @returns A Promise that resolves with the embeddings, in the same order as the sentences
  * @throws An Error if the API request fails
  */
-export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<any> {
-    const instruction = Instructions[objectType];
-    return new Promise((resolve, reject) => {
-        const data = JSON.stringify({ instruction, sentences });
-        const options = {
-            hostname: "embedtext.com",
-            port: 443,
-            path: "/",
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Content-Length": data.length,
-            },
-        };
-        const apiRequest = https.request(options, apiRes => {
-            let responseBody = "";
-            apiRes.on("data", chunk => {
-                responseBody += chunk;
+export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<any[]> {
+    try {
+        const instruction = Instructions[objectType];
+        return new Promise((resolve, reject) => {
+            const data = JSON.stringify({ instruction, sentences });
+            const options = {
+                hostname: "embedtext.com",
+                port: 443,
+                path: "/",
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Content-Length": data.length,
+                },
+            };
+            const apiRequest = https.request(options, apiRes => {
+                let responseBody = "";
+                apiRes.on("data", chunk => {
+                    responseBody += chunk;
+                });
+                apiRes.on("end", () => {
+                    const result = JSON.parse(responseBody);
+                    resolve(result.embeddings);
+                });
             });
-            apiRes.on("end", () => {
-                const result = JSON.parse(responseBody);
-                resolve(result.embeddings);
+            apiRequest.on("error", error => {
+                console.error(`Error: ${error}`);
+                reject(error);
             });
+            apiRequest.write(data);
+            apiRequest.end();
         });
-        apiRequest.on("error", error => {
-            console.error(`Error: ${error}`);
-            reject(error);
-        });
-        apiRequest.write(data);
-        apiRequest.end();
-    });
+    } catch (error) {
+        logger.error("Error fetching embeddings", { trace: "0084", error });
+        return [];
+    }
 }

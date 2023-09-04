@@ -2,8 +2,7 @@ import { NotePage, NotePageCreateInput, NotePageUpdateInput, NoteVersion, NoteVe
 import { ShapeModel } from "types";
 import { NoteShape, shapeNote } from "./note";
 import { ResourceListShape } from "./resourceList";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type NotePageShape = Pick<NotePage, "id" | "pageIndex" | "text"> & {
     __typename?: "NotePage";

@@ -1,8 +1,8 @@
-import { BookmarkFor, CopyType, DeleteType, exists, LINKS, ReactionFor, ReportFor, setDotNotationValue } from "@local/shared";
+import { Count, exists, GqlModelType, LINKS, ReportFor, setDotNotationValue, Success } from "@local/shared";
+import { ObjectListItemProps } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { SetLocation } from "route";
-import { NavigableObject } from "types";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYou, getYouDot, ListObject } from "utils/display/listTools";
@@ -10,17 +10,17 @@ import { openObject, openObjectEdit } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { useBookmarker } from "./useBookmarker";
 import { useCopier } from "./useCopier";
+import { useDeleter } from "./useDeleter";
 import { useVoter } from "./useVoter";
 
 export type UseObjectActionsProps = {
-    /** Checks if navigation away from the current page is allowed */
-    canNavigate?: ((item: NavigableObject) => boolean | void) | null | undefined
     object: ListObject | null | undefined;
     objectType: ListObject["__typename"];
-    onClick?: (item: NavigableObject) => void;
     openAddCommentDialog?: () => void;
     setLocation: SetLocation;
     setObject: Dispatch<SetStateAction<any>>;
+} & Pick<ObjectListItemProps<any>, "canNavigate" | "onClick"> & {
+    onAction?: ObjectListItemProps<any>["onAction"];
 }
 
 export type UseObjectActionsReturn = {
@@ -31,6 +31,7 @@ export type UseObjectActionsReturn = {
     closeShareDialog: () => unknown;
     closeStatsDialog: () => unknown;
     closeReportDialog: () => unknown;
+    DeleteDialogComponent: JSX.Element | null;
     hasBookmarkingSupport: boolean;
     hasCopyingSupport: boolean;
     hasDeletingSupport: boolean;
@@ -47,11 +48,6 @@ export type UseObjectActionsReturn = {
     objectType: ListObject["__typename"];
     onActionStart: (action: ObjectAction | `${ObjectAction}`) => unknown;
     onActionComplete: (action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => unknown;
-    openDeleteDialog: () => unknown;
-    openDonateDialog: () => unknown;
-    openShareDialog: () => unknown;
-    openStatsDialog: () => unknown;
-    openReportDialog: () => unknown;
 }
 
 const openDialogIfExists = (dialog: (() => void) | null | undefined) => {
@@ -62,14 +58,19 @@ const openDialogIfExists = (dialog: (() => void) | null | undefined) => {
     dialog();
 };
 
-/**
- * Hook for updating state and navigating upon completing an action
- */
+const toSuccess = (data: unknown) => {
+    if ((data as Success).__typename === "Success") return (data as Success).success === true;
+    if ((data as Count).__typename === "Count") return (data as Count).count > 0;
+    return exists(data);
+};
+
+/** Hook for updating state and navigating upon completing an action */
 export const useObjectActions = ({
     canNavigate,
     object,
     objectType,
     onClick,
+    onAction,
     openAddCommentDialog,
     setLocation,
     setObject,
@@ -86,67 +87,82 @@ export const useObjectActions = ({
             case ObjectActionComplete.Bookmark:
             case ObjectActionComplete.BookmarkUndo: {
                 const isBookmarkedLocation = getYouDot(object, "isBookmarked");
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful && isBookmarkedLocation && object) setObject(setDotNotationValue(object, isBookmarkedLocation as any, wasSuccessful));
+                const wasSuccessful = toSuccess(data);
+                console.log("completedbookmark", action, data);
+                if (wasSuccessful && isBookmarkedLocation) {
+                    console.log("updating object", object);
+                    setObject(setDotNotationValue(object, isBookmarkedLocation as any, action === ObjectActionComplete.Bookmark));
+                }
                 break;
             }
+            case ObjectActionComplete.Delete:
+                console.log("onactioncomplete delete", object, onAction);
+                if (typeof onAction === "function") onAction("Deleted", object.id ?? "");
+                break;
             case ObjectActionComplete.Fork: {
                 // Data is in first key with a value
                 const forkData: any = Object.values(data).find((v) => typeof v === "object");
                 openObject(forkData, setLocation);
-                window.location.reload();
                 break;
             }
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp: {
                 const reactionLocation = getYouDot(object, "reaction");
                 const emoji = action === ObjectActionComplete.VoteUp ? "👍" : action === ObjectActionComplete.VoteDown ? "👎" : null;
-                if (data.success && reactionLocation && object) setObject(setDotNotationValue(object, reactionLocation as any, emoji));
+                if (toSuccess(data) && reactionLocation) setObject(setDotNotationValue(object, reactionLocation as any, emoji));
                 break;
             }
         }
-    }, [object, setLocation, setObject]);
+    }, [object, onAction, setLocation, setObject]);
 
     // Hooks for specific actions
     const {
-        isBookmarkDialogOpen,
-        handleBookmark,
         closeBookmarkDialog,
+        handleBookmark,
         hasBookmarkingSupport,
+        isBookmarkDialogOpen,
     } = useBookmarker({
         objectId: object?.root?.id ?? object?.id, // Can only bookmark root objects
-        objectType: objectType.replace("Version", "") as BookmarkFor,
+        objectType: objectType.replace("Version", "") as GqlModelType,
         onActionComplete,
     });
-    const { handleCopy, hasCopyingSupport } = useCopier({
+    const { hasCopyingSupport, handleCopy } = useCopier({
         objectId: object?.id,
         objectName: getDisplay(object).title,
-        objectType: objectType as CopyType,
+        objectType: objectType as GqlModelType,
         onActionComplete,
     });
-    const { handleVote, hasVotingSupport } = useVoter({
+    const { hasVotingSupport, handleVote } = useVoter({
         objectId: object?.root?.id ?? object?.id, // Can only vote on root objects
-        objectType: objectType.replace("Version", "") as ReactionFor,
+        objectType: objectType.replace("Version", "") as GqlModelType,
+        onActionComplete,
+    });
+    const {
+        closeDeleteDialog,
+        handleDelete,
+        hasDeletingSupport,
+        isDeleteDialogOpen,
+        DeleteDialogComponent,
+    } = useDeleter({
+        objectId: object?.id,
+        objectName: getDisplay(object).title,
+        objectType: objectType as GqlModelType,
         onActionComplete,
     });
 
     // Determine which actions are available    
-    const hasDeletingSupport = exists(DeleteType[objectType]);
     const hasReportingSupport = exists(ReportFor[objectType]);
     const hasSharingSupport = useMemo(() => getYou(object).canShare, [object]);
     const hasStatsSupport = useMemo(() => ["Api", "Organization", "Project", "Quiz", "Routine", "SmartContract", "Standard", "User"].includes(objectType), [objectType]);
     const availableActions = useMemo(() => getAvailableActions(object, session), [object, session]);
 
     // Dialog states
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
     const [isDonateDialogOpen, setIsDonateDialogOpen] = useState<boolean>(false);
     const [isShareDialogOpen, setIsShareDialogOpen] = useState<boolean>(false);
     const [isStatsDialogOpen, setIsStatsDialogOpen] = useState<boolean>(false);
     const [isReportDialogOpen, setIsReportDialogOpen] = useState<boolean>(false);
 
     // Dialog openers/closers
-    const openDeleteDialog = useCallback(() => setIsDeleteDialogOpen(true), [setIsDeleteDialogOpen]);
-    const closeDeleteDialog = useCallback(() => setIsDeleteDialogOpen(false), [setIsDeleteDialogOpen]);
     const openDonateDialog = useCallback(() => setIsDonateDialogOpen(true), [setIsDonateDialogOpen]);
     const closeDonateDialog = useCallback(() => setIsDonateDialogOpen(false), [setIsDonateDialogOpen]);
     const openShareDialog = useCallback(() => setIsShareDialogOpen(true), [setIsShareDialogOpen]);
@@ -168,7 +184,7 @@ export const useObjectActions = ({
                 openDialogIfExists(openAddCommentDialog);
                 break;
             case ObjectAction.Delete:
-                openDialogIfExists(openDeleteDialog);
+                openDialogIfExists(handleDelete);
                 break;
             case ObjectAction.Donate:
                 openDialogIfExists(openDonateDialog);
@@ -204,7 +220,7 @@ export const useObjectActions = ({
                 handleVote(action === ObjectAction.VoteUp ? "👍" : "👎");
                 break;
         }
-    }, [canNavigate, handleBookmark, handleCopy, handleVote, object, onClick, openAddCommentDialog, openDeleteDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, session, setLocation]);
+    }, [canNavigate, handleBookmark, handleCopy, handleDelete, handleVote, object, onClick, openAddCommentDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, session, setLocation]);
 
     return {
         availableActions,
@@ -214,6 +230,7 @@ export const useObjectActions = ({
         closeShareDialog,
         closeStatsDialog,
         closeReportDialog,
+        DeleteDialogComponent,
         hasBookmarkingSupport,
         hasCopyingSupport,
         hasDeletingSupport,
@@ -230,10 +247,5 @@ export const useObjectActions = ({
         objectType,
         onActionStart,
         onActionComplete,
-        openDeleteDialog,
-        openDonateDialog,
-        openShareDialog,
-        openStatsDialog,
-        openReportDialog,
     };
 };

@@ -43,6 +43,11 @@ export const SignUpForm = ({
                     confirmPassword: "",
                 }}
                 onSubmit={(values, helpers) => {
+                    if (values.password !== values.confirmPassword) {
+                        PubSub.get().publishSnack({ messageKey: "PasswordsDontMatch", severity: "Error" });
+                        helpers.setSubmitting(false);
+                        return;
+                    }
                     fetchLazyWrapper<EmailSignUpInput, Session>({
                         fetch: emailSignUp,
                         inputs: {
@@ -51,6 +56,7 @@ export const SignUpForm = ({
                             theme: theme.palette.mode ?? "light",
                         },
                         onSuccess: (data) => {
+                            setupPush();
                             PubSub.get().publishSession(data);
                             PubSub.get().publishAlertDialog({
                                 messageKey: "WelcomeVerifyEmail",
@@ -58,9 +64,6 @@ export const SignUpForm = ({
                                 buttons: [{
                                     labelKey: "Ok", onClick: () => {
                                         setLocation(LINKS.Home);
-                                        // Set up push notifications
-                                        setupPush();
-                                        // Start the tutorial
                                         PubSub.get().publishTutorial();
                                     },
                                 }],

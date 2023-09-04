@@ -4,6 +4,41 @@ import { PrismaRelMap } from "../models/types";
 import { IdsByAction, IdsByType, InputsByType, QueryAction } from "./types";
 
 /**
+ * Helper function to supports combining ID arrays when merging two objects. 
+ * Makes sure not to add duplicate IDs
+ */
+function mergeArrayProperties<T extends Record<string, string[]>>(target: T, source: T): T {
+    for (const key in source) {
+        if (source[key]) {
+            const newValues = source[key].filter(id => !target[key] || !target[key].includes(id));
+            target[key] = (target[key] ? target[key].concat(newValues) : newValues) as T[typeof key];
+        }
+    }
+    return target;
+}
+
+/**
+ * Helper function for merging inputs, which supports combining input arrays
+ */
+function mergeInputs(target: Record<string, { [action: string]: any[] }>, source: Record<string, { [action: string]: any[] }>) {
+    for (const typename in source) {
+        if (!target[typename]) {
+            target[typename] = { Create: [], Update: [], Delete: [] };
+        }
+
+        for (const action in source[typename]) {
+            if (source[typename][action]) {
+                target[typename][action] = target[typename][action]
+                    ? target[typename][action].concat(source[typename][action])
+                    : source[typename][action];
+            }
+        }
+    }
+
+    return target;
+}
+
+/**
  * Helper function to grab ids from an object, and map them to their action and object type. For implicit ids (i.e. they 
  * don't appear in the mutation. This happens for some one-to-one and many-to-one relations) to be authenticated, a placeholder is added.
  * 
@@ -129,9 +164,9 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
                     );
 
                     // Merge results
-                    Object.assign(idsByAction, nestedIdsByAction);
-                    Object.assign(idsByType, nestedIdsByType);
-                    Object.assign(inputsByType, nestedInputsByType);
+                    mergeArrayProperties(idsByAction, nestedIdsByAction);
+                    mergeArrayProperties(idsByType, nestedIdsByType);
+                    mergeInputs(inputsByType, nestedInputsByType);
                 });
             }
         };

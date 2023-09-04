@@ -1,8 +1,7 @@
 import { Issue, IssueCreateInput, IssueFor, IssueTranslation, IssueTranslationCreateInput, IssueTranslationUpdateInput, IssueUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type IssueTranslationShape = Pick<IssueTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "IssueTranslation";

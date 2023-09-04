@@ -53,7 +53,7 @@ export const FocusModeUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="focus-mode-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

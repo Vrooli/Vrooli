@@ -11,6 +11,28 @@ export const reminderList_findMany = {
           "color": true,
           "label": true
         },
+        "resourceList": {
+          "id": true,
+          "created_at": true,
+          "translations": {
+            "id": true,
+            "language": true,
+            "description": true,
+            "name": true
+          },
+          "resources": {
+            "id": true,
+            "index": true,
+            "link": true,
+            "usedFor": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true,
+              "name": true
+            }
+          }
+        },
         "schedule": {
           "id": true,
           "created_at": true,

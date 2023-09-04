@@ -50,7 +50,7 @@ export function CommentThreadItem({
         if (!data) return;
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            messageKey: "DeleteCommentConfirm",
+            messageKey: "DeleteConfirm",
             buttons: [
                 {
                     labelKey: "Yes", onClick: () => {

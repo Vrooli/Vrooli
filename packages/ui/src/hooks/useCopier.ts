@@ -1,4 +1,4 @@
-import { CopyInput, CopyResult, CopyType, endpointPostCopy, exists } from "@local/shared";
+import { CopyInput, CopyResult, CopyType, endpointPostCopy, exists, GqlModelType } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
@@ -8,7 +8,7 @@ import { useLazyFetch } from "./useLazyFetch";
 type UseCopierProps = {
     objectId: string | null | undefined;
     objectName: string | null | undefined;
-    objectType: `${CopyType}`
+    objectType: `${GqlModelType}`
     onActionComplete: (action: ObjectActionComplete.Fork, data: CopyResult) => void;
 }
 

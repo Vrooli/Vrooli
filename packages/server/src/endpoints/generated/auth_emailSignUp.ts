@@ -502,10 +502,753 @@ export const auth_emailSignUp = {
                                           "kind": "Field",
                                           "name": {
                                             "kind": "Name",
-                                            "value": "schedule",
+                                            "value": "reminderList",
                                             "loc": {
                                               "start": 1213,
-                                              "end": 1221
+                                              "end": 1225
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "id",
+                                                  "loc": {
+                                                    "start": 1256,
+                                                    "end": 1258
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 1256,
+                                                  "end": 1258
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "created_at",
+                                                  "loc": {
+                                                    "start": 1287,
+                                                    "end": 1297
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 1287,
+                                                  "end": 1297
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "updated_at",
+                                                  "loc": {
+                                                    "start": 1326,
+                                                    "end": 1336
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 1326,
+                                                  "end": 1336
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "reminders",
+                                                  "loc": {
+                                                    "start": 1365,
+                                                    "end": 1374
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "selectionSet": {
+                                                  "kind": "SelectionSet",
+                                                  "selections": [
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "id",
+                                                        "loc": {
+                                                          "start": 1409,
+                                                          "end": 1411
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 1409,
+                                                        "end": 1411
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "created_at",
+                                                        "loc": {
+                                                          "start": 1444,
+                                                          "end": 1454
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 1444,
+                                                        "end": 1454
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "updated_at",
+                                                        "loc": {
+                                                          "start": 1487,
+                                                          "end": 1497
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 1487,
+                                                        "end": 1497
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "name",
+                                                        "loc": {
+                                                          "start": 1530,
+                                                          "end": 1534
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 1530,
+                                                        "end": 1534
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "description",
+                                                        "loc": {
+                                                          "start": 1567,
+                                                          "end": 1578
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 1567,
+                                                        "end": 1578
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "dueDate",
+                                                        "loc": {
+                                                          "start": 1611,
+                                                          "end": 1618
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 1611,
+                                                        "end": 1618
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "index",
+                                                        "loc": {
+                                                          "start": 1651,
+                                                          "end": 1656
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 1651,
+                                                        "end": 1656
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "isComplete",
+                                                        "loc": {
+                                                          "start": 1689,
+                                                          "end": 1699
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 1689,
+                                                        "end": 1699
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "reminderItems",
+                                                        "loc": {
+                                                          "start": 1732,
+                                                          "end": 1745
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "selectionSet": {
+                                                        "kind": "SelectionSet",
+                                                        "selections": [
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "id",
+                                                              "loc": {
+                                                                "start": 1784,
+                                                                "end": 1786
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 1784,
+                                                              "end": 1786
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "created_at",
+                                                              "loc": {
+                                                                "start": 1823,
+                                                                "end": 1833
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 1823,
+                                                              "end": 1833
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "updated_at",
+                                                              "loc": {
+                                                                "start": 1870,
+                                                                "end": 1880
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 1870,
+                                                              "end": 1880
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "name",
+                                                              "loc": {
+                                                                "start": 1917,
+                                                                "end": 1921
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 1917,
+                                                              "end": 1921
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "description",
+                                                              "loc": {
+                                                                "start": 1958,
+                                                                "end": 1969
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 1958,
+                                                              "end": 1969
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "dueDate",
+                                                              "loc": {
+                                                                "start": 2006,
+                                                                "end": 2013
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 2006,
+                                                              "end": 2013
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "index",
+                                                              "loc": {
+                                                                "start": 2050,
+                                                                "end": 2055
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 2050,
+                                                              "end": 2055
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "isComplete",
+                                                              "loc": {
+                                                                "start": 2092,
+                                                                "end": 2102
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 2092,
+                                                              "end": 2102
+                                                            }
+                                                          }
+                                                        ],
+                                                        "loc": {
+                                                          "start": 1746,
+                                                          "end": 2136
+                                                        }
+                                                      },
+                                                      "loc": {
+                                                        "start": 1732,
+                                                        "end": 2136
+                                                      }
+                                                    }
+                                                  ],
+                                                  "loc": {
+                                                    "start": 1375,
+                                                    "end": 2166
+                                                  }
+                                                },
+                                                "loc": {
+                                                  "start": 1365,
+                                                  "end": 2166
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 1226,
+                                              "end": 2192
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 1213,
+                                            "end": 2192
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "resourceList",
+                                            "loc": {
+                                              "start": 2217,
+                                              "end": 2229
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "id",
+                                                  "loc": {
+                                                    "start": 2260,
+                                                    "end": 2262
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 2260,
+                                                  "end": 2262
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "created_at",
+                                                  "loc": {
+                                                    "start": 2291,
+                                                    "end": 2301
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 2291,
+                                                  "end": 2301
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "translations",
+                                                  "loc": {
+                                                    "start": 2330,
+                                                    "end": 2342
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "selectionSet": {
+                                                  "kind": "SelectionSet",
+                                                  "selections": [
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "id",
+                                                        "loc": {
+                                                          "start": 2377,
+                                                          "end": 2379
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 2377,
+                                                        "end": 2379
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "language",
+                                                        "loc": {
+                                                          "start": 2412,
+                                                          "end": 2420
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 2412,
+                                                        "end": 2420
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "description",
+                                                        "loc": {
+                                                          "start": 2453,
+                                                          "end": 2464
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 2453,
+                                                        "end": 2464
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "name",
+                                                        "loc": {
+                                                          "start": 2497,
+                                                          "end": 2501
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 2497,
+                                                        "end": 2501
+                                                      }
+                                                    }
+                                                  ],
+                                                  "loc": {
+                                                    "start": 2343,
+                                                    "end": 2531
+                                                  }
+                                                },
+                                                "loc": {
+                                                  "start": 2330,
+                                                  "end": 2531
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "resources",
+                                                  "loc": {
+                                                    "start": 2560,
+                                                    "end": 2569
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "selectionSet": {
+                                                  "kind": "SelectionSet",
+                                                  "selections": [
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "id",
+                                                        "loc": {
+                                                          "start": 2604,
+                                                          "end": 2606
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 2604,
+                                                        "end": 2606
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "index",
+                                                        "loc": {
+                                                          "start": 2639,
+                                                          "end": 2644
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 2639,
+                                                        "end": 2644
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "link",
+                                                        "loc": {
+                                                          "start": 2677,
+                                                          "end": 2681
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 2677,
+                                                        "end": 2681
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "usedFor",
+                                                        "loc": {
+                                                          "start": 2714,
+                                                          "end": 2721
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 2714,
+                                                        "end": 2721
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "translations",
+                                                        "loc": {
+                                                          "start": 2754,
+                                                          "end": 2766
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "selectionSet": {
+                                                        "kind": "SelectionSet",
+                                                        "selections": [
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "id",
+                                                              "loc": {
+                                                                "start": 2805,
+                                                                "end": 2807
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 2805,
+                                                              "end": 2807
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "language",
+                                                              "loc": {
+                                                                "start": 2844,
+                                                                "end": 2852
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 2844,
+                                                              "end": 2852
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "description",
+                                                              "loc": {
+                                                                "start": 2889,
+                                                                "end": 2900
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 2889,
+                                                              "end": 2900
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": "Field",
+                                                            "name": {
+                                                              "kind": "Name",
+                                                              "value": "name",
+                                                              "loc": {
+                                                                "start": 2937,
+                                                                "end": 2941
+                                                              }
+                                                            },
+                                                            "arguments": [],
+                                                            "directives": [],
+                                                            "loc": {
+                                                              "start": 2937,
+                                                              "end": 2941
+                                                            }
+                                                          }
+                                                        ],
+                                                        "loc": {
+                                                          "start": 2767,
+                                                          "end": 2975
+                                                        }
+                                                      },
+                                                      "loc": {
+                                                        "start": 2754,
+                                                        "end": 2975
+                                                      }
+                                                    }
+                                                  ],
+                                                  "loc": {
+                                                    "start": 2570,
+                                                    "end": 3005
+                                                  }
+                                                },
+                                                "loc": {
+                                                  "start": 2560,
+                                                  "end": 3005
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 2230,
+                                              "end": 3031
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 2217,
+                                            "end": 3031
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "schedule",
+                                            "loc": {
+                                              "start": 3056,
+                                              "end": 3064
                                             }
                                           },
                                           "arguments": [],
@@ -519,25 +1262,25 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "Schedule_common",
                                                   "loc": {
-                                                    "start": 1255,
-                                                    "end": 1270
+                                                    "start": 3098,
+                                                    "end": 3113
                                                   }
                                                 },
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 1252,
-                                                  "end": 1270
+                                                  "start": 3095,
+                                                  "end": 3113
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 1222,
-                                              "end": 1296
+                                              "start": 3065,
+                                              "end": 3139
                                             }
                                           },
                                           "loc": {
-                                            "start": 1213,
-                                            "end": 1296
+                                            "start": 3056,
+                                            "end": 3139
                                           }
                                         },
                                         {
@@ -546,15 +1289,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 1321,
-                                              "end": 1323
+                                              "start": 3164,
+                                              "end": 3166
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1321,
-                                            "end": 1323
+                                            "start": 3164,
+                                            "end": 3166
                                           }
                                         },
                                         {
@@ -563,15 +1306,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 1348,
-                                              "end": 1352
+                                              "start": 3191,
+                                              "end": 3195
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1348,
-                                            "end": 1352
+                                            "start": 3191,
+                                            "end": 3195
                                           }
                                         },
                                         {
@@ -580,37 +1323,37 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 1377,
-                                              "end": 1388
+                                              "start": 3220,
+                                              "end": 3231
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1377,
-                                            "end": 1388
+                                            "start": 3220,
+                                            "end": 3231
                                           }
                                         }
                                       ],
                                       "loc": {
                                         "start": 1029,
-                                        "end": 1410
+                                        "end": 3253
                                       }
                                     },
                                     "loc": {
                                       "start": 1019,
-                                      "end": 1410
+                                      "end": 3253
                                     }
                                   }
                                 ],
                                 "loc": {
                                   "start": 467,
-                                  "end": 1428
+                                  "end": 3271
                                 }
                               },
                               "loc": {
                                 "start": 459,
-                                "end": 1428
+                                "end": 3271
                               }
                             },
                             {
@@ -619,8 +1362,8 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "labels",
                                 "loc": {
-                                  "start": 1445,
-                                  "end": 1451
+                                  "start": 3288,
+                                  "end": 3294
                                 }
                               },
                               "arguments": [],
@@ -634,15 +1377,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 1474,
-                                        "end": 1476
+                                        "start": 3317,
+                                        "end": 3319
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 1474,
-                                      "end": 1476
+                                      "start": 3317,
+                                      "end": 3319
                                     }
                                   },
                                   {
@@ -651,15 +1394,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "color",
                                       "loc": {
-                                        "start": 1497,
-                                        "end": 1502
+                                        "start": 3340,
+                                        "end": 3345
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 1497,
-                                      "end": 1502
+                                      "start": 3340,
+                                      "end": 3345
                                     }
                                   },
                                   {
@@ -668,26 +1411,26 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "label",
                                       "loc": {
-                                        "start": 1523,
-                                        "end": 1528
+                                        "start": 3366,
+                                        "end": 3371
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 1523,
-                                      "end": 1528
+                                      "start": 3366,
+                                      "end": 3371
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 1452,
-                                  "end": 1546
+                                  "start": 3295,
+                                  "end": 3389
                                 }
                               },
                               "loc": {
-                                "start": 1445,
-                                "end": 1546
+                                "start": 3288,
+                                "end": 3389
                               }
                             },
                             {
@@ -696,8 +1439,8 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "reminderList",
                                 "loc": {
-                                  "start": 1563,
-                                  "end": 1575
+                                  "start": 3406,
+                                  "end": 3418
                                 }
                               },
                               "arguments": [],
@@ -711,15 +1454,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 1598,
-                                        "end": 1600
+                                        "start": 3441,
+                                        "end": 3443
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 1598,
-                                      "end": 1600
+                                      "start": 3441,
+                                      "end": 3443
                                     }
                                   },
                                   {
@@ -728,15 +1471,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 1621,
-                                        "end": 1631
+                                        "start": 3464,
+                                        "end": 3474
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 1621,
-                                      "end": 1631
+                                      "start": 3464,
+                                      "end": 3474
                                     }
                                   },
                                   {
@@ -745,15 +1488,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 1652,
-                                        "end": 1662
+                                        "start": 3495,
+                                        "end": 3505
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 1652,
-                                      "end": 1662
+                                      "start": 3495,
+                                      "end": 3505
                                     }
                                   },
                                   {
@@ -762,8 +1505,8 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "reminders",
                                       "loc": {
-                                        "start": 1683,
-                                        "end": 1692
+                                        "start": 3526,
+                                        "end": 3535
                                       }
                                     },
                                     "arguments": [],
@@ -777,15 +1520,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 1719,
-                                              "end": 1721
+                                              "start": 3562,
+                                              "end": 3564
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1719,
-                                            "end": 1721
+                                            "start": 3562,
+                                            "end": 3564
                                           }
                                         },
                                         {
@@ -794,15 +1537,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 1746,
-                                              "end": 1756
+                                              "start": 3589,
+                                              "end": 3599
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1746,
-                                            "end": 1756
+                                            "start": 3589,
+                                            "end": 3599
                                           }
                                         },
                                         {
@@ -811,15 +1554,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 1781,
-                                              "end": 1791
+                                              "start": 3624,
+                                              "end": 3634
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1781,
-                                            "end": 1791
+                                            "start": 3624,
+                                            "end": 3634
                                           }
                                         },
                                         {
@@ -828,15 +1571,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 1816,
-                                              "end": 1820
+                                              "start": 3659,
+                                              "end": 3663
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1816,
-                                            "end": 1820
+                                            "start": 3659,
+                                            "end": 3663
                                           }
                                         },
                                         {
@@ -845,15 +1588,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 1845,
-                                              "end": 1856
+                                              "start": 3688,
+                                              "end": 3699
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1845,
-                                            "end": 1856
+                                            "start": 3688,
+                                            "end": 3699
                                           }
                                         },
                                         {
@@ -862,15 +1605,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 1881,
-                                              "end": 1888
+                                              "start": 3724,
+                                              "end": 3731
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1881,
-                                            "end": 1888
+                                            "start": 3724,
+                                            "end": 3731
                                           }
                                         },
                                         {
@@ -879,15 +1622,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 1913,
-                                              "end": 1918
+                                              "start": 3756,
+                                              "end": 3761
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1913,
-                                            "end": 1918
+                                            "start": 3756,
+                                            "end": 3761
                                           }
                                         },
                                         {
@@ -896,15 +1639,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 1943,
-                                              "end": 1953
+                                              "start": 3786,
+                                              "end": 3796
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 1943,
-                                            "end": 1953
+                                            "start": 3786,
+                                            "end": 3796
                                           }
                                         },
                                         {
@@ -913,8 +1656,8 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "reminderItems",
                                             "loc": {
-                                              "start": 1978,
-                                              "end": 1991
+                                              "start": 3821,
+                                              "end": 3834
                                             }
                                           },
                                           "arguments": [],
@@ -928,15 +1671,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 2022,
-                                                    "end": 2024
+                                                    "start": 3865,
+                                                    "end": 3867
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2022,
-                                                  "end": 2024
+                                                  "start": 3865,
+                                                  "end": 3867
                                                 }
                                               },
                                               {
@@ -945,15 +1688,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 2053,
-                                                    "end": 2063
+                                                    "start": 3896,
+                                                    "end": 3906
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2053,
-                                                  "end": 2063
+                                                  "start": 3896,
+                                                  "end": 3906
                                                 }
                                               },
                                               {
@@ -962,15 +1705,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 2092,
-                                                    "end": 2102
+                                                    "start": 3935,
+                                                    "end": 3945
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2092,
-                                                  "end": 2102
+                                                  "start": 3935,
+                                                  "end": 3945
                                                 }
                                               },
                                               {
@@ -979,15 +1722,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 2131,
-                                                    "end": 2135
+                                                    "start": 3974,
+                                                    "end": 3978
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2131,
-                                                  "end": 2135
+                                                  "start": 3974,
+                                                  "end": 3978
                                                 }
                                               },
                                               {
@@ -996,15 +1739,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 2164,
-                                                    "end": 2175
+                                                    "start": 4007,
+                                                    "end": 4018
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2164,
-                                                  "end": 2175
+                                                  "start": 4007,
+                                                  "end": 4018
                                                 }
                                               },
                                               {
@@ -1013,15 +1756,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 2204,
-                                                    "end": 2211
+                                                    "start": 4047,
+                                                    "end": 4054
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2204,
-                                                  "end": 2211
+                                                  "start": 4047,
+                                                  "end": 4054
                                                 }
                                               },
                                               {
@@ -1030,15 +1773,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 2240,
-                                                    "end": 2245
+                                                    "start": 4083,
+                                                    "end": 4088
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2240,
-                                                  "end": 2245
+                                                  "start": 4083,
+                                                  "end": 4088
                                                 }
                                               },
                                               {
@@ -1047,48 +1790,48 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 2274,
-                                                    "end": 2284
+                                                    "start": 4117,
+                                                    "end": 4127
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2274,
-                                                  "end": 2284
+                                                  "start": 4117,
+                                                  "end": 4127
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 1992,
-                                              "end": 2310
+                                              "start": 3835,
+                                              "end": 4153
                                             }
                                           },
                                           "loc": {
-                                            "start": 1978,
-                                            "end": 2310
+                                            "start": 3821,
+                                            "end": 4153
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 1693,
-                                        "end": 2332
+                                        "start": 3536,
+                                        "end": 4175
                                       }
                                     },
                                     "loc": {
-                                      "start": 1683,
-                                      "end": 2332
+                                      "start": 3526,
+                                      "end": 4175
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 1576,
-                                  "end": 2350
+                                  "start": 3419,
+                                  "end": 4193
                                 }
                               },
                               "loc": {
-                                "start": 1563,
-                                "end": 2350
+                                "start": 3406,
+                                "end": 4193
                               }
                             },
                             {
@@ -1097,8 +1840,8 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "resourceList",
                                 "loc": {
-                                  "start": 2367,
-                                  "end": 2379
+                                  "start": 4210,
+                                  "end": 4222
                                 }
                               },
                               "arguments": [],
@@ -1112,15 +1855,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 2402,
-                                        "end": 2404
+                                        "start": 4245,
+                                        "end": 4247
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 2402,
-                                      "end": 2404
+                                      "start": 4245,
+                                      "end": 4247
                                     }
                                   },
                                   {
@@ -1129,15 +1872,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 2425,
-                                        "end": 2435
+                                        "start": 4268,
+                                        "end": 4278
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 2425,
-                                      "end": 2435
+                                      "start": 4268,
+                                      "end": 4278
                                     }
                                   },
                                   {
@@ -1146,8 +1889,8 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 2456,
-                                        "end": 2468
+                                        "start": 4299,
+                                        "end": 4311
                                       }
                                     },
                                     "arguments": [],
@@ -1161,15 +1904,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 2495,
-                                              "end": 2497
+                                              "start": 4338,
+                                              "end": 4340
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 2495,
-                                            "end": 2497
+                                            "start": 4338,
+                                            "end": 4340
                                           }
                                         },
                                         {
@@ -1178,15 +1921,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 2522,
-                                              "end": 2530
+                                              "start": 4365,
+                                              "end": 4373
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 2522,
-                                            "end": 2530
+                                            "start": 4365,
+                                            "end": 4373
                                           }
                                         },
                                         {
@@ -1195,15 +1938,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 2555,
-                                              "end": 2566
+                                              "start": 4398,
+                                              "end": 4409
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 2555,
-                                            "end": 2566
+                                            "start": 4398,
+                                            "end": 4409
                                           }
                                         },
                                         {
@@ -1212,26 +1955,26 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 2591,
-                                              "end": 2595
+                                              "start": 4434,
+                                              "end": 4438
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 2591,
-                                            "end": 2595
+                                            "start": 4434,
+                                            "end": 4438
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 2469,
-                                        "end": 2617
+                                        "start": 4312,
+                                        "end": 4460
                                       }
                                     },
                                     "loc": {
-                                      "start": 2456,
-                                      "end": 2617
+                                      "start": 4299,
+                                      "end": 4460
                                     }
                                   },
                                   {
@@ -1240,8 +1983,8 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "resources",
                                       "loc": {
-                                        "start": 2638,
-                                        "end": 2647
+                                        "start": 4481,
+                                        "end": 4490
                                       }
                                     },
                                     "arguments": [],
@@ -1255,15 +1998,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 2674,
-                                              "end": 2676
+                                              "start": 4517,
+                                              "end": 4519
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 2674,
-                                            "end": 2676
+                                            "start": 4517,
+                                            "end": 4519
                                           }
                                         },
                                         {
@@ -1272,15 +2015,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 2701,
-                                              "end": 2706
+                                              "start": 4544,
+                                              "end": 4549
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 2701,
-                                            "end": 2706
+                                            "start": 4544,
+                                            "end": 4549
                                           }
                                         },
                                         {
@@ -1289,15 +2032,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "link",
                                             "loc": {
-                                              "start": 2731,
-                                              "end": 2735
+                                              "start": 4574,
+                                              "end": 4578
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 2731,
-                                            "end": 2735
+                                            "start": 4574,
+                                            "end": 4578
                                           }
                                         },
                                         {
@@ -1306,15 +2049,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "usedFor",
                                             "loc": {
-                                              "start": 2760,
-                                              "end": 2767
+                                              "start": 4603,
+                                              "end": 4610
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 2760,
-                                            "end": 2767
+                                            "start": 4603,
+                                            "end": 4610
                                           }
                                         },
                                         {
@@ -1323,8 +2066,8 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 2792,
-                                              "end": 2804
+                                              "start": 4635,
+                                              "end": 4647
                                             }
                                           },
                                           "arguments": [],
@@ -1338,15 +2081,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 2835,
-                                                    "end": 2837
+                                                    "start": 4678,
+                                                    "end": 4680
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2835,
-                                                  "end": 2837
+                                                  "start": 4678,
+                                                  "end": 4680
                                                 }
                                               },
                                               {
@@ -1355,15 +2098,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 2866,
-                                                    "end": 2874
+                                                    "start": 4709,
+                                                    "end": 4717
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2866,
-                                                  "end": 2874
+                                                  "start": 4709,
+                                                  "end": 4717
                                                 }
                                               },
                                               {
@@ -1372,15 +2115,15 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 2903,
-                                                    "end": 2914
+                                                    "start": 4746,
+                                                    "end": 4757
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2903,
-                                                  "end": 2914
+                                                  "start": 4746,
+                                                  "end": 4757
                                                 }
                                               },
                                               {
@@ -1389,48 +2132,48 @@ export const auth_emailSignUp = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 2943,
-                                                    "end": 2947
+                                                    "start": 4786,
+                                                    "end": 4790
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 2943,
-                                                  "end": 2947
+                                                  "start": 4786,
+                                                  "end": 4790
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 2805,
-                                              "end": 2973
+                                              "start": 4648,
+                                              "end": 4816
                                             }
                                           },
                                           "loc": {
-                                            "start": 2792,
-                                            "end": 2973
+                                            "start": 4635,
+                                            "end": 4816
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 2648,
-                                        "end": 2995
+                                        "start": 4491,
+                                        "end": 4838
                                       }
                                     },
                                     "loc": {
-                                      "start": 2638,
-                                      "end": 2995
+                                      "start": 4481,
+                                      "end": 4838
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 2380,
-                                  "end": 3013
+                                  "start": 4223,
+                                  "end": 4856
                                 }
                               },
                               "loc": {
-                                "start": 2367,
-                                "end": 3013
+                                "start": 4210,
+                                "end": 4856
                               }
                             },
                             {
@@ -1439,8 +2182,8 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "schedule",
                                 "loc": {
-                                  "start": 3030,
-                                  "end": 3038
+                                  "start": 4873,
+                                  "end": 4881
                                 }
                               },
                               "arguments": [],
@@ -1454,25 +2197,25 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "Schedule_common",
                                       "loc": {
-                                        "start": 3064,
-                                        "end": 3079
+                                        "start": 4907,
+                                        "end": 4922
                                       }
                                     },
                                     "directives": [],
                                     "loc": {
-                                      "start": 3061,
-                                      "end": 3079
+                                      "start": 4904,
+                                      "end": 4922
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3039,
-                                  "end": 3097
+                                  "start": 4882,
+                                  "end": 4940
                                 }
                               },
                               "loc": {
-                                "start": 3030,
-                                "end": 3097
+                                "start": 4873,
+                                "end": 4940
                               }
                             },
                             {
@@ -1481,15 +2224,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 3114,
-                                  "end": 3116
+                                  "start": 4957,
+                                  "end": 4959
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3114,
-                                "end": 3116
+                                "start": 4957,
+                                "end": 4959
                               }
                             },
                             {
@@ -1498,15 +2241,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "name",
                                 "loc": {
-                                  "start": 3133,
-                                  "end": 3137
+                                  "start": 4976,
+                                  "end": 4980
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3133,
-                                "end": 3137
+                                "start": 4976,
+                                "end": 4980
                               }
                             },
                             {
@@ -1515,26 +2258,26 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "description",
                                 "loc": {
-                                  "start": 3154,
-                                  "end": 3165
+                                  "start": 4997,
+                                  "end": 5008
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3154,
-                                "end": 3165
+                                "start": 4997,
+                                "end": 5008
                               }
                             }
                           ],
                           "loc": {
                             "start": 441,
-                            "end": 3179
+                            "end": 5022
                           }
                         },
                         "loc": {
                           "start": 436,
-                          "end": 3179
+                          "end": 5022
                         }
                       },
                       {
@@ -1543,15 +2286,15 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "stopCondition",
                           "loc": {
-                            "start": 3192,
-                            "end": 3205
+                            "start": 5035,
+                            "end": 5048
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 3192,
-                          "end": 3205
+                          "start": 5035,
+                          "end": 5048
                         }
                       },
                       {
@@ -1560,26 +2303,26 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "stopTime",
                           "loc": {
-                            "start": 3218,
-                            "end": 3226
+                            "start": 5061,
+                            "end": 5069
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 3218,
-                          "end": 3226
+                          "start": 5061,
+                          "end": 5069
                         }
                       }
                     ],
                     "loc": {
                       "start": 422,
-                      "end": 3236
+                      "end": 5079
                     }
                   },
                   "loc": {
                     "start": 406,
-                    "end": 3236
+                    "end": 5079
                   }
                 },
                 {
@@ -1588,15 +2331,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "apisCount",
                     "loc": {
-                      "start": 3245,
-                      "end": 3254
+                      "start": 5088,
+                      "end": 5097
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 3245,
-                    "end": 3254
+                    "start": 5088,
+                    "end": 5097
                   }
                 },
                 {
@@ -1605,8 +2348,8 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "bookmarkLists",
                     "loc": {
-                      "start": 3263,
-                      "end": 3276
+                      "start": 5106,
+                      "end": 5119
                     }
                   },
                   "arguments": [],
@@ -1620,15 +2363,15 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 3291,
-                            "end": 3293
+                            "start": 5134,
+                            "end": 5136
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 3291,
-                          "end": 3293
+                          "start": 5134,
+                          "end": 5136
                         }
                       },
                       {
@@ -1637,15 +2380,15 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "created_at",
                           "loc": {
-                            "start": 3306,
-                            "end": 3316
+                            "start": 5149,
+                            "end": 5159
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 3306,
-                          "end": 3316
+                          "start": 5149,
+                          "end": 5159
                         }
                       },
                       {
@@ -1654,15 +2397,15 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "updated_at",
                           "loc": {
-                            "start": 3329,
-                            "end": 3339
+                            "start": 5172,
+                            "end": 5182
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 3329,
-                          "end": 3339
+                          "start": 5172,
+                          "end": 5182
                         }
                       },
                       {
@@ -1671,15 +2414,15 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "label",
                           "loc": {
-                            "start": 3352,
-                            "end": 3357
+                            "start": 5195,
+                            "end": 5200
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 3352,
-                          "end": 3357
+                          "start": 5195,
+                          "end": 5200
                         }
                       },
                       {
@@ -1688,26 +2431,26 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "bookmarksCount",
                           "loc": {
-                            "start": 3370,
-                            "end": 3384
+                            "start": 5213,
+                            "end": 5227
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 3370,
-                          "end": 3384
+                          "start": 5213,
+                          "end": 5227
                         }
                       }
                     ],
                     "loc": {
-                      "start": 3277,
-                      "end": 3394
+                      "start": 5120,
+                      "end": 5237
                     }
                   },
                   "loc": {
-                    "start": 3263,
-                    "end": 3394
+                    "start": 5106,
+                    "end": 5237
                   }
                 },
                 {
@@ -1716,8 +2459,8 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "focusModes",
                     "loc": {
-                      "start": 3403,
-                      "end": 3413
+                      "start": 5246,
+                      "end": 5256
                     }
                   },
                   "arguments": [],
@@ -1731,8 +2474,8 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "filters",
                           "loc": {
-                            "start": 3428,
-                            "end": 3435
+                            "start": 5271,
+                            "end": 5278
                           }
                         },
                         "arguments": [],
@@ -1746,15 +2489,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 3454,
-                                  "end": 3456
+                                  "start": 5297,
+                                  "end": 5299
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3454,
-                                "end": 3456
+                                "start": 5297,
+                                "end": 5299
                               }
                             },
                             {
@@ -1763,15 +2506,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "filterType",
                                 "loc": {
-                                  "start": 3473,
-                                  "end": 3483
+                                  "start": 5316,
+                                  "end": 5326
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3473,
-                                "end": 3483
+                                "start": 5316,
+                                "end": 5326
                               }
                             },
                             {
@@ -1780,8 +2523,8 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "tag",
                                 "loc": {
-                                  "start": 3500,
-                                  "end": 3503
+                                  "start": 5343,
+                                  "end": 5346
                                 }
                               },
                               "arguments": [],
@@ -1795,15 +2538,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3526,
-                                        "end": 3528
+                                        "start": 5369,
+                                        "end": 5371
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3526,
-                                      "end": 3528
+                                      "start": 5369,
+                                      "end": 5371
                                     }
                                   },
                                   {
@@ -1812,15 +2555,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 3549,
-                                        "end": 3559
+                                        "start": 5392,
+                                        "end": 5402
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3549,
-                                      "end": 3559
+                                      "start": 5392,
+                                      "end": 5402
                                     }
                                   },
                                   {
@@ -1829,15 +2572,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "tag",
                                       "loc": {
-                                        "start": 3580,
-                                        "end": 3583
+                                        "start": 5423,
+                                        "end": 5426
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3580,
-                                      "end": 3583
+                                      "start": 5423,
+                                      "end": 5426
                                     }
                                   },
                                   {
@@ -1846,15 +2589,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "bookmarks",
                                       "loc": {
-                                        "start": 3604,
-                                        "end": 3613
+                                        "start": 5447,
+                                        "end": 5456
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3604,
-                                      "end": 3613
+                                      "start": 5447,
+                                      "end": 5456
                                     }
                                   },
                                   {
@@ -1863,8 +2606,8 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 3634,
-                                        "end": 3646
+                                        "start": 5477,
+                                        "end": 5489
                                       }
                                     },
                                     "arguments": [],
@@ -1878,15 +2621,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3673,
-                                              "end": 3675
+                                              "start": 5516,
+                                              "end": 5518
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3673,
-                                            "end": 3675
+                                            "start": 5516,
+                                            "end": 5518
                                           }
                                         },
                                         {
@@ -1895,15 +2638,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 3700,
-                                              "end": 3708
+                                              "start": 5543,
+                                              "end": 5551
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3700,
-                                            "end": 3708
+                                            "start": 5543,
+                                            "end": 5551
                                           }
                                         },
                                         {
@@ -1912,26 +2655,26 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 3733,
-                                              "end": 3744
+                                              "start": 5576,
+                                              "end": 5587
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3733,
-                                            "end": 3744
+                                            "start": 5576,
+                                            "end": 5587
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3647,
-                                        "end": 3766
+                                        "start": 5490,
+                                        "end": 5609
                                       }
                                     },
                                     "loc": {
-                                      "start": 3634,
-                                      "end": 3766
+                                      "start": 5477,
+                                      "end": 5609
                                     }
                                   },
                                   {
@@ -1940,8 +2683,8 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "you",
                                       "loc": {
-                                        "start": 3787,
-                                        "end": 3790
+                                        "start": 5630,
+                                        "end": 5633
                                       }
                                     },
                                     "arguments": [],
@@ -1955,15 +2698,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "isOwn",
                                             "loc": {
-                                              "start": 3817,
-                                              "end": 3822
+                                              "start": 5660,
+                                              "end": 5665
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3817,
-                                            "end": 3822
+                                            "start": 5660,
+                                            "end": 5665
                                           }
                                         },
                                         {
@@ -1972,37 +2715,37 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "isBookmarked",
                                             "loc": {
-                                              "start": 3847,
-                                              "end": 3859
+                                              "start": 5690,
+                                              "end": 5702
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3847,
-                                            "end": 3859
+                                            "start": 5690,
+                                            "end": 5702
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3791,
-                                        "end": 3881
+                                        "start": 5634,
+                                        "end": 5724
                                       }
                                     },
                                     "loc": {
-                                      "start": 3787,
-                                      "end": 3881
+                                      "start": 5630,
+                                      "end": 5724
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3504,
-                                  "end": 3899
+                                  "start": 5347,
+                                  "end": 5742
                                 }
                               },
                               "loc": {
-                                "start": 3500,
-                                "end": 3899
+                                "start": 5343,
+                                "end": 5742
                               }
                             },
                             {
@@ -2011,8 +2754,8 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "focusMode",
                                 "loc": {
-                                  "start": 3916,
-                                  "end": 3925
+                                  "start": 5759,
+                                  "end": 5768
                                 }
                               },
                               "arguments": [],
@@ -2026,8 +2769,8 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "labels",
                                       "loc": {
-                                        "start": 3948,
-                                        "end": 3954
+                                        "start": 5791,
+                                        "end": 5797
                                       }
                                     },
                                     "arguments": [],
@@ -2041,15 +2784,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3981,
-                                              "end": 3983
+                                              "start": 5824,
+                                              "end": 5826
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3981,
-                                            "end": 3983
+                                            "start": 5824,
+                                            "end": 5826
                                           }
                                         },
                                         {
@@ -2058,15 +2801,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "color",
                                             "loc": {
-                                              "start": 4008,
-                                              "end": 4013
+                                              "start": 5851,
+                                              "end": 5856
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4008,
-                                            "end": 4013
+                                            "start": 5851,
+                                            "end": 5856
                                           }
                                         },
                                         {
@@ -2075,26 +2818,769 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "label",
                                             "loc": {
-                                              "start": 4038,
-                                              "end": 4043
+                                              "start": 5881,
+                                              "end": 5886
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4038,
-                                            "end": 4043
+                                            "start": 5881,
+                                            "end": 5886
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3955,
-                                        "end": 4065
+                                        "start": 5798,
+                                        "end": 5908
                                       }
                                     },
                                     "loc": {
-                                      "start": 3948,
-                                      "end": 4065
+                                      "start": 5791,
+                                      "end": 5908
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "reminderList",
+                                      "loc": {
+                                        "start": 5929,
+                                        "end": 5941
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "selectionSet": {
+                                      "kind": "SelectionSet",
+                                      "selections": [
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "id",
+                                            "loc": {
+                                              "start": 5968,
+                                              "end": 5970
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 5968,
+                                            "end": 5970
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "created_at",
+                                            "loc": {
+                                              "start": 5995,
+                                              "end": 6005
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 5995,
+                                            "end": 6005
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "updated_at",
+                                            "loc": {
+                                              "start": 6030,
+                                              "end": 6040
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 6030,
+                                            "end": 6040
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "reminders",
+                                            "loc": {
+                                              "start": 6065,
+                                              "end": 6074
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "id",
+                                                  "loc": {
+                                                    "start": 6105,
+                                                    "end": 6107
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 6105,
+                                                  "end": 6107
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "created_at",
+                                                  "loc": {
+                                                    "start": 6136,
+                                                    "end": 6146
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 6136,
+                                                  "end": 6146
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "updated_at",
+                                                  "loc": {
+                                                    "start": 6175,
+                                                    "end": 6185
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 6175,
+                                                  "end": 6185
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "name",
+                                                  "loc": {
+                                                    "start": 6214,
+                                                    "end": 6218
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 6214,
+                                                  "end": 6218
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "description",
+                                                  "loc": {
+                                                    "start": 6247,
+                                                    "end": 6258
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 6247,
+                                                  "end": 6258
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "dueDate",
+                                                  "loc": {
+                                                    "start": 6287,
+                                                    "end": 6294
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 6287,
+                                                  "end": 6294
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "index",
+                                                  "loc": {
+                                                    "start": 6323,
+                                                    "end": 6328
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 6323,
+                                                  "end": 6328
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "isComplete",
+                                                  "loc": {
+                                                    "start": 6357,
+                                                    "end": 6367
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 6357,
+                                                  "end": 6367
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "reminderItems",
+                                                  "loc": {
+                                                    "start": 6396,
+                                                    "end": 6409
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "selectionSet": {
+                                                  "kind": "SelectionSet",
+                                                  "selections": [
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "id",
+                                                        "loc": {
+                                                          "start": 6444,
+                                                          "end": 6446
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 6444,
+                                                        "end": 6446
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "created_at",
+                                                        "loc": {
+                                                          "start": 6479,
+                                                          "end": 6489
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 6479,
+                                                        "end": 6489
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "updated_at",
+                                                        "loc": {
+                                                          "start": 6522,
+                                                          "end": 6532
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 6522,
+                                                        "end": 6532
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "name",
+                                                        "loc": {
+                                                          "start": 6565,
+                                                          "end": 6569
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 6565,
+                                                        "end": 6569
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "description",
+                                                        "loc": {
+                                                          "start": 6602,
+                                                          "end": 6613
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 6602,
+                                                        "end": 6613
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "dueDate",
+                                                        "loc": {
+                                                          "start": 6646,
+                                                          "end": 6653
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 6646,
+                                                        "end": 6653
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "index",
+                                                        "loc": {
+                                                          "start": 6686,
+                                                          "end": 6691
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 6686,
+                                                        "end": 6691
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "isComplete",
+                                                        "loc": {
+                                                          "start": 6724,
+                                                          "end": 6734
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 6724,
+                                                        "end": 6734
+                                                      }
+                                                    }
+                                                  ],
+                                                  "loc": {
+                                                    "start": 6410,
+                                                    "end": 6764
+                                                  }
+                                                },
+                                                "loc": {
+                                                  "start": 6396,
+                                                  "end": 6764
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 6075,
+                                              "end": 6790
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 6065,
+                                            "end": 6790
+                                          }
+                                        }
+                                      ],
+                                      "loc": {
+                                        "start": 5942,
+                                        "end": 6812
+                                      }
+                                    },
+                                    "loc": {
+                                      "start": 5929,
+                                      "end": 6812
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "resourceList",
+                                      "loc": {
+                                        "start": 6833,
+                                        "end": 6845
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "selectionSet": {
+                                      "kind": "SelectionSet",
+                                      "selections": [
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "id",
+                                            "loc": {
+                                              "start": 6872,
+                                              "end": 6874
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 6872,
+                                            "end": 6874
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "created_at",
+                                            "loc": {
+                                              "start": 6899,
+                                              "end": 6909
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 6899,
+                                            "end": 6909
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "translations",
+                                            "loc": {
+                                              "start": 6934,
+                                              "end": 6946
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "id",
+                                                  "loc": {
+                                                    "start": 6977,
+                                                    "end": 6979
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 6977,
+                                                  "end": 6979
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "language",
+                                                  "loc": {
+                                                    "start": 7008,
+                                                    "end": 7016
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 7008,
+                                                  "end": 7016
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "description",
+                                                  "loc": {
+                                                    "start": 7045,
+                                                    "end": 7056
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 7045,
+                                                  "end": 7056
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "name",
+                                                  "loc": {
+                                                    "start": 7085,
+                                                    "end": 7089
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 7085,
+                                                  "end": 7089
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 6947,
+                                              "end": 7115
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 6934,
+                                            "end": 7115
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "resources",
+                                            "loc": {
+                                              "start": 7140,
+                                              "end": 7149
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "id",
+                                                  "loc": {
+                                                    "start": 7180,
+                                                    "end": 7182
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 7180,
+                                                  "end": 7182
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "index",
+                                                  "loc": {
+                                                    "start": 7211,
+                                                    "end": 7216
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 7211,
+                                                  "end": 7216
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "link",
+                                                  "loc": {
+                                                    "start": 7245,
+                                                    "end": 7249
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 7245,
+                                                  "end": 7249
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "usedFor",
+                                                  "loc": {
+                                                    "start": 7278,
+                                                    "end": 7285
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 7278,
+                                                  "end": 7285
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "translations",
+                                                  "loc": {
+                                                    "start": 7314,
+                                                    "end": 7326
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "selectionSet": {
+                                                  "kind": "SelectionSet",
+                                                  "selections": [
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "id",
+                                                        "loc": {
+                                                          "start": 7361,
+                                                          "end": 7363
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 7361,
+                                                        "end": 7363
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "language",
+                                                        "loc": {
+                                                          "start": 7396,
+                                                          "end": 7404
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 7396,
+                                                        "end": 7404
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "description",
+                                                        "loc": {
+                                                          "start": 7437,
+                                                          "end": 7448
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 7437,
+                                                        "end": 7448
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "Field",
+                                                      "name": {
+                                                        "kind": "Name",
+                                                        "value": "name",
+                                                        "loc": {
+                                                          "start": 7481,
+                                                          "end": 7485
+                                                        }
+                                                      },
+                                                      "arguments": [],
+                                                      "directives": [],
+                                                      "loc": {
+                                                        "start": 7481,
+                                                        "end": 7485
+                                                      }
+                                                    }
+                                                  ],
+                                                  "loc": {
+                                                    "start": 7327,
+                                                    "end": 7515
+                                                  }
+                                                },
+                                                "loc": {
+                                                  "start": 7314,
+                                                  "end": 7515
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 7150,
+                                              "end": 7541
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 7140,
+                                            "end": 7541
+                                          }
+                                        }
+                                      ],
+                                      "loc": {
+                                        "start": 6846,
+                                        "end": 7563
+                                      }
+                                    },
+                                    "loc": {
+                                      "start": 6833,
+                                      "end": 7563
                                     }
                                   },
                                   {
@@ -2103,8 +3589,8 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "schedule",
                                       "loc": {
-                                        "start": 4086,
-                                        "end": 4094
+                                        "start": 7584,
+                                        "end": 7592
                                       }
                                     },
                                     "arguments": [],
@@ -2118,25 +3604,25 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "Schedule_common",
                                             "loc": {
-                                              "start": 4124,
-                                              "end": 4139
+                                              "start": 7622,
+                                              "end": 7637
                                             }
                                           },
                                           "directives": [],
                                           "loc": {
-                                            "start": 4121,
-                                            "end": 4139
+                                            "start": 7619,
+                                            "end": 7637
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4095,
-                                        "end": 4161
+                                        "start": 7593,
+                                        "end": 7659
                                       }
                                     },
                                     "loc": {
-                                      "start": 4086,
-                                      "end": 4161
+                                      "start": 7584,
+                                      "end": 7659
                                     }
                                   },
                                   {
@@ -2145,15 +3631,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 4182,
-                                        "end": 4184
+                                        "start": 7680,
+                                        "end": 7682
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4182,
-                                      "end": 4184
+                                      "start": 7680,
+                                      "end": 7682
                                     }
                                   },
                                   {
@@ -2162,15 +3648,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 4205,
-                                        "end": 4209
+                                        "start": 7703,
+                                        "end": 7707
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4205,
-                                      "end": 4209
+                                      "start": 7703,
+                                      "end": 7707
                                     }
                                   },
                                   {
@@ -2179,37 +3665,37 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 4230,
-                                        "end": 4241
+                                        "start": 7728,
+                                        "end": 7739
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4230,
-                                      "end": 4241
+                                      "start": 7728,
+                                      "end": 7739
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3926,
-                                  "end": 4259
+                                  "start": 5769,
+                                  "end": 7757
                                 }
                               },
                               "loc": {
-                                "start": 3916,
-                                "end": 4259
+                                "start": 5759,
+                                "end": 7757
                               }
                             }
                           ],
                           "loc": {
-                            "start": 3436,
-                            "end": 4273
+                            "start": 5279,
+                            "end": 7771
                           }
                         },
                         "loc": {
-                          "start": 3428,
-                          "end": 4273
+                          "start": 5271,
+                          "end": 7771
                         }
                       },
                       {
@@ -2218,8 +3704,8 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "labels",
                           "loc": {
-                            "start": 4286,
-                            "end": 4292
+                            "start": 7784,
+                            "end": 7790
                           }
                         },
                         "arguments": [],
@@ -2233,15 +3719,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 4311,
-                                  "end": 4313
+                                  "start": 7809,
+                                  "end": 7811
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4311,
-                                "end": 4313
+                                "start": 7809,
+                                "end": 7811
                               }
                             },
                             {
@@ -2250,15 +3736,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "color",
                                 "loc": {
-                                  "start": 4330,
-                                  "end": 4335
+                                  "start": 7828,
+                                  "end": 7833
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4330,
-                                "end": 4335
+                                "start": 7828,
+                                "end": 7833
                               }
                             },
                             {
@@ -2267,26 +3753,26 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "label",
                                 "loc": {
-                                  "start": 4352,
-                                  "end": 4357
+                                  "start": 7850,
+                                  "end": 7855
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4352,
-                                "end": 4357
+                                "start": 7850,
+                                "end": 7855
                               }
                             }
                           ],
                           "loc": {
-                            "start": 4293,
-                            "end": 4371
+                            "start": 7791,
+                            "end": 7869
                           }
                         },
                         "loc": {
-                          "start": 4286,
-                          "end": 4371
+                          "start": 7784,
+                          "end": 7869
                         }
                       },
                       {
@@ -2295,8 +3781,8 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "reminderList",
                           "loc": {
-                            "start": 4384,
-                            "end": 4396
+                            "start": 7882,
+                            "end": 7894
                           }
                         },
                         "arguments": [],
@@ -2310,15 +3796,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 4415,
-                                  "end": 4417
+                                  "start": 7913,
+                                  "end": 7915
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4415,
-                                "end": 4417
+                                "start": 7913,
+                                "end": 7915
                               }
                             },
                             {
@@ -2327,15 +3813,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 4434,
-                                  "end": 4444
+                                  "start": 7932,
+                                  "end": 7942
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4434,
-                                "end": 4444
+                                "start": 7932,
+                                "end": 7942
                               }
                             },
                             {
@@ -2344,15 +3830,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "updated_at",
                                 "loc": {
-                                  "start": 4461,
-                                  "end": 4471
+                                  "start": 7959,
+                                  "end": 7969
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4461,
-                                "end": 4471
+                                "start": 7959,
+                                "end": 7969
                               }
                             },
                             {
@@ -2361,8 +3847,8 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "reminders",
                                 "loc": {
-                                  "start": 4488,
-                                  "end": 4497
+                                  "start": 7986,
+                                  "end": 7995
                                 }
                               },
                               "arguments": [],
@@ -2376,15 +3862,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 4520,
-                                        "end": 4522
+                                        "start": 8018,
+                                        "end": 8020
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4520,
-                                      "end": 4522
+                                      "start": 8018,
+                                      "end": 8020
                                     }
                                   },
                                   {
@@ -2393,15 +3879,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 4543,
-                                        "end": 4553
+                                        "start": 8041,
+                                        "end": 8051
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4543,
-                                      "end": 4553
+                                      "start": 8041,
+                                      "end": 8051
                                     }
                                   },
                                   {
@@ -2410,15 +3896,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 4574,
-                                        "end": 4584
+                                        "start": 8072,
+                                        "end": 8082
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4574,
-                                      "end": 4584
+                                      "start": 8072,
+                                      "end": 8082
                                     }
                                   },
                                   {
@@ -2427,15 +3913,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 4605,
-                                        "end": 4609
+                                        "start": 8103,
+                                        "end": 8107
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4605,
-                                      "end": 4609
+                                      "start": 8103,
+                                      "end": 8107
                                     }
                                   },
                                   {
@@ -2444,15 +3930,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 4630,
-                                        "end": 4641
+                                        "start": 8128,
+                                        "end": 8139
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4630,
-                                      "end": 4641
+                                      "start": 8128,
+                                      "end": 8139
                                     }
                                   },
                                   {
@@ -2461,15 +3947,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "dueDate",
                                       "loc": {
-                                        "start": 4662,
-                                        "end": 4669
+                                        "start": 8160,
+                                        "end": 8167
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4662,
-                                      "end": 4669
+                                      "start": 8160,
+                                      "end": 8167
                                     }
                                   },
                                   {
@@ -2478,15 +3964,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 4690,
-                                        "end": 4695
+                                        "start": 8188,
+                                        "end": 8193
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4690,
-                                      "end": 4695
+                                      "start": 8188,
+                                      "end": 8193
                                     }
                                   },
                                   {
@@ -2495,15 +3981,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "isComplete",
                                       "loc": {
-                                        "start": 4716,
-                                        "end": 4726
+                                        "start": 8214,
+                                        "end": 8224
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4716,
-                                      "end": 4726
+                                      "start": 8214,
+                                      "end": 8224
                                     }
                                   },
                                   {
@@ -2512,8 +3998,8 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "reminderItems",
                                       "loc": {
-                                        "start": 4747,
-                                        "end": 4760
+                                        "start": 8245,
+                                        "end": 8258
                                       }
                                     },
                                     "arguments": [],
@@ -2527,15 +4013,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4787,
-                                              "end": 4789
+                                              "start": 8285,
+                                              "end": 8287
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4787,
-                                            "end": 4789
+                                            "start": 8285,
+                                            "end": 8287
                                           }
                                         },
                                         {
@@ -2544,15 +4030,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 4814,
-                                              "end": 4824
+                                              "start": 8312,
+                                              "end": 8322
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4814,
-                                            "end": 4824
+                                            "start": 8312,
+                                            "end": 8322
                                           }
                                         },
                                         {
@@ -2561,15 +4047,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 4849,
-                                              "end": 4859
+                                              "start": 8347,
+                                              "end": 8357
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4849,
-                                            "end": 4859
+                                            "start": 8347,
+                                            "end": 8357
                                           }
                                         },
                                         {
@@ -2578,15 +4064,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 4884,
-                                              "end": 4888
+                                              "start": 8382,
+                                              "end": 8386
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4884,
-                                            "end": 4888
+                                            "start": 8382,
+                                            "end": 8386
                                           }
                                         },
                                         {
@@ -2595,15 +4081,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 4913,
-                                              "end": 4924
+                                              "start": 8411,
+                                              "end": 8422
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4913,
-                                            "end": 4924
+                                            "start": 8411,
+                                            "end": 8422
                                           }
                                         },
                                         {
@@ -2612,15 +4098,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 4949,
-                                              "end": 4956
+                                              "start": 8447,
+                                              "end": 8454
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4949,
-                                            "end": 4956
+                                            "start": 8447,
+                                            "end": 8454
                                           }
                                         },
                                         {
@@ -2629,15 +4115,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 4981,
-                                              "end": 4986
+                                              "start": 8479,
+                                              "end": 8484
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4981,
-                                            "end": 4986
+                                            "start": 8479,
+                                            "end": 8484
                                           }
                                         },
                                         {
@@ -2646,48 +4132,48 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 5011,
-                                              "end": 5021
+                                              "start": 8509,
+                                              "end": 8519
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5011,
-                                            "end": 5021
+                                            "start": 8509,
+                                            "end": 8519
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4761,
-                                        "end": 5043
+                                        "start": 8259,
+                                        "end": 8541
                                       }
                                     },
                                     "loc": {
-                                      "start": 4747,
-                                      "end": 5043
+                                      "start": 8245,
+                                      "end": 8541
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4498,
-                                  "end": 5061
+                                  "start": 7996,
+                                  "end": 8559
                                 }
                               },
                               "loc": {
-                                "start": 4488,
-                                "end": 5061
+                                "start": 7986,
+                                "end": 8559
                               }
                             }
                           ],
                           "loc": {
-                            "start": 4397,
-                            "end": 5075
+                            "start": 7895,
+                            "end": 8573
                           }
                         },
                         "loc": {
-                          "start": 4384,
-                          "end": 5075
+                          "start": 7882,
+                          "end": 8573
                         }
                       },
                       {
@@ -2696,8 +4182,8 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "resourceList",
                           "loc": {
-                            "start": 5088,
-                            "end": 5100
+                            "start": 8586,
+                            "end": 8598
                           }
                         },
                         "arguments": [],
@@ -2711,15 +4197,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 5119,
-                                  "end": 5121
+                                  "start": 8617,
+                                  "end": 8619
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5119,
-                                "end": 5121
+                                "start": 8617,
+                                "end": 8619
                               }
                             },
                             {
@@ -2728,15 +4214,15 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 5138,
-                                  "end": 5148
+                                  "start": 8636,
+                                  "end": 8646
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5138,
-                                "end": 5148
+                                "start": 8636,
+                                "end": 8646
                               }
                             },
                             {
@@ -2745,8 +4231,8 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 5165,
-                                  "end": 5177
+                                  "start": 8663,
+                                  "end": 8675
                                 }
                               },
                               "arguments": [],
@@ -2760,15 +4246,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 5200,
-                                        "end": 5202
+                                        "start": 8698,
+                                        "end": 8700
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5200,
-                                      "end": 5202
+                                      "start": 8698,
+                                      "end": 8700
                                     }
                                   },
                                   {
@@ -2777,15 +4263,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 5223,
-                                        "end": 5231
+                                        "start": 8721,
+                                        "end": 8729
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5223,
-                                      "end": 5231
+                                      "start": 8721,
+                                      "end": 8729
                                     }
                                   },
                                   {
@@ -2794,15 +4280,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 5252,
-                                        "end": 5263
+                                        "start": 8750,
+                                        "end": 8761
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5252,
-                                      "end": 5263
+                                      "start": 8750,
+                                      "end": 8761
                                     }
                                   },
                                   {
@@ -2811,26 +4297,26 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 5284,
-                                        "end": 5288
+                                        "start": 8782,
+                                        "end": 8786
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5284,
-                                      "end": 5288
+                                      "start": 8782,
+                                      "end": 8786
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5178,
-                                  "end": 5306
+                                  "start": 8676,
+                                  "end": 8804
                                 }
                               },
                               "loc": {
-                                "start": 5165,
-                                "end": 5306
+                                "start": 8663,
+                                "end": 8804
                               }
                             },
                             {
@@ -2839,8 +4325,8 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "resources",
                                 "loc": {
-                                  "start": 5323,
-                                  "end": 5332
+                                  "start": 8821,
+                                  "end": 8830
                                 }
                               },
                               "arguments": [],
@@ -2854,15 +4340,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 5355,
-                                        "end": 5357
+                                        "start": 8853,
+                                        "end": 8855
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5355,
-                                      "end": 5357
+                                      "start": 8853,
+                                      "end": 8855
                                     }
                                   },
                                   {
@@ -2871,15 +4357,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 5378,
-                                        "end": 5383
+                                        "start": 8876,
+                                        "end": 8881
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5378,
-                                      "end": 5383
+                                      "start": 8876,
+                                      "end": 8881
                                     }
                                   },
                                   {
@@ -2888,15 +4374,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "link",
                                       "loc": {
-                                        "start": 5404,
-                                        "end": 5408
+                                        "start": 8902,
+                                        "end": 8906
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5404,
-                                      "end": 5408
+                                      "start": 8902,
+                                      "end": 8906
                                     }
                                   },
                                   {
@@ -2905,15 +4391,15 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "usedFor",
                                       "loc": {
-                                        "start": 5429,
-                                        "end": 5436
+                                        "start": 8927,
+                                        "end": 8934
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5429,
-                                      "end": 5436
+                                      "start": 8927,
+                                      "end": 8934
                                     }
                                   },
                                   {
@@ -2922,8 +4408,8 @@ export const auth_emailSignUp = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 5457,
-                                        "end": 5469
+                                        "start": 8955,
+                                        "end": 8967
                                       }
                                     },
                                     "arguments": [],
@@ -2937,15 +4423,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5496,
-                                              "end": 5498
+                                              "start": 8994,
+                                              "end": 8996
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5496,
-                                            "end": 5498
+                                            "start": 8994,
+                                            "end": 8996
                                           }
                                         },
                                         {
@@ -2954,15 +4440,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 5523,
-                                              "end": 5531
+                                              "start": 9021,
+                                              "end": 9029
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5523,
-                                            "end": 5531
+                                            "start": 9021,
+                                            "end": 9029
                                           }
                                         },
                                         {
@@ -2971,15 +4457,15 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 5556,
-                                              "end": 5567
+                                              "start": 9054,
+                                              "end": 9065
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5556,
-                                            "end": 5567
+                                            "start": 9054,
+                                            "end": 9065
                                           }
                                         },
                                         {
@@ -2988,48 +4474,48 @@ export const auth_emailSignUp = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 5592,
-                                              "end": 5596
+                                              "start": 9090,
+                                              "end": 9094
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5592,
-                                            "end": 5596
+                                            "start": 9090,
+                                            "end": 9094
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5470,
-                                        "end": 5618
+                                        "start": 8968,
+                                        "end": 9116
                                       }
                                     },
                                     "loc": {
-                                      "start": 5457,
-                                      "end": 5618
+                                      "start": 8955,
+                                      "end": 9116
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5333,
-                                  "end": 5636
+                                  "start": 8831,
+                                  "end": 9134
                                 }
                               },
                               "loc": {
-                                "start": 5323,
-                                "end": 5636
+                                "start": 8821,
+                                "end": 9134
                               }
                             }
                           ],
                           "loc": {
-                            "start": 5101,
-                            "end": 5650
+                            "start": 8599,
+                            "end": 9148
                           }
                         },
                         "loc": {
-                          "start": 5088,
-                          "end": 5650
+                          "start": 8586,
+                          "end": 9148
                         }
                       },
                       {
@@ -3038,8 +4524,8 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "schedule",
                           "loc": {
-                            "start": 5663,
-                            "end": 5671
+                            "start": 9161,
+                            "end": 9169
                           }
                         },
                         "arguments": [],
@@ -3053,25 +4539,25 @@ export const auth_emailSignUp = {
                                 "kind": "Name",
                                 "value": "Schedule_common",
                                 "loc": {
-                                  "start": 5693,
-                                  "end": 5708
+                                  "start": 9191,
+                                  "end": 9206
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 5690,
-                                "end": 5708
+                                "start": 9188,
+                                "end": 9206
                               }
                             }
                           ],
                           "loc": {
-                            "start": 5672,
-                            "end": 5722
+                            "start": 9170,
+                            "end": 9220
                           }
                         },
                         "loc": {
-                          "start": 5663,
-                          "end": 5722
+                          "start": 9161,
+                          "end": 9220
                         }
                       },
                       {
@@ -3080,15 +4566,15 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 5735,
-                            "end": 5737
+                            "start": 9233,
+                            "end": 9235
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5735,
-                          "end": 5737
+                          "start": 9233,
+                          "end": 9235
                         }
                       },
                       {
@@ -3097,15 +4583,15 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "name",
                           "loc": {
-                            "start": 5750,
-                            "end": 5754
+                            "start": 9248,
+                            "end": 9252
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5750,
-                          "end": 5754
+                          "start": 9248,
+                          "end": 9252
                         }
                       },
                       {
@@ -3114,26 +4600,26 @@ export const auth_emailSignUp = {
                           "kind": "Name",
                           "value": "description",
                           "loc": {
-                            "start": 5767,
-                            "end": 5778
+                            "start": 9265,
+                            "end": 9276
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5767,
-                          "end": 5778
+                          "start": 9265,
+                          "end": 9276
                         }
                       }
                     ],
                     "loc": {
-                      "start": 3414,
-                      "end": 5788
+                      "start": 5257,
+                      "end": 9286
                     }
                   },
                   "loc": {
-                    "start": 3403,
-                    "end": 5788
+                    "start": 5246,
+                    "end": 9286
                   }
                 },
                 {
@@ -3142,15 +4628,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "handle",
                     "loc": {
-                      "start": 5797,
-                      "end": 5803
+                      "start": 9295,
+                      "end": 9301
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5797,
-                    "end": 5803
+                    "start": 9295,
+                    "end": 9301
                   }
                 },
                 {
@@ -3159,15 +4645,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "hasPremium",
                     "loc": {
-                      "start": 5812,
-                      "end": 5822
+                      "start": 9310,
+                      "end": 9320
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5812,
-                    "end": 5822
+                    "start": 9310,
+                    "end": 9320
                   }
                 },
                 {
@@ -3176,15 +4662,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 5831,
-                      "end": 5833
+                      "start": 9329,
+                      "end": 9331
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5831,
-                    "end": 5833
+                    "start": 9329,
+                    "end": 9331
                   }
                 },
                 {
@@ -3193,15 +4679,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "languages",
                     "loc": {
-                      "start": 5842,
-                      "end": 5851
+                      "start": 9340,
+                      "end": 9349
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5842,
-                    "end": 5851
+                    "start": 9340,
+                    "end": 9349
                   }
                 },
                 {
@@ -3210,15 +4696,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "membershipsCount",
                     "loc": {
-                      "start": 5860,
-                      "end": 5876
+                      "start": 9358,
+                      "end": 9374
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5860,
-                    "end": 5876
+                    "start": 9358,
+                    "end": 9374
                   }
                 },
                 {
@@ -3227,15 +4713,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "name",
                     "loc": {
-                      "start": 5885,
-                      "end": 5889
+                      "start": 9383,
+                      "end": 9387
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5885,
-                    "end": 5889
+                    "start": 9383,
+                    "end": 9387
                   }
                 },
                 {
@@ -3244,15 +4730,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "notesCount",
                     "loc": {
-                      "start": 5898,
-                      "end": 5908
+                      "start": 9396,
+                      "end": 9406
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5898,
-                    "end": 5908
+                    "start": 9396,
+                    "end": 9406
                   }
                 },
                 {
@@ -3261,15 +4747,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "projectsCount",
                     "loc": {
-                      "start": 5917,
-                      "end": 5930
+                      "start": 9415,
+                      "end": 9428
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5917,
-                    "end": 5930
+                    "start": 9415,
+                    "end": 9428
                   }
                 },
                 {
@@ -3278,15 +4764,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "questionsAskedCount",
                     "loc": {
-                      "start": 5939,
-                      "end": 5958
+                      "start": 9437,
+                      "end": 9456
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5939,
-                    "end": 5958
+                    "start": 9437,
+                    "end": 9456
                   }
                 },
                 {
@@ -3295,15 +4781,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "routinesCount",
                     "loc": {
-                      "start": 5967,
-                      "end": 5980
+                      "start": 9465,
+                      "end": 9478
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5967,
-                    "end": 5980
+                    "start": 9465,
+                    "end": 9478
                   }
                 },
                 {
@@ -3312,15 +4798,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "smartContractsCount",
                     "loc": {
-                      "start": 5989,
-                      "end": 6008
+                      "start": 9487,
+                      "end": 9506
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5989,
-                    "end": 6008
+                    "start": 9487,
+                    "end": 9506
                   }
                 },
                 {
@@ -3329,15 +4815,15 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "standardsCount",
                     "loc": {
-                      "start": 6017,
-                      "end": 6031
+                      "start": 9515,
+                      "end": 9529
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 6017,
-                    "end": 6031
+                    "start": 9515,
+                    "end": 9529
                   }
                 },
                 {
@@ -3346,37 +4832,37 @@ export const auth_emailSignUp = {
                     "kind": "Name",
                     "value": "theme",
                     "loc": {
-                      "start": 6040,
-                      "end": 6045
+                      "start": 9538,
+                      "end": 9543
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 6040,
-                    "end": 6045
+                    "start": 9538,
+                    "end": 9543
                   }
                 }
               ],
               "loc": {
                 "start": 396,
-                "end": 6051
+                "end": 9549
               }
             },
             "loc": {
               "start": 390,
-              "end": 6051
+              "end": 9549
             }
           }
         ],
         "loc": {
           "start": 356,
-          "end": 6055
+          "end": 9553
         }
       },
       "loc": {
         "start": 329,
-        "end": 6055
+        "end": 9553
       }
     },
     {
@@ -4671,10 +6157,753 @@ export const auth_emailSignUp = {
                                               "kind": "Field",
                                               "name": {
                                                 "kind": "Name",
-                                                "value": "schedule",
+                                                "value": "reminderList",
                                                 "loc": {
                                                   "start": 1213,
-                                                  "end": 1221
+                                                  "end": 1225
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "selectionSet": {
+                                                "kind": "SelectionSet",
+                                                "selections": [
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "id",
+                                                      "loc": {
+                                                        "start": 1256,
+                                                        "end": 1258
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 1256,
+                                                      "end": 1258
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "created_at",
+                                                      "loc": {
+                                                        "start": 1287,
+                                                        "end": 1297
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 1287,
+                                                      "end": 1297
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "updated_at",
+                                                      "loc": {
+                                                        "start": 1326,
+                                                        "end": 1336
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 1326,
+                                                      "end": 1336
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "reminders",
+                                                      "loc": {
+                                                        "start": 1365,
+                                                        "end": 1374
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "selectionSet": {
+                                                      "kind": "SelectionSet",
+                                                      "selections": [
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "id",
+                                                            "loc": {
+                                                              "start": 1409,
+                                                              "end": 1411
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 1409,
+                                                            "end": 1411
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "created_at",
+                                                            "loc": {
+                                                              "start": 1444,
+                                                              "end": 1454
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 1444,
+                                                            "end": 1454
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "updated_at",
+                                                            "loc": {
+                                                              "start": 1487,
+                                                              "end": 1497
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 1487,
+                                                            "end": 1497
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "name",
+                                                            "loc": {
+                                                              "start": 1530,
+                                                              "end": 1534
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 1530,
+                                                            "end": 1534
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "description",
+                                                            "loc": {
+                                                              "start": 1567,
+                                                              "end": 1578
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 1567,
+                                                            "end": 1578
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "dueDate",
+                                                            "loc": {
+                                                              "start": 1611,
+                                                              "end": 1618
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 1611,
+                                                            "end": 1618
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "index",
+                                                            "loc": {
+                                                              "start": 1651,
+                                                              "end": 1656
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 1651,
+                                                            "end": 1656
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "isComplete",
+                                                            "loc": {
+                                                              "start": 1689,
+                                                              "end": 1699
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 1689,
+                                                            "end": 1699
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "reminderItems",
+                                                            "loc": {
+                                                              "start": 1732,
+                                                              "end": 1745
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "selectionSet": {
+                                                            "kind": "SelectionSet",
+                                                            "selections": [
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "id",
+                                                                  "loc": {
+                                                                    "start": 1784,
+                                                                    "end": 1786
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 1784,
+                                                                  "end": 1786
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "created_at",
+                                                                  "loc": {
+                                                                    "start": 1823,
+                                                                    "end": 1833
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 1823,
+                                                                  "end": 1833
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "updated_at",
+                                                                  "loc": {
+                                                                    "start": 1870,
+                                                                    "end": 1880
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 1870,
+                                                                  "end": 1880
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "name",
+                                                                  "loc": {
+                                                                    "start": 1917,
+                                                                    "end": 1921
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 1917,
+                                                                  "end": 1921
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "description",
+                                                                  "loc": {
+                                                                    "start": 1958,
+                                                                    "end": 1969
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 1958,
+                                                                  "end": 1969
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "dueDate",
+                                                                  "loc": {
+                                                                    "start": 2006,
+                                                                    "end": 2013
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 2006,
+                                                                  "end": 2013
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "index",
+                                                                  "loc": {
+                                                                    "start": 2050,
+                                                                    "end": 2055
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 2050,
+                                                                  "end": 2055
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "isComplete",
+                                                                  "loc": {
+                                                                    "start": 2092,
+                                                                    "end": 2102
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 2092,
+                                                                  "end": 2102
+                                                                }
+                                                              }
+                                                            ],
+                                                            "loc": {
+                                                              "start": 1746,
+                                                              "end": 2136
+                                                            }
+                                                          },
+                                                          "loc": {
+                                                            "start": 1732,
+                                                            "end": 2136
+                                                          }
+                                                        }
+                                                      ],
+                                                      "loc": {
+                                                        "start": 1375,
+                                                        "end": 2166
+                                                      }
+                                                    },
+                                                    "loc": {
+                                                      "start": 1365,
+                                                      "end": 2166
+                                                    }
+                                                  }
+                                                ],
+                                                "loc": {
+                                                  "start": 1226,
+                                                  "end": 2192
+                                                }
+                                              },
+                                              "loc": {
+                                                "start": 1213,
+                                                "end": 2192
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "resourceList",
+                                                "loc": {
+                                                  "start": 2217,
+                                                  "end": 2229
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "selectionSet": {
+                                                "kind": "SelectionSet",
+                                                "selections": [
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "id",
+                                                      "loc": {
+                                                        "start": 2260,
+                                                        "end": 2262
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 2260,
+                                                      "end": 2262
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "created_at",
+                                                      "loc": {
+                                                        "start": 2291,
+                                                        "end": 2301
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 2291,
+                                                      "end": 2301
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "translations",
+                                                      "loc": {
+                                                        "start": 2330,
+                                                        "end": 2342
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "selectionSet": {
+                                                      "kind": "SelectionSet",
+                                                      "selections": [
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "id",
+                                                            "loc": {
+                                                              "start": 2377,
+                                                              "end": 2379
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 2377,
+                                                            "end": 2379
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "language",
+                                                            "loc": {
+                                                              "start": 2412,
+                                                              "end": 2420
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 2412,
+                                                            "end": 2420
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "description",
+                                                            "loc": {
+                                                              "start": 2453,
+                                                              "end": 2464
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 2453,
+                                                            "end": 2464
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "name",
+                                                            "loc": {
+                                                              "start": 2497,
+                                                              "end": 2501
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 2497,
+                                                            "end": 2501
+                                                          }
+                                                        }
+                                                      ],
+                                                      "loc": {
+                                                        "start": 2343,
+                                                        "end": 2531
+                                                      }
+                                                    },
+                                                    "loc": {
+                                                      "start": 2330,
+                                                      "end": 2531
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "resources",
+                                                      "loc": {
+                                                        "start": 2560,
+                                                        "end": 2569
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "selectionSet": {
+                                                      "kind": "SelectionSet",
+                                                      "selections": [
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "id",
+                                                            "loc": {
+                                                              "start": 2604,
+                                                              "end": 2606
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 2604,
+                                                            "end": 2606
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "index",
+                                                            "loc": {
+                                                              "start": 2639,
+                                                              "end": 2644
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 2639,
+                                                            "end": 2644
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "link",
+                                                            "loc": {
+                                                              "start": 2677,
+                                                              "end": 2681
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 2677,
+                                                            "end": 2681
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "usedFor",
+                                                            "loc": {
+                                                              "start": 2714,
+                                                              "end": 2721
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 2714,
+                                                            "end": 2721
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "translations",
+                                                            "loc": {
+                                                              "start": 2754,
+                                                              "end": 2766
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "selectionSet": {
+                                                            "kind": "SelectionSet",
+                                                            "selections": [
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "id",
+                                                                  "loc": {
+                                                                    "start": 2805,
+                                                                    "end": 2807
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 2805,
+                                                                  "end": 2807
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "language",
+                                                                  "loc": {
+                                                                    "start": 2844,
+                                                                    "end": 2852
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 2844,
+                                                                  "end": 2852
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "description",
+                                                                  "loc": {
+                                                                    "start": 2889,
+                                                                    "end": 2900
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 2889,
+                                                                  "end": 2900
+                                                                }
+                                                              },
+                                                              {
+                                                                "kind": "Field",
+                                                                "name": {
+                                                                  "kind": "Name",
+                                                                  "value": "name",
+                                                                  "loc": {
+                                                                    "start": 2937,
+                                                                    "end": 2941
+                                                                  }
+                                                                },
+                                                                "arguments": [],
+                                                                "directives": [],
+                                                                "loc": {
+                                                                  "start": 2937,
+                                                                  "end": 2941
+                                                                }
+                                                              }
+                                                            ],
+                                                            "loc": {
+                                                              "start": 2767,
+                                                              "end": 2975
+                                                            }
+                                                          },
+                                                          "loc": {
+                                                            "start": 2754,
+                                                            "end": 2975
+                                                          }
+                                                        }
+                                                      ],
+                                                      "loc": {
+                                                        "start": 2570,
+                                                        "end": 3005
+                                                      }
+                                                    },
+                                                    "loc": {
+                                                      "start": 2560,
+                                                      "end": 3005
+                                                    }
+                                                  }
+                                                ],
+                                                "loc": {
+                                                  "start": 2230,
+                                                  "end": 3031
+                                                }
+                                              },
+                                              "loc": {
+                                                "start": 2217,
+                                                "end": 3031
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "schedule",
+                                                "loc": {
+                                                  "start": 3056,
+                                                  "end": 3064
                                                 }
                                               },
                                               "arguments": [],
@@ -4688,25 +6917,25 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "Schedule_common",
                                                       "loc": {
-                                                        "start": 1255,
-                                                        "end": 1270
+                                                        "start": 3098,
+                                                        "end": 3113
                                                       }
                                                     },
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 1252,
-                                                      "end": 1270
+                                                      "start": 3095,
+                                                      "end": 3113
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 1222,
-                                                  "end": 1296
+                                                  "start": 3065,
+                                                  "end": 3139
                                                 }
                                               },
                                               "loc": {
-                                                "start": 1213,
-                                                "end": 1296
+                                                "start": 3056,
+                                                "end": 3139
                                               }
                                             },
                                             {
@@ -4715,15 +6944,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 1321,
-                                                  "end": 1323
+                                                  "start": 3164,
+                                                  "end": 3166
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1321,
-                                                "end": 1323
+                                                "start": 3164,
+                                                "end": 3166
                                               }
                                             },
                                             {
@@ -4732,15 +6961,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 1348,
-                                                  "end": 1352
+                                                  "start": 3191,
+                                                  "end": 3195
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1348,
-                                                "end": 1352
+                                                "start": 3191,
+                                                "end": 3195
                                               }
                                             },
                                             {
@@ -4749,37 +6978,37 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 1377,
-                                                  "end": 1388
+                                                  "start": 3220,
+                                                  "end": 3231
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1377,
-                                                "end": 1388
+                                                "start": 3220,
+                                                "end": 3231
                                               }
                                             }
                                           ],
                                           "loc": {
                                             "start": 1029,
-                                            "end": 1410
+                                            "end": 3253
                                           }
                                         },
                                         "loc": {
                                           "start": 1019,
-                                          "end": 1410
+                                          "end": 3253
                                         }
                                       }
                                     ],
                                     "loc": {
                                       "start": 467,
-                                      "end": 1428
+                                      "end": 3271
                                     }
                                   },
                                   "loc": {
                                     "start": 459,
-                                    "end": 1428
+                                    "end": 3271
                                   }
                                 },
                                 {
@@ -4788,8 +7017,8 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "labels",
                                     "loc": {
-                                      "start": 1445,
-                                      "end": 1451
+                                      "start": 3288,
+                                      "end": 3294
                                     }
                                   },
                                   "arguments": [],
@@ -4803,15 +7032,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 1474,
-                                            "end": 1476
+                                            "start": 3317,
+                                            "end": 3319
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 1474,
-                                          "end": 1476
+                                          "start": 3317,
+                                          "end": 3319
                                         }
                                       },
                                       {
@@ -4820,15 +7049,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "color",
                                           "loc": {
-                                            "start": 1497,
-                                            "end": 1502
+                                            "start": 3340,
+                                            "end": 3345
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 1497,
-                                          "end": 1502
+                                          "start": 3340,
+                                          "end": 3345
                                         }
                                       },
                                       {
@@ -4837,26 +7066,26 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "label",
                                           "loc": {
-                                            "start": 1523,
-                                            "end": 1528
+                                            "start": 3366,
+                                            "end": 3371
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 1523,
-                                          "end": 1528
+                                          "start": 3366,
+                                          "end": 3371
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 1452,
-                                      "end": 1546
+                                      "start": 3295,
+                                      "end": 3389
                                     }
                                   },
                                   "loc": {
-                                    "start": 1445,
-                                    "end": 1546
+                                    "start": 3288,
+                                    "end": 3389
                                   }
                                 },
                                 {
@@ -4865,8 +7094,8 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "reminderList",
                                     "loc": {
-                                      "start": 1563,
-                                      "end": 1575
+                                      "start": 3406,
+                                      "end": 3418
                                     }
                                   },
                                   "arguments": [],
@@ -4880,15 +7109,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 1598,
-                                            "end": 1600
+                                            "start": 3441,
+                                            "end": 3443
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 1598,
-                                          "end": 1600
+                                          "start": 3441,
+                                          "end": 3443
                                         }
                                       },
                                       {
@@ -4897,15 +7126,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 1621,
-                                            "end": 1631
+                                            "start": 3464,
+                                            "end": 3474
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 1621,
-                                          "end": 1631
+                                          "start": 3464,
+                                          "end": 3474
                                         }
                                       },
                                       {
@@ -4914,15 +7143,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 1652,
-                                            "end": 1662
+                                            "start": 3495,
+                                            "end": 3505
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 1652,
-                                          "end": 1662
+                                          "start": 3495,
+                                          "end": 3505
                                         }
                                       },
                                       {
@@ -4931,8 +7160,8 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "reminders",
                                           "loc": {
-                                            "start": 1683,
-                                            "end": 1692
+                                            "start": 3526,
+                                            "end": 3535
                                           }
                                         },
                                         "arguments": [],
@@ -4946,15 +7175,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 1719,
-                                                  "end": 1721
+                                                  "start": 3562,
+                                                  "end": 3564
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1719,
-                                                "end": 1721
+                                                "start": 3562,
+                                                "end": 3564
                                               }
                                             },
                                             {
@@ -4963,15 +7192,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 1746,
-                                                  "end": 1756
+                                                  "start": 3589,
+                                                  "end": 3599
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1746,
-                                                "end": 1756
+                                                "start": 3589,
+                                                "end": 3599
                                               }
                                             },
                                             {
@@ -4980,15 +7209,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 1781,
-                                                  "end": 1791
+                                                  "start": 3624,
+                                                  "end": 3634
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1781,
-                                                "end": 1791
+                                                "start": 3624,
+                                                "end": 3634
                                               }
                                             },
                                             {
@@ -4997,15 +7226,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 1816,
-                                                  "end": 1820
+                                                  "start": 3659,
+                                                  "end": 3663
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1816,
-                                                "end": 1820
+                                                "start": 3659,
+                                                "end": 3663
                                               }
                                             },
                                             {
@@ -5014,15 +7243,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 1845,
-                                                  "end": 1856
+                                                  "start": 3688,
+                                                  "end": 3699
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1845,
-                                                "end": 1856
+                                                "start": 3688,
+                                                "end": 3699
                                               }
                                             },
                                             {
@@ -5031,15 +7260,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 1881,
-                                                  "end": 1888
+                                                  "start": 3724,
+                                                  "end": 3731
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1881,
-                                                "end": 1888
+                                                "start": 3724,
+                                                "end": 3731
                                               }
                                             },
                                             {
@@ -5048,15 +7277,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 1913,
-                                                  "end": 1918
+                                                  "start": 3756,
+                                                  "end": 3761
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1913,
-                                                "end": 1918
+                                                "start": 3756,
+                                                "end": 3761
                                               }
                                             },
                                             {
@@ -5065,15 +7294,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 1943,
-                                                  "end": 1953
+                                                  "start": 3786,
+                                                  "end": 3796
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 1943,
-                                                "end": 1953
+                                                "start": 3786,
+                                                "end": 3796
                                               }
                                             },
                                             {
@@ -5082,8 +7311,8 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "reminderItems",
                                                 "loc": {
-                                                  "start": 1978,
-                                                  "end": 1991
+                                                  "start": 3821,
+                                                  "end": 3834
                                                 }
                                               },
                                               "arguments": [],
@@ -5097,15 +7326,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 2022,
-                                                        "end": 2024
+                                                        "start": 3865,
+                                                        "end": 3867
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2022,
-                                                      "end": 2024
+                                                      "start": 3865,
+                                                      "end": 3867
                                                     }
                                                   },
                                                   {
@@ -5114,15 +7343,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 2053,
-                                                        "end": 2063
+                                                        "start": 3896,
+                                                        "end": 3906
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2053,
-                                                      "end": 2063
+                                                      "start": 3896,
+                                                      "end": 3906
                                                     }
                                                   },
                                                   {
@@ -5131,15 +7360,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 2092,
-                                                        "end": 2102
+                                                        "start": 3935,
+                                                        "end": 3945
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2092,
-                                                      "end": 2102
+                                                      "start": 3935,
+                                                      "end": 3945
                                                     }
                                                   },
                                                   {
@@ -5148,15 +7377,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 2131,
-                                                        "end": 2135
+                                                        "start": 3974,
+                                                        "end": 3978
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2131,
-                                                      "end": 2135
+                                                      "start": 3974,
+                                                      "end": 3978
                                                     }
                                                   },
                                                   {
@@ -5165,15 +7394,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 2164,
-                                                        "end": 2175
+                                                        "start": 4007,
+                                                        "end": 4018
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2164,
-                                                      "end": 2175
+                                                      "start": 4007,
+                                                      "end": 4018
                                                     }
                                                   },
                                                   {
@@ -5182,15 +7411,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 2204,
-                                                        "end": 2211
+                                                        "start": 4047,
+                                                        "end": 4054
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2204,
-                                                      "end": 2211
+                                                      "start": 4047,
+                                                      "end": 4054
                                                     }
                                                   },
                                                   {
@@ -5199,15 +7428,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 2240,
-                                                        "end": 2245
+                                                        "start": 4083,
+                                                        "end": 4088
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2240,
-                                                      "end": 2245
+                                                      "start": 4083,
+                                                      "end": 4088
                                                     }
                                                   },
                                                   {
@@ -5216,48 +7445,48 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 2274,
-                                                        "end": 2284
+                                                        "start": 4117,
+                                                        "end": 4127
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2274,
-                                                      "end": 2284
+                                                      "start": 4117,
+                                                      "end": 4127
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 1992,
-                                                  "end": 2310
+                                                  "start": 3835,
+                                                  "end": 4153
                                                 }
                                               },
                                               "loc": {
-                                                "start": 1978,
-                                                "end": 2310
+                                                "start": 3821,
+                                                "end": 4153
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 1693,
-                                            "end": 2332
+                                            "start": 3536,
+                                            "end": 4175
                                           }
                                         },
                                         "loc": {
-                                          "start": 1683,
-                                          "end": 2332
+                                          "start": 3526,
+                                          "end": 4175
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 1576,
-                                      "end": 2350
+                                      "start": 3419,
+                                      "end": 4193
                                     }
                                   },
                                   "loc": {
-                                    "start": 1563,
-                                    "end": 2350
+                                    "start": 3406,
+                                    "end": 4193
                                   }
                                 },
                                 {
@@ -5266,8 +7495,8 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "resourceList",
                                     "loc": {
-                                      "start": 2367,
-                                      "end": 2379
+                                      "start": 4210,
+                                      "end": 4222
                                     }
                                   },
                                   "arguments": [],
@@ -5281,15 +7510,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 2402,
-                                            "end": 2404
+                                            "start": 4245,
+                                            "end": 4247
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 2402,
-                                          "end": 2404
+                                          "start": 4245,
+                                          "end": 4247
                                         }
                                       },
                                       {
@@ -5298,15 +7527,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 2425,
-                                            "end": 2435
+                                            "start": 4268,
+                                            "end": 4278
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 2425,
-                                          "end": 2435
+                                          "start": 4268,
+                                          "end": 4278
                                         }
                                       },
                                       {
@@ -5315,8 +7544,8 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 2456,
-                                            "end": 2468
+                                            "start": 4299,
+                                            "end": 4311
                                           }
                                         },
                                         "arguments": [],
@@ -5330,15 +7559,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 2495,
-                                                  "end": 2497
+                                                  "start": 4338,
+                                                  "end": 4340
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 2495,
-                                                "end": 2497
+                                                "start": 4338,
+                                                "end": 4340
                                               }
                                             },
                                             {
@@ -5347,15 +7576,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 2522,
-                                                  "end": 2530
+                                                  "start": 4365,
+                                                  "end": 4373
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 2522,
-                                                "end": 2530
+                                                "start": 4365,
+                                                "end": 4373
                                               }
                                             },
                                             {
@@ -5364,15 +7593,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 2555,
-                                                  "end": 2566
+                                                  "start": 4398,
+                                                  "end": 4409
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 2555,
-                                                "end": 2566
+                                                "start": 4398,
+                                                "end": 4409
                                               }
                                             },
                                             {
@@ -5381,26 +7610,26 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 2591,
-                                                  "end": 2595
+                                                  "start": 4434,
+                                                  "end": 4438
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 2591,
-                                                "end": 2595
+                                                "start": 4434,
+                                                "end": 4438
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 2469,
-                                            "end": 2617
+                                            "start": 4312,
+                                            "end": 4460
                                           }
                                         },
                                         "loc": {
-                                          "start": 2456,
-                                          "end": 2617
+                                          "start": 4299,
+                                          "end": 4460
                                         }
                                       },
                                       {
@@ -5409,8 +7638,8 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "resources",
                                           "loc": {
-                                            "start": 2638,
-                                            "end": 2647
+                                            "start": 4481,
+                                            "end": 4490
                                           }
                                         },
                                         "arguments": [],
@@ -5424,15 +7653,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 2674,
-                                                  "end": 2676
+                                                  "start": 4517,
+                                                  "end": 4519
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 2674,
-                                                "end": 2676
+                                                "start": 4517,
+                                                "end": 4519
                                               }
                                             },
                                             {
@@ -5441,15 +7670,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 2701,
-                                                  "end": 2706
+                                                  "start": 4544,
+                                                  "end": 4549
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 2701,
-                                                "end": 2706
+                                                "start": 4544,
+                                                "end": 4549
                                               }
                                             },
                                             {
@@ -5458,15 +7687,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "link",
                                                 "loc": {
-                                                  "start": 2731,
-                                                  "end": 2735
+                                                  "start": 4574,
+                                                  "end": 4578
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 2731,
-                                                "end": 2735
+                                                "start": 4574,
+                                                "end": 4578
                                               }
                                             },
                                             {
@@ -5475,15 +7704,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "usedFor",
                                                 "loc": {
-                                                  "start": 2760,
-                                                  "end": 2767
+                                                  "start": 4603,
+                                                  "end": 4610
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 2760,
-                                                "end": 2767
+                                                "start": 4603,
+                                                "end": 4610
                                               }
                                             },
                                             {
@@ -5492,8 +7721,8 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 2792,
-                                                  "end": 2804
+                                                  "start": 4635,
+                                                  "end": 4647
                                                 }
                                               },
                                               "arguments": [],
@@ -5507,15 +7736,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 2835,
-                                                        "end": 2837
+                                                        "start": 4678,
+                                                        "end": 4680
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2835,
-                                                      "end": 2837
+                                                      "start": 4678,
+                                                      "end": 4680
                                                     }
                                                   },
                                                   {
@@ -5524,15 +7753,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 2866,
-                                                        "end": 2874
+                                                        "start": 4709,
+                                                        "end": 4717
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2866,
-                                                      "end": 2874
+                                                      "start": 4709,
+                                                      "end": 4717
                                                     }
                                                   },
                                                   {
@@ -5541,15 +7770,15 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 2903,
-                                                        "end": 2914
+                                                        "start": 4746,
+                                                        "end": 4757
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2903,
-                                                      "end": 2914
+                                                      "start": 4746,
+                                                      "end": 4757
                                                     }
                                                   },
                                                   {
@@ -5558,48 +7787,48 @@ export const auth_emailSignUp = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 2943,
-                                                        "end": 2947
+                                                        "start": 4786,
+                                                        "end": 4790
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 2943,
-                                                      "end": 2947
+                                                      "start": 4786,
+                                                      "end": 4790
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 2805,
-                                                  "end": 2973
+                                                  "start": 4648,
+                                                  "end": 4816
                                                 }
                                               },
                                               "loc": {
-                                                "start": 2792,
-                                                "end": 2973
+                                                "start": 4635,
+                                                "end": 4816
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 2648,
-                                            "end": 2995
+                                            "start": 4491,
+                                            "end": 4838
                                           }
                                         },
                                         "loc": {
-                                          "start": 2638,
-                                          "end": 2995
+                                          "start": 4481,
+                                          "end": 4838
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 2380,
-                                      "end": 3013
+                                      "start": 4223,
+                                      "end": 4856
                                     }
                                   },
                                   "loc": {
-                                    "start": 2367,
-                                    "end": 3013
+                                    "start": 4210,
+                                    "end": 4856
                                   }
                                 },
                                 {
@@ -5608,8 +7837,8 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "schedule",
                                     "loc": {
-                                      "start": 3030,
-                                      "end": 3038
+                                      "start": 4873,
+                                      "end": 4881
                                     }
                                   },
                                   "arguments": [],
@@ -5623,25 +7852,25 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "Schedule_common",
                                           "loc": {
-                                            "start": 3064,
-                                            "end": 3079
+                                            "start": 4907,
+                                            "end": 4922
                                           }
                                         },
                                         "directives": [],
                                         "loc": {
-                                          "start": 3061,
-                                          "end": 3079
+                                          "start": 4904,
+                                          "end": 4922
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3039,
-                                      "end": 3097
+                                      "start": 4882,
+                                      "end": 4940
                                     }
                                   },
                                   "loc": {
-                                    "start": 3030,
-                                    "end": 3097
+                                    "start": 4873,
+                                    "end": 4940
                                   }
                                 },
                                 {
@@ -5650,15 +7879,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 3114,
-                                      "end": 3116
+                                      "start": 4957,
+                                      "end": 4959
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 3114,
-                                    "end": 3116
+                                    "start": 4957,
+                                    "end": 4959
                                   }
                                 },
                                 {
@@ -5667,15 +7896,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "name",
                                     "loc": {
-                                      "start": 3133,
-                                      "end": 3137
+                                      "start": 4976,
+                                      "end": 4980
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 3133,
-                                    "end": 3137
+                                    "start": 4976,
+                                    "end": 4980
                                   }
                                 },
                                 {
@@ -5684,26 +7913,26 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "description",
                                     "loc": {
-                                      "start": 3154,
-                                      "end": 3165
+                                      "start": 4997,
+                                      "end": 5008
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 3154,
-                                    "end": 3165
+                                    "start": 4997,
+                                    "end": 5008
                                   }
                                 }
                               ],
                               "loc": {
                                 "start": 441,
-                                "end": 3179
+                                "end": 5022
                               }
                             },
                             "loc": {
                               "start": 436,
-                              "end": 3179
+                              "end": 5022
                             }
                           },
                           {
@@ -5712,15 +7941,15 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "stopCondition",
                               "loc": {
-                                "start": 3192,
-                                "end": 3205
+                                "start": 5035,
+                                "end": 5048
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 3192,
-                              "end": 3205
+                              "start": 5035,
+                              "end": 5048
                             }
                           },
                           {
@@ -5729,26 +7958,26 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "stopTime",
                               "loc": {
-                                "start": 3218,
-                                "end": 3226
+                                "start": 5061,
+                                "end": 5069
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 3218,
-                              "end": 3226
+                              "start": 5061,
+                              "end": 5069
                             }
                           }
                         ],
                         "loc": {
                           "start": 422,
-                          "end": 3236
+                          "end": 5079
                         }
                       },
                       "loc": {
                         "start": 406,
-                        "end": 3236
+                        "end": 5079
                       }
                     },
                     {
@@ -5757,15 +7986,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "apisCount",
                         "loc": {
-                          "start": 3245,
-                          "end": 3254
+                          "start": 5088,
+                          "end": 5097
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 3245,
-                        "end": 3254
+                        "start": 5088,
+                        "end": 5097
                       }
                     },
                     {
@@ -5774,8 +8003,8 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "bookmarkLists",
                         "loc": {
-                          "start": 3263,
-                          "end": 3276
+                          "start": 5106,
+                          "end": 5119
                         }
                       },
                       "arguments": [],
@@ -5789,15 +8018,15 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 3291,
-                                "end": 3293
+                                "start": 5134,
+                                "end": 5136
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 3291,
-                              "end": 3293
+                              "start": 5134,
+                              "end": 5136
                             }
                           },
                           {
@@ -5806,15 +8035,15 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "created_at",
                               "loc": {
-                                "start": 3306,
-                                "end": 3316
+                                "start": 5149,
+                                "end": 5159
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 3306,
-                              "end": 3316
+                              "start": 5149,
+                              "end": 5159
                             }
                           },
                           {
@@ -5823,15 +8052,15 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "updated_at",
                               "loc": {
-                                "start": 3329,
-                                "end": 3339
+                                "start": 5172,
+                                "end": 5182
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 3329,
-                              "end": 3339
+                              "start": 5172,
+                              "end": 5182
                             }
                           },
                           {
@@ -5840,15 +8069,15 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "label",
                               "loc": {
-                                "start": 3352,
-                                "end": 3357
+                                "start": 5195,
+                                "end": 5200
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 3352,
-                              "end": 3357
+                              "start": 5195,
+                              "end": 5200
                             }
                           },
                           {
@@ -5857,26 +8086,26 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "bookmarksCount",
                               "loc": {
-                                "start": 3370,
-                                "end": 3384
+                                "start": 5213,
+                                "end": 5227
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 3370,
-                              "end": 3384
+                              "start": 5213,
+                              "end": 5227
                             }
                           }
                         ],
                         "loc": {
-                          "start": 3277,
-                          "end": 3394
+                          "start": 5120,
+                          "end": 5237
                         }
                       },
                       "loc": {
-                        "start": 3263,
-                        "end": 3394
+                        "start": 5106,
+                        "end": 5237
                       }
                     },
                     {
@@ -5885,8 +8114,8 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "focusModes",
                         "loc": {
-                          "start": 3403,
-                          "end": 3413
+                          "start": 5246,
+                          "end": 5256
                         }
                       },
                       "arguments": [],
@@ -5900,8 +8129,8 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "filters",
                               "loc": {
-                                "start": 3428,
-                                "end": 3435
+                                "start": 5271,
+                                "end": 5278
                               }
                             },
                             "arguments": [],
@@ -5915,15 +8144,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 3454,
-                                      "end": 3456
+                                      "start": 5297,
+                                      "end": 5299
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 3454,
-                                    "end": 3456
+                                    "start": 5297,
+                                    "end": 5299
                                   }
                                 },
                                 {
@@ -5932,15 +8161,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "filterType",
                                     "loc": {
-                                      "start": 3473,
-                                      "end": 3483
+                                      "start": 5316,
+                                      "end": 5326
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 3473,
-                                    "end": 3483
+                                    "start": 5316,
+                                    "end": 5326
                                   }
                                 },
                                 {
@@ -5949,8 +8178,8 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "tag",
                                     "loc": {
-                                      "start": 3500,
-                                      "end": 3503
+                                      "start": 5343,
+                                      "end": 5346
                                     }
                                   },
                                   "arguments": [],
@@ -5964,15 +8193,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 3526,
-                                            "end": 3528
+                                            "start": 5369,
+                                            "end": 5371
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3526,
-                                          "end": 3528
+                                          "start": 5369,
+                                          "end": 5371
                                         }
                                       },
                                       {
@@ -5981,15 +8210,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 3549,
-                                            "end": 3559
+                                            "start": 5392,
+                                            "end": 5402
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3549,
-                                          "end": 3559
+                                          "start": 5392,
+                                          "end": 5402
                                         }
                                       },
                                       {
@@ -5998,15 +8227,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "tag",
                                           "loc": {
-                                            "start": 3580,
-                                            "end": 3583
+                                            "start": 5423,
+                                            "end": 5426
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3580,
-                                          "end": 3583
+                                          "start": 5423,
+                                          "end": 5426
                                         }
                                       },
                                       {
@@ -6015,15 +8244,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "bookmarks",
                                           "loc": {
-                                            "start": 3604,
-                                            "end": 3613
+                                            "start": 5447,
+                                            "end": 5456
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3604,
-                                          "end": 3613
+                                          "start": 5447,
+                                          "end": 5456
                                         }
                                       },
                                       {
@@ -6032,8 +8261,8 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 3634,
-                                            "end": 3646
+                                            "start": 5477,
+                                            "end": 5489
                                           }
                                         },
                                         "arguments": [],
@@ -6047,15 +8276,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 3673,
-                                                  "end": 3675
+                                                  "start": 5516,
+                                                  "end": 5518
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3673,
-                                                "end": 3675
+                                                "start": 5516,
+                                                "end": 5518
                                               }
                                             },
                                             {
@@ -6064,15 +8293,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 3700,
-                                                  "end": 3708
+                                                  "start": 5543,
+                                                  "end": 5551
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3700,
-                                                "end": 3708
+                                                "start": 5543,
+                                                "end": 5551
                                               }
                                             },
                                             {
@@ -6081,26 +8310,26 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 3733,
-                                                  "end": 3744
+                                                  "start": 5576,
+                                                  "end": 5587
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3733,
-                                                "end": 3744
+                                                "start": 5576,
+                                                "end": 5587
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 3647,
-                                            "end": 3766
+                                            "start": 5490,
+                                            "end": 5609
                                           }
                                         },
                                         "loc": {
-                                          "start": 3634,
-                                          "end": 3766
+                                          "start": 5477,
+                                          "end": 5609
                                         }
                                       },
                                       {
@@ -6109,8 +8338,8 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "you",
                                           "loc": {
-                                            "start": 3787,
-                                            "end": 3790
+                                            "start": 5630,
+                                            "end": 5633
                                           }
                                         },
                                         "arguments": [],
@@ -6124,15 +8353,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "isOwn",
                                                 "loc": {
-                                                  "start": 3817,
-                                                  "end": 3822
+                                                  "start": 5660,
+                                                  "end": 5665
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3817,
-                                                "end": 3822
+                                                "start": 5660,
+                                                "end": 5665
                                               }
                                             },
                                             {
@@ -6141,37 +8370,37 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "isBookmarked",
                                                 "loc": {
-                                                  "start": 3847,
-                                                  "end": 3859
+                                                  "start": 5690,
+                                                  "end": 5702
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3847,
-                                                "end": 3859
+                                                "start": 5690,
+                                                "end": 5702
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 3791,
-                                            "end": 3881
+                                            "start": 5634,
+                                            "end": 5724
                                           }
                                         },
                                         "loc": {
-                                          "start": 3787,
-                                          "end": 3881
+                                          "start": 5630,
+                                          "end": 5724
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3504,
-                                      "end": 3899
+                                      "start": 5347,
+                                      "end": 5742
                                     }
                                   },
                                   "loc": {
-                                    "start": 3500,
-                                    "end": 3899
+                                    "start": 5343,
+                                    "end": 5742
                                   }
                                 },
                                 {
@@ -6180,8 +8409,8 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "focusMode",
                                     "loc": {
-                                      "start": 3916,
-                                      "end": 3925
+                                      "start": 5759,
+                                      "end": 5768
                                     }
                                   },
                                   "arguments": [],
@@ -6195,8 +8424,8 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "labels",
                                           "loc": {
-                                            "start": 3948,
-                                            "end": 3954
+                                            "start": 5791,
+                                            "end": 5797
                                           }
                                         },
                                         "arguments": [],
@@ -6210,15 +8439,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 3981,
-                                                  "end": 3983
+                                                  "start": 5824,
+                                                  "end": 5826
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3981,
-                                                "end": 3983
+                                                "start": 5824,
+                                                "end": 5826
                                               }
                                             },
                                             {
@@ -6227,15 +8456,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "color",
                                                 "loc": {
-                                                  "start": 4008,
-                                                  "end": 4013
+                                                  "start": 5851,
+                                                  "end": 5856
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4008,
-                                                "end": 4013
+                                                "start": 5851,
+                                                "end": 5856
                                               }
                                             },
                                             {
@@ -6244,26 +8473,769 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "label",
                                                 "loc": {
-                                                  "start": 4038,
-                                                  "end": 4043
+                                                  "start": 5881,
+                                                  "end": 5886
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4038,
-                                                "end": 4043
+                                                "start": 5881,
+                                                "end": 5886
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 3955,
-                                            "end": 4065
+                                            "start": 5798,
+                                            "end": 5908
                                           }
                                         },
                                         "loc": {
-                                          "start": 3948,
-                                          "end": 4065
+                                          "start": 5791,
+                                          "end": 5908
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "reminderList",
+                                          "loc": {
+                                            "start": 5929,
+                                            "end": 5941
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "selectionSet": {
+                                          "kind": "SelectionSet",
+                                          "selections": [
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "id",
+                                                "loc": {
+                                                  "start": 5968,
+                                                  "end": 5970
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 5968,
+                                                "end": 5970
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "created_at",
+                                                "loc": {
+                                                  "start": 5995,
+                                                  "end": 6005
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 5995,
+                                                "end": 6005
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "updated_at",
+                                                "loc": {
+                                                  "start": 6030,
+                                                  "end": 6040
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 6030,
+                                                "end": 6040
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "reminders",
+                                                "loc": {
+                                                  "start": 6065,
+                                                  "end": 6074
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "selectionSet": {
+                                                "kind": "SelectionSet",
+                                                "selections": [
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "id",
+                                                      "loc": {
+                                                        "start": 6105,
+                                                        "end": 6107
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 6105,
+                                                      "end": 6107
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "created_at",
+                                                      "loc": {
+                                                        "start": 6136,
+                                                        "end": 6146
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 6136,
+                                                      "end": 6146
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "updated_at",
+                                                      "loc": {
+                                                        "start": 6175,
+                                                        "end": 6185
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 6175,
+                                                      "end": 6185
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "name",
+                                                      "loc": {
+                                                        "start": 6214,
+                                                        "end": 6218
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 6214,
+                                                      "end": 6218
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "description",
+                                                      "loc": {
+                                                        "start": 6247,
+                                                        "end": 6258
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 6247,
+                                                      "end": 6258
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "dueDate",
+                                                      "loc": {
+                                                        "start": 6287,
+                                                        "end": 6294
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 6287,
+                                                      "end": 6294
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "index",
+                                                      "loc": {
+                                                        "start": 6323,
+                                                        "end": 6328
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 6323,
+                                                      "end": 6328
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "isComplete",
+                                                      "loc": {
+                                                        "start": 6357,
+                                                        "end": 6367
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 6357,
+                                                      "end": 6367
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "reminderItems",
+                                                      "loc": {
+                                                        "start": 6396,
+                                                        "end": 6409
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "selectionSet": {
+                                                      "kind": "SelectionSet",
+                                                      "selections": [
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "id",
+                                                            "loc": {
+                                                              "start": 6444,
+                                                              "end": 6446
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 6444,
+                                                            "end": 6446
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "created_at",
+                                                            "loc": {
+                                                              "start": 6479,
+                                                              "end": 6489
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 6479,
+                                                            "end": 6489
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "updated_at",
+                                                            "loc": {
+                                                              "start": 6522,
+                                                              "end": 6532
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 6522,
+                                                            "end": 6532
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "name",
+                                                            "loc": {
+                                                              "start": 6565,
+                                                              "end": 6569
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 6565,
+                                                            "end": 6569
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "description",
+                                                            "loc": {
+                                                              "start": 6602,
+                                                              "end": 6613
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 6602,
+                                                            "end": 6613
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "dueDate",
+                                                            "loc": {
+                                                              "start": 6646,
+                                                              "end": 6653
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 6646,
+                                                            "end": 6653
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "index",
+                                                            "loc": {
+                                                              "start": 6686,
+                                                              "end": 6691
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 6686,
+                                                            "end": 6691
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "isComplete",
+                                                            "loc": {
+                                                              "start": 6724,
+                                                              "end": 6734
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 6724,
+                                                            "end": 6734
+                                                          }
+                                                        }
+                                                      ],
+                                                      "loc": {
+                                                        "start": 6410,
+                                                        "end": 6764
+                                                      }
+                                                    },
+                                                    "loc": {
+                                                      "start": 6396,
+                                                      "end": 6764
+                                                    }
+                                                  }
+                                                ],
+                                                "loc": {
+                                                  "start": 6075,
+                                                  "end": 6790
+                                                }
+                                              },
+                                              "loc": {
+                                                "start": 6065,
+                                                "end": 6790
+                                              }
+                                            }
+                                          ],
+                                          "loc": {
+                                            "start": 5942,
+                                            "end": 6812
+                                          }
+                                        },
+                                        "loc": {
+                                          "start": 5929,
+                                          "end": 6812
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "resourceList",
+                                          "loc": {
+                                            "start": 6833,
+                                            "end": 6845
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "selectionSet": {
+                                          "kind": "SelectionSet",
+                                          "selections": [
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "id",
+                                                "loc": {
+                                                  "start": 6872,
+                                                  "end": 6874
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 6872,
+                                                "end": 6874
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "created_at",
+                                                "loc": {
+                                                  "start": 6899,
+                                                  "end": 6909
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 6899,
+                                                "end": 6909
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "translations",
+                                                "loc": {
+                                                  "start": 6934,
+                                                  "end": 6946
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "selectionSet": {
+                                                "kind": "SelectionSet",
+                                                "selections": [
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "id",
+                                                      "loc": {
+                                                        "start": 6977,
+                                                        "end": 6979
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 6977,
+                                                      "end": 6979
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "language",
+                                                      "loc": {
+                                                        "start": 7008,
+                                                        "end": 7016
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 7008,
+                                                      "end": 7016
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "description",
+                                                      "loc": {
+                                                        "start": 7045,
+                                                        "end": 7056
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 7045,
+                                                      "end": 7056
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "name",
+                                                      "loc": {
+                                                        "start": 7085,
+                                                        "end": 7089
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 7085,
+                                                      "end": 7089
+                                                    }
+                                                  }
+                                                ],
+                                                "loc": {
+                                                  "start": 6947,
+                                                  "end": 7115
+                                                }
+                                              },
+                                              "loc": {
+                                                "start": 6934,
+                                                "end": 7115
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "resources",
+                                                "loc": {
+                                                  "start": 7140,
+                                                  "end": 7149
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "selectionSet": {
+                                                "kind": "SelectionSet",
+                                                "selections": [
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "id",
+                                                      "loc": {
+                                                        "start": 7180,
+                                                        "end": 7182
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 7180,
+                                                      "end": 7182
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "index",
+                                                      "loc": {
+                                                        "start": 7211,
+                                                        "end": 7216
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 7211,
+                                                      "end": 7216
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "link",
+                                                      "loc": {
+                                                        "start": 7245,
+                                                        "end": 7249
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 7245,
+                                                      "end": 7249
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "usedFor",
+                                                      "loc": {
+                                                        "start": 7278,
+                                                        "end": 7285
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 7278,
+                                                      "end": 7285
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "translations",
+                                                      "loc": {
+                                                        "start": 7314,
+                                                        "end": 7326
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "selectionSet": {
+                                                      "kind": "SelectionSet",
+                                                      "selections": [
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "id",
+                                                            "loc": {
+                                                              "start": 7361,
+                                                              "end": 7363
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 7361,
+                                                            "end": 7363
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "language",
+                                                            "loc": {
+                                                              "start": 7396,
+                                                              "end": 7404
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 7396,
+                                                            "end": 7404
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "description",
+                                                            "loc": {
+                                                              "start": 7437,
+                                                              "end": 7448
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 7437,
+                                                            "end": 7448
+                                                          }
+                                                        },
+                                                        {
+                                                          "kind": "Field",
+                                                          "name": {
+                                                            "kind": "Name",
+                                                            "value": "name",
+                                                            "loc": {
+                                                              "start": 7481,
+                                                              "end": 7485
+                                                            }
+                                                          },
+                                                          "arguments": [],
+                                                          "directives": [],
+                                                          "loc": {
+                                                            "start": 7481,
+                                                            "end": 7485
+                                                          }
+                                                        }
+                                                      ],
+                                                      "loc": {
+                                                        "start": 7327,
+                                                        "end": 7515
+                                                      }
+                                                    },
+                                                    "loc": {
+                                                      "start": 7314,
+                                                      "end": 7515
+                                                    }
+                                                  }
+                                                ],
+                                                "loc": {
+                                                  "start": 7150,
+                                                  "end": 7541
+                                                }
+                                              },
+                                              "loc": {
+                                                "start": 7140,
+                                                "end": 7541
+                                              }
+                                            }
+                                          ],
+                                          "loc": {
+                                            "start": 6846,
+                                            "end": 7563
+                                          }
+                                        },
+                                        "loc": {
+                                          "start": 6833,
+                                          "end": 7563
                                         }
                                       },
                                       {
@@ -6272,8 +9244,8 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "schedule",
                                           "loc": {
-                                            "start": 4086,
-                                            "end": 4094
+                                            "start": 7584,
+                                            "end": 7592
                                           }
                                         },
                                         "arguments": [],
@@ -6287,25 +9259,25 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "Schedule_common",
                                                 "loc": {
-                                                  "start": 4124,
-                                                  "end": 4139
+                                                  "start": 7622,
+                                                  "end": 7637
                                                 }
                                               },
                                               "directives": [],
                                               "loc": {
-                                                "start": 4121,
-                                                "end": 4139
+                                                "start": 7619,
+                                                "end": 7637
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4095,
-                                            "end": 4161
+                                            "start": 7593,
+                                            "end": 7659
                                           }
                                         },
                                         "loc": {
-                                          "start": 4086,
-                                          "end": 4161
+                                          "start": 7584,
+                                          "end": 7659
                                         }
                                       },
                                       {
@@ -6314,15 +9286,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 4182,
-                                            "end": 4184
+                                            "start": 7680,
+                                            "end": 7682
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4182,
-                                          "end": 4184
+                                          "start": 7680,
+                                          "end": 7682
                                         }
                                       },
                                       {
@@ -6331,15 +9303,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 4205,
-                                            "end": 4209
+                                            "start": 7703,
+                                            "end": 7707
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4205,
-                                          "end": 4209
+                                          "start": 7703,
+                                          "end": 7707
                                         }
                                       },
                                       {
@@ -6348,37 +9320,37 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 4230,
-                                            "end": 4241
+                                            "start": 7728,
+                                            "end": 7739
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4230,
-                                          "end": 4241
+                                          "start": 7728,
+                                          "end": 7739
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3926,
-                                      "end": 4259
+                                      "start": 5769,
+                                      "end": 7757
                                     }
                                   },
                                   "loc": {
-                                    "start": 3916,
-                                    "end": 4259
+                                    "start": 5759,
+                                    "end": 7757
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 3436,
-                                "end": 4273
+                                "start": 5279,
+                                "end": 7771
                               }
                             },
                             "loc": {
-                              "start": 3428,
-                              "end": 4273
+                              "start": 5271,
+                              "end": 7771
                             }
                           },
                           {
@@ -6387,8 +9359,8 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "labels",
                               "loc": {
-                                "start": 4286,
-                                "end": 4292
+                                "start": 7784,
+                                "end": 7790
                               }
                             },
                             "arguments": [],
@@ -6402,15 +9374,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 4311,
-                                      "end": 4313
+                                      "start": 7809,
+                                      "end": 7811
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4311,
-                                    "end": 4313
+                                    "start": 7809,
+                                    "end": 7811
                                   }
                                 },
                                 {
@@ -6419,15 +9391,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "color",
                                     "loc": {
-                                      "start": 4330,
-                                      "end": 4335
+                                      "start": 7828,
+                                      "end": 7833
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4330,
-                                    "end": 4335
+                                    "start": 7828,
+                                    "end": 7833
                                   }
                                 },
                                 {
@@ -6436,26 +9408,26 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "label",
                                     "loc": {
-                                      "start": 4352,
-                                      "end": 4357
+                                      "start": 7850,
+                                      "end": 7855
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4352,
-                                    "end": 4357
+                                    "start": 7850,
+                                    "end": 7855
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 4293,
-                                "end": 4371
+                                "start": 7791,
+                                "end": 7869
                               }
                             },
                             "loc": {
-                              "start": 4286,
-                              "end": 4371
+                              "start": 7784,
+                              "end": 7869
                             }
                           },
                           {
@@ -6464,8 +9436,8 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "reminderList",
                               "loc": {
-                                "start": 4384,
-                                "end": 4396
+                                "start": 7882,
+                                "end": 7894
                               }
                             },
                             "arguments": [],
@@ -6479,15 +9451,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 4415,
-                                      "end": 4417
+                                      "start": 7913,
+                                      "end": 7915
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4415,
-                                    "end": 4417
+                                    "start": 7913,
+                                    "end": 7915
                                   }
                                 },
                                 {
@@ -6496,15 +9468,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 4434,
-                                      "end": 4444
+                                      "start": 7932,
+                                      "end": 7942
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4434,
-                                    "end": 4444
+                                    "start": 7932,
+                                    "end": 7942
                                   }
                                 },
                                 {
@@ -6513,15 +9485,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "updated_at",
                                     "loc": {
-                                      "start": 4461,
-                                      "end": 4471
+                                      "start": 7959,
+                                      "end": 7969
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4461,
-                                    "end": 4471
+                                    "start": 7959,
+                                    "end": 7969
                                   }
                                 },
                                 {
@@ -6530,8 +9502,8 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "reminders",
                                     "loc": {
-                                      "start": 4488,
-                                      "end": 4497
+                                      "start": 7986,
+                                      "end": 7995
                                     }
                                   },
                                   "arguments": [],
@@ -6545,15 +9517,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 4520,
-                                            "end": 4522
+                                            "start": 8018,
+                                            "end": 8020
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4520,
-                                          "end": 4522
+                                          "start": 8018,
+                                          "end": 8020
                                         }
                                       },
                                       {
@@ -6562,15 +9534,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 4543,
-                                            "end": 4553
+                                            "start": 8041,
+                                            "end": 8051
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4543,
-                                          "end": 4553
+                                          "start": 8041,
+                                          "end": 8051
                                         }
                                       },
                                       {
@@ -6579,15 +9551,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 4574,
-                                            "end": 4584
+                                            "start": 8072,
+                                            "end": 8082
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4574,
-                                          "end": 4584
+                                          "start": 8072,
+                                          "end": 8082
                                         }
                                       },
                                       {
@@ -6596,15 +9568,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 4605,
-                                            "end": 4609
+                                            "start": 8103,
+                                            "end": 8107
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4605,
-                                          "end": 4609
+                                          "start": 8103,
+                                          "end": 8107
                                         }
                                       },
                                       {
@@ -6613,15 +9585,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 4630,
-                                            "end": 4641
+                                            "start": 8128,
+                                            "end": 8139
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4630,
-                                          "end": 4641
+                                          "start": 8128,
+                                          "end": 8139
                                         }
                                       },
                                       {
@@ -6630,15 +9602,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "dueDate",
                                           "loc": {
-                                            "start": 4662,
-                                            "end": 4669
+                                            "start": 8160,
+                                            "end": 8167
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4662,
-                                          "end": 4669
+                                          "start": 8160,
+                                          "end": 8167
                                         }
                                       },
                                       {
@@ -6647,15 +9619,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 4690,
-                                            "end": 4695
+                                            "start": 8188,
+                                            "end": 8193
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4690,
-                                          "end": 4695
+                                          "start": 8188,
+                                          "end": 8193
                                         }
                                       },
                                       {
@@ -6664,15 +9636,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "isComplete",
                                           "loc": {
-                                            "start": 4716,
-                                            "end": 4726
+                                            "start": 8214,
+                                            "end": 8224
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4716,
-                                          "end": 4726
+                                          "start": 8214,
+                                          "end": 8224
                                         }
                                       },
                                       {
@@ -6681,8 +9653,8 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "reminderItems",
                                           "loc": {
-                                            "start": 4747,
-                                            "end": 4760
+                                            "start": 8245,
+                                            "end": 8258
                                           }
                                         },
                                         "arguments": [],
@@ -6696,15 +9668,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 4787,
-                                                  "end": 4789
+                                                  "start": 8285,
+                                                  "end": 8287
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4787,
-                                                "end": 4789
+                                                "start": 8285,
+                                                "end": 8287
                                               }
                                             },
                                             {
@@ -6713,15 +9685,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 4814,
-                                                  "end": 4824
+                                                  "start": 8312,
+                                                  "end": 8322
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4814,
-                                                "end": 4824
+                                                "start": 8312,
+                                                "end": 8322
                                               }
                                             },
                                             {
@@ -6730,15 +9702,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 4849,
-                                                  "end": 4859
+                                                  "start": 8347,
+                                                  "end": 8357
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4849,
-                                                "end": 4859
+                                                "start": 8347,
+                                                "end": 8357
                                               }
                                             },
                                             {
@@ -6747,15 +9719,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 4884,
-                                                  "end": 4888
+                                                  "start": 8382,
+                                                  "end": 8386
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4884,
-                                                "end": 4888
+                                                "start": 8382,
+                                                "end": 8386
                                               }
                                             },
                                             {
@@ -6764,15 +9736,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 4913,
-                                                  "end": 4924
+                                                  "start": 8411,
+                                                  "end": 8422
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4913,
-                                                "end": 4924
+                                                "start": 8411,
+                                                "end": 8422
                                               }
                                             },
                                             {
@@ -6781,15 +9753,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 4949,
-                                                  "end": 4956
+                                                  "start": 8447,
+                                                  "end": 8454
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4949,
-                                                "end": 4956
+                                                "start": 8447,
+                                                "end": 8454
                                               }
                                             },
                                             {
@@ -6798,15 +9770,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 4981,
-                                                  "end": 4986
+                                                  "start": 8479,
+                                                  "end": 8484
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4981,
-                                                "end": 4986
+                                                "start": 8479,
+                                                "end": 8484
                                               }
                                             },
                                             {
@@ -6815,48 +9787,48 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 5011,
-                                                  "end": 5021
+                                                  "start": 8509,
+                                                  "end": 8519
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5011,
-                                                "end": 5021
+                                                "start": 8509,
+                                                "end": 8519
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4761,
-                                            "end": 5043
+                                            "start": 8259,
+                                            "end": 8541
                                           }
                                         },
                                         "loc": {
-                                          "start": 4747,
-                                          "end": 5043
+                                          "start": 8245,
+                                          "end": 8541
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 4498,
-                                      "end": 5061
+                                      "start": 7996,
+                                      "end": 8559
                                     }
                                   },
                                   "loc": {
-                                    "start": 4488,
-                                    "end": 5061
+                                    "start": 7986,
+                                    "end": 8559
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 4397,
-                                "end": 5075
+                                "start": 7895,
+                                "end": 8573
                               }
                             },
                             "loc": {
-                              "start": 4384,
-                              "end": 5075
+                              "start": 7882,
+                              "end": 8573
                             }
                           },
                           {
@@ -6865,8 +9837,8 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "resourceList",
                               "loc": {
-                                "start": 5088,
-                                "end": 5100
+                                "start": 8586,
+                                "end": 8598
                               }
                             },
                             "arguments": [],
@@ -6880,15 +9852,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 5119,
-                                      "end": 5121
+                                      "start": 8617,
+                                      "end": 8619
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5119,
-                                    "end": 5121
+                                    "start": 8617,
+                                    "end": 8619
                                   }
                                 },
                                 {
@@ -6897,15 +9869,15 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 5138,
-                                      "end": 5148
+                                      "start": 8636,
+                                      "end": 8646
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5138,
-                                    "end": 5148
+                                    "start": 8636,
+                                    "end": 8646
                                   }
                                 },
                                 {
@@ -6914,8 +9886,8 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "translations",
                                     "loc": {
-                                      "start": 5165,
-                                      "end": 5177
+                                      "start": 8663,
+                                      "end": 8675
                                     }
                                   },
                                   "arguments": [],
@@ -6929,15 +9901,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 5200,
-                                            "end": 5202
+                                            "start": 8698,
+                                            "end": 8700
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5200,
-                                          "end": 5202
+                                          "start": 8698,
+                                          "end": 8700
                                         }
                                       },
                                       {
@@ -6946,15 +9918,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "language",
                                           "loc": {
-                                            "start": 5223,
-                                            "end": 5231
+                                            "start": 8721,
+                                            "end": 8729
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5223,
-                                          "end": 5231
+                                          "start": 8721,
+                                          "end": 8729
                                         }
                                       },
                                       {
@@ -6963,15 +9935,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 5252,
-                                            "end": 5263
+                                            "start": 8750,
+                                            "end": 8761
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5252,
-                                          "end": 5263
+                                          "start": 8750,
+                                          "end": 8761
                                         }
                                       },
                                       {
@@ -6980,26 +9952,26 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 5284,
-                                            "end": 5288
+                                            "start": 8782,
+                                            "end": 8786
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5284,
-                                          "end": 5288
+                                          "start": 8782,
+                                          "end": 8786
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5178,
-                                      "end": 5306
+                                      "start": 8676,
+                                      "end": 8804
                                     }
                                   },
                                   "loc": {
-                                    "start": 5165,
-                                    "end": 5306
+                                    "start": 8663,
+                                    "end": 8804
                                   }
                                 },
                                 {
@@ -7008,8 +9980,8 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "resources",
                                     "loc": {
-                                      "start": 5323,
-                                      "end": 5332
+                                      "start": 8821,
+                                      "end": 8830
                                     }
                                   },
                                   "arguments": [],
@@ -7023,15 +9995,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 5355,
-                                            "end": 5357
+                                            "start": 8853,
+                                            "end": 8855
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5355,
-                                          "end": 5357
+                                          "start": 8853,
+                                          "end": 8855
                                         }
                                       },
                                       {
@@ -7040,15 +10012,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 5378,
-                                            "end": 5383
+                                            "start": 8876,
+                                            "end": 8881
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5378,
-                                          "end": 5383
+                                          "start": 8876,
+                                          "end": 8881
                                         }
                                       },
                                       {
@@ -7057,15 +10029,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "link",
                                           "loc": {
-                                            "start": 5404,
-                                            "end": 5408
+                                            "start": 8902,
+                                            "end": 8906
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5404,
-                                          "end": 5408
+                                          "start": 8902,
+                                          "end": 8906
                                         }
                                       },
                                       {
@@ -7074,15 +10046,15 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "usedFor",
                                           "loc": {
-                                            "start": 5429,
-                                            "end": 5436
+                                            "start": 8927,
+                                            "end": 8934
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5429,
-                                          "end": 5436
+                                          "start": 8927,
+                                          "end": 8934
                                         }
                                       },
                                       {
@@ -7091,8 +10063,8 @@ export const auth_emailSignUp = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 5457,
-                                            "end": 5469
+                                            "start": 8955,
+                                            "end": 8967
                                           }
                                         },
                                         "arguments": [],
@@ -7106,15 +10078,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5496,
-                                                  "end": 5498
+                                                  "start": 8994,
+                                                  "end": 8996
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5496,
-                                                "end": 5498
+                                                "start": 8994,
+                                                "end": 8996
                                               }
                                             },
                                             {
@@ -7123,15 +10095,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 5523,
-                                                  "end": 5531
+                                                  "start": 9021,
+                                                  "end": 9029
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5523,
-                                                "end": 5531
+                                                "start": 9021,
+                                                "end": 9029
                                               }
                                             },
                                             {
@@ -7140,15 +10112,15 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 5556,
-                                                  "end": 5567
+                                                  "start": 9054,
+                                                  "end": 9065
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5556,
-                                                "end": 5567
+                                                "start": 9054,
+                                                "end": 9065
                                               }
                                             },
                                             {
@@ -7157,48 +10129,48 @@ export const auth_emailSignUp = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 5592,
-                                                  "end": 5596
+                                                  "start": 9090,
+                                                  "end": 9094
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5592,
-                                                "end": 5596
+                                                "start": 9090,
+                                                "end": 9094
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5470,
-                                            "end": 5618
+                                            "start": 8968,
+                                            "end": 9116
                                           }
                                         },
                                         "loc": {
-                                          "start": 5457,
-                                          "end": 5618
+                                          "start": 8955,
+                                          "end": 9116
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5333,
-                                      "end": 5636
+                                      "start": 8831,
+                                      "end": 9134
                                     }
                                   },
                                   "loc": {
-                                    "start": 5323,
-                                    "end": 5636
+                                    "start": 8821,
+                                    "end": 9134
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 5101,
-                                "end": 5650
+                                "start": 8599,
+                                "end": 9148
                               }
                             },
                             "loc": {
-                              "start": 5088,
-                              "end": 5650
+                              "start": 8586,
+                              "end": 9148
                             }
                           },
                           {
@@ -7207,8 +10179,8 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "schedule",
                               "loc": {
-                                "start": 5663,
-                                "end": 5671
+                                "start": 9161,
+                                "end": 9169
                               }
                             },
                             "arguments": [],
@@ -7222,25 +10194,25 @@ export const auth_emailSignUp = {
                                     "kind": "Name",
                                     "value": "Schedule_common",
                                     "loc": {
-                                      "start": 5693,
-                                      "end": 5708
+                                      "start": 9191,
+                                      "end": 9206
                                     }
                                   },
                                   "directives": [],
                                   "loc": {
-                                    "start": 5690,
-                                    "end": 5708
+                                    "start": 9188,
+                                    "end": 9206
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 5672,
-                                "end": 5722
+                                "start": 9170,
+                                "end": 9220
                               }
                             },
                             "loc": {
-                              "start": 5663,
-                              "end": 5722
+                              "start": 9161,
+                              "end": 9220
                             }
                           },
                           {
@@ -7249,15 +10221,15 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 5735,
-                                "end": 5737
+                                "start": 9233,
+                                "end": 9235
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5735,
-                              "end": 5737
+                              "start": 9233,
+                              "end": 9235
                             }
                           },
                           {
@@ -7266,15 +10238,15 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "name",
                               "loc": {
-                                "start": 5750,
-                                "end": 5754
+                                "start": 9248,
+                                "end": 9252
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5750,
-                              "end": 5754
+                              "start": 9248,
+                              "end": 9252
                             }
                           },
                           {
@@ -7283,26 +10255,26 @@ export const auth_emailSignUp = {
                               "kind": "Name",
                               "value": "description",
                               "loc": {
-                                "start": 5767,
-                                "end": 5778
+                                "start": 9265,
+                                "end": 9276
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5767,
-                              "end": 5778
+                              "start": 9265,
+                              "end": 9276
                             }
                           }
                         ],
                         "loc": {
-                          "start": 3414,
-                          "end": 5788
+                          "start": 5257,
+                          "end": 9286
                         }
                       },
                       "loc": {
-                        "start": 3403,
-                        "end": 5788
+                        "start": 5246,
+                        "end": 9286
                       }
                     },
                     {
@@ -7311,15 +10283,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "handle",
                         "loc": {
-                          "start": 5797,
-                          "end": 5803
+                          "start": 9295,
+                          "end": 9301
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5797,
-                        "end": 5803
+                        "start": 9295,
+                        "end": 9301
                       }
                     },
                     {
@@ -7328,15 +10300,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "hasPremium",
                         "loc": {
-                          "start": 5812,
-                          "end": 5822
+                          "start": 9310,
+                          "end": 9320
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5812,
-                        "end": 5822
+                        "start": 9310,
+                        "end": 9320
                       }
                     },
                     {
@@ -7345,15 +10317,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "id",
                         "loc": {
-                          "start": 5831,
-                          "end": 5833
+                          "start": 9329,
+                          "end": 9331
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5831,
-                        "end": 5833
+                        "start": 9329,
+                        "end": 9331
                       }
                     },
                     {
@@ -7362,15 +10334,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "languages",
                         "loc": {
-                          "start": 5842,
-                          "end": 5851
+                          "start": 9340,
+                          "end": 9349
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5842,
-                        "end": 5851
+                        "start": 9340,
+                        "end": 9349
                       }
                     },
                     {
@@ -7379,15 +10351,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "membershipsCount",
                         "loc": {
-                          "start": 5860,
-                          "end": 5876
+                          "start": 9358,
+                          "end": 9374
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5860,
-                        "end": 5876
+                        "start": 9358,
+                        "end": 9374
                       }
                     },
                     {
@@ -7396,15 +10368,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "name",
                         "loc": {
-                          "start": 5885,
-                          "end": 5889
+                          "start": 9383,
+                          "end": 9387
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5885,
-                        "end": 5889
+                        "start": 9383,
+                        "end": 9387
                       }
                     },
                     {
@@ -7413,15 +10385,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "notesCount",
                         "loc": {
-                          "start": 5898,
-                          "end": 5908
+                          "start": 9396,
+                          "end": 9406
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5898,
-                        "end": 5908
+                        "start": 9396,
+                        "end": 9406
                       }
                     },
                     {
@@ -7430,15 +10402,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "projectsCount",
                         "loc": {
-                          "start": 5917,
-                          "end": 5930
+                          "start": 9415,
+                          "end": 9428
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5917,
-                        "end": 5930
+                        "start": 9415,
+                        "end": 9428
                       }
                     },
                     {
@@ -7447,15 +10419,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "questionsAskedCount",
                         "loc": {
-                          "start": 5939,
-                          "end": 5958
+                          "start": 9437,
+                          "end": 9456
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5939,
-                        "end": 5958
+                        "start": 9437,
+                        "end": 9456
                       }
                     },
                     {
@@ -7464,15 +10436,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "routinesCount",
                         "loc": {
-                          "start": 5967,
-                          "end": 5980
+                          "start": 9465,
+                          "end": 9478
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5967,
-                        "end": 5980
+                        "start": 9465,
+                        "end": 9478
                       }
                     },
                     {
@@ -7481,15 +10453,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "smartContractsCount",
                         "loc": {
-                          "start": 5989,
-                          "end": 6008
+                          "start": 9487,
+                          "end": 9506
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5989,
-                        "end": 6008
+                        "start": 9487,
+                        "end": 9506
                       }
                     },
                     {
@@ -7498,15 +10470,15 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "standardsCount",
                         "loc": {
-                          "start": 6017,
-                          "end": 6031
+                          "start": 9515,
+                          "end": 9529
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 6017,
-                        "end": 6031
+                        "start": 9515,
+                        "end": 9529
                       }
                     },
                     {
@@ -7515,48 +10487,48 @@ export const auth_emailSignUp = {
                         "kind": "Name",
                         "value": "theme",
                         "loc": {
-                          "start": 6040,
-                          "end": 6045
+                          "start": 9538,
+                          "end": 9543
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 6040,
-                        "end": 6045
+                        "start": 9538,
+                        "end": 9543
                       }
                     }
                   ],
                   "loc": {
                     "start": 396,
-                    "end": 6051
+                    "end": 9549
                   }
                 },
                 "loc": {
                   "start": 390,
-                  "end": 6051
+                  "end": 9549
                 }
               }
             ],
             "loc": {
               "start": 356,
-              "end": 6055
+              "end": 9553
             }
           },
           "loc": {
             "start": 329,
-            "end": 6055
+            "end": 9553
           }
         }
       ],
       "loc": {
         "start": 325,
-        "end": 6057
+        "end": 9555
       }
     },
     "loc": {
       "start": 277,
-      "end": 6057
+      "end": 9555
     }
   },
   "variableValues": {},

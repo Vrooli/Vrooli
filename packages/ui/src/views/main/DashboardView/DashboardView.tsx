@@ -1,11 +1,11 @@
-import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, Reminder, ResourceList, uuid } from "@local/shared";
+import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { SiteSearchBar } from "components/inputs/search";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ReminderList } from "components/lists/reminder";
 import { ResourceListHorizontal } from "components/lists/resource";
+import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { HomePrompt } from "components/text/HomePrompt/HomePrompt";
@@ -14,7 +14,7 @@ import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useFetch } from "hooks/useFetch";
 import { useReactSearch } from "hooks/useReactSearch";
 import { PageTab } from "hooks/useTabs";
-import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon } from "icons";
+import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon, ReminderIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -28,6 +28,7 @@ import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
+import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { DashboardViewProps } from "../types";
 
 /** View displayed for Home page when logged in */
@@ -168,17 +169,20 @@ export const DashboardView = ({
             setReminders(data.reminders);
         }
     }, [data]);
-    const handleReminderUpdate = useCallback((updatedReminders: Reminder[]) => {
-        setReminders(updatedReminders);
+    const onReminderAction = useCallback((action: keyof ObjectListActions<Reminder>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const id = data[0] as string;
+                setReminders(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
+                break;
+            }
+            case "Updated": {
+                const updated = data[0] as Reminder;
+                setReminders(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
+                break;
+            }
+        }
     }, []);
-
-    const reminderListId = useMemo(() => {
-        // First, try to find list using foccus mode
-        const sessionReminderListId = activeFocusMode?.mode?.reminderList?.id;
-        // If that doesn't work, try to find list using the reminders and hope for the best
-        const reminderList = reminders.length > 0 ? reminders[0].reminderList.id : null;
-        return sessionReminderListId ?? reminderList ?? "";
-    }, [activeFocusMode, reminders]);
 
     const [notes, setNotes] = useState<Note[]>([]);
     useEffect(() => {
@@ -186,12 +190,29 @@ export const DashboardView = ({
             setNotes(data.notes);
         }
     }, [data]);
-
-    const openCreateNote = useCallback(() => { setLocation(`${LINKS.Note}/add`); }, []);
+    const onNoteAction = useCallback((action: keyof ObjectListActions<Note>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const id = data[0] as string;
+                setNotes(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
+                break;
+            }
+            case "Updated": {
+                const updated = data[0] as Note;
+                setNotes(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
+                break;
+            }
+        }
+    }, []);
 
     // Calculate upcoming events using schedules 
+    const [schedules, setSchedules] = useState<Schedule[]>([]);
+    useEffect(() => {
+        if (data?.schedules) {
+            setSchedules(data.schedules);
+        }
+    }, [data]);
     const upcomingEvents = useMemo(() => {
-        const schedules = data?.schedules ?? [];
         // Initialize result
         const result: CalendarEvent[] = [];
         // Loop through schedules
@@ -214,7 +235,25 @@ export const DashboardView = ({
         // Sort events by start date, and return the first 10
         result.sort((a, b) => a.start.getTime() - b.start.getTime());
         return result.slice(0, 10);
-    }, [data?.schedules, session]);
+    }, [schedules, session]);
+    const onEventAction = useCallback((action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const eventId = data[0] as string;
+                const event = upcomingEvents.find(event => event.id === eventId);
+                if (!event) return;
+                const schedule = event.schedule;
+                setSchedules(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === schedule.id)));
+                break;
+            }
+            case "Updated": {
+                const updatedEvent = data[0] as CalendarEvent;
+                const schedule = updatedEvent.schedule;
+                setSchedules(curr => updateArray(curr, curr.findIndex(item => item.id === schedule.id), schedule));
+                break;
+            }
+        }
+    }, [upcomingEvents]);
 
     return (
         <PageContainer sx={{ marginBottom: 2 }}>
@@ -284,16 +323,33 @@ export const DashboardView = ({
                         items={upcomingEvents}
                         keyPrefix="event-list-item"
                         loading={loading}
+                        onAction={onEventAction}
                     />
                 </ListTitleContainer>
                 {/* Reminders */}
-                <ReminderList
-                    handleUpdate={handleReminderUpdate}
+                <ListTitleContainer
+                    Icon={ReminderIcon}
                     id="main-reminder-list"
-                    loading={loading}
-                    listId={reminderListId}
-                    reminders={reminders}
-                />
+                    isEmpty={reminders.length === 0 && !loading}
+                    title={t("Reminder", { count: 2 })}
+                    options={[{
+                        Icon: OpenInNewIcon,
+                        label: t("SeeAll"),
+                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminder}`); },
+                    }, {
+                        Icon: AddIcon,
+                        label: t("Create"),
+                        onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
+                    }]}
+                >
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Reminder")}
+                        items={reminders}
+                        keyPrefix="reminder-list-item"
+                        loading={loading}
+                        onAction={onReminderAction}
+                    />
+                </ListTitleContainer>
                 {/* Notes */}
                 <ListTitleContainer
                     Icon={NoteIcon}
@@ -307,7 +363,7 @@ export const DashboardView = ({
                     }, {
                         Icon: AddIcon,
                         label: t("Create"),
-                        onClick: openCreateNote,
+                        onClick: () => { setLocation(`${LINKS.Note}/add`); },
                     }]}
                 >
                     <ObjectList
@@ -315,6 +371,7 @@ export const DashboardView = ({
                         items={notes}
                         keyPrefix="note-list-item"
                         loading={loading}
+                        onAction={onNoteAction}
                     />
                 </ListTitleContainer>
             </Box>

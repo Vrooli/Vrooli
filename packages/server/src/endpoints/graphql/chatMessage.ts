@@ -34,6 +34,7 @@ export const typeDef = gql`
         updated_at: Date!
         chat: Chat!
         user: User!
+        reactionSummaries: [ReactionSummary!]!
         reports: [Report!]!
         reportsCount: Int!
         score: Int!

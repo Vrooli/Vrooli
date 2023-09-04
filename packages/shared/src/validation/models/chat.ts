@@ -1,5 +1,6 @@
 import { bool, description, id, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { chatInviteValidation } from "./chatInvite";
+import { chatMessageValidation } from "./chatMessage";
 
 export const chatTranslationValidation: YupModel = transRel({
     create: {
@@ -19,6 +20,7 @@ export const chatValidation: YupModel = {
     }, [
         ["invites", ["Create"], "many", "opt", chatInviteValidation, ["chat"]],
         ["labels", ["Connect"], "many", "opt"],
+        ["messages", ["Create"], "many", "opt", chatMessageValidation, ["chat"]],
         ["organization", ["Connect"], "one", "opt"],
         ["translations", ["Create"], "many", "opt", chatTranslationValidation],
     ], [], o),
@@ -26,8 +28,9 @@ export const chatValidation: YupModel = {
         id: req(id),
         openToAnyoneWithInvite: opt(bool),
     }, [
-        ["invites", ["Create", "Update", "Delete"], "many", "opt"],
+        ["invites", ["Create", "Update", "Delete"], "many", "opt", chatInviteValidation],
         ["labels", ["Connect", "Disconnect"], "many", "opt"],
+        ["messages", ["Create", "Update", "Delete"], "many", "opt", chatMessageValidation],
         ["participants", ["Delete"], "many", "opt"],
         ["translations", ["Create"], "many", "opt", chatTranslationValidation],
     ], [], o),

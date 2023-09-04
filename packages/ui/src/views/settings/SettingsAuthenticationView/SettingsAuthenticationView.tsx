@@ -1,24 +1,85 @@
-import { Email, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, User, Wallet } from "@local/shared";
-import { Box, Button, Stack, useTheme } from "@mui/material";
+import { Email, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutInput, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
+import { Box, Button, Stack, TextField, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
+import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { EmailList, WalletList } from "components/lists/devices";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { SettingsAuthenticationForm } from "forms/settings";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "icons";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { FormSection, pagePaddingBottom } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { SettingsAuthenticationViewProps } from "../types";
+import { SettingsAuthenticationFormProps, SettingsAuthenticationViewProps } from "../types";
+
+const SettingsAuthenticationForm = ({
+    display,
+    dirty,
+    isLoading,
+    onCancel,
+    values,
+    ...props
+}: SettingsAuthenticationFormProps) => {
+    const { t } = useTranslation();
+    console.log("settingsauthenticationform render", props.errors, values);
+
+    return (
+        <>
+            <BaseForm
+                dirty={dirty}
+                display={display}
+                isLoading={isLoading}
+            >
+                {/* Hidden username input because some password managers require it */}
+                <TextField
+                    name="username"
+                    autoComplete="username"
+                    sx={{ display: "none" }}
+                />
+                <FormSection>
+                    <PasswordTextField
+                        fullWidth
+                        name="currentPassword"
+                        label={t("PasswordCurrent")}
+                        autoComplete="current-password"
+                    />
+                    <PasswordTextField
+                        fullWidth
+                        name="newPassword"
+                        label={t("PasswordNew")}
+                        autoComplete="new-password"
+                    />
+                    <PasswordTextField
+                        fullWidth
+                        name="newPasswordConfirmation"
+                        autoComplete="new-password"
+                        label={t("PasswordNewConfirm")}
+                    />
+                </FormSection>
+            </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={props.errors}
+                isCreate={false}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
+        </>
+    );
+};
 
 export const SettingsAuthenticationView = ({
     isOpen,
@@ -83,7 +144,7 @@ export const SettingsAuthenticationView = ({
                 onClose={onClose}
                 title={t("Authentication")}
             />
-            <Stack direction="row" pt={2} pb={2}>
+            <Stack direction="row" pt={2} sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Stack direction="column" spacing={8} m="auto" pl={2} pr={2} sx={{ maxWidth: "min(100%, 500px)" }}>
                     <Box>
@@ -130,6 +191,11 @@ export const SettingsAuthenticationView = ({
                                     PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                     return;
                                 }
+                                if (typeof values.newPassword === "string" && values.newPassword.length > 0 && values.newPassword !== (values as any).newPasswordConfirmation) {
+                                    PubSub.get().publishSnack({ messageKey: "PasswordsDontMatch", severity: "Error" });
+                                    helpers.setSubmitting(false);
+                                    return;
+                                }
                                 fetchLazyWrapper<ProfileEmailUpdateInput, User>({
                                     fetch: update,
                                     inputs: {
@@ -138,9 +204,10 @@ export const SettingsAuthenticationView = ({
                                     },
                                     onSuccess: (data) => { onProfileUpdate(data); },
                                     onCompleted: () => { helpers.setSubmitting(false); },
+                                    successMessage: () => ({ messageKey: "Success" }),
                                 });
                             }}
-                            validationSchema={profileEmailUpdateValidation.update({})}
+                            validationSchema={profileEmailUpdateFormValidation}
                         >
                             {(formik) => <SettingsAuthenticationForm
                                 display={display}

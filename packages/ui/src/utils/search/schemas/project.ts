@@ -1,4 +1,4 @@
-import { endpointGetProjects, ProjectSortBy } from "@local/shared";
+import { endpointGetProject, endpointGetProjects, ProjectSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
@@ -21,4 +21,4 @@ export const projectSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const projectSearchParams = () => toParams(projectSearchSchema(), endpointGetProjects, ProjectSortBy, ProjectSortBy.ScoreDesc);
+export const projectSearchParams = () => toParams(projectSearchSchema(), endpointGetProjects, endpointGetProject, ProjectSortBy, ProjectSortBy.ScoreDesc);

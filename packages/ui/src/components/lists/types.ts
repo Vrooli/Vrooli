@@ -1,4 +1,4 @@
-import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
+import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
@@ -16,13 +16,11 @@ export interface ObjectActionsRowProps<T extends ListObject> {
 }
 
 
-type ActionFunctions<T> = {
+export type ActionFunctions<T> = {
     [K in keyof T]: T[K] extends (...args: infer U) => any ? U : never;
 };
 
-export type ActionsType<A = undefined> = A extends undefined
-    ? { onAction?: undefined }
-    : { onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => void }
+export type ActionsType<T extends ListObject> = { onAction: <K extends keyof ObjectListActions<T>>(action: K, ...args: ActionFunctions<ObjectListActions<T>>[K]) => unknown }
 
 type ObjectListItemBaseProps<T extends ListObject> = {
     /**
@@ -32,6 +30,7 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     canNavigate?: (item: NavigableObject) => boolean | void;
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
+    handleContextMenu: (target: EventTarget, object: ListObject | null) => unknown;
     /** If update button should be hidden */
     hideUpdateButton?: boolean;
     /** If data is still being fetched */
@@ -43,42 +42,18 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     titleOverride?: string;
     toTheRight?: React.ReactNode;
 }
-export type ObjectListItemProps<T extends ListObject, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
+export type ObjectListItemProps<T extends ListObject> = ObjectListItemBaseProps<T> & ActionsType<T>;
 
-export type ChatListItemActions = {
-    MarkAsRead: (id: string) => void;
-    Delete: (id: string) => void;
-};
-export type NotificationListItemActions = {
-    MarkAsRead: (id: string) => void;
-    Delete: (id: string) => void;
-};
-export type ReminderListItemActions = {
-    Delete: (id: string) => void;
-    Update: (data: Reminder) => void;
+export type ObjectListActions<T> = {
+    Deleted: (id: string) => void;
+    Updated: (data: T) => void;
 };
 
-/**
- * Maps object types to their list item's custom actions.
- * Not all object types have custom actions.
- */
-export interface ListActions {
-    Chat: ChatListItemActions;
-    Notification: NotificationListItemActions;
-    Reminder: ReminderListItemActions;
-}
-
-
-export type ChatListItemProps = ObjectListItemProps<Chat, ChatListItemActions>
-
+export type ChatListItemProps = ObjectListItemProps<Chat>
 export type MemberListItemProps = ObjectListItemProps<Member>
-
-export type NotificationListItemProps = ObjectListItemProps<Notification, NotificationListItemActions>
-
-export type ReminderListItemProps = ObjectListItemProps<Reminder, ReminderListItemActions>
-
+export type NotificationListItemProps = ObjectListItemProps<Notification>
+export type ReminderListItemProps = ObjectListItemProps<Reminder>
 export type RunProjectListItemProps = ObjectListItemProps<RunProject>
-
 export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
 export interface DateRangeMenuProps {
@@ -98,6 +73,7 @@ export interface DateRangeMenuProps {
 export type RelationshipItemFocusMode = Pick<FocusMode, "id" | "name"> &
 {
     __typename: "FocusMode";
+    reminderList?: Partial<ReminderList>;
 };
 export type RelationshipItemMeeting = Pick<Meeting, "id"> &
 {

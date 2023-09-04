@@ -66,6 +66,7 @@ export const typeDef = gql`
         QuizQuestion
         QuizQuestionResponse
         Reaction
+        ReactionSummary
         Reminder
         ReminderItem
         ReminderList

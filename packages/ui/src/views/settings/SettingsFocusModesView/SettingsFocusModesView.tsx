@@ -10,7 +10,7 @@ import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { multiLineEllipsis } from "styles";
+import { multiLineEllipsis, pagePaddingBottom } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
@@ -50,7 +50,7 @@ export const SettingsFocusModesView = ({
         }
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            messageKey: "DeleteFocusModeConfirm",
+            messageKey: "DeleteConfirm",
             buttons: [
                 {
                     labelKey: "Yes", onClick: () => {
@@ -166,7 +166,7 @@ export const SettingsFocusModesView = ({
                 onClose={onClose}
                 title={t("FocusMode", { count: 2 })}
             />
-            <Stack direction="row">
+            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>

@@ -1,5 +1,7 @@
 import { Avatar, Box, Button, IconButton, keyframes, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
 
+export const pagePaddingBottom = "calc(56px + env(safe-area-inset-bottom))";
+
 export const centeredDiv = {
     display: "flex",
     justifyContent: "center",

@@ -176,6 +176,7 @@ export const AdvancedSearchButton = ({
         removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
         // Add set fields to search params
         addSearchParams(setLocation, valuesWithoutBlanks);
+        console.log("setting advanced search params 3", valuesWithoutBlanks);
         setAdvancedSearchParams(valuesWithoutBlanks);
     }, [advancedSearchSchema?.fields, setAdvancedSearchParams, setLocation]);
 

@@ -11,6 +11,7 @@ import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, removeSearchParams, useLocation } from "route";
+import { pagePaddingBottom } from "styles";
 import { DecisionStep, DirectoryStep, EndStep, ProjectStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
@@ -978,7 +979,7 @@ export const RunView = ({
         <MaybeLargeDialog
             display={display}
             id="run-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={onClose}
         >
             <Box sx={{ minHeight: "100vh" }}>
@@ -1050,8 +1051,7 @@ export const RunView = ({
                         position: "fixed",
                         bottom: "0",
                         paddingBottom: "env(safe-area-inset-bottom)",
-                        // safe-area-inset-bottom is the iOS navigation bar
-                        height: "calc(56px + env(safe-area-inset-bottom))",
+                        height: pagePaddingBottom,
                         width: "-webkit-fill-available",
                         zIndex: 4,
                         background: palette.primary.dark,

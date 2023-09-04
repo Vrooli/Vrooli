@@ -1,4 +1,6 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatParticipant, CommentFor, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, View } from "@local/shared";
+import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatParticipant, CommentFor, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
+import { Palette } from "@mui/material";
+import { BotIcon } from "icons";
 import { AutocompleteOption } from "types";
 import { valueFromDot } from "utils/shape/general";
 import { displayDate, firstString } from "./stringTools";
@@ -281,8 +283,10 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
 export const getDisplay = (
     object: ListObject | null | undefined,
     languages?: readonly string[],
-): { title: string, subtitle: string } => {
-    if (!object) return { title: "", subtitle: "" };
+    palette?: Palette,
+): { title: string, subtitle: string, adornments: JSX.Element[] } => {
+    const adornments: JSX.Element[] = [];
+    if (!object) return { title: "", subtitle: "", adornments };
     // If a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getDisplay((object as Partial<Bookmark | Reaction | View>).to as ListObject);
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);
@@ -296,6 +300,7 @@ export const getDisplay = (
         return {
             title,
             subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (routineVersionSubtitle ? " | " + routineVersionSubtitle : ""),
+            adornments,
         };
     }
     // If a run project, use the project version's display and the startedAt/completedAt date
@@ -308,6 +313,7 @@ export const getDisplay = (
         return {
             title,
             subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (projectVersionSubtitle ? " | " + projectVersionSubtitle : ""),
+            adornments,
         };
     }
     // If a chat, use the chat's title/subtitle, or default to descriptive text with participant or participant count
@@ -323,7 +329,7 @@ export const getDisplay = (
                 "Chat",
         );
         const subtitle = firstString(description, displayDate(updated_at));
-        return { title, subtitle };
+        return { title, subtitle, adornments };
     }
     // If a member or chat participant, use the user's display
     if (isOfType(object, "Member", "ChatParticipant")) return getDisplay({ __typename: "User", ...(object as Partial<ChatParticipant | Member>).user } as ListObject);
@@ -335,9 +341,23 @@ export const getDisplay = (
         return {
             title: firstString(title, routineVersionDisplay.title),
             subtitle: firstString(subtitle, routineVersionDisplay.subtitle),
+            adornments: [],
         };
     }
-    return { title, subtitle };
+    // If a User, and `isBot` is true, add BotIcon to adornments
+    if (isOfType(object, "User") && (object as Partial<User>).isBot) {
+        adornments.push(
+            <BotIcon
+                key="bot"
+                fill={palette?.mode === "light" ? "#521f81" : "#a979d5"}
+                width="100%"
+                height="100%"
+                style={{ padding: "1px" }}
+            />
+        );
+    }
+    // Return result
+    return { title, subtitle, adornments };
 };
 
 /**

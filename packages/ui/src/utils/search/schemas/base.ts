@@ -3,7 +3,8 @@ import { FormSchema } from "forms/types";
 export type SearchParams = {
     advancedSearchSchema: FormSchema | null;
     defaultSortBy: any;
-    endpoint: string;
+    findManyEndpoint: string;
+    findOneEndpoint: string | undefined;
     sortByOptions: any;
 }
 
@@ -12,12 +13,14 @@ export type SearchParams = {
  */
 export const toParams = (
     advancedSearchSchema: FormSchema,
-    pair: { endpoint: string },
+    findManyPair: { endpoint: string },
+    findOnePair: { endpoint: string } | undefined,
     sortByOptions: { [key: string]: string },
     defaultSortBy: string,
 ): SearchParams => ({
     advancedSearchSchema,
     defaultSortBy,
-    endpoint: pair.endpoint,
+    findManyEndpoint: findManyPair.endpoint,
+    findOneEndpoint: findOnePair?.endpoint,
     sortByOptions,
 });

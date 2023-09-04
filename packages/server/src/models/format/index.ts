@@ -49,6 +49,7 @@ import { QuizAttemptFormat } from "./quizAttempt";
 import { QuizQuestionFormat } from "./quizQuestion";
 import { QuizQuestionResponseFormat } from "./quizQuestionResponse";
 import { ReactionFormat } from "./reaction";
+import { ReactionSummaryFormat } from "./reactionSummary";
 import { ReminderFormat } from "./reminder";
 import { ReminderItemFormat } from "./reminderItem";
 import { ReminderListFormat } from "./reminderList";
@@ -141,6 +142,7 @@ export const FormatMap: { [key in GqlModelType]?: Formatter<any> } = {
     QuizQuestion: QuizQuestionFormat,
     QuizQuestionResponse: QuizQuestionResponseFormat,
     Reaction: ReactionFormat,
+    ReactionSummary: ReactionSummaryFormat,
     Reminder: ReminderFormat,
     ReminderItem: ReminderItemFormat,
     ReminderList: ReminderListFormat,

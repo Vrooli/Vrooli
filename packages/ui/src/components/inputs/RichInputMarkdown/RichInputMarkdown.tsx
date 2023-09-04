@@ -2,7 +2,6 @@ import { useTheme } from "@mui/material";
 import { CSSProperties, FC, useCallback, useEffect, useRef } from "react";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { RichInputChildView, RichInputMarkdownProps } from "../types";
@@ -159,14 +158,12 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
         // Find the current selection
         const { start, end, inputElement } = getSelection(id);
         if (!inputElement) return;
-        // If no selection, return
-        if (start === end) {
-            PubSub.get().publishSnack({ messageKey: "NoTextSelected", severity: "Error" });
-            return;
-        }
-        // Insert ~~ before the selection, and ~~ after the selection
+        // Insert pad around selection
         inputElement.value = inputElement.value.substring(0, start) + padStart + inputElement.value.substring(start, end) + padEnd + inputElement.value.substring(end);
         onChange(inputElement.value);
+        // Move cursor to end of selection (by default it would be at the end of the padEnd string, which is not desired)
+        inputElement.selectionStart = end + padStart.length;
+        inputElement.selectionEnd = inputElement.selectionStart;
     }, [disabled, id, onChange]);
 
     const strikethrough = useCallback(() => { if (!disabled) padSelection("~~", "~~"); }, [disabled, padSelection]);
@@ -274,6 +271,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
         const actionMap = {
             "Assistant": () => openAssistantDialog(getSelection(id).selected),
             "Bold": bold,
+            "Code": () => { }, //TODO
             "Header1": () => insertHeader(Headers.H1),
             "Header2": () => insertHeader(Headers.H2),
             "Header3": () => insertHeader(Headers.H3),
@@ -282,6 +280,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "ListBullet": insertBulletList,
             "ListCheckbox": insertCheckboxList,
             "ListNumber": insertNumberList,
+            "Quote": () => { }, //TODO
             "Redo": redo,
             "Spoiler": spoiler,
             "Strikethrough": strikethrough,
@@ -300,10 +299,13 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "1": () => insertHeader(Headers.H1), // ALT + 1 - Insert header 1
             "2": () => insertHeader(Headers.H2), // ALT + 2 - Insert header 2
             "3": () => insertHeader(Headers.H3), // ALT + 3 - Insert header 3
-            "4": () => insertBulletList(), // ALT + 4 - Bullet list
-            "5": () => insertNumberList(), // ALT + 5 - Number list
-            "6": () => insertCheckboxList(), // ALT + 6 - Checklist
-            "7": () => toggleMarkdown(), // ALT + 7 - Toggle preview
+            "4": () => insertHeader(Headers.H4), // ALT + 4 - Insert header 4
+            "5": () => insertHeader(Headers.H5), // ALT + 5 - Insert header 5
+            "6": () => insertHeader(Headers.H6), // ALT + 6 - Insert header 6
+            "7": () => insertBulletList(), // ALT + 4 - Bullet list
+            "8": () => insertNumberList(), // ALT + 5 - Number list
+            "9": () => insertCheckboxList(), // ALT + 6 - Checklist
+            "0": () => toggleMarkdown(), // ALT + 7 - Toggle preview
             "b": () => bold(), // CTRL + B - Bold
             "i": () => italic(), // CTRL + I - Italic
             "k": () => insertLink(), // CTRL + K - Insert link
@@ -434,7 +436,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             textarea?.removeEventListener("keydown", handleTextareaKeyDown);
             fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
         };
-    }, [bold, getTaggableItems, onChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, toggleMarkdown, undo, id, tagData, selectDropdownItem, value, spoiler]);
+    }, [bold, getTaggableItems, onChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, toggleMarkdown, undo, id, tagData, selectDropdownItem, value, spoiler, underline]);
 
     return (
         <>

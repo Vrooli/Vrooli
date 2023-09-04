@@ -1,4 +1,4 @@
-import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User } from "@local/shared";
+import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
 import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -20,14 +20,14 @@ import { useTabs } from "hooks/useTabs";
 import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { setSearchParams, useLocation } from "route";
 import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
 import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { defaultYou, getYou, placeholderColor } from "utils/display/listTools";
+import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -87,17 +87,19 @@ export const UserView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
+    const { adornments, bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
         const { creativity, verbosity, translations } = findBotData(language, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language]);
+        const { adornments } = getDisplay(user, [language], palette);
         return {
+            adornments,
             bannerImageUrl: extractImageUrl(user?.bannerImage, user?.updated_at, 1000),
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             botData: { ...botTranslations, creativity, verbosity },
             name: user?.name,
             handle: user?.handle,
         };
-    }, [language, user]);
+    }, [language, palette, user]);
 
     const availableTabs = useMemo(() => {
         // Details tab is only for bots
@@ -152,8 +154,16 @@ export const UserView = ({
 
     /** Starts a new chat */
     const handleStartChat = useCallback(() => {
-        if (!user) return;
-        // TODO
+        if (!user || !user.id) return;
+        // Create URL search params
+        setSearchParams(setLocation, {
+            invites: {
+                id: uuid(),
+                userConnect: user.id,
+            }
+        })
+        // Navigate to chat page
+        setLocation(`${LINKS.Chat}/add`);
     }, [user]);
 
     return (
@@ -237,6 +247,7 @@ export const UserView = ({
                         ) : <Title
                             title={name}
                             variant="header"
+                            adornments={adornments}
                             options={permissions.canUpdate ? [{
                                 label: t("Edit"),
                                 Icon: EditIcon,

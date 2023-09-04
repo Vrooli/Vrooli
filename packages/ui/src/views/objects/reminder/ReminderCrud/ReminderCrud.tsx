@@ -1,35 +1,117 @@
-import { endpointGetReminder, endpointPostReminder, endpointPutReminder, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
+import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, Reminder, ReminderCreateInput, ReminderUpdateInput, reminderValidation, Session, Success, uuid } from "@local/shared";
+import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { DateInput } from "components/inputs/DateInput/DateInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
-import { Formik } from "formik";
-import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm/ReminderForm";
+import { Field, Formik, useField } from "formik";
+import { BaseForm } from "forms/BaseForm/BaseForm";
+import { ReminderFormProps } from "forms/types";
 import { useFormDialog } from "hooks/useFormDialog";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useContext } from "react";
+import { AddIcon, DeleteIcon, DragIcon, ListNumberIcon } from "icons";
+import { useCallback, useContext, useMemo } from "react";
+import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
+import { useTranslation } from "react-i18next";
+import { FormContainer } from "styles";
+import { getFocusModeInfo } from "utils/authentication/session";
+import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
+import { firstString } from "utils/display/stringTools";
+import { noopSubmit } from "utils/objects";
 import { PubSub } from "utils/pubsub";
-import { ReminderShape } from "utils/shape/models/reminder";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
+import { ReminderItemShape } from "utils/shape/models/reminderItem";
 import { ReminderCrudProps } from "../types";
 
-export const ReminderCrud = ({
+export type NewReminderShape = Partial<Omit<Reminder, "reminderList">> & { reminderList: Partial<Reminder["reminderList"]> & { id: string } };
+
+const getFallbackReminderList = (session: Session | undefined, existing: Partial<NewReminderShape> | null | undefined) => {
+    const { active: activeFocusMode, all: allFocusModes } = getFocusModeInfo(session);
+    const activeMode = activeFocusMode?.mode;
+
+    // If reminderList exists, return it
+    if (existing?.reminderList) {
+        // Try to add the relevant focus mode to the reminder list so we can display it
+        const focusModeId = existing.reminderList.focusMode?.id;
+        return {
+            ...existing.reminderList,
+            __typename: "ReminderList" as const,
+            focusMode: focusModeId ? allFocusModes.find(f => f.id === focusModeId) : undefined,
+        };
+    }
+    // If active mode exists, return it
+    else if (activeMode?.id) {
+        return {
+            __typename: "ReminderList" as const,
+            ...activeMode.reminderList,
+            id: activeMode.reminderList?.id ?? DUMMY_ID,
+            focusMode: activeMode,
+        };
+    }
+    // Otherwise, return a new reminder list with any existing focus mode
+    const focusWithReminderList = allFocusModes.find(f => f.reminderList?.id);
+    return {
+        __typename: "ReminderList" as const,
+        id: focusWithReminderList?.reminderList?.id ?? DUMMY_ID,
+        focusMode: focusWithReminderList,
+    };
+};
+
+const reminderInitialValues = (
+    session: Session | undefined,
+    existing?: Partial<NewReminderShape> | null | undefined,
+): ReminderShape => ({
+    __typename: "Reminder" as const,
+    id: DUMMY_ID,
+    dueDate: null,
+    index: 0,
+    isComplete: false,
+    reminderItems: [],
+    ...existing,
+    reminderList: existing?.reminderList || getFallbackReminderList(session, existing),
+    description: existing?.description ?? "",
+    name: existing?.name ?? "",
+});
+
+const transformReminderValues = (values: ReminderShape, existing: ReminderShape, isCreate: boolean) =>
+    isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
+
+const validateReminderValues = async (values: ReminderShape, existing: ReminderShape, isCreate: boolean) => {
+    const transformedValues = transformReminderValues(values, existing, isCreate);
+    const validationSchema = reminderValidation[isCreate ? "create" : "update"]({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+};
+
+const ReminderForm = ({
+    disabled,
+    dirty,
+    existing,
+    handleUpdate,
+    index,
     isCreate,
     isOpen,
+    isReadLoading,
     onCancel,
     onCompleted,
     onDeleted,
-    overrideObject,
-}: ReminderCrudProps) => {
+    reminderListId,
+    values,
+    ...props
+}: ReminderFormProps) => {
     const session = useContext(SessionContext);
     const display = toDisplay(isOpen);
-
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Reminder, ReminderShape>({
-        ...endpointGetReminder,
-        objectType: "Reminder",
-        overrideObject: overrideObject as Reminder,
-        transform: (existing) => reminderInitialValues(session, existing),
-    });
+    const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const {
         fetch,
@@ -51,45 +133,283 @@ export const ReminderCrud = ({
     });
     const { formRef, handleClose } = useFormDialog({ handleCancel });
 
+    const onSubmit = useCallback(() => {
+        if (disabled) {
+            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
+            fetch,
+            inputs: transformReminderValues(values, existing, isCreate),
+            onSuccess: (data) => { handleCompleted(data); handleUpdate(reminderInitialValues(session, data)) },
+            onCompleted: () => { props.setSubmitting(false); },
+        });
+    }, [disabled, existing, fetch, handleCompleted, isCreate, props, session, values]);
+
+    // Handle delete
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const handleDelete = useCallback((id: string) => {
+        fetchLazyWrapper<DeleteOneInput, Success>({
+            fetch: deleteMutation,
+            inputs: { id: values.id, objectType: DeleteType.Reminder },
+            successCondition: (data) => data.success,
+            successMessage: () => ({
+                messageKey: "ObjectDeleted",
+                messageVariables: { objectName: values.name },
+                buttonKey: "Undo",
+                buttonClicked: () => {
+                    fetchLazyWrapper<ReminderCreateInput, Reminder>({
+                        fetch: fetchCreate,
+                        inputs: transformReminderValues({
+                            ...values,
+                            // Make sure not to set any extra fields, 
+                            // so this is treated as a "Connect" instead of a "Create"
+                            reminderList: {
+                                __typename: "ReminderList" as const,
+                                id: values.reminderList.id,
+                            },
+                        }, values, true) as ReminderCreateInput,
+                        successCondition: (data) => !!data.id,
+                        onSuccess: (data) => { handleCreated(data); },
+                    });
+                },
+            }),
+            onSuccess: () => {
+                handleDeleted(values as Reminder);
+            },
+            errorMessage: () => ({ messageKey: "FailedToDelete" }),
+        });
+    }, [deleteMutation, fetchCreate, handleCreated, handleDeleted, values]);
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isDeleteLoading, isUpdateLoading, props.isSubmitting]);
+
+    const [reminderItemsField, , reminderItemsHelpers] = useField("reminderItems");
+
+    const handleDeleteStep = (index: number) => {
+        const newReminderItems = [...reminderItemsField.value];
+        newReminderItems.splice(index, 1);
+        reminderItemsHelpers.setValue(newReminderItems);
+    };
+
+    const handleAddStep = () => {
+        reminderItemsHelpers.setValue([
+            ...reminderItemsField.value,
+            {
+                id: uuid(),
+                index: reminderItemsField.value.length,
+                isComplete: false,
+                name: "",
+                description: "",
+                dueDate: null,
+            },
+        ]);
+    };
+
+    const onDragEnd = (result: DropResult) => {
+        if (!result.destination) return;
+
+        const newReminderItems: ReminderItemShape[] = Array.from(reminderItemsField.value);
+        const [reorderedItem] = newReminderItems.splice(result.source.index, 1);
+        newReminderItems.splice(result.destination.index, 0, reorderedItem);
+
+        // Update the index property of each item in the list
+        newReminderItems.forEach((item: ReminderItemShape, index) => {
+            item.index = index;
+        });
+
+        reminderItemsHelpers.setValue(newReminderItems);
+    };
+
     return (
         <MaybeLargeDialog
             display={display}
             id="reminder-crud-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
-                        fetch,
-                        inputs: transformReminderValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateReminderValues(values, existing, isCreate)}
-            >
-                {(formik) => <ReminderForm
+            <TopBar
+                display={display}
+                onClose={handleClose}
+                title={firstString(getDisplay(values).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
+                // Show delete button only when updating
+                options={!isCreate ? [{
+                    Icon: DeleteIcon,
+                    label: t("Delete"),
+                    onClick: handleDelete as () => void,
+                }] : []}
+            />
+            <DragDropContext onDragEnd={onDragEnd}>
+                <BaseForm
+                    dirty={dirty}
                     display={display}
-                    fetchCreate={fetchCreate}
-                    handleClose={handleClose}
-                    handleCreated={handleCreated}
-                    handleDeleted={handleDeleted}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
+                    isLoading={isLoading}
+                    maxWidth={700}
                     ref={formRef}
-                    {...formik}
-                />}
-            </Formik>
+                >
+                    <FormContainer>
+                        <RelationshipList
+                            isEditing={true}
+                            objectType={"Reminder"}
+                        />
+                        <Field
+                            fullWidth
+                            name="name"
+                            label={t("Name")}
+                            as={TextField}
+                        />
+                        <RichInput
+                            maxChars={2048}
+                            maxRows={10}
+                            minRows={4}
+                            name="description"
+                            placeholder={t("DescriptionOptional")}
+                        />
+                        <DateInput
+                            name="dueDate"
+                            label={t("DueDateOptional")}
+                            type="datetime-local"
+                        />
+                        {/* Steps to complete reminder */}
+                        <Box display="flex" flexDirection="column">
+                            <Title
+                                Icon={ListNumberIcon}
+                                title={t("Step", { count: 2 })}
+                                variant="subheader"
+                            />
+                            <Droppable droppableId="reminderItems">
+                                {(provided) => (
+                                    <div ref={provided.innerRef} {...provided.droppableProps}>
+                                        {
+                                            (reminderItemsField.value ?? []).map((reminderItem, i) => (
+                                                <Draggable key={reminderItem.id} draggableId={String(reminderItem.id)} index={i}>
+                                                    {(provided) => (
+                                                        <Box
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            sx={{
+                                                                borderRadius: 2,
+                                                                boxShadow: 4,
+                                                                marginBottom: 2,
+                                                                padding: 2,
+                                                                background: palette.mode === "light" ? palette.background.default : palette.background.paper,
+                                                            }}>
+                                                            <Stack
+                                                                direction="row"
+                                                                alignItems="flex-start"
+                                                                spacing={2}
+                                                            >
+                                                                <Stack spacing={1} sx={{ width: "100%" }}>
+                                                                    <Field
+                                                                        fullWidth
+                                                                        name={`reminderItems[${i}].name`}
+                                                                        label={t("Name")}
+                                                                        as={TextField}
+                                                                    />
+                                                                    <RichInput
+                                                                        maxChars={2048}
+                                                                        maxRows={6}
+                                                                        minRows={2}
+                                                                        name={`reminderItems[${i}].description`}
+                                                                        placeholder={t("Description")}
+                                                                    />
+                                                                    <DateInput
+                                                                        name={`reminderItems[${i}].dueDate`}
+                                                                        label={t("DueDateOptional")}
+                                                                        type="datetime-local"
+                                                                    />
+                                                                    <FormControlLabel
+                                                                        control={<Field
+                                                                            name={`reminderItems[${i}].isComplete`}
+                                                                            type="checkbox"
+                                                                            as={Checkbox}
+                                                                            size="small"
+                                                                            color="secondary"
+                                                                        />}
+                                                                        label={t("CompleteQuestion")}
+                                                                    />
+                                                                </Stack>
+                                                                <Stack spacing={1} width={32} sx={{ justifyContent: "center", alignItems: "center" }}>
+                                                                    <IconButton
+                                                                        edge="end"
+                                                                        size="small"
+                                                                        onClick={() => handleDeleteStep(i)}
+                                                                        sx={{ margin: "auto" }}
+                                                                    >
+                                                                        <DeleteIcon fill={palette.error.light} />
+                                                                    </IconButton>
+                                                                    <Box
+                                                                        {...provided.dragHandleProps}
+                                                                    >
+                                                                        <DragIcon fill={palette.background.textPrimary} />
+                                                                    </Box>
+                                                                </Stack>
+                                                            </Stack>
+                                                        </Box>
+                                                    )}
+                                                </Draggable>
+                                            ))
+                                        }
+                                        {provided.placeholder}
+                                    </div>
+                                )}
+                            </Droppable>
+                            <Button
+                                startIcon={<AddIcon />}
+                                onClick={handleAddStep}
+                                variant="outlined"
+                                sx={{ alignSelf: "center", mt: 1 }}
+                            >
+                                {t("StepAdd")}
+                            </Button>
+                        </Box>
+                    </FormContainer>
+                </BaseForm>
+            </DragDropContext>
+            <BottomActionsButtons
+                display={display}
+                errors={props.errors as any}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={handleCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={onSubmit}
+            />
         </MaybeLargeDialog>
+    );
+};
+
+export const ReminderCrud = ({
+    isCreate,
+    isOpen,
+    overrideObject,
+    ...props
+}: ReminderCrudProps) => {
+    const session = useContext(SessionContext);
+
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Reminder, ReminderShape>({
+        ...endpointGetReminder,
+        objectType: "Reminder",
+        overrideObject: overrideObject as Reminder,
+        transform: (existing) => reminderInitialValues(session, existing),
+    });
+
+    return (
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateReminderValues(values, existing, isCreate)}
+        >
+            {(formik) => <ReminderForm
+                disabled={false} // Can always update reminders
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

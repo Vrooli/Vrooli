@@ -8,6 +8,7 @@ import { useWindowSize } from "hooks/useWindowSize";
 import { CloseIcon, SearchIcon } from "icons";
 import React, { useCallback, useEffect, useState } from "react";
 import { noSelect } from "styles";
+import { noop } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { ChatPageTabOption, chatTabParams } from "utils/search/objectToSearch";
 
@@ -57,8 +58,7 @@ export const ChatSideMenu = () => {
             // Displays opposite of main side menu
             anchor={isLeftHanded ? "right" : "left"}
             open={isOpen}
-            // eslint-disable-next-line @typescript-eslint/no-empty-function
-            onOpen={() => { }}
+            onOpen={noop}
             onClose={handleClose}
             PaperProps={{ id }}
             variant={isMobile ? "temporary" : "persistent"}

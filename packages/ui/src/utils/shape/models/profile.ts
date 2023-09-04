@@ -1,8 +1,7 @@
 import { ProfileUpdateInput, User, UserTranslation, UserTranslationCreateInput, UserTranslationUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { FocusModeShape, shapeFocusMode } from "./focusMode";
-import { createPrims, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type ProfileTranslationShape = Pick<UserTranslation, "id" | "language" | "bio"> & {
     __typename?: "UserTranslation";

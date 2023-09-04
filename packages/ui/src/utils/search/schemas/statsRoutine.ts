@@ -9,4 +9,4 @@ export const statsRoutineSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const statsRoutineSearchParams = () => toParams(statsRoutineSearchSchema(), endpointGetStatsRoutine, StatsRoutineSortBy, StatsRoutineSortBy.PeriodStartAsc);
+export const statsRoutineSearchParams = () => toParams(statsRoutineSearchSchema(), endpointGetStatsRoutine, undefined, StatsRoutineSortBy, StatsRoutineSortBy.PeriodStartAsc);

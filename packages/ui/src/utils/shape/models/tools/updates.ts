@@ -1,7 +1,187 @@
-import { exists } from "@local/shared";
+import { DUMMY_ID, exists, uuid } from "@local/shared";
 import { ShapeModel } from "types";
+import { PubSub } from "utils/pubsub";
 import { hasObjectChanged } from "utils/shape/general";
-import { createRel } from "./createRel";
+import { createOwner, createRel, hasOnlyConnectData } from "./creates";
+
+type OwnerPrefix = "" | "ownedBy";
+type OwnerType = "User" | "Organization";
+
+type RelationshipType = "Connect" | "Create" | "Delete" | "Disconnect" | "Update";
+
+// Array if isOneToOne is false, otherwise single
+type MaybeArray<T extends "object" | "id", IsOneToOne extends "one" | "many"> =
+    T extends "object" ?
+    IsOneToOne extends "one" ? any : any[] :
+    IsOneToOne extends "one" ? string : string[]
+
+// Array if isOneToOne is false, otherwise boolean
+type MaybeArrayBoolean<IsOneToOne extends "one" | "many"> =
+    IsOneToOne extends "one" ? boolean : string[]
+
+type UpdateRelOutput<
+    IsOneToOne extends "one" | "many",
+    RelTypes extends string,
+    FieldName extends string,
+> = (
+        ({ [x in `${FieldName}Connect`]: "Connect" extends RelTypes ? MaybeArray<"id", IsOneToOne> : never }) &
+        ({ [x in `${FieldName}Create`]: "Create" extends RelTypes ? MaybeArray<"object", IsOneToOne> : never }) &
+        ({ [x in `${FieldName}Delete`]: "Delete" extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
+        ({ [x in `${FieldName}Disconnect`]: "Disconnect" extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
+        ({ [x in `${FieldName}Update`]: "Update" extends RelTypes ? MaybeArray<"object", IsOneToOne> : never })
+    )
+
+/**
+ * Shapes ownership connect fields for a GraphQL update input
+ * @param item The item to shape, with an "owner" field
+ * @returns Ownership connect object
+ */
+export const updateOwner = <
+    OType extends OwnerType,
+    OriginalItem extends { owner?: { __typename: OwnerType, id: string } | null | undefined },
+    UpdatedItem extends { owner?: { __typename: OType, id: string } | null | undefined },
+    Prefix extends OwnerPrefix & string
+>(
+    originalItem: OriginalItem,
+    updatedItem: UpdatedItem,
+    prefix: Prefix = "" as Prefix,
+): { [K in `${Prefix}${OType}Connect`]?: string } => {
+    // Find owner data in item
+    const originalOwnerData = originalItem.owner;
+    const updatedOwnerData = updatedItem.owner;
+    // If original and updated missing
+    if (
+        (originalOwnerData === null || originalOwnerData === undefined) &&
+        (updatedOwnerData === null || updatedOwnerData === undefined)
+    ) return {};
+    // If original and updated match, return empty object
+    if (originalOwnerData?.id === updatedOwnerData?.id) return {};
+    // If updated missing, disconnect
+    // TODO disabled for now
+    // Treat as create
+    return createOwner(updatedItem as any, prefix);
+};
+
+/**
+ * Shapes versioning relation data for a GraphQL update input
+ * @param root The root object, which contains the version data
+ * @param shape The version's shape object
+ * @returns The shaped object, ready to be passed to the mutation endpoint
+ */
+export const updateVersion = <
+    Root extends { id: string, versions?: Record<string, unknown>[] | null | undefined },
+    VersionCreateInput extends object,
+    VersionUpdateInput extends object,
+>(
+    originalRoot: Root,
+    updatedRoot: Root,
+    shape: ShapeModel<any, VersionCreateInput, VersionUpdateInput>,
+): ({ versionsCreate?: VersionCreateInput[], versionsUpdate?: VersionUpdateInput[] }) => {
+    // Return empty object if no updated version data. We don't handle deletes here
+    if (!updatedRoot.versions) return {};
+    // Find every version in the updated root that is not in the original root (using the version's id)
+    const newVersions = updatedRoot.versions.filter((v) => !originalRoot.versions?.find((ov) => ov.id === v.id));
+    // Every other version in the updated root is an update
+    const updatedVersions = updatedRoot.versions.filter((v) => !newVersions.find((nv) => nv.id === v.id));
+    // Shape and return version data
+    return {
+        versionsCreate: newVersions.map((version) => shape.create({
+            ...version,
+            root: { id: originalRoot.id },
+        })) as VersionCreateInput[],
+        versionsUpdate: updatedVersions.map((version) => shape.update(originalRoot.versions?.find((ov) => ov.id === version.id), {
+            ...version,
+            root: { id: originalRoot.id },
+        })) as VersionUpdateInput[],
+    };
+};
+
+/**
+ * Helper function for setting a list of primitive fields of an update 
+ * shape. If updated is different from original, return updated,
+ * otherwise return undefined
+ * 
+ * NOTE: Due to TypeScript limitations, return type assumes that every field 
+ * will be defined, even if it's undefined
+ * @param original The original object
+ * @param updated The updated object
+ * @param primary The primary key of the object, which is always returned
+ * @param fields The fields to check, which are returned if they are different
+ */
+export const updatePrims = <T, K extends keyof T, PK extends keyof T>(
+    original: T | null | undefined,
+    updated: T | null | undefined,
+    primary: PK | null,
+    ...fields: (K | [K, (val: any) => any])[]
+): ({ [F in K]: Exclude<T[F], null | undefined> } & { [F in PK]: T[F] }) => {
+    // If no original or updated, return undefined for all fields
+    if (!updated || !original) {
+        return fields.reduce((acc, field) => {
+            const key = Array.isArray(field) ? field[0] : field;
+            return { ...acc, [key]: undefined };
+        }, {}) as any;
+    }
+
+    // Create prims
+    const changedFields = fields.reduce((acc, field) => {
+        const key = Array.isArray(field) ? field[0] : field;
+        const value = Array.isArray(field) ? field[1](updated[key]) : updated[key];
+        return { ...acc, [key]: value !== original[key] ? value : undefined };
+    }, {});
+
+    // If no primary key, return changed fields
+    if (!primary) return changedFields as any;
+
+    // If primary key is not an ID, return changed fields with primary key
+    if (primary !== "id") return { ...changedFields, [primary]: original[primary] } as any;
+
+    // If primary key is an ID, return changed fields with primary key, and make sure it's not DUMMY_ID
+    return { ...changedFields, [primary]: original[primary] === DUMMY_ID ? uuid() : original[primary] } as any;
+};
+
+/**
+ * Like updatePrims, but forces "language" field to be included in the return type
+ * @param original The original object
+ * @param updated The updated object
+ * @param primary The primary key of the object, which is always returned
+ * @param fields The fields to check, which are returned if they are different
+ */
+export const updateTranslationPrims = <T extends { language: string }, K extends keyof T, PK extends keyof T>(
+    original: T | null | undefined,
+    updated: T | null | undefined,
+    primary: PK | null,
+    ...fields: K[]
+): ({ [F in K]: Exclude<T[F], null | undefined> } & { [F in PK]: T[F] } & { language: string }) => {
+    const updatePrimsResult = updatePrims(original, updated, primary, ...fields);
+    return { ...updatePrimsResult, language: original?.language ?? updated?.language } as any;
+};
+
+/**
+ * Helper function for formatting an object for an update mutation
+ * @param updated The updated object
+ * @param shape Shapes the updated object for the update mutation
+ * @param assertHasUpdate Asserts that the updated object has at least one value
+ */
+export const shapeUpdate = <
+    Input extends object,
+    Output extends object,
+    AssertHasUpdate extends boolean = false
+>(
+    updated: Input | null | undefined,
+    shape: Output | (() => Output),
+    assertHasUpdate: AssertHasUpdate = false as AssertHasUpdate,
+): Output | undefined => {
+    if (!updated) return undefined;
+    let result = typeof shape === "function" ? (shape as () => Output)() : shape;
+    // Remove every value from the result that is undefined
+    if (result) result = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined)) as Output;
+    // If assertHasUpdate is true, make sure that the result has at least one value
+    if (assertHasUpdate && (!result || Object.keys(result).length === 0)) {
+        PubSub.get().publishSnack({ messageKey: "NothingToUpdate", severity: "Error" });
+        return undefined;
+    }
+    return result;
+};
 
 /**
  * Finds items which have been added to the array, and connects them to the parent.
@@ -51,14 +231,14 @@ const findCreatedItems = <
     const idField = shape.idField ?? "id";
     const preShaper = preShape ?? ((x: any) => x);
     const originalDataArray = asArray(original[relation]);
-    const updatedDataArray = asArray(updated[relation]);
+    const updatedDataArray = asArray(updated[relation]).map(data => preShaper(data, updated));
     const createdItems: Output[] = [];
     for (const updatedItem of updatedDataArray) {
         if (!updatedItem || !updatedItem[idField]) continue;
         const oi = originalDataArray.find(item => item[idField] === updatedItem[idField]);
-        // Add if not found in original, and has more than just the id field (if only ID, must be a connect)
-        if (!oi && Object.values(updatedItem).length > 1) {
-            createdItems.push(shape.create(preShaper(updatedItem, updated)) as Output);
+        // Add if not found in original, and not a connect-only item
+        if (!oi && !hasOnlyConnectData(updatedItem)) {
+            createdItems.push(shape.create(updatedItem) as Output);
         }
     }
     return createdItems.length > 0 ? createdItems : undefined;
@@ -86,14 +266,14 @@ const findUpdatedItems = <
 ): Output[] | undefined => {
     const idField = shape.idField ?? "id";
     const preShaper = preShape ?? ((x: any) => x);
-    const originalDataArray = asArray(original[relation]);
-    const updatedDataArray = asArray(updated[relation]);
+    const originalDataArray = asArray(original[relation]).map(data => preShaper(data, original));
+    const updatedDataArray = asArray(updated[relation]).map(data => preShaper(data, updated));
     const updatedItems: Output[] = [];
     for (const updatedItem of updatedDataArray) {
         if (!updatedItem || !updatedItem[idField]) continue;
         const oi = originalDataArray.find(item => item && item[idField] && item[idField] === updatedItem[idField]);
-        if (oi && (shape.hasObjectChanged ?? hasObjectChanged)(preShaper(oi, original), preShaper(updatedItem, updated))) {
-            updatedItems.push(shape.update(preShaper(oi, original), preShaper(updatedItem, updated)) as Output);
+        if (oi && (shape.hasObjectChanged ?? hasObjectChanged)(oi, updatedItem)) {
+            updatedItems.push(shape.update(oi, updatedItem) as Output);
         }
     }
     return updatedItems.length > 0 ? updatedItems : undefined;
@@ -151,30 +331,6 @@ const asArray = <T>(value: T | T[]): T[] => {
     if (Array.isArray(value)) return value;
     return [value];
 };
-
-type RelationshipType = "Connect" | "Create" | "Delete" | "Disconnect" | "Update";
-
-// Array if isOneToOne is false, otherwise single
-type MaybeArray<T extends "object" | "id", IsOneToOne extends "one" | "many"> =
-    T extends "object" ?
-    IsOneToOne extends "one" ? any : any[] :
-    IsOneToOne extends "one" ? string : string[]
-
-// Array if isOneToOne is false, otherwise boolean
-type MaybeArrayBoolean<IsOneToOne extends "one" | "many"> =
-    IsOneToOne extends "one" ? boolean : string[]
-
-type UpdateRelOutput<
-    IsOneToOne extends "one" | "many",
-    RelTypes extends string,
-    FieldName extends string,
-> = (
-        ({ [x in `${FieldName}Connect`]: "Connect" extends RelTypes ? MaybeArray<"id", IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Create`]: "Create" extends RelTypes ? MaybeArray<"object", IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Delete`]: "Delete" extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Disconnect`]: "Disconnect" extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Update`]: "Update" extends RelTypes ? MaybeArray<"object", IsOneToOne> : never })
-    )
 
 /**
  * Shapes relationship connect fields for a GraphQL update input
@@ -268,7 +424,14 @@ export const updateRel = <
                 asArray(originalRelationData as any),
                 asArray(updatedRelationData as any),
                 idField);
-            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+            // Logic is different for one-to-one disconnects, since it expects a boolean instead of an ID. 
+            // And if we already have a connect, we can exclude the disconnect altogether
+            if (isOneToOne === "one") {
+                const hasConnect = typeof result[`${relation}Connect`] === "string";
+                if (!hasConnect) result[`${relation}${t}`] = shaped && shaped[0] ? true : undefined;
+            } else {
+                result[`${relation}${t}`] = shaped;
+            }
         }
         else if (t === "Update") {
             const shaped = findUpdatedItems(

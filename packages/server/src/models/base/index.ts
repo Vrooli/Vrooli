@@ -49,6 +49,7 @@ import { QuizAttemptModel } from "./quizAttempt";
 import { QuizQuestionModel } from "./quizQuestion";
 import { QuizQuestionResponseModel } from "./quizQuestionResponse";
 import { ReactionModel } from "./reaction";
+import { ReactionSummaryModel } from "./reactionSummary";
 import { ReminderModel } from "./reminder";
 import { ReminderItemModel } from "./reminderItem";
 import { ReminderListModel } from "./reminderList";
@@ -141,6 +142,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     QuizQuestion: QuizQuestionModel,
     QuizQuestionResponse: QuizQuestionResponseModel,
     Reaction: ReactionModel,
+    ReactionSummary: ReactionSummaryModel,
     Reminder: ReminderModel,
     ReminderItem: ReminderItemModel,
     ReminderList: ReminderListModel,

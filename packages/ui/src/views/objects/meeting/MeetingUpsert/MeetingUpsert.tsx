@@ -53,7 +53,7 @@ export const MeetingUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="meeting-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

@@ -54,7 +54,7 @@ export const ProjectUpsert = ({
         <MaybeLargeDialog
             display={display}
             id="project-upsert-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
         >
             <TopBar

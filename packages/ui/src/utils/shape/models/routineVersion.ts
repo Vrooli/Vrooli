@@ -6,8 +6,7 @@ import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { RoutineShape, shapeRoutine } from "./routine";
 import { RoutineVersionInputShape, shapeRoutineVersionInput } from "./routineVersionInput";
 import { RoutineVersionOutputShape, shapeRoutineVersionOutput } from "./routineVersionOutput";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, "id" | "language" | "description" | "instructions" | "name"> & {
     __typename?: "RoutineVersionTranslation";

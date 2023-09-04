@@ -108,10 +108,11 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);
 
     // Info for querying full object data
-    const [{ advancedSearchSchema, endpoint }, setSearchParams] = useState<Partial<SearchParams>>({});
+    const [{ advancedSearchSchema, findManyEndpoint, findOneEndpoint }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
         if (createObjectType !== null && createObjectType in searchTypeToParams) setSearchParams(searchTypeToParams[createObjectType]());
-    }, [createObjectType]);
+        else if (currTab.searchType in searchTypeToParams) setSearchParams(searchTypeToParams[currTab.searchType]());
+    }, [createObjectType, currTab.searchType]);
     /**
      * Before closing, remove all URL search params for advanced search
      */
@@ -178,14 +179,17 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, []);
 
     // If item selected from search AND find is 'Object', query for full data
-    const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>({ endpoint });
+    const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>({ endpoint: findOneEndpoint });
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
-        if (!endpoint || find !== "Full") return false;
+        console.log("fetching full data", findOneEndpoint, find); //TODO for popular, won't have findOneEndpoint. Need to try and infer from item. Ideally, should find nice way to do this for all items that don't have a findOneEndpoint (e.g. views)
+        if (!findOneEndpoint || find !== "Full") return false;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
         if (itemData && itemData.id === item.id && (!versionId || (itemData as any).versionId === versionId)) {
+            console.log("full data was already known!", itemData, item);
             onClose(itemData);
         } else {
+            console.log("fetching full data!", item);
             queryingRef.current = true;
             if (versionId) {
                 getItem({ id: versionId, idRoot: item.id });
@@ -195,7 +199,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         }
         // Return false so the list item does not navigate
         return false;
-    }, [endpoint, find, itemData, onClose, getItem]);
+    }, [find, findOneEndpoint, itemData, onClose, getItem]);
 
     const onVersionSelect = useCallback((version: { id: string }) => {
         if (!selectedObject) return;
@@ -209,12 +213,13 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, [onClose, selectedObject, fetchFullData, find]);
 
     useEffect(() => {
-        if (!endpoint) return;
+        if (!findOneEndpoint) return;
         if (itemData && find === "Full" && queryingRef.current) {
+            console.log("full data fetched! closing now...", itemData);
             onClose(itemData);
         }
         queryingRef.current = false;
-    }, [onClose, handleCreateClose, itemData, endpoint, find]);
+    }, [onClose, handleCreateClose, itemData, find, findOneEndpoint]);
 
     /**
      * Handles selecting an object. A few things can happen:
@@ -226,21 +231,34 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
      * which version to link to
      */
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
+        console.log("oninputselect", newValue, find);
         // If value is not an object, return;
         if (!newValue || newValue.__typename === "Shortcut" || newValue.__typename === "Action") return;
         // If object has versions
         if ((newValue as any).versions && (newValue as any).versions.length > 0) {
             // If there is only one version, select it
             if ((newValue as any).versions.length === 1) {
-                // Select and close dialog
-                onClose(newValue as any, (newValue as any).versions[0].id);
+                // If the full data is requested, fetch the full data for the selected version
+                if (find === "Full") {
+                    fetchFullData(newValue as any, (newValue as any).versions[0].id);
+                }
+                // Otherwise, select and close dialog
+                else {
+                    onClose(newValue as any, (newValue as any).versions[0].id);
+                }
             }
             // Otherwise, set selected object so we can choose which version to link to
             setSelectedObject(newValue as any);
         }
-        // Select and close dialog
-        onClose(newValue as any);
-    }, [onClose]);
+        // Otherwise, if the full data
+        else if (find === "Full") {
+            fetchFullData(newValue as any);
+        }
+        // Otherwise, select and close dialog
+        else {
+            onClose(newValue as any);
+        }
+    }, [fetchFullData, find, onClose]);
 
     const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() => {
         if (!createObjectType) return null;

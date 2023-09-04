@@ -1,7 +1,6 @@
 import { UserTranslation, UserTranslationCreateInput, UserTranslationUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
-import { createPrims, shapeUpdate } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, shapeUpdate, updateTranslationPrims } from "./tools";
 
 export type UserTranslationShape = Pick<UserTranslation, "id" | "language" | "bio"> & {
     __typename?: "UserTranslation";

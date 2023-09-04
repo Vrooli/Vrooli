@@ -21,6 +21,10 @@ export const chatMessage_findMany = {
         "profileImage": true
       },
       "score": true,
+      "reactionSummaries": {
+        "emoji": true,
+        "count": true
+      },
       "reportsCount": true,
       "you": {
         "canDelete": true,

@@ -4,11 +4,9 @@ import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
-import { useObjectActions } from "hooks/useObjectActions";
 import usePress from "hooks/usePress";
 import { useWindowSize } from "hooks/useWindowSize";
 import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
@@ -17,11 +15,11 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { SvgComponent } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
+import { fontSizeToPixels } from "utils/display/textTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectEditUrl, getObjectUrl } from "utils/navigation/openObject";
 import { TagList } from "../TagList/TagList";
@@ -46,17 +44,17 @@ export function ObjectListItemBase<T extends ListObject>({
     canNavigate,
     belowSubtitle,
     belowTags,
+    handleContextMenu,
     hideUpdateButton,
     loading,
     data,
-    objectType,
     onClick,
     subtitleOverride,
     titleOverride,
     toTheRight,
 }: ObjectListItemProps<T>) {
     const session = useContext(SessionContext);
-    const { breakpoints, palette } = useTheme();
+    const { breakpoints, palette, typography } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
@@ -67,15 +65,8 @@ export function ObjectListItemBase<T extends ListObject>({
 
     const profileColors = useMemo(() => placeholderColor(), []);
     const { canBookmark, canComment, canUpdate, canReact, isBookmarked, reaction } = useMemo(() => getYou(data), [data]);
-    const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
+    const { subtitle, title, adornments } = useMemo(() => getDisplay(data, getUserLanguages(session), palette), [data, session]);
     const { score } = useMemo(() => getCounts(data), [data]);
-
-    // Context menu
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const handleContextMenu = useCallback((target: EventTarget) => {
-        setAnchorEl(target as HTMLElement);
-    }, []);
-    const closeContextMenu = useCallback(() => setAnchorEl(null), []);
 
     const link = useMemo(() => (
         data &&
@@ -120,9 +111,9 @@ export function ObjectListItemBase<T extends ListObject>({
     }, [canNavigate, data, editUrl, setLocation]);
 
     const pressEvents = usePress({
-        onLongPress: handleContextMenu,
+        onLongPress: (target) => { handleContextMenu(target, data); },
         onClick: handleClick,
-        onRightClick: handleContextMenu,
+        onRightClick: (target) => { handleContextMenu(target, data); },
     });
 
     /**
@@ -269,24 +260,9 @@ export function ObjectListItemBase<T extends ListObject>({
         );
     }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
-    const actionData = useObjectActions({
-        canNavigate,
-        object,
-        objectType,
-        setLocation,
-        setObject,
-    });
-
+    const titleId = `${LIST_PREFIX}title-stack-${id}`
     return (
         <>
-            {/* Context menu */}
-            <ObjectActionMenu
-                actionData={actionData}
-                anchorEl={anchorEl}
-                exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
-                object={object}
-                onClose={closeContextMenu}
-            />
             {/* List item */}
             <ListItem
                 id={`${LIST_PREFIX}${id}`}
@@ -317,15 +293,20 @@ export function ObjectListItemBase<T extends ListObject>({
                     {/* Title */}
                     {loading ? <TextLoading /> :
                         (
-                            <Stack id={`${LIST_PREFIX}title-stack-${id}`} direction="row" spacing={1}>
-                                <ListItemText
-                                    primary={titleOverride ?? title}
-                                    sx={{
-                                        ...multiLineEllipsis(1),
-                                        lineBreak: "anywhere",
-                                        pointerEvents: "none",
-                                    }}
-                                />
+                            <Stack id={titleId} direction="row" spacing={0.5} sx={{
+                                lineBreak: "auto",
+                                wordBreak: "break-word",
+                                pointerEvents: "none",
+                            }}>
+                                <ListItemText primary={titleOverride ?? title} sx={{ display: "contents" }} />
+                                {adornments.map((Adornment) => (
+                                    <Box sx={{
+                                        width: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
+                                        height: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
+                                    }}>
+                                        {Adornment}
+                                    </Box>
+                                ))}
                             </Stack>
                         )
                     }

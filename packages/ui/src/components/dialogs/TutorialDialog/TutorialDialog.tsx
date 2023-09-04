@@ -30,7 +30,7 @@ const sections: TutorialSection[] = [
         title: "Welcome to Vrooli!",
         steps: [
             {
-                text: "This tutorial will show you how to use Vrooli to assist your personal and professional life.\n\nIt will only take a few minutes, and you can skip it at any time.",
+                text: "This tutorial will show you how to use Vrooli to assist your personal and professional life.\n\nIt will only take a few minutes, and you can skip it at any time.\n\nTo open the tutorial again, type **tutorial** in the Home page's search bar.",
                 page: LINKS.Home,
             },
         ],

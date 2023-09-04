@@ -117,8 +117,8 @@ export const versionsCheck = async ({
         // Updating versions cannot have the same label as existing versions
         const updateLabels = update.filter(x => versionIds.includes(x.id)).map(x => x.versionLabel);
         // We must filter out updating labels from the existing labels, to support swapping
-        const verionLabelsWithoutUpdate = root.versions.filter(x => !deleteIds.includes(x.id) && !updateIds.includes(x.id)).map(x => x.versionLabel);
-        if (updateLabels.some(x => verionLabelsWithoutUpdate.includes(x))) {
+        const versionLabelsWithoutUpdate = root.versions.filter(x => !deleteIds.includes(x.id) && !updateIds.includes(x.id)).map(x => x.versionLabel);
+        if (updateLabels.some(x => versionLabelsWithoutUpdate.includes(x))) {
             throw new CustomError("0380", "ErrorUnknown", userData.languages);
         }
         // Check 3

@@ -263,7 +263,7 @@ const main = async () => {
     // Write the OpenAPI schema to a file
     fs.writeFile(path.resolve(dirname, "../../../docs/docs/assets/openapi.json"), data, (err) => {
         if (err) throw err;
-        console.log("The OpenAPI schema has been saved!");
+        console.info("The OpenAPI schema has been saved!");
     });
 };
 

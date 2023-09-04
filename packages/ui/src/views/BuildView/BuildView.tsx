@@ -991,7 +991,7 @@ export const BuildView = ({
         <MaybeLargeDialog
             display={display}
             id="build-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={handleClose}
             sxs={{ paper: { display: "contents" } }}
         >

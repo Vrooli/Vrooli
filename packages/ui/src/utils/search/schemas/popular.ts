@@ -9,4 +9,4 @@ export const popularSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const popularSearchParams = () => toParams(popularSearchSchema(), endpointGetFeedPopular, PopularSortBy, PopularSortBy.BookmarksDesc);
+export const popularSearchParams = () => toParams(popularSearchSchema(), endpointGetFeedPopular, undefined, PopularSortBy, PopularSortBy.BookmarksDesc);

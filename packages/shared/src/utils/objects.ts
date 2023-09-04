@@ -53,7 +53,6 @@ export const setDotNotationValue = <T extends Record<string, any>>(
     const lastKey = keys.pop() as string;
     // Use the other keys to get the target object
     const lastObj = keys.reduce((obj: any, key) => {
-        console.log("translatedrichinput in handlechange setdotnotationvalue loop", key, obj);
         // Check if the key is an array index
         if (/^\d+$/.test(key)) {
             const index = parseInt(key, 10);

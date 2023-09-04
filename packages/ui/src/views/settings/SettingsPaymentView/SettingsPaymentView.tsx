@@ -6,6 +6,7 @@ import { useStripe } from "hooks/useStripe";
 import { CancelIcon, OpenInNewIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
+import { pagePaddingBottom } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { SettingsPaymentViewProps } from "../types";
 
@@ -32,7 +33,7 @@ export const SettingsPaymentView = ({
                 onClose={onClose}
                 title={t("Payment", { count: 1 })}
             />
-            <Stack direction="row" mt={2}>
+            <Stack direction="row" mt={2} sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto">
                     <Typography variant="h6" textAlign="center">{t(currentUser.hasPremium ? "AlreadyHavePremium" : "DoNotHavePremium")}</Typography>

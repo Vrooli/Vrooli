@@ -1,7 +1,6 @@
 import { PullRequest, PullRequestCreateInput, PullRequestTranslation, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
-import { createPrims, shapeUpdate } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, shapeUpdate, updateTranslationPrims } from "./tools";
 
 export type PullRequestTranslationShape = Pick<PullRequestTranslation, "id" | "language" | "text"> & {
     __typename?: "PullRequestTranslation";

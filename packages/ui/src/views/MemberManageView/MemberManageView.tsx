@@ -48,7 +48,7 @@ export const MemberManageView = ({
         <MaybeLargeDialog
             display={display}
             id="member-manage-dialog"
-            isOpen={isOpen ?? false}
+            isOpen={isOpen}
             onClose={onClose}
             sxs={{
                 paper: {

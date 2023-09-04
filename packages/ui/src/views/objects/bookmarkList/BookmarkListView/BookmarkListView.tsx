@@ -6,6 +6,7 @@ import { ListContainer } from "components/containers/ListContainer/ListContainer
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SiteSearchBar } from "components/inputs/search";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
+import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -20,6 +21,7 @@ import { listToAutocomplete } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
+import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
@@ -40,17 +42,33 @@ export const BookmarkListView = ({
 
     const { label } = useMemo(() => ({ label: existing?.label ?? "" }), [existing]);
 
-    const actionData = useObjectActions({
-        object: existing,
-        objectType: "BookmarkList",
-        setLocation,
-        setObject: setBookmarkList,
-    });
-
     const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
     useEffect(() => {
         setBookmarks(existing?.bookmarks ?? []);
     }, [existing?.bookmarks]);
+
+    const onAction = useCallback((action: keyof ObjectListActions<Bookmark>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const id = data[0] as string;
+                setBookmarks(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
+                break;
+            }
+            case "Updated": {
+                const updated = data[0] as Bookmark;
+                setBookmarks(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
+                break;
+            }
+        }
+    }, []);
+
+    const actionData = useObjectActions({
+        object: existing,
+        objectType: "BookmarkList",
+        onAction,
+        setLocation,
+        setObject: setBookmarkList,
+    });
 
     const [createBookmark, { loading: isCreating, errors: createErrors }] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
     const addNewBookmark = useCallback(async (to: any) => {
@@ -142,6 +160,7 @@ export const BookmarkListView = ({
                         items={bookmarks}
                         keyPrefix="bookmark-list-item"
                         loading={isLoading}
+                        onAction={onAction}
                     />
                 </ListContainer>
             </>
