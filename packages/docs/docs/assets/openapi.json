@@ -6871,6 +6871,22 @@
             ],
             "title": "ChatCreateInput.labelsCreate"
           },
+          "messagesCreate": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ChatMessageCreateInput"
+                },
+                "title": "ChatCreateInput.messagesCreate",
+                "type": "array"
+              },
+              {
+                "title": "ChatCreateInput.messagesCreate",
+                "nullable": true
+              }
+            ],
+            "title": "ChatCreateInput.messagesCreate"
+          },
           "openToAnyoneWithInvite": {
             "title": "ChatCreateInput.openToAnyoneWithInvite",
             "nullable": true,
@@ -8408,6 +8424,54 @@
               }
             ],
             "title": "ChatUpdateInput.labelsDisconnect"
+          },
+          "messagesCreate": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ChatMessageCreateInput"
+                },
+                "title": "ChatUpdateInput.messagesCreate",
+                "type": "array"
+              },
+              {
+                "title": "ChatUpdateInput.messagesCreate",
+                "nullable": true
+              }
+            ],
+            "title": "ChatUpdateInput.messagesCreate"
+          },
+          "messagesDelete": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "title": "ChatUpdateInput.messagesDelete",
+                "type": "array"
+              },
+              {
+                "title": "ChatUpdateInput.messagesDelete",
+                "nullable": true
+              }
+            ],
+            "title": "ChatUpdateInput.messagesDelete"
+          },
+          "messagesUpdate": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ChatMessageUpdateInput"
+                },
+                "title": "ChatUpdateInput.messagesUpdate",
+                "type": "array"
+              },
+              {
+                "title": "ChatUpdateInput.messagesUpdate",
+                "nullable": true
+              }
+            ],
+            "title": "ChatUpdateInput.messagesUpdate"
           },
           "openToAnyoneWithInvite": {
             "title": "ChatUpdateInput.openToAnyoneWithInvite",

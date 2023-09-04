@@ -296,13 +296,13 @@ export class SpoilerNode extends ElementNode {
         throw new Error("Invalid serialized spoiler node.");
     }
 
-    exportJSON(): SerializedSpoilerNode {
+    exportJSON(): any {//SerializedSpoilerNode { TODO
         const childrenJSON = this.getChildren().map(child => child.exportJSON());
         return {
             type: "spoiler",
             version: 1,
             children: childrenJSON,
-        } as const;
+        } as any; //const;
     }
 }
 export function $createSpoilerNode(): SpoilerNode {

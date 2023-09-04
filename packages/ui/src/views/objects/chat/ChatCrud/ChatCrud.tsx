@@ -249,25 +249,21 @@ const ChatForm = ({
             PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
             return;
         }
-        console.log("SUBMITTING CHATFORM - original:", existing, isCreate);
-        console.log("SUBMITTING CHATFORM - transformed:", transformChatValues(updatedChat ?? values, existing, isCreate));
+        // Filters out messages that aren't yours
+        const withoutOtherMessages = (chat: ChatShape) => ({
+            ...chat,
+            messages: chat.messages.filter(m => m.user.id === getCurrentUser(session).id),
+        });
         fetchLazyWrapper<ChatCreateInput | ChatUpdateInput, Chat>({
             fetch,
-            inputs: transformChatValues(updatedChat ?? values, existing, isCreate),
+            inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values), withoutOtherMessages(existing), isCreate),
             onSuccess: (data) => {
                 handleUpdate(data);
                 setMessage("");
             }, // Most forms will use handleComplete, but we may still be chatting. So don't close the form.
             onCompleted: () => { props.setSubmitting(false); },
         });
-    }, [disabled, existing, fetch, handleUpdate, isCreate, props, values]);
-
-    // TODO create when either first message is sent, or when title, description, etc. change
-    // // Unlike other forms, we'll create the object right away
-    // useEffect(() => {
-    //     if (!isCreate || !isOpen) return;
-    //     // onSubmit();
-    // }, [isCreate, isOpen, onSubmit]);
+    }, [disabled, existing, fetch, handleUpdate, isCreate, props, session, values]);
 
     // Handle websocket for chat messages (e.g. new message, new reactions, etc.)
     useEffect(() => {

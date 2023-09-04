@@ -112,7 +112,7 @@ export const RichInputBase = ({
         }
     }, [onChangeDebounced, addToStack]);
 
-    const [isMarkdownOn, setIsMarkdownOn] = useState(getCookieShowMarkdown() ?? true); //TODO default to false once lexical view is better
+    const [isMarkdownOn, setIsMarkdownOn] = useState(getCookieShowMarkdown() ?? false);
     const toggleMarkdown = useCallback(() => {
         setIsMarkdownOn(!isMarkdownOn);
         setCookieShowMarkdown(!isMarkdownOn);
