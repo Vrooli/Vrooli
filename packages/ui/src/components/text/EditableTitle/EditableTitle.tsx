@@ -9,18 +9,19 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { DeleteIcon, EditIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FormContainer } from "styles";
 import { getTranslationData } from "utils/display/translationTools";
 import { Title } from "../Title/Title";
 import { TitleProps } from "../types";
 
 export interface EditableTitleProps extends TitleProps {
+    DialogContentForm?: (formikContext: ReturnType<typeof useFormikContext>) => React.ReactNode;
     handleDelete?: () => unknown;
     isDeletable?: boolean;
     isEditable?: boolean;
     isTitleTranslated?: boolean;
     isSubtitleTranslated?: boolean;
     language?: string;
+    onSubmit?: () => unknown;
     subtitleField?: string;
     subtitleLabel?: string;
     titleField: string;
@@ -29,12 +30,14 @@ export interface EditableTitleProps extends TitleProps {
 }
 
 export const EditableTitle = ({
+    DialogContentForm,
     handleDelete,
     isDeletable = false,
     isEditable = true,
     isTitleTranslated = true,
     isSubtitleTranslated = true,
     language,
+    onSubmit,
     subtitleField,
     subtitleLabel,
     titleField,
@@ -71,16 +74,17 @@ export const EditableTitle = ({
         subtitle: string;
     }>({ title: "", subtitle: "" });
 
-    const handleOpenDialog = () => {
+    const handleOpenDialog = useCallback(() => {
         setInitialDialogValues({
             title: getFieldValue(titleField, isTitleTranslated),
             subtitle: subtitleField ? getFieldValue(subtitleField, isSubtitleTranslated) : "",
         });
         setIsDialogOpen(true);
-    };
+    }, [getFieldValue, isSubtitleTranslated, isTitleTranslated, subtitleField, titleField]);
 
     const handleSubmit = () => {
         setIsDialogOpen(false);
+        onSubmit?.();
     };
 
     const mergeTranslations = (field: string, value: string, currentTranslations) => {
@@ -158,41 +162,45 @@ export const EditableTitle = ({
                 isOpen={isDialogOpen}
                 onClose={handleCancel}
             >
-                <BaseForm
-                    dirty={formik.dirty}
-                    display="dialog"
-                    style={{
-                        width: "min(500px, 100vw)",
-                        paddingBottom: "16px",
-                    }}
-                >
-                    <FormContainer>
-                        {(language && isTitleTranslated) ? <TranslatedTextField
-                            language={language}
-                            name={titleField}
-                            label={titleLabel || t("Name")}
-                        /> : <Field
-                            fullWidth
-                            name={titleField}
-                            label={titleLabel || t("Name")}
-                            as={TextField}
-                        />}
-                        {(language && isSubtitleTranslated && subtitleField) ? <TranslatedRichInput
-                            language={language}
-                            name={subtitleField}
-                            maxChars={1024}
-                            minRows={4}
-                            maxRows={8}
-                            placeholder={subtitleLabel || t("Description")}
-                        /> : subtitleField ? <RichInput
-                            name={subtitleField}
-                            maxChars={1024}
-                            minRows={4}
-                            maxRows={8}
-                            placeholder={subtitleLabel || t("Description")}
-                        /> : null}
-                    </FormContainer>
-                </BaseForm>
+                {DialogContentForm ? (
+                    DialogContentForm(formik)
+                ) : (
+                    <>
+                        <BaseForm
+                            dirty={formik.dirty}
+                            display="dialog"
+                            style={{
+                                width: "min(500px, 100vw)",
+                                paddingBottom: "16px",
+                            }}
+                        >
+                            {(language && isTitleTranslated) ? <TranslatedTextField
+                                language={language}
+                                name={titleField}
+                                label={titleLabel || t("Name")}
+                            /> : <Field
+                                fullWidth
+                                name={titleField}
+                                label={titleLabel || t("Name")}
+                                as={TextField}
+                            />}
+                            {(language && isSubtitleTranslated && subtitleField) ? <TranslatedRichInput
+                                language={language}
+                                name={subtitleField}
+                                maxChars={1024}
+                                minRows={4}
+                                maxRows={8}
+                                placeholder={subtitleLabel || t("Description")}
+                            /> : subtitleField ? <RichInput
+                                name={subtitleField}
+                                maxChars={1024}
+                                minRows={4}
+                                maxRows={8}
+                                placeholder={subtitleLabel || t("Description")}
+                            /> : null}
+                        </BaseForm>
+                    </>
+                )}
                 <BottomActionsButtons
                     display="dialog"
                     errors={validationEnabled ? formik.errors : {}}

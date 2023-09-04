@@ -7300,6 +7300,13 @@
             "title": "ChatMessage.id",
             "type": "string"
           },
+          "reactionSummaries": {
+            "items": {
+              "$ref": "#/components/schemas/ReactionSummary"
+            },
+            "title": "ChatMessage.reactionSummaries",
+            "type": "array"
+          },
           "reports": {
             "items": {
               "$ref": "#/components/schemas/Report"
@@ -7344,6 +7351,7 @@
           "chat",
           "created_at",
           "id",
+          "reactionSummaries",
           "reports",
           "reportsCount",
           "score",
@@ -29430,6 +29438,33 @@
         "title": "ReactionSearchResult",
         "type": "object"
       },
+      "ReactionSummary": {
+        "properties": {
+          "__typename": {
+            "title": "ReactionSummary.__typename",
+            "enum": [
+              "ReactionSummary"
+            ],
+            "type": "string"
+          },
+          "count": {
+            "title": "ReactionSummary.count",
+            "type": "number"
+          },
+          "emoji": {
+            "title": "ReactionSummary.emoji",
+            "type": "string"
+          }
+        },
+        "required": [
+          "__typename",
+          "count",
+          "emoji"
+        ],
+        "additionalProperties": false,
+        "title": "ReactionSummary",
+        "type": "object"
+      },
       "ReactionTo": {
         "anyOf": [
           {
@@ -30164,6 +30199,24 @@
               }
             ],
             "title": "ReminderUpdateInput.reminderItemsUpdate"
+          },
+          "reminderListConnect": {
+            "title": "ReminderUpdateInput.reminderListConnect",
+            "nullable": true,
+            "type": "string"
+          },
+          "reminderListCreate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReminderListCreateInput",
+                "title": "ReminderUpdateInput.reminderListCreate"
+              },
+              {
+                "title": "ReminderUpdateInput.reminderListCreate",
+                "nullable": true
+              }
+            ],
+            "title": "ReminderUpdateInput.reminderListCreate"
           }
         },
         "required": [

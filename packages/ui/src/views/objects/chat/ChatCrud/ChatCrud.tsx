@@ -1,15 +1,21 @@
 import { Chat, ChatCreateInput, ChatInvite, ChatMessage, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
-import { Box, IconButton, useTheme } from "@mui/material";
+import { Box, Checkbox, IconButton, InputAdornment, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { RichInput } from "components/inputs/RichInput/RichInput";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Resizable, useDimensionContext } from "components/Resizable/Resizable";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts/SessionContext";
-import { Formik } from "formik";
+import { Field, Formik } from "formik";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ChatFormProps } from "forms/types";
 import { useDeleter } from "hooks/useDeleter";
 import { useFormDialog } from "hooks/useFormDialog";
@@ -18,10 +24,11 @@ import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { TFunction } from "i18next";
-import { ListIcon, SendIcon } from "icons";
-import { FormEvent, useCallback, useContext, useEffect, useMemo } from "react";
+import { CopyIcon, ListIcon, SendIcon } from "icons";
+import { Dispatch, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { FormContainer, FormSection, pagePaddingBottom } from "styles";
 import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYou } from "utils/display/listTools";
@@ -32,6 +39,8 @@ import { noopSubmit } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { updateArray, validateAndGetYupErrors } from "utils/shape/general";
 import { ChatShape, shapeChat } from "utils/shape/models/chat";
+import { ChatInviteShape } from "utils/shape/models/chatInvite";
+import { ViewDisplayType } from "views/types";
 import { ChatCrudProps } from "../types";
 
 export const chatInitialValues = (
@@ -44,7 +53,7 @@ export const chatInitialValues = (
     const messages = existing?.messages ?? [];
     // If chatting with Valyxa, add start message so that the user 
     // sees something while the chat is loading
-    if (exists(existing) && messages.length === 0 && existing.invites?.length === 1 && existing.invites?.some((invite: ChatShape["invites"][0]) => invite.user.id === VALYXA_ID)) {
+    if (exists(existing) && messages.length === 0 && existing.invites?.length === 1 && existing.invites?.some((invite: ChatInviteShape) => invite.user.id === VALYXA_ID)) {
         const startText = t(task ?? "start", { lng: language, ns: "tasks", defaultValue: "Hello👋, I'm Valyxa! How can I assist you?" });
         messages.push({
             __typename: "ChatMessage" as const,
@@ -55,6 +64,7 @@ export const chatInitialValues = (
                 __typename: "Chat" as const,
                 id: existing.id,
             } as any,
+            reactionSummaries: [],
             translations: [{
                 __typename: "ChatMessageTranslation" as const,
                 id: DUMMY_ID,
@@ -78,7 +88,7 @@ export const chatInitialValues = (
             },
         } as any);
     }
-    console.log('initializing chat values', messages)
+    console.log("initializing chat values", messages);
     return {
         __typename: "Chat" as const,
         id: uuid(),
@@ -94,7 +104,7 @@ export const chatInitialValues = (
             __typename: "ChatTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
-            name: "",
+            name: t("NewChat"),
             description: "",
         }]),
     };
@@ -127,17 +137,23 @@ export const assistantChatInfo: ChatCrudProps["overrideObject"] = {
 
 const NewMessageContainer = ({
     chat,
+    display,
+    message,
     handleSubmit,
+    setMessage,
 }: {
     chat: ChatShape,
-    handleSubmit: (e?: FormEvent<HTMLFormElement> | undefined) => unknown,
+    display: ViewDisplayType,
+    message: string,
+    setMessage: Dispatch<SetStateAction<string>>,
+    handleSubmit: (text: string) => unknown,
 }) => {
     const session = useContext(SessionContext);
     const dimensions = useDimensionContext();
     console.log("newmessagecontainer dimensions", dimensions);
 
     return (
-        <RichInput
+        <RichInputBase
             actionButtons={[{
                 Icon: SendIcon,
                 onClick: () => {
@@ -145,7 +161,7 @@ const NewMessageContainer = ({
                         PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
                         return;
                     }
-                    handleSubmit();
+                    handleSubmit(message);
                 },
             }]}
             disabled={!chat}
@@ -167,17 +183,25 @@ const NewMessageContainer = ({
             maxChars={1500}
             minRows={4}
             maxRows={15}
+            onChange={setMessage}
             name="newMessage"
             sxs={{
-                root: { height: dimensions.height, width: "100%" },
+                root: {
+                    height: dimensions.height,
+                    width: "100%",
+                    // When BottomNav is shown, need to make room for it
+                    paddingBottom: { xs: display === "page" ? pagePaddingBottom : 0, md: 0 },
+                },
                 bar: { borderRadius: 0 },
                 textArea: { paddingRight: 4, border: "none", height: "100%" },
             }}
+            value={message}
         />
     );
 };
 
 const ChatForm = ({
+    context,
     disabled,
     dirty,
     existing,
@@ -197,6 +221,8 @@ const ChatForm = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+
+    const [message, setMessage] = useState<string>(context ?? "");
 
     const {
         fetch,
@@ -218,18 +244,23 @@ const ChatForm = ({
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useCallback(() => {
+    const onSubmit = useCallback((updatedChat?: ChatShape) => {
         if (disabled) {
             PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
             return;
         }
+        console.log("SUBMITTING CHATFORM - original:", existing, isCreate);
+        console.log("SUBMITTING CHATFORM - transformed:", transformChatValues(updatedChat ?? values, existing, isCreate));
         fetchLazyWrapper<ChatCreateInput | ChatUpdateInput, Chat>({
             fetch,
-            inputs: transformChatValues(values, existing, isCreate),
-            onSuccess: (data) => { handleCompleted(data); },
+            inputs: transformChatValues(updatedChat ?? values, existing, isCreate),
+            onSuccess: (data) => {
+                handleUpdate(data);
+                setMessage("");
+            }, // Most forms will use handleComplete, but we may still be chatting. So don't close the form.
             onCompleted: () => { props.setSubmitting(false); },
         });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
+    }, [disabled, existing, fetch, handleUpdate, isCreate, props, values]);
 
     // TODO create when either first message is sent, or when title, description, etc. change
     // // Unlike other forms, we'll create the object right away
@@ -296,6 +327,45 @@ const ChatForm = ({
         validationSchema: chatTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
+    const addMessage = useCallback((text: string) => {
+        const newMessage: ChatMessage & { isUnsent?: boolean } = {
+            __typename: "ChatMessage" as const,
+            id: uuid(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            isUnsent: true,
+            chat: {
+                __typename: "Chat" as const,
+                id: existing.id,
+            } as any,
+            translations: [{
+                __typename: "ChatMessageTranslation" as const,
+                id: DUMMY_ID,
+                language,
+                text,
+            }],
+            user: {
+                __typename: "User" as const,
+                id: getCurrentUser(session).id,
+                isBot: false,
+                name: getCurrentUser(session).name,
+            },
+            you: {
+                canDelete: true,
+                canUpdate: true,
+                canReply: true,
+                canReport: true,
+                canReact: true,
+                reaction: null,
+            },
+        } as any;
+        console.log("updating messages", values.messages, newMessage);
+        onSubmit({
+            ...values,
+            messages: [...values.messages, newMessage],
+        });
+    }, [existing.id, language, onSubmit, session, values]);
+
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
     const copyLink = useCallback(() => {
         navigator.clipboard.writeText(url);
@@ -319,6 +389,7 @@ const ChatForm = ({
 
     const {
         handleDelete,
+        DeleteDialogComponent,
     } = useDeleter({
         objectId: existing?.id,
         objectName: getDisplay(existing).title,
@@ -327,8 +398,8 @@ const ChatForm = ({
     });
 
     return (
-        // {object?.id && DeleteDialogComponent}
         <>
+            {existing?.id && DeleteDialogComponent}
             <MaybeLargeDialog
                 display={display}
                 id="chat-dialog"
@@ -337,19 +408,6 @@ const ChatForm = ({
             >
                 <TopBar
                     display={display}
-                    // onClose={() => {
-                    //     if (formik.values.editingMessage.trim().length > 0) {
-                    //         PubSub.get().publishAlertDialog({
-                    //             messageKey: "UnsavedChangesBeforeCancel",
-                    //             buttons: [
-                    //                 { labelKey: "Yes", onClick: () => { tryOnClose(onClose, setLocation); } },
-                    //                 { labelKey: "No" },
-                    //             ],
-                    //         });
-                    //     } else {
-                    //         tryOnClose(onClose, setLocation);
-                    //     }
-                    // }}
                     startComponent={<IconButton
                         aria-label="Open chat menu"
                         onClick={openSideMenu}
@@ -368,11 +426,106 @@ const ChatForm = ({
                         isDeletable={!(isCreate || disabled)}
                         isEditable={!disabled}
                         language={language}
+                        onSubmit={onSubmit}
                         titleField="name"
                         subtitleField="description"
                         validationEnabled={false}
                         variant="subheader"
                         sxs={{ stack: { padding: 0 } }}
+                        DialogContentForm={() => (
+                            <>
+                                <BaseForm
+                                    dirty={dirty}
+                                    display="dialog"
+                                    style={{
+                                        width: "min(500px, 100vw)",
+                                        paddingBottom: "16px",
+                                    }}
+                                >
+                                    <FormContainer>
+                                        {/* TODO relationshiplist should be for connecting organization and inviting users. Can invite non-members even if organization specified, but the search should show members first */}
+                                        <RelationshipList
+                                            isEditing={true}
+                                            objectType={"Chat"}
+                                            sx={{ marginBottom: 4 }}
+                                        />
+                                        <FormSection sx={{
+                                            overflowX: "hidden",
+                                        }}>
+                                            <LanguageInput
+                                                currentLanguage={language}
+                                                handleAdd={handleAddLanguage}
+                                                handleDelete={handleDeleteLanguage}
+                                                handleCurrent={setLanguage}
+                                                languages={languages}
+                                            />
+                                            <TranslatedTextField
+                                                fullWidth
+                                                label={t("Name")}
+                                                language={language}
+                                                name="name"
+                                            />
+                                            <TranslatedRichInput
+                                                language={language}
+                                                maxChars={2048}
+                                                minRows={4}
+                                                name="description"
+                                                placeholder={t("Description")}
+                                            />
+                                        </FormSection>
+                                        {/* Invite link */}
+                                        <Stack direction="column" spacing={1} mb={6}>
+                                            <Stack direction="row" sx={{ alignItems: "center" }}>
+                                                <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
+                                                <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
+                                            </Stack>
+                                            <Stack direction="row" spacing={0}>
+                                                {/* Enable/disable */}
+                                                {/* <Checkbox
+                                        id="open-to-anyone"
+                                        size="small"
+                                        name='openToAnyoneWithInvite'
+                                        color='secondary'
+            
+                                    /> */}
+                                                <Field
+                                                    name="openToAnyoneWithInvite"
+                                                    type="checkbox"
+                                                    as={Checkbox}
+                                                    sx={{
+                                                        "&.MuiCheckbox-root": {
+                                                            color: palette.secondary.main,
+                                                        },
+                                                    }}
+                                                />
+                                                {/* Show link with copy adornment*/}
+                                                <TextField
+                                                    disabled
+                                                    fullWidth
+                                                    id="invite-link"
+                                                    label={t("InviteLink")}
+                                                    variant="outlined"
+                                                    value={url}
+                                                    InputProps={{
+                                                        endAdornment: (
+                                                            <InputAdornment position="end">
+                                                                <IconButton
+                                                                    aria-label={t("Copy")}
+                                                                    onClick={copyLink}
+                                                                    size="small"
+                                                                >
+                                                                    <CopyIcon />
+                                                                </IconButton>
+                                                            </InputAdornment>
+                                                        ),
+                                                    }}
+                                                />
+                                            </Stack>
+                                        </Stack>
+                                    </FormContainer>
+                                </BaseForm>
+                            </>
+                        )}
                     />}
                 />
                 <Box sx={{
@@ -412,7 +565,13 @@ const ChatForm = ({
                         background: palette.primary.dark,
                         color: palette.primary.contrastText,
                     }}>
-                    <NewMessageContainer chat={existing} handleSubmit={props.handleSubmit} />
+                    <NewMessageContainer
+                        chat={existing}
+                        display={display}
+                        message={message}
+                        handleSubmit={addMessage}
+                        setMessage={setMessage}
+                    />
                 </Resizable>
             </MaybeLargeDialog>
             <ChatSideMenu />
@@ -520,108 +679,3 @@ export const ChatCrud = ({
 //     }}
 // // validate={async (values) => await validateChatValues(values, existing)}
 // ></Formik>
-
-
-//TODO
-// return (
-//     <>
-//         <BaseForm
-//             dirty={dirty}
-//             display={display}
-//             isLoading={isLoading}
-//             maxWidth={700}
-//             ref={ref}
-//         >
-//             <FormContainer>
-//                 {/* TODO relationshiplist should be for connecting organization and inviting users. Can invite non-members even if organization specified, but the search should show members first */}
-//                 <RelationshipList
-//                     isEditing={true}
-//                     objectType={"Chat"}
-//                     sx={{ marginBottom: 4 }}
-//                 />
-//                 <FormSection sx={{
-//                     overflowX: "hidden",
-//                 }}>
-//                     <LanguageInput
-//                         currentLanguage={language}
-//                         handleAdd={handleAddLanguage}
-//                         handleDelete={handleDeleteLanguage}
-//                         handleCurrent={setLanguage}
-//                         languages={languages}
-//                     />
-//                     <Field
-//                         fullWidth
-//                         name="name"
-//                         label={t("Name")}
-//                         as={TextField}
-//                     />
-//                     <TranslatedRichInput
-//                         language={language}
-//                         maxChars={2048}
-//                         minRows={4}
-//                         name="description"
-//                         placeholder={t("Description")}
-//                     />
-//                 </FormSection>
-//                 {/* Invite link */}
-//                 <Stack direction="column" spacing={1}>
-//                     <Stack direction="row" sx={{ alignItems: "center" }}>
-//                         <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
-//                         <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
-//                     </Stack>
-//                     <Stack direction="row" spacing={0}>
-//                         {/* Enable/disable */}
-//                         {/* <Checkbox
-//                             id="open-to-anyone"
-//                             size="small"
-//                             name='openToAnyoneWithInvite'
-//                             color='secondary'
-
-//                         /> */}
-//                         <Field
-//                             name="openToAnyoneWithInvite"
-//                             type="checkbox"
-//                             as={Checkbox}
-//                             sx={{
-//                                 "&.MuiCheckbox-root": {
-//                                     color: palette.secondary.main,
-//                                 },
-//                             }}
-//                         />
-//                         {/* Show link with copy adornment*/}
-//                         <TextField
-//                             disabled
-//                             fullWidth
-//                             id="invite-link"
-//                             label={t("InviteLink")}
-//                             variant="outlined"
-//                             value={url}
-//                             InputProps={{
-//                                 endAdornment: (
-//                                     <InputAdornment position="end">
-//                                         <IconButton
-//                                             aria-label={t("Copy")}
-//                                             onClick={copyLink}
-//                                             size="small"
-//                                         >
-//                                             <CopyIcon />
-//                                         </IconButton>
-//                                     </InputAdornment>
-//                                 ),
-//                             }}
-//                         />
-//                     </Stack>
-//                 </Stack>
-//             </FormContainer>
-//         </BaseForm>
-//         <BottomActionsButtons
-//             display={display}
-//             errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-//             isCreate={isCreate}
-//             loading={props.isSubmitting}
-//             onCancel={onCancel}
-//             onSetSubmitting={props.setSubmitting}
-//             onSubmit={props.handleSubmit}
-//         />
-//     </>
-// );

@@ -99,6 +99,7 @@ export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
 export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
 export type BotFormProps = BaseObjectFormProps<BotShape>
 export type ChatFormProps = ImprovedFormProps<Chat, ChatShape> & {
+    context?: string | null | undefined;
     task?: AssistantTask;
 }
 export type CommentFormProps = BaseObjectFormProps<CommentShape>

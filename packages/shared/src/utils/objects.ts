@@ -49,12 +49,10 @@ export const setDotNotationValue = <T extends Record<string, any>>(
     const keys = notation.split(/(\w+|\[\d+\])/g)
         .map(key => key.replace(/^\[|\]$/g, ""))
         .filter(key => !["", "."].includes(key));
-    console.log("keys", keys);
     // Pop last key from array, as it will be used to set the value
     const lastKey = keys.pop() as string;
     // Use the other keys to get the target object
     const lastObj = keys.reduce((obj: any, key) => {
-        console.log("setdotnotationvalue loop", key, obj);
         // Check if the key is an array index
         if (/^\d+$/.test(key)) {
             const index = parseInt(key, 10);
@@ -65,7 +63,6 @@ export const setDotNotationValue = <T extends Record<string, any>>(
         if (!(key in obj)) obj[key] = {};
         return obj[key];
     }, object);
-    console.log("lastObj", lastObj);
     // Set the value
     if (Array.isArray(lastObj) && /^\d+$/.test(lastKey)) {
         const index = parseInt(lastKey, 10);
@@ -73,8 +70,6 @@ export const setDotNotationValue = <T extends Record<string, any>>(
     } else {
         lastObj[lastKey] = value;
     }
-    console.log("lastObj now", lastObj);
-    console.log("returning object", object);
     // Return the updated object
     return object;
 };

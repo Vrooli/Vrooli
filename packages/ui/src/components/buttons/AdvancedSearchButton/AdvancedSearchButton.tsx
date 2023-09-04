@@ -150,7 +150,6 @@ export const AdvancedSearchButton = ({
     useEffect(() => {
         const searchParams = parseSearchParams();
         if (!advancedSearchSchema?.fields) {
-            console.log("setting advanced search params 1");
             setAdvancedSearchParams(null);
             return;
         }
@@ -162,7 +161,6 @@ export const AdvancedSearchButton = ({
         const allAdvancedSearchParams = advancedSearchSchema.fields.map(f => f.fieldName);
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
-        console.log("setting advanced search params 2", advancedData, otherParams);
         setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
     }, [advancedSearchSchema?.fields, setAdvancedSearchParams]);
 

@@ -8,7 +8,6 @@ import i18next from "i18next";
  * @returns The first error code, which should be a translation key
  */
 const errorToCode = (response: ServerResponse): ErrorKey => {
-    console.log("in errorToCode", response);
     // If there is an errors array
     if (response.errors) {
         // Loop through array and return first error code
@@ -29,7 +28,6 @@ const errorToCode = (response: ServerResponse): ErrorKey => {
  * @returns The first error message, or code if message not found
  */
 export const errorToMessage = (response: ServerResponse, languages: string[]): string => {
-    console.log("in errorToMessage", response);
     // If there is an errors array
     if (response.errors) {
         // Loop through array and return first error message

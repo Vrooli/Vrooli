@@ -25,6 +25,7 @@ export const typeDef = gql`
         invitesCreate: [ChatInviteCreateInput!]
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
+        messagesCreate: [ChatMessageCreateInput!]
         translationsCreate: [ChatTranslationCreateInput!]
     }
     input ChatUpdateInput {
@@ -38,6 +39,9 @@ export const typeDef = gql`
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
+        messagesCreate: [ChatMessageCreateInput!]
+        messagesUpdate: [ChatMessageUpdateInput!]
+        messagesDelete: [ID!]
         participantsDelete: [ID!]
         translationsCreate: [ChatTranslationCreateInput!]
         translationsUpdate: [ChatTranslationUpdateInput!]

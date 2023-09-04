@@ -122,7 +122,6 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
     const finalInputs = inputs && Object.values(inputs).some(value => value instanceof File)
         ? objectToFormData(inputs)
         : inputs;
-    console.log("before fetch", finalInputs, inputs);
     await fetch(finalInputs as Input)
         .then((response: ServerResponse<Output>) => {
             result = response;

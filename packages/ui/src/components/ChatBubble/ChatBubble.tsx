@@ -119,7 +119,7 @@ const ChatBubbleReactions = ({
     isBot: boolean,
     isOwn: boolean,
 }) => {
-    const reactions = isOwn ? [] : ['👍', '👎'];
+    const reactions = isOwn ? [] : ["👍", "👎"];
 
     return (
         <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -137,7 +137,7 @@ const ChatBubbleReactions = ({
             </Stack>
         </Box>
     );
-}
+};
 
 export const ChatBubble = ({
     index,
@@ -155,11 +155,9 @@ export const ChatBubble = ({
     const [hasError, setHasError] = useState(false);
     useEffect(() => {
         if ((Array.isArray(createErrors) && createErrors.length > 0) || (Array.isArray(updateErrors) && updateErrors.length > 0)) {
-            console.log("chatbubble setting error true");
             setHasError(true);
         }
     }, [createErrors, updateErrors]);
-    console.log("chatbubble render", isOwn, message, message.user?.name ?? message.user?.handle);
 
     const shouldRetry = useRef(true);
     useEffect(() => {
@@ -265,7 +263,7 @@ export const ChatBubble = ({
                         sx={{
                             whiteSpace: "pre-wrap",
                             wordWrap: "break-word",
-                            minHeight: "50px",
+                            minHeight: "unset",
                         }}
                     /> : <>
                         <RichInputBase

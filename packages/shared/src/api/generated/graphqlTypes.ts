@@ -602,6 +602,7 @@ export type ChatCreateInput = {
   invitesCreate?: InputMaybe<Array<ChatInviteCreateInput>>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  messagesCreate?: InputMaybe<Array<ChatMessageCreateInput>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -893,6 +894,9 @@ export type ChatUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  messagesCreate?: InputMaybe<Array<ChatMessageCreateInput>>;
+  messagesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  messagesUpdate?: InputMaybe<Array<ChatMessageUpdateInput>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   participantsDelete?: InputMaybe<Array<Scalars['ID']>>;
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
