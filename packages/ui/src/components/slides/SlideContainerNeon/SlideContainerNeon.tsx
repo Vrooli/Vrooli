@@ -66,14 +66,10 @@ type PointConfig = {
 
 type Line = {
     buffer: number[][][];
-    max_cap: number;
-    cur_cap: number;
 };
 
 type Arc = {
     buffer: number[][];
-    max_cap: number;
-    cur_cap: number;
 };
 
 type InterWithPoint = {
@@ -135,16 +131,7 @@ class Point {
     }
 
     calAlpha(dist: number): number {
-        return Number(Math.max(Math.min(1.2 - dist / POINT_DIST, 1), 0.2).toFixed(1));
-    }
-
-    calPointerForce(ratio: number): number {
-        if (1 < ratio) {
-            return Math.pow(ratio - 1, 2) * this.c.max_speed;
-        } else if (0.5 < ratio) {
-            return -Math.pow(1 - ratio, 2) * this.c.max_speed;
-        }
-        return 0;
+        return Math.round((Math.max(Math.min(1.2 - dist / POINT_DIST, 1), 0.2) * 10)) / 10;
     }
 
     calInterWithPoint(p: { x: number, y: number }): InterWithPoint | null {
@@ -254,15 +241,11 @@ class DrawBuffer {
         this.ctx.lineCap = "round";
 
         this.line = {
-            buffer: new Array(9).fill(null).map(() => []),
-            max_cap: 1000,
-            cur_cap: 0,
+            buffer: new Array(11).fill(null).map(() => []), // 11 because calAlpha() returns 0.2 ~ 1.2
         };
 
         this.arc = {
             buffer: [],
-            max_cap: 1000,
-            cur_cap: 0,
         };
 
         this.rad = Math.PI * 2;
@@ -272,17 +255,14 @@ class DrawBuffer {
         if (!d_info) return;
 
         if (d_info.type === "l" && this.line_width_multiplier > 0) {
-            this.line.buffer[10 * d_info.a! - 2].push(d_info.pos_info);
-            if (++this.line.cur_cap > this.line.max_cap) this.dumpLine();
+            this.line.buffer[10 * d_info.a!].push(d_info.pos_info);
         } else if (d_info.type === "a") {
             this.arc.buffer.push(d_info.pos_info);
-            if (++this.arc.cur_cap > this.arc.max_cap) this.dumpArc();
         }
     }
 
     dumpLine() {
-        for (let i = 0; i < 9; i++) this.dumpLineSlot(i);
-        this.line.cur_cap = 0;
+        for (let i = 0; i < 11; i++) this.dumpLineSlot(i);
     }
 
     dumpLineSlot(slot_num: number) {
@@ -290,7 +270,7 @@ class DrawBuffer {
 
         this.ctx.beginPath();
 
-        const alpha = (slot_num + 2) / 10;
+        const alpha = slot_num / 10;
         this.ctx.lineWidth = alpha * this.line_width_multiplier;
         this.ctx.strokeStyle = `rgba(${COLOR},${alpha})`;
 
@@ -302,7 +282,7 @@ class DrawBuffer {
         }
         this.ctx.stroke();
 
-        this.line.buffer[slot_num] = [];
+        this.line.buffer[slot_num].length = 0;
     }
 
     dumpArc() {
@@ -314,8 +294,7 @@ class DrawBuffer {
         }
         this.ctx.fill();
 
-        this.arc.buffer = [];
-        this.arc.cur_cap = 0;
+        this.arc.buffer.length = 0;
     }
 }
 
@@ -337,9 +316,8 @@ class Simulator {
     }
 
     async traverse() {
+        const tasks: Promise<void>[] = [];
         for (let ci = 0; ; ci++) {
-            const tasks: Promise<void>[] = [];
-
             if (ci >= 0 && ci < this.c.X_CHUNK) tasks.push(this.calVerticalInteraction(ci));
             if (ci - 2 >= 0 && ci - 2 < this.c.X_CHUNK) tasks.push(this.evolveVerticalChunks(ci - 2));
             if (ci - 4 >= 0 && ci - 4 < this.c.X_CHUNK) tasks.push(this.updateVerticalChunks(ci - 4));
@@ -348,9 +326,13 @@ class Simulator {
                 this.draw_buffer.dumpArc();
                 break;
             }
-
             await Promise.all(tasks);
+            // Clear tasks
+            tasks.length = 0;
         }
+        // Dump buffers
+        this.draw_buffer.dumpLine();
+        this.draw_buffer.dumpArc();
     }
 
     async calVerticalInteraction(ci) {
@@ -469,15 +451,11 @@ class Simulator {
             }
 
             // remove in O(N) time
-            let cur_rmv_ind = 0;
-            chunk.points = chunk.points.filter((v, ind) => {
-                if (cur_rmv_ind !== rmv_list.length && ind === rmv_list[cur_rmv_ind]) {
-                    cur_rmv_ind++;
-                    return false;
-                } else {
-                    return true;
-                }
-            });
+            for (let i = rmv_list.length - 1; i >= 0; i--) {
+                const indexToRemove = rmv_list[i];
+                chunk.points[indexToRemove] = chunk.points[chunk.points.length - 1];
+                chunk.points.pop();
+            }
         }
     }
 
@@ -634,8 +612,8 @@ class CanvasNice {
             const averageTime = this.totalTime / this.frameCount;
             console.log(`Average time for 10 frames: ${averageTime.toFixed(2)}ms`);
             // Reset counters for the next batch of 10 frames
-            // this.frameCount = 0;
-            // this.totalTime = 0;
+            this.frameCount = 0;
+            this.totalTime = 0;
         }
 
         if (this.c.render_rate) {
