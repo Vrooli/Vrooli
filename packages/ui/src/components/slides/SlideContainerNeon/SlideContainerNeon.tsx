@@ -1,7 +1,7 @@
 import { Box, keyframes } from "@mui/material";
 import Blob1 from "assets/img/blob1.svg";
 import Blob2 from "assets/img/blob2.svg";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { SlideContainer } from "styles";
 import { SlideContainerNeonProps } from "../types";
 
@@ -47,28 +47,21 @@ const blob2Animation = keyframes`
 `;
 
 type Config = {
-    point_dist: number;
-    point_count: number;
-    point_size: { min: number, max: number };
+    /** The maximum moving speed of a particle in x or y coordinate can has in each frame. (in pixels) */
     max_point_speed: number;
+    /** The deceleration rate of a particle after it succeeds it's maximum moving speed. */
     point_slow_down_rate: number;
-    point_color: string;
-    line_color: string;
+    /** The line-width multiplier for the line between two particles. If set to 0, the line will not be rendered. (any number between 0.5 ~ 1.5 is recommended) */
     line_width_multiplier: number;
-    zIndex: number;
+    /** Number of frames to render per second. Will use browser default if not set. */
     render_rate?: number;
-    canvas_opacity: number;
-    chunk_capacity: number;
-    chunk_size_constant: number;
-    pointer_inter_type: -1 | 0 | 1;
+    X_CHUNK: number;
+    Y_CHUNK: number;
 };
 
 type PointConfig = {
     max_speed: Config["max_point_speed"];
-    r: Config["point_dist"];
     slow_down: Config["point_slow_down_rate"];
-    point_size: Config["point_size"];
-    pointer_inter_type: Config["pointer_inter_type"];
 }
 
 type Line = {
@@ -83,24 +76,23 @@ type Arc = {
     cur_cap: number;
 };
 
-const requestAnimationFrame = window.requestAnimationFrame ||
-    window.webkitRequestAnimationFrame ||
-    window.mozRequestAnimationFrame ||
-    window.msRequestAnimationFrame ||
-    window.oRequestAnimationFrame ||
-    function (func) {
-        return window.setTimeout(func, 1000 / 60);
-    };
+/** The number of particles. (a number lesser than 1000 is recommended under regular settings) */
+const POINT_COUNT = 100;
+/** The interaction radius of a particle. (in pixels) */
+const POINT_DIST = 150;
+/** Minimum point size */
+const POINT_SIZE_MIN = 2;
+/** Maximum point size */
+const POINT_SIZE_MAX = 5;
+const COLOR = "255, 255, 255";
+const OPACITY = "0.5";
+const ZINDEX = 5;
+/** The ratio of the width or height of the chunk divided by the interaction radius of particle. (a number greater than 1 means lossless computing. 0.8 is recommended) */
+const CHUNK_SIZE_CONSTANT = 0.8;
+/** The number of particle that a chunk can contain. */
+const CHUNK_CAPACITY = 15;
 
-const cancelAnimationFrame = window.cancelAnimationFrame ||
-    window.webkitCancelAnimationFrame ||
-    window.mozCancelAnimationFrame ||
-    window.msCancelAnimationFrame ||
-    window.oCancelAnimationFrame ||
-    window.clearTimeout;
-
-const canvasStyle = config =>
-    `position:fixed;top:0;left:0;z-index:${config.zIndex};opacity:${config.opacity}`;
+const canvasStyle = `position:fixed;top:0;left:0;z-index:${ZINDEX};opacity:${OPACITY}`;
 
 
 const rand = (min: number, max: number) => (max - min) * Math.random() + min;
@@ -122,19 +114,11 @@ class Point {
         this.vx = rand(-1, 1);
         this.vy = rand(-1, 1);
 
-        this.size = rand(config.point_size.min, config.point_size.max);
+        this.size = rand(POINT_SIZE_MIN, POINT_SIZE_MAX);
         this.pointer_inter = false;
     }
 
     evolve(): void {
-        if (!this.c.pointer_inter_type && this.pointer_inter) {
-            this.pointer_inter = false;
-            return;
-        }
-
-        this.vx += rand(-0.1, 0.1);
-        this.vy += rand(-0.1, 0.1);
-
         this.x += this.vx;
         this.y += this.vy;
 
@@ -142,12 +126,10 @@ class Point {
             this.vx *= this.c.slow_down;
         if (Math.abs(this.vy) > this.c.max_speed)
             this.vy *= this.c.slow_down;
-
-        this.pointer_inter = false;
     }
 
     calAlpha(dist: number): number {
-        return Number(Math.max(Math.min(1.2 - dist / this.c.r, 1), 0.2).toFixed(1));
+        return Number(Math.max(Math.min(1.2 - dist / POINT_DIST, 1), 0.2).toFixed(1));
     }
 
     calPointerForce(ratio: number): number {
@@ -159,52 +141,11 @@ class Point {
         return 0;
     }
 
-    calInterWithPointer(pt: { x: number, y: number }): { type: string, a: number, pos_info: number[] } | void {
-        const dx = pt.x - this.x, dy = pt.y - this.y;
-        const d = Math.hypot(dx, dy);
-
-        if (d < 1) return;
-        const ratio = d / this.c.r;
-        if (ratio > 1.5) return;
-        if (ratio > 1 && !this.c.pointer_inter_type) return;
-
-        this.pointer_inter = true;
-
-        if (!this.c.pointer_inter_type) {
-            this.vx = 0, this.vy = 0;
-        } else if (this.c.pointer_inter_type) {
-            const force = this.calPointerForce(ratio);
-            let dv = {
-                x: Math.sign(dx) * force,
-                y: Math.sign(dy) * force,
-            };
-            this.vx += dv.x, this.vy += dv.y;
-
-            const test_d = Math.hypot(this.x + this.vx, this.y + this.vy);
-            const test_ratio = test_d / this.c.r;
-            if (test_ratio <= 1) {
-                const inc_ratio = 1 - this.c.r / d;
-                dv = {
-                    x: inc_ratio * dx,
-                    y: inc_ratio * dy,
-                };
-                this.x += dv.x, this.y += dv.y;
-                this.vx = 0, this.vy = 0;
-            }
-        }
-
-        return {
-            type: "l",
-            a: this.calAlpha(d),
-            pos_info: [this.x, this.y, pt.x, pt.y],
-        };
-    }
-
     calInterWithPoint(p: { x: number, y: number }): { type: string, a: number, pos_info: number[] } | void {
         const dx = p.x - this.x, dy = p.y - this.y;
         const d = Math.hypot(dx, dy);
 
-        if (d > this.c.r || d < 1) return;
+        if (d > POINT_DIST || d < 1) return;
 
         return {
             type: "l",
@@ -246,14 +187,8 @@ class Grid {
 
         // point config
         this.pc = {
-            pointer_inter_type: config.pointer_inter_type,
             max_speed: config.max_point_speed,
-            r: config.point_dist,
             slow_down: config.point_slow_down_rate,
-            point_size: config.point_size || {
-                min: 1,
-                max: 1,
-            },
         };
 
         this.w = w;
@@ -282,7 +217,7 @@ class Grid {
     }
 
     initializePoints(): void {
-        for (let i = 0; i < this.c.point_count; i++) this.genNewPoint();
+        for (let i = 0; i < POINT_COUNT; i++) this.genNewPoint();
     }
 
     genNewPoint(): void {
@@ -299,7 +234,6 @@ class Grid {
 }
 
 class DrawBuffer {
-    line_color: string;
     line_width_multiplier: number;
     ctx: CanvasRenderingContext2D;
     line: Line;
@@ -307,11 +241,10 @@ class DrawBuffer {
     rad: number;
 
     constructor(ctx: CanvasRenderingContext2D, config: Config) {
-        this.line_color = config.line_color;
         this.line_width_multiplier = config.line_width_multiplier;
 
         this.ctx = ctx;
-        this.ctx.fillStyle = `rgb(${config.point_color})`;
+        this.ctx.fillStyle = `rgb(${COLOR})`;
         this.ctx.lineCap = "round";
 
         this.line = {
@@ -353,7 +286,7 @@ class DrawBuffer {
 
         const alpha = (slot_num + 2) / 10;
         this.ctx.lineWidth = alpha * this.line_width_multiplier;
-        this.ctx.strokeStyle = `rgba(${this.line_color},${alpha})`;
+        this.ctx.strokeStyle = `rgba(${COLOR},${alpha})`;
 
         for (let i = 0, len = info.length; i < len; i++) {
             const pos_info = info[i];
@@ -426,18 +359,12 @@ class Simulator {
 
             // calculate interaction in surrounding chunk
             chunk.points.forEach(loc_p => {
-                if (this.pointer.x !== null) {
-                    this.draw_buffer.push(
-                        loc_p.calInterWithPointer(this.pointer),
-                    );
-                }
-
                 // Calculate if point interaction range exceeds current chunk
                 // The reason for not calculating left_dx is that
                 // the traverse direction is left to right
-                const right_dx = (loc_p.x + this.c.point_dist >= right_x) ? 1 : 0;
-                const left_dy = (loc_p.y - this.c.point_dist < chunk.y) ? -1 : 0;
-                const right_dy = (loc_p.y + this.c.point_dist >= right_y) ? 1 : 0;
+                const right_dx = (loc_p.x + POINT_DIST >= right_x) ? 1 : 0;
+                const left_dy = (loc_p.y - POINT_DIST < chunk.y) ? -1 : 0;
+                const right_dy = (loc_p.y + POINT_DIST >= right_y) ? 1 : 0;
                 for (let i = 0; i <= right_dx; i++) {
                     for (let j = left_dy; j <= right_dy; j++) {
                         if (i === 0 && j === 0) continue; // do not compute local chunk
@@ -508,7 +435,7 @@ class Simulator {
             const right_x = chunk.x + chunk.w;
             const right_y = chunk.y + chunk.h;
 
-            const rmv_list = [];
+            const rmv_list: number[] = [];
             for (let i = 0; i < chunk.points.length; i++) {
                 const cur_p = chunk.points[i];
 
@@ -541,7 +468,7 @@ class Simulator {
                     rmv_list.push(i);
 
                     const new_chunk = this.grid.chunks[new_chunk_x][new_chunk_y];
-                    if (new_chunk.points.length < this.c.chunk_capacity)
+                    if (new_chunk.points.length < CHUNK_CAPACITY)
                         new_chunk.points.push(cur_p);
                     else this.grid.genNewPoint();
                 }
@@ -567,8 +494,9 @@ class Simulator {
 }
 
 class CanvasNice {
+    c: Config;
     canvas: HTMLCanvasElement | undefined;
-    ctx: CanvasRenderingContext2D;
+    ctx: CanvasRenderingContext2D | null;
     grid: any; // Use actual type if known
     simulator: any; // Use actual type if known
     pointer: {
@@ -581,15 +509,19 @@ class CanvasNice {
         delay_after: number;
         last_changed_time: number;
     };
-    tid: number | ReturnType<typeof requestAnimationFrame> | undefined;
-    onmousemove?: (e: MouseEvent) => void;
-    onmouseout?: () => void;
-    constructor(config) {
-        this.c = config;
+    tid: NodeJS.Timeout | number | undefined;
+    frameCount: number | undefined; //TODO temporary
+    totalTime: number | undefined; //TODO temporary
+    constructor(config: Omit<Config, "X_CHUNK" | "Y_CHUNK">) {
+        this.c = {
+            ...config,
+            X_CHUNK: 10,
+            Y_CHUNK: 10,
+        };
 
         this.canvas = undefined;
         this.initializeCanvas();
-        this.ctx = this.canvas.getContext("2d");
+        this.ctx = this.canvas!.getContext("2d");
 
         this.grid = undefined; // chunk manager
         this.simulator = undefined;
@@ -621,6 +553,14 @@ class CanvasNice {
             || document.body.clientHeight;
     }
 
+    cancelTimerOrAnimationFrame(tid: NodeJS.Timeout | number | undefined) {
+        if (typeof tid === "number") {
+            cancelAnimationFrame(tid);
+        } else if (tid) {
+            clearTimeout(tid);
+        }
+    }
+
     resetRenderInfo() {
         this.render.last_changed_time = Date.now();
         this.render.draw = false;
@@ -629,61 +569,39 @@ class CanvasNice {
 
     registerListener() {
         window.onresize = () => {
-            cancelAnimationFrame(this.tid);
+            if (this.tid) this.cancelTimerOrAnimationFrame(this.tid);
 
             this.updateCanvasSize();
             this.resetRenderInfo();
-        };
-
-        if (this.c.pointer_inter_type === -1) return;
-
-        this.onmousemove = window.onmousemove;
-        window.onmousemove = e => {
-            this.pointer.x = e.clientX;
-            this.pointer.y = e.clientY;
-            this.onmousemove && this.onmousemove(e);
-        };
-
-        this.onmouseout = window.onmouseout;
-        window.onmouseout = () => {
-            this.pointer.x = null;
-            this.pointer.y = null;
-            this.onmouseout && this.onmouseout();
         };
     }
 
     initializeCanvas() {
         this.canvas = document.createElement("canvas");
-        this.canvas.style.cssText = canvasStyle(this.c);
+        this.canvas.style.cssText = canvasStyle;
         this.updateCanvasSize();
 
         document.body.appendChild(this.canvas);
     }
 
     optimizeChunkSize() {
-        const opti_size = Math.round(
-            this.c.point_dist * Math.max(this.c.chunk_size_constant, 0.25),
-        );
-        // console.log('[c-nice.js] Optimized chunk size:', opti_size);
-
-        const calOpti = (dimension) => {
-            const diff = (num_of_chunks) => {
-                return Math.abs(dimension / num_of_chunks - opti_size);
-            };
-
+        if (!this.canvas) return;
+        const opti_size = Math.floor(POINT_DIST * CHUNK_SIZE_CONSTANT);
+        console.log("Optimized chunk size:", opti_size);
+        const calOpti = (dimension: number) => {
+            const diff = (num_of_chunks: number) => Math.abs(dimension / num_of_chunks - opti_size);
             const test_num = dimension / opti_size;
             if (diff(Math.floor(test_num)) < diff(Math.ceil(test_num))) return Math.floor(test_num);
             else return Math.ceil(test_num);
         };
-
         this.c.X_CHUNK = calOpti(this.canvas.width);
         this.c.Y_CHUNK = calOpti(this.canvas.height);
-
-        // console.log(`[c-nice.js] Chunk Number: ${this.c.X_CHUNK}*${this.c.Y_CHUNK}`);
+        console.log("X_CHUNK", this.c.X_CHUNK);
+        console.log("Y_CHUNK", this.c.Y_CHUNK);
     }
 
     async pendingRender() {
-        if (this.render.draw) {
+        if (this.render.draw && this.canvas) {
             if (this.render.need_initialize) {
                 this.optimizeChunkSize();
 
@@ -706,26 +624,43 @@ class CanvasNice {
         }
     }
 
+    //TODO performance measurement is temporary
     requestFrame() {
+        const start = performance.now();
+
         this.simulator.draw();
-        if (this.c.render_rate) this.tid = setTimeout(
-            () => { this.pendingRender(); },
-            1000 / this.c.render_rate,
-        );
-        else this.tid = requestAnimationFrame(
-            () => { this.pendingRender(); },
-        );
+
+        const end = performance.now();
+        const timeTaken = end - start;
+
+        this.frameCount = this.frameCount ? this.frameCount + 1 : 1;
+        this.totalTime = this.totalTime ? this.totalTime + timeTaken : timeTaken;
+
+        if (this.frameCount >= 10) {
+            const averageTime = this.totalTime / this.frameCount;
+            console.log(`Average time for 10 frames: ${averageTime.toFixed(2)}ms`);
+
+            // Reset counters for the next batch of 10 frames
+            // this.frameCount = 0;
+            // this.totalTime = 0;
+        }
+
+        if (this.c.render_rate) {
+            this.tid = setTimeout(
+                () => { this.pendingRender(); },
+                1000 / this.c.render_rate,
+            );
+        } else {
+            this.tid = requestAnimationFrame(
+                () => { this.pendingRender(); },
+            );
+        }
     }
 
+
     destroy() {
-        if (this.tid) cancelAnimationFrame(this.tid);
+        if (this.tid) this.cancelTimerOrAnimationFrame(this.tid);
         if (this.canvas) document.body.removeChild(this.canvas);
-
-        if (this.c.pointer_inter_type === -1) return;
-
-        // set mouse event to default
-        window.onmousemove = this.onmousemove;
-        window.onmouseout = this.onmouseout;
     }
 }
 
@@ -739,34 +674,20 @@ export const SlideContainerNeon = ({
     show,
     sx,
 }: SlideContainerNeonProps) => {
-    const canvasInstance = useRef<CanvasNice | null>(null);
 
     useEffect(() => {
         // Initialize CanvasNice
-        canvasInstance.current = new CanvasNice({
-            point_dist: 100,
-            point_count: 100,
-            point_size: {
-                min: 5,
-                max: 5,
-            },
+        const canvasInstance = new CanvasNice({
             point_slow_down_rate: 0.8,
-            point_color: "255, 255, 255, 0.5",
-            line_color: "255, 255, 255",
             line_width_multiplier: 1,
             max_point_speed: 0.5,
-            zIndex: 5,
-            canvas_opacity: 1,
-            render_rate: 30,
-            chunk_capacity: 15,
-            chunk_size_constant: 0.8,
-            pointer_inter_type: -1,
+            render_rate: 2,//30,
         });
-        console.log("canvasInstance", canvasInstance.current);
+        console.log("canvasInstance", canvasInstance);
 
         return () => {
             // Destroy CanvasNice instance
-            canvasInstance.current?.destroy();
+            canvasInstance?.destroy();
         };
     }, []);
 
@@ -832,28 +753,3 @@ export const SlideContainerNeon = ({
         </SlideContainer>
     );
 };
-
-
-//Slow boi react-canvas-nest
-// <Box sx={{
-//                 position: "fixed!important",
-//                 width: "100%",
-//                 height: "100%",
-//                 pointerEvents: "none",
-//                 opacity: show === false ? 0 : 0.5,
-//                 transition: "opacity 1s ease-in-out",
-//                 zIndex: 1,
-//             }}
-//             >
-//                 <ReactCanvasNest
-//                     config={{
-//                         count: 100,
-//                         pointColor: "255, 255, 255",
-//                         pointOpacity: 0.3,
-//                         pointR: 5,
-//                         lineColor: "255, 255, 255",
-//                         lineWidth: 2,
-//                         follow: false,
-//                     }}
-//                 />
-//             </Box>
