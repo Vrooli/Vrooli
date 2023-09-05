@@ -316,19 +316,13 @@ class Simulator {
     }
 
     async traverse() {
-        const tasks: Promise<void>[] = [];
-        for (let ci = 0; ; ci++) {
-            if (ci >= 0 && ci < this.c.X_CHUNK) tasks.push(this.calVerticalInteraction(ci));
-            if (ci - 2 >= 0 && ci - 2 < this.c.X_CHUNK) tasks.push(this.evolveVerticalChunks(ci - 2));
-            if (ci - 4 >= 0 && ci - 4 < this.c.X_CHUNK) tasks.push(this.updateVerticalChunks(ci - 4));
-            if (tasks.length === 0) {
-                this.draw_buffer.dumpLine();
-                this.draw_buffer.dumpArc();
-                break;
-            }
-            await Promise.all(tasks);
-            // Clear tasks
-            tasks.length = 0;
+        for (let ci = 0; ci < this.c.X_CHUNK + 4; ci++) {
+            // Calculate interactions for the current chunk
+            if (ci < this.c.X_CHUNK) await this.calVerticalInteraction(ci);
+            // Evolve chunks that are two steps behind
+            if (ci - 2 >= 0 && ci - 2 < this.c.X_CHUNK) await this.evolveVerticalChunks(ci - 2);
+            // Update chunks that are four steps behind
+            if (ci - 4 >= 0 && ci - 4 < this.c.X_CHUNK) await this.updateVerticalChunks(ci - 4);
         }
         // Dump buffers
         this.draw_buffer.dumpLine();
@@ -403,59 +397,53 @@ class Simulator {
 
     // update what chunk is point currently in after evolving
     async updateVerticalChunks(ci) {
-        for (let cj = 0; cj < this.c.Y_CHUNK; cj++) {
+        const MAX_X = this.c.X_CHUNK - 1;
+        const MAX_Y = this.c.Y_CHUNK - 1;
+
+        const chunkBoundaries = this.grid.chunks.map(column =>
+            column.map(chunk => ({ right_x: chunk.x + chunk.w, right_y: chunk.y + chunk.h })),
+        );
+
+        for (let cj = 0; cj <= MAX_Y; cj++) {
             const chunk = this.grid.chunks[ci][cj];
+            const boundaries = chunkBoundaries[ci][cj];
+
             chunk.traversed = false; // reset status for next frame
 
-            // for temp
-            const right_x = chunk.x + chunk.w;
-            const right_y = chunk.y + chunk.h;
+            let keepCount = 0; // Number of points we're keeping in this chunk
 
-            const rmv_list: number[] = [];
-            for (let i = 0; i < chunk.points.length; i++) {
-                const cur_p = chunk.points[i];
+            for (const cur_p of chunk.points) {
+                if (cur_p.x >= chunk.x && cur_p.x < boundaries.right_x && cur_p.y >= chunk.y && cur_p.y < boundaries.right_y) {
+                    chunk.points[keepCount++] = cur_p;
+                    continue;
+                }
 
-                let chunk_dx = 0, chunk_dy = 0;
-                if (cur_p.x < chunk.x) chunk_dx = -1;
-                else if (cur_p.x >= right_x) chunk_dx = 1;
-
-                if (cur_p.y < chunk.y) chunk_dy = -1;
-                else if (cur_p.y >= right_y) chunk_dy = 1;
-
-                if (chunk_dx === 0 && chunk_dy === 0) continue;
-
+                const chunk_dx = cur_p.x < chunk.x ? -1 : (cur_p.x >= boundaries.right_x ? 1 : 0);
+                const chunk_dy = cur_p.y < chunk.y ? -1 : (cur_p.y >= boundaries.right_y ? 1 : 0);
                 const new_chunk_x = ci + chunk_dx;
                 const new_chunk_y = cj + chunk_dy;
 
                 // boundary check
-                if (new_chunk_x < 0) {
-                    cur_p.x *= -1;
-                    cur_p.vx *= -1;
-                } else if (new_chunk_x >= this.c.X_CHUNK) {
-                    cur_p.x = 2 * this.grid.w - cur_p.x;
-                    cur_p.vx *= -1;
-                } else if (new_chunk_y < 0) {
-                    cur_p.y *= -1;
-                    cur_p.vy *= -1;
-                } else if (new_chunk_y >= this.c.Y_CHUNK) {
-                    cur_p.y = 2 * this.grid.h - cur_p.y;
-                    cur_p.vy *= -1;
-                } else { // move to new chunk, or to random location if full
-                    rmv_list.push(i);
-
+                if (new_chunk_x < 0 || new_chunk_x > MAX_X || new_chunk_y < 0 || new_chunk_y > MAX_Y) {
+                    if (new_chunk_x < 0 || new_chunk_x > MAX_X) {
+                        cur_p.x = Math.max(0, Math.min(this.grid.w - 1, cur_p.x));
+                        cur_p.vx *= -1;
+                    }
+                    if (new_chunk_y < 0 || new_chunk_y > MAX_Y) {
+                        cur_p.y = Math.max(0, Math.min(this.grid.h - 1, cur_p.y));
+                        cur_p.vy *= -1;
+                    }
+                    chunk.points[keepCount++] = cur_p;
+                } else {
                     const new_chunk = this.grid.chunks[new_chunk_x][new_chunk_y];
-                    if (new_chunk.points.length < CHUNK_CAPACITY)
+                    if (new_chunk.points.length < CHUNK_CAPACITY) {
                         new_chunk.points.push(cur_p);
-                    else this.grid.genNewPoint();
+                    } else {
+                        this.grid.genNewPoint();
+                    }
                 }
             }
-
-            // remove in O(N) time
-            for (let i = rmv_list.length - 1; i >= 0; i--) {
-                const indexToRemove = rmv_list[i];
-                chunk.points[indexToRemove] = chunk.points[chunk.points.length - 1];
-                chunk.points.pop();
-            }
+            chunk.points.length = keepCount; // Adjust the length of the points array to remove points moved out
         }
     }
 
@@ -652,7 +640,7 @@ export const SlideContainerNeon = ({
             point_slow_down_rate: 0.8,
             line_width_multiplier: 1,
             max_point_speed: 0.5,
-            render_rate: 2,//30,
+            render_rate: 30,//2,//30,
         });
         console.log("canvasInstance", canvasInstance);
 
