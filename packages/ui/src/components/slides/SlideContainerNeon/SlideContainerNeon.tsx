@@ -76,6 +76,12 @@ type Arc = {
     cur_cap: number;
 };
 
+type InterWithPoint = {
+    type: "l" | "a";
+    a?: number;
+    pos_info: number[];
+}
+
 /** The number of particles. (a number lesser than 1000 is recommended under regular settings) */
 const POINT_COUNT = 100;
 /** The interaction radius of a particle. (in pixels) */
@@ -141,11 +147,11 @@ class Point {
         return 0;
     }
 
-    calInterWithPoint(p: { x: number, y: number }): { type: string, a: number, pos_info: number[] } | void {
+    calInterWithPoint(p: { x: number, y: number }): InterWithPoint | null {
         const dx = p.x - this.x, dy = p.y - this.y;
         const d = Math.hypot(dx, dy);
 
-        if (d > POINT_DIST || d < 1) return;
+        if (d > POINT_DIST || d < 1) return null;
 
         return {
             type: "l",
@@ -262,7 +268,7 @@ class DrawBuffer {
         this.rad = Math.PI * 2;
     }
 
-    push(d_info: DInfo) {
+    push(d_info: InterWithPoint) {
         if (!d_info) return;
 
         if (d_info.type === "l" && this.line_width_multiplier > 0) {
@@ -332,7 +338,7 @@ class Simulator {
 
     async traverse() {
         for (let ci = 0; ; ci++) {
-            const tasks = [];
+            const tasks: Promise<void>[] = [];
 
             if (ci >= 0 && ci < this.c.X_CHUNK) tasks.push(this.calVerticalInteraction(ci));
             if (ci - 2 >= 0 && ci - 2 < this.c.X_CHUNK) tasks.push(this.evolveVerticalChunks(ci - 2));
@@ -387,28 +393,16 @@ class Simulator {
     calLocalInteraction(chunk) {
         for (let i = 0; i < chunk.points.length - 1; i++) {
             const p = chunk.points[i];
-
             for (let j = i + 1; j < chunk.points.length; j++) {
                 const tar_p = chunk.points[j];
-
-                this.draw_buffer.push(
-                    p.calInterWithPoint(tar_p),
-                );
-                // deprecated calculation
-                // tar_p.calInterWithPoint(p, false);
+                this.draw_buffer.push(p.calInterWithPoint(tar_p));
             }
         }
     }
 
     calSurroundingInteraction(tar_chunk, local_p) {
         tar_chunk.points.forEach(tar_p => {
-            this.draw_buffer.push(
-                local_p.calInterWithPoint(tar_p),
-            );
-            // deprecated calculation, since simulation in legacy versions
-            // needs calculating the gravity of each particle
-            // 
-            // tar_p.calInterWithPoint(local_p, false);
+            this.draw_buffer.push(local_p.calInterWithPoint(tar_p));
         });
     }
 
@@ -639,7 +633,6 @@ class CanvasNice {
         if (this.frameCount >= 10) {
             const averageTime = this.totalTime / this.frameCount;
             console.log(`Average time for 10 frames: ${averageTime.toFixed(2)}ms`);
-
             // Reset counters for the next batch of 10 frames
             // this.frameCount = 0;
             // this.totalTime = 0;
