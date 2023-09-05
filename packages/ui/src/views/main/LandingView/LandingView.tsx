@@ -98,7 +98,7 @@ export const LandingView = ({
             <SlidePage id="landing-slides" sx={{
                 background: theme.palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",
             }}>
-                <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 6 }}>
+                <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 5 }}>
                     <SlideContent id={slide1Id} sx={{
                         minHeight: {
                             xs: "calc(100vh - 64px - 56px)",
