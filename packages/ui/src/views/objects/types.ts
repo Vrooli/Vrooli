@@ -1,15 +1,12 @@
-import { BaseViewProps } from "views/types";
+import { ListObject } from "utils/display/listTools";
+import { ObjectViewProps } from "views/types";
 
-export interface ViewProps<T> extends BaseViewProps {
-    /**
-     * Any data about the object which is already known, 
-     * such as its name. Can be displayed while fetching the full object
-     */
-    partialData?: Partial<T>;
-}
-
-export interface UpsertProps<T> extends Omit<BaseViewProps, "onClose"> {
+export interface UpsertProps<T extends ListObject> extends Omit<ObjectViewProps<T>, "display" | "onClose"> {
     isCreate: boolean;
     onCancel?: () => unknown;
     onCompleted?: (data: T) => unknown;
+}
+
+export interface CrudProps<T extends ListObject> extends UpsertProps<T> {
+    onDeleted?: (id: string) => unknown;
 }

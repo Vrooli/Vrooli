@@ -34,7 +34,7 @@ export const meetingValidation: YupModel = {
         showOnOrganizationProfile: opt(bool),
     }, [
         ["restrictedToRoles", ["Connect", "Disconnect"], "many", "opt"],
-        ["invites", ["Create", "Update", "Delete"], "many", "opt"],
+        ["invites", ["Create", "Update", "Delete"], "many", "opt", meetingInviteValidation],
         ["labels", ["Connect", "Disconnect"], "many", "opt"],
         ["schedule", ["Create", "Update"], "one", "opt", scheduleValidation],
         ["translations", ["Create"], "many", "opt", meetingTranslationValidation],

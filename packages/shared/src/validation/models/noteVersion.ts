@@ -1,21 +1,38 @@
 import * as yup from "yup";
-import { blankToUndefined, bool, description, id, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import { bool, description, id, intPositiveOrZero, language, maxStrErr, name, opt, req, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { noteValidation } from "./note";
 
-const text = yup.string().transform(blankToUndefined).max(65536, maxStrErr);
+const text = yup.string().max(65536, maxStrErr);
 
-export const noteVersionTranslationValidation: YupModel = transRel({
-    create: {
+export const notePageValidation: YupModel = {
+    create: ({ o }) => yupObj({
+        pageIndex: req(intPositiveOrZero),
+        text: text.defined().strict(true),
+    }, [], [], o),
+    update: ({ o }) => yupObj({
+        pageIndex: opt(intPositiveOrZero),
+        text: text.defined().strict(true).optional(),
+    }, [], [], o),
+};
+
+export const noteVersionTranslationValidation: YupModel = {
+    create: ({ o }) => yupObj({
+        id: req(id),
+        language: req(language),
         description: opt(description),
         name: opt(name),
-        text: req(text),
-    },
-    update: {
+    }, [
+        ["pages", ["Create", "Update", "Delete"], "many", "opt", notePageValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
+        id: req(id),
+        language: opt(language),
         description: opt(description),
         name: opt(name),
-        text: opt(text),
-    },
-});
+    }, [
+        ["pages", ["Create", "Update", "Delete"], "many", "opt", notePageValidation],
+    ], [], o),
+};
 
 export const noteVersionValidation: YupModel = {
     create: ({ o, minVersion = "0.0.1" }) => yupObj({

@@ -1,8 +1,10 @@
-import { InputType } from "@local/shared";
+import { Chat, InputType, NoteVersion, Reminder } from "@local/shared";
 import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
-import { ReactNode } from "react";
+import { Dispatch, ReactNode, SetStateAction } from "react";
+import { AssistantTask } from "types";
 import { Forms } from "utils/consts";
+import { ListObject } from "utils/display/listTools";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { BookmarkListShape } from "utils/shape/models/bookmarkList";
 import { BotShape } from "utils/shape/models/bot";
@@ -29,6 +31,7 @@ import { ScheduleShape } from "utils/shape/models/schedule";
 import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
 import { TagShape } from "utils/shape/models/tag";
+import { CrudProps } from "views/objects/types";
 import { ViewDisplayType } from "views/types";
 
 //==============================================================
@@ -54,19 +57,24 @@ export interface BaseObjectFormProps<T> extends FormikProps<T> {
     isLoading: boolean;
     isOpen: boolean;
     onCancel: () => unknown;
+    onClose: () => unknown;
     ref: React.RefObject<any>;
-    zIndex: number;
+}
+
+export interface ImprovedFormProps<Model extends ListObject, ModelShape> extends Omit<CrudProps<Model>, "isLoading">, FormikProps<ModelShape> {
+    disabled: boolean;
+    existing: ModelShape;
+    handleUpdate: Dispatch<SetStateAction<ModelShape>>;
+    isReadLoading: boolean;
 }
 
 export interface BaseGeneratedFormProps {
     schema: FormSchema;
     onSubmit: (values: any) => void;
-    zIndex: number;
 }
 
 export interface FormProps {
     onFormChange?: (form: Forms) => unknown;
-    zIndex: number;
 }
 
 export interface ForgotPasswordFormProps extends FormProps {
@@ -90,7 +98,10 @@ export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
 }
 export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
 export type BotFormProps = BaseObjectFormProps<BotShape>
-export type ChatFormProps = BaseObjectFormProps<ChatShape>
+export type ChatFormProps = ImprovedFormProps<Chat, ChatShape> & {
+    context?: string | null | undefined;
+    task?: AssistantTask;
+}
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
 export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };
@@ -102,15 +113,13 @@ export interface NodeRoutineListFormProps extends BaseObjectFormProps<NodeWithRo
 }
 export type FocusModeFormProps = BaseObjectFormProps<FocusModeShape>
 export type MeetingFormProps = BaseObjectFormProps<MeetingShape>
-export interface NoteFormProps extends BaseObjectFormProps<NoteVersionShape> {
-    versions: string[];
-}
+export type NoteFormProps = ImprovedFormProps<NoteVersion, NoteVersionShape>
 export type OrganizationFormProps = BaseObjectFormProps<OrganizationShape>
 export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShape> {
     versions: string[];
 }
 export type QuestionFormProps = BaseObjectFormProps<QuestionShape>
-export interface ReminderFormProps extends BaseObjectFormProps<ReminderShape> {
+export interface ReminderFormProps extends ImprovedFormProps<Reminder, ReminderShape> {
     index?: number;
     reminderListId?: string;
 }
@@ -247,7 +256,7 @@ export interface TextProps {
     defaultValue?: string;
     /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
     autoComplete?: string;
-    /** If true, displays MarkdownInput instead of TextField */
+    /** If true, displays RichInput instead of TextField */
     isMarkdown?: boolean;
     /** Maximum number of characters for the text field. Defaults to 1000 */
     maxChars?: number;

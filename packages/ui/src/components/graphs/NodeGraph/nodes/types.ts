@@ -54,7 +54,6 @@ export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps, 
     language: string;
     linksIn: NodeLink[];
     node: Node & { end: NodeEnd };
-    zIndex: number;
 }
 
 /**
@@ -62,7 +61,6 @@ export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps, 
  */
 export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     node: Node & { loop: NodeLoop };
-    zIndex: number;
 }
 
 /**
@@ -71,7 +69,6 @@ export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps,
 export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     handleAction: (action: BuildAction, nodeId: string) => void;
     node: NodeShape;// & { redirect: NodeRedirectShape }; TODO
-    zIndex: number;
 }
 
 /**
@@ -85,7 +82,6 @@ export interface RoutineListNodeProps extends ScaleProps, LabelledProps, Editabl
     linksIn: NodeLink[];
     linksOut: NodeLink[];
     node: Node & { routineList: NodeRoutineList };
-    zIndex: number;
 }
 
 /**
@@ -97,7 +93,6 @@ export interface SubroutineNodeProps extends ScaleProps, LabelledProps, Editable
     handleAction: (action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine, subroutineId: string) => void;
     handleUpdate: (subroutineId: string, updatedItem: NodeRoutineListItem) => void;
     language: string;
-    zIndex: number;
 }
 
 /**
@@ -107,7 +102,6 @@ export interface StartNodeProps extends ScaleProps, LabelledProps, EditableProps
     handleAction: (action: BuildAction.AddOutgoingLink, subroutineId: string) => void;
     linksOut: NodeLink[];
     node: NodeShape;
-    zIndex: number;
 }
 
 export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, "isLinked"> {

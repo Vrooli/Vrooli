@@ -11,6 +11,8 @@ export const questionAnswer_accept = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -64,6 +66,8 @@ export const questionAnswer_accept = {
     "updated_at": true,
     "createdBy": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -166,6 +170,8 @@ export const questionAnswer_accept = {
   "updated_at": true,
   "createdBy": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,

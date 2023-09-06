@@ -1,21 +1,19 @@
 import { ProjectVersion, RoutineVersion, RunRoutine } from "@local/shared";
-import { DecisionStep, EndStep, RoutineListStep, RoutineStep } from "types";
-import { ViewProps } from "views/objects/types";
-import { BaseViewProps } from "views/types";
+import { DecisionStep, EndStep, PartialWithType, RoutineListStep, RoutineStep } from "types";
+import { ViewProps } from "views/types";
 
-export interface DecisionViewProps extends BaseViewProps {
+export interface DecisionViewProps extends ViewProps {
     data: DecisionStep;
     handleDecisionSelect: (step: RoutineStep | EndStep) => void;
     routineList: RoutineListStep;
-    zIndex: number;
 }
 
-export interface RunViewProps extends ViewProps<RoutineVersion> {
+export interface RunViewProps extends ViewProps {
     onClose?: () => void;
-    runnableObject: ProjectVersion | RoutineVersion;
+    runnableObject: PartialWithType<ProjectVersion | RoutineVersion>;
 }
 
-export interface SubroutineViewProps extends BaseViewProps {
+export interface SubroutineViewProps extends ViewProps {
     loading: boolean;
     handleUserInputsUpdate: (inputs: { [inputId: string]: string }) => void;
     handleSaveProgress: () => void;
@@ -25,5 +23,4 @@ export interface SubroutineViewProps extends BaseViewProps {
     owner: RoutineVersion["root"]["owner"] | null | undefined;
     routineVersion: RoutineVersion | null | undefined;
     run: RunRoutine | null | undefined;
-    zIndex: number;
 }

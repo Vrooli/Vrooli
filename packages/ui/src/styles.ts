@@ -1,4 +1,6 @@
-import { Box, Button, IconButton, keyframes, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
+import { Avatar, Box, Button, IconButton, keyframes, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
+
+export const pagePaddingBottom = "calc(56px + env(safe-area-inset-bottom))";
 
 export const centeredDiv = {
     display: "flex",
@@ -23,6 +25,7 @@ export const clickSize = {
 
 export const multiLineEllipsis = (lines: number) => ({
     display: "-webkit-box",
+    lineHeight: "1.5", // Without this, WebkitLineClamp might accidentally include the top of the first line cut off
     WebkitLineClamp: lines,
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
@@ -193,19 +196,26 @@ export const textPop = {
                 1px 1px 0 black`,
 } as const;
 
-export const formSection = (theme: Theme) => ({
+export const baseSection = (theme: Theme) => ({
     background: theme.palette.mode === "dark" ?
         theme.palette.background.paper :
         theme.palette.background.default,
     borderRadius: theme.spacing(1),
     flexDirection: "column",
-    overflowX: "auto",
     padding: theme.spacing(2),
-    "& > *:not(:last-child)": {
-        marginBottom: theme.spacing(2),
-    },
     "@media print": {
         border: `1px solid ${theme.palette.divider}`,
+    },
+} as const);
+export const BaseSection = styled(Box)(({ theme }) => ({
+    ...baseSection(theme),
+}));
+
+export const formSection = (theme: Theme) => ({
+    ...baseSection(theme),
+    overflowX: "auto",
+    "& > *:not(:last-child)": {
+        marginBottom: theme.spacing(2),
     },
 } as const);
 export const FormSection = styled(Stack)(({ theme }) => ({
@@ -225,18 +235,44 @@ export const FormContainer = styled(Stack)(({ theme }) => ({
     ...formContainer(theme),
 }));
 
+export const BannerImageContainer = styled(Box)(({ theme }) => ({
+    margin: "auto",
+    backgroundColor: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    position: "relative",
+    width: `min(${theme.breakpoints.values.sm}px, 100%)`,
+    // Height should be 1/3 of width
+    height: `min(calc(100vw / 3), ${theme.breakpoints.values.sm / 3}px)`,
+}));
+
 export const OverviewContainer = styled(Box)(({ theme }) => ({
     position: "relative",
     marginLeft: "auto",
     marginRight: "auto",
-    marginTop: theme.spacing(3),
     background: theme.palette.background.paper,
     borderRadius: "0",
     width: `min(${theme.breakpoints.values.sm}px, 100%)`,
-    [theme.breakpoints.up("sm")]: {
-        borderRadius: theme.spacing(2),
-        boxShadow: theme.shadows[2],
+}));
+
+export const OverviewProfileStack = styled(Stack)(({ theme }) => ({
+    height: "48px",
+    marginLeft: theme.spacing(2),
+    marginRight: theme.spacing(2),
+    alignItems: "flex-start",
+    flexDirection: "row",
+    // Apply auto margin to the second element to push the first one to the left
+    "& > :nth-child(2)": {
+        marginLeft: "auto",
     },
+}));
+
+export const OverviewProfileAvatar = styled(Avatar)(({ theme }) => ({
+    width: "max(min(100px, 40vw), 75px)",
+    height: "max(min(100px, 40vw), 75px)",
+    top: "-100%",
+    fontSize: "min(50px, 10vw)",
+    marginRight: "auto",
 }));
 
 const pulse = keyframes`
@@ -270,3 +306,14 @@ export const PulseButton = styled(Button)(({ theme }) => ({
     },
     transition: "all 0.2s ease",
 }));
+
+export const highlightStyle = (background: string, disabled: boolean | undefined) => ({
+    background,
+    pointerEvents: disabled ? "none" : "auto",
+    filter: disabled ? "grayscale(1) opacity(0.5)" : "none",
+    transition: "filter 0.2s ease-in-out",
+    "&:hover": {
+        background,
+        filter: disabled ? "grayscale(1) opacity(0.5)" : "brightness(1.2)",
+    },
+} as const);

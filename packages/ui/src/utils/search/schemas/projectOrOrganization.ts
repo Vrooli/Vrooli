@@ -32,4 +32,4 @@ export const projectOrOrganizationSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const projectOrOrganizationSearchParams = () => toParams(projectOrOrganizationSearchSchema(), endpointGetUnionsProjectOrOrganizations, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.BookmarksDesc);
+export const projectOrOrganizationSearchParams = () => toParams(projectOrOrganizationSearchSchema(), endpointGetUnionsProjectOrOrganizations, undefined, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.BookmarksDesc);

@@ -4,7 +4,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { getLabels } from "../../getters";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { getSingleTypePermissions } from "../../validators";
+import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { ProjectFormat } from "../format/project";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
@@ -23,8 +23,9 @@ export const ProjectModel: ModelLogic<ProjectModelLogic, typeof suppFields> = ({
     format: ProjectFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
-                const maps = await preShapeRoot({ ...params, objectType: __typename });
+            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                await handlesCheck(prisma, "Project", createList, updateList, userData.languages);
+                const maps = await preShapeRoot({ createList, updateList, deleteList, prisma, userData, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({

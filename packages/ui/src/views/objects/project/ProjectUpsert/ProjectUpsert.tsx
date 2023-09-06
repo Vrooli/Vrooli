@@ -1,51 +1,70 @@
-import { endpointGetProjectVersion, endpointPostProjectVersion, endpointPutProjectVersion, FindVersionInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "@local/shared";
+import { endpointGetProjectVersion, endpointPostProjectVersion, endpointPutProjectVersion, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ProjectForm, projectInitialValues, transformProjectValues, validateProjectValues } from "forms/ProjectForm/ProjectForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
+import { ProjectShape } from "utils/shape/models/project";
+import { ProjectVersionShape } from "utils/shape/models/projectVersion";
 import { ProjectUpsertProps } from "../types";
 
 export const ProjectUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
-    zIndex,
+    overrideObject,
 }: ProjectUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, ProjectVersion>(endpointGetProjectVersion);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<ProjectVersion, ProjectVersionShape>({
+        ...endpointGetProjectVersion,
+        objectType: "ProjectVersion",
+        overrideObject,
+        transform: (existing) => projectInitialValues(session, existing),
+    });
 
-    const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => projectInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<ProjectVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<ProjectVersionCreateInput, ProjectVersion>(endpointPostProjectVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<ProjectVersionUpdateInput, ProjectVersion>(endpointPutProjectVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostProjectVersion,
+        endpointUpdate: endpointPutProjectVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="project-upsert-dialog"
+            isOpen={isOpen}
+            onClose={handleClose}
+        >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(isCreate ? "CreateProject" : "UpdateProject")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
@@ -53,12 +72,12 @@ export const ProjectUpsert = ({
                     }
                     fetchLazyWrapper<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>({
                         fetch,
-                        inputs: transformProjectValues(values, existing),
+                        inputs: transformProjectValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateProjectValues(values, existing)}
+                validate={async (values) => await validateProjectValues(values, existing, isCreate)}
             >
                 {(formik) => <ProjectForm
                     display={display}
@@ -66,12 +85,12 @@ export const ProjectUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
-                    versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
-                    zIndex={zIndex}
+                    versions={(existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? []}
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

@@ -8,7 +8,7 @@ export const ResourceListHorizontalInput = ({
     disabled = false,
     isCreate,
     isLoading = false,
-    zIndex,
+    parent,
 }: ResourceListHorizontalInputProps) => {
     const [field, , helpers] = useField("resourceList");
 
@@ -23,7 +23,7 @@ export const ResourceListHorizontalInput = ({
             handleUpdate={handleUpdate}
             loading={isLoading}
             mutate={!isCreate}
-            zIndex={zIndex}
+            parent={parent}
         />
     );
 };

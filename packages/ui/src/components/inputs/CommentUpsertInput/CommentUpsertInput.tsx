@@ -2,39 +2,49 @@ import { Comment, CommentCreateInput, CommentUpdateInput, endpointPostComment, e
 import { useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { CommentForm, commentInitialValues, transformCommentValues, validateCommentValues } from "forms/CommentForm/CommentForm";
-import { useContext, useMemo, useRef } from "react";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { useWindowSize } from "utils/hooks/useWindowSize";
-import { SessionContext } from "utils/SessionContext";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useWindowSize } from "hooks/useWindowSize";
+import { useContext, useMemo } from "react";
 import { CommentUpsertInputProps } from "../types";
 
 /**
- * MarkdownInput/CommentContainer wrapper for creating comments
+ * RichInput/CommentContainer wrapper for creating comments
  */
 export const CommentUpsertInput = ({
     comment,
+    isOpen,
     language,
     objectId,
     objectType,
     onCancel,
     onCompleted,
     parent,
-    zIndex,
 }: CommentUpsertInputProps) => {
     const session = useContext(SessionContext);
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
-    const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => commentInitialValues(session, objectType, objectId, language, comment), [comment, language, objectId, objectType, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<Comment>("dialog", !exists(comment), onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<CommentCreateInput, Comment>(endpointPostComment);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<Comment, CommentUpdateInput>(endpointPutComment);
-    const fetch = (!exists(comment) ? create : update) as MakeLazyRequest<CommentCreateInput | CommentUpdateInput, Comment>;
+
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Comment, CommentCreateInput, CommentUpdateInput>({
+        display: "dialog", // Set this to dialog, since it's more correct that page (there is no option for in-page yet)
+        endpointCreate: endpointPostComment,
+        endpointUpdate: endpointPutComment,
+        isCreate: !exists(comment),
+        onCancel,
+        onCompleted,
+    });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
         <Formik
@@ -45,37 +55,37 @@ export const CommentUpsertInput = ({
                 //TODO
                 fetchLazyWrapper<CommentCreateInput | CommentUpdateInput, Comment>({
                     fetch,
-                    inputs: transformCommentValues(values, comment),
+                    inputs: transformCommentValues(values, initialValues, !exists(comment)),
                     successCondition: (data) => data !== null,
                     successMessage: () => ({ messageKey: "CommentUpdated" }),
                     onSuccess: (data) => {
                         helpers.resetForm();
                         handleCompleted(data);
                     },
-                    onError: () => { helpers.setSubmitting(false); },
+                    onCompleted: () => { helpers.setSubmitting(false); },
                 });
             }}
-            validate={async (values) => await validateCommentValues(values, comment)}
+            validate={async (values) => await validateCommentValues(values, initialValues, !exists(comment))}
         >
             {(formik) => {
                 if (isMobile) return <CommentDialog
                     isCreate={!exists(comment)}
                     isLoading={isCreateLoading || isUpdateLoading}
-                    isOpen={true}
+                    isOpen={isOpen}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     parent={parent}
                     ref={formRef}
-                    zIndex={zIndex + 1}
                     {...formik}
                 />;
                 return <CommentForm
                     display="page"
                     isCreate={!exists(comment)}
                     isLoading={isCreateLoading || isUpdateLoading}
-                    isOpen={true}
+                    isOpen={isOpen}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />;
             }}

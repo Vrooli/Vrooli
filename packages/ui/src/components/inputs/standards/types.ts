@@ -12,7 +12,6 @@ export interface BaseStandardInputProps {
     label?: FieldDataBase["label"];
     storageKey: string;
     yup?: FieldData["yup"];
-    zIndex: number;
 }
 
 /**
@@ -39,5 +38,4 @@ export type TextStandardInputProps = StandardInputCommonProps;
 export interface StandardInputProps {
     disabled?: boolean;
     fieldName: string;
-    zIndex: number;
 }

@@ -15,11 +15,12 @@ export function omit<T extends Record<string, any>>(obj: T, keysToOmit: string[]
         // Loop through each nested key
         for (let i = 0; i < path.length - 1; i++) {
             // Get the current object based on the nested key
-            current = current[path[i]];
+            current = current[path[i]!];
         }
         // Delete the last nested key from the current object
-        delete current[path[path.length - 1]];
+        delete current[path[path.length - 1]!];
         let currentKey = path[0];
+        if (!currentKey) continue;
         // Check if parent objects should be removed as well
         for (let i = 1; i < path.length; i++) {
             // If the current object is empty after removing its keys, remove it
@@ -27,7 +28,7 @@ export function omit<T extends Record<string, any>>(obj: T, keysToOmit: string[]
                 delete result[currentKey];
                 break;
             }
-            current = current[path[i]];
+            current = current[path[i]!];
             currentKey = currentKey + "." + path[i];
         }
     }

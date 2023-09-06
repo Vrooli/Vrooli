@@ -1,14 +1,15 @@
 import { endpointGetTranslate, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { SessionContext } from "contexts/SessionContext";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useZIndex } from "hooks/useZIndex";
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FixedSizeList } from "react-window";
 import { AllLanguages, getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { ListMenu } from "../ListMenu/ListMenu";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { ListMenuItemData, SelectLanguageMenuProps } from "../types";
@@ -58,7 +59,6 @@ export const SelectLanguageMenu = ({
     isEditing = false,
     languages,
     sxs,
-    zIndex,
 }: SelectLanguageMenuProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -158,6 +158,7 @@ export const SelectLanguageMenu = ({
     // Popup for selecting language
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
+    const zIndex = useZIndex(open);
     const onOpen = useCallback((event: MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
@@ -185,7 +186,6 @@ export const SelectLanguageMenu = ({
                 data={translateSourceOptions}
                 onSelect={handleTranslateSourceSelect}
                 onClose={closeTranslateSource}
-                zIndex={zIndex + 2}
             />
             {/* Language select popover */}
             <Popover
@@ -194,7 +194,7 @@ export const SelectLanguageMenu = ({
                 onClose={onClose}
                 aria-labelledby={titleId}
                 sx={{
-                    zIndex: zIndex + 1,
+                    zIndex,
                     "& .MuiPopover-paper": {
                         background: "transparent",
                         border: "none",
@@ -215,7 +215,6 @@ export const SelectLanguageMenu = ({
                     ariaLabel={titleId}
                     title={t("LanguageSelect")}
                     onClose={onClose}
-                    zIndex={zIndex + 1}
                 />
                 {/* Search bar and list of languages */}
                 <Stack direction="column" spacing={2} sx={{
@@ -227,16 +226,6 @@ export const SelectLanguageMenu = ({
                     background: palette.background.default,
                     borderRadius: "0 4px 4px",
                     padding: "8px",
-                    "&::-webkit-scrollbar": {
-                        width: 10,
-                    },
-                    "&::-webkit-scrollbar-track": {
-                        backgroundColor: "#dae5f0",
-                    },
-                    "&::-webkit-scrollbar-thumb": {
-                        borderRadius: "100px",
-                        backgroundColor: "#409590",
-                    },
                 }}>
                     <TextField
                         placeholder={t("LanguageEnter")}
@@ -255,8 +244,6 @@ export const SelectLanguageMenu = ({
                         itemCount={languageOptions.length}
                         overscanCount={5}
                         style={{
-                            scrollbarColor: "#409590 #dae5f0",
-                            scrollbarWidth: "thin",
                             maxWidth: "100%",
                         }}
                     >

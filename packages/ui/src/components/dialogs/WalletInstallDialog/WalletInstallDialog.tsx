@@ -14,7 +14,6 @@ const titleId = "wallet-install-dialog-title";
 export const WalletInstallDialog = ({
     onClose,
     open,
-    zIndex,
 }: WalletInstallDialogProps) => {
     const { t } = useTranslation();
 
@@ -24,13 +23,11 @@ export const WalletInstallDialog = ({
             onClose={onClose}
             isOpen={open}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 title={t("InstallWalletExtension")}
                 onClose={onClose}
-                zIndex={zIndex + 1000}
             />
             <DialogContent>
                 {Object.values(walletDownloadUrls).map((o, index) => (

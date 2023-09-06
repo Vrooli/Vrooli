@@ -1,54 +1,72 @@
-import { endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, FindByIdInput, Question, QuestionCreateInput, QuestionUpdateInput } from "@local/shared";
+import { endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, Question, QuestionCreateInput, QuestionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { QuestionForm, questionInitialValues, transformQuestionValues, validateQuestionValues } from "forms/QuestionForm/QuestionForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
+import { QuestionShape } from "utils/shape/models/question";
 import { QuestionUpsertProps } from "../types";
 
 export const QuestionUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
-    zIndex,
+    overrideObject,
 }: QuestionUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Question>(endpointGetQuestion);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Question, QuestionShape>({
+        ...endpointGetQuestion,
+        objectType: "Question",
+        overrideObject,
+        transform: (existing) => questionInitialValues(session, existing),
+    });
 
-    const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => questionInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<Question>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<QuestionCreateInput, Question>(endpointPostQuestion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<QuestionUpdateInput, Question>(endpointPutQuestion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<QuestionCreateInput | QuestionUpdateInput, Question>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Question, QuestionCreateInput, QuestionUpdateInput>({
+        display,
+        endpointCreate: endpointPostQuestion,
+        endpointUpdate: endpointPutQuestion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="question-upsert-dialog"
+            isOpen={isOpen}
+            onClose={handleClose}
+        >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(isCreate ? "CreateQuestion" : "UpdateQuestion")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
                 initialValues={{
-                    ...initialValues,
+                    ...existing,
                     forObject: null,
-                } as any}
+                } as QuestionShape}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
@@ -56,12 +74,12 @@ export const QuestionUpsert = ({
                     }
                     fetchLazyWrapper<QuestionCreateInput | QuestionUpdateInput, Question>({
                         fetch,
-                        inputs: transformQuestionValues(values, existing),
+                        inputs: transformQuestionValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateQuestionValues(values, existing)}
+                validate={async (values) => await validateQuestionValues(values, existing, isCreate)}
             >
                 {(formik) => <QuestionForm
                     display={display}
@@ -69,11 +87,11 @@ export const QuestionUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

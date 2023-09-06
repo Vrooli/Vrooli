@@ -1,5 +1,6 @@
 import { SmartContractVersion } from "@local/shared";
-import { UpsertProps, ViewProps } from "../types";
+import { ObjectViewProps } from "views/types";
+import { UpsertProps } from "../types";
 
 export type SmartContractUpsertProps = UpsertProps<SmartContractVersion>
-export type SmartContractViewProps = ViewProps<SmartContractVersion>
+export type SmartContractViewProps = ObjectViewProps<SmartContractVersion>

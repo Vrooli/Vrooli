@@ -1,13 +1,12 @@
 import { IconButton, Tooltip, useTheme } from "@mui/material";
-import { ReportDialog } from "components/dialogs/ReportDialog/ReportDialog";
 import { ReportIcon } from "icons";
 import { useCallback, useState } from "react";
+import { ReportUpsert } from "views/objects/report";
 import { ReportButtonProps } from "../types";
 
 export const ReportButton = ({
     forId,
     reportFor,
-    zIndex,
 }: ReportButtonProps) => {
     const { palette } = useTheme();
 
@@ -17,12 +16,12 @@ export const ReportButton = ({
 
     return (
         <>
-            <ReportDialog
-                forId={forId}
-                onClose={closeDialog}
-                open={open}
-                reportFor={reportFor}
-                zIndex={zIndex + 1}
+            <ReportUpsert
+                isCreate={true}
+                isOpen={open}
+                onCancel={closeDialog}
+                onCompleted={closeDialog}
+                overrideObject={{ createdFor: { __typename: reportFor, id: forId } }}
             />
             <Tooltip title="Report">
                 <IconButton aria-label="Report" size="small" onClick={openDialog}>

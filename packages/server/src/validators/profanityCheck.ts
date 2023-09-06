@@ -29,9 +29,18 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: `${GqlMode
     const handleTranslationsArray = (translationsArray: any[], result: { [x: string]: string[] }) => {
         for (const translation of translationsArray) {
             for (const field in translation) {
-                if (field !== "id" && !field.endsWith("Id")) {
-                    result[field] = result[field] ? [...result[field], translation[field]] : [translation[field]];
+                // Ignore ID fields and language fields
+                if (field === "id" || field === "language" || field.includes("Id")) continue;
+                // If the field is an array, recurse
+                if (Array.isArray(translation[field])) {
+                    handleTranslationsArray(translation[field], result);
                 }
+                // If the field is an object, recurse
+                else if (typeof translation[field] === "object") {
+                    handleTranslationsArray([translation[field]], result);
+                }
+                // Otherwise, add string fields to the result
+                else if (typeof translation[field] === "string") result[field] = result[field] ? [...result[field], translation[field]] : [translation[field]];
             }
         }
     };

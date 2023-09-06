@@ -1,6 +1,7 @@
 import { Dialog, useTheme } from "@mui/material";
+import { useZIndex } from "hooks/useZIndex";
 import { UpTransition } from "../../transitions";
-import { LargeDialogProps } from "../types";
+import { LargeDialogProps, MaybeLargeDialogProps } from "../types";
 
 export const LargeDialog = ({
     children,
@@ -8,24 +9,25 @@ export const LargeDialog = ({
     isOpen,
     onClose,
     titleId,
-    zIndex,
     sxs,
 }: LargeDialogProps) => {
-    const { palette } = useTheme();
+    const { palette, spacing } = useTheme();
+    const [zIndex, handleTransitionExit] = useZIndex(isOpen, true);
 
     return (
         <Dialog
             id={id}
             open={isOpen}
             onClose={onClose}
+            onTransitionExited={handleTransitionExit}
             scroll="paper"
             aria-labelledby={titleId}
             TransitionComponent={UpTransition}
             sx={{
-                zIndex: zIndex + 999,
+                zIndex,
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
-                        zIndex: zIndex + 999,
+                        zIndex,
                         margin: { xs: 0, sm: 2, md: 4 },
                         minWidth: { xs: "100vw", sm: "unset" },
                         maxWidth: { xs: "100vw", sm: "calc(100vw - 64px)" },
@@ -34,7 +36,7 @@ export const LargeDialog = ({
                         top: { xs: "auto", sm: undefined },
                         position: { xs: "absolute", sm: "relative" },
                         display: { xs: "block", sm: "inline-block" },
-                        borderRadius: 2,
+                        borderRadius: { xs: `${spacing(1)} ${spacing(1)} 0 0`, sm: 2 },
                         background: palette.mode === "light" ? "#c2cadd" : palette.background.default,
                         color: palette.background.textPrimary,
                         "& > .MuiDialogContent-root": {
@@ -47,5 +49,28 @@ export const LargeDialog = ({
         >
             {children}
         </Dialog>
+    );
+};
+
+/** Wraps children in a dialog is display is dialog */
+export const MaybeLargeDialog = ({
+    children,
+    display,
+    isOpen,
+    onClose,
+    ...props
+}: MaybeLargeDialogProps) => {
+    return display === "dialog" ? (
+        <LargeDialog
+            onClose={onClose ?? (() => {
+                console.warn("onClose not passed to MaybeLargeDialog");
+            })}
+            isOpen={isOpen ?? false}
+            {...props}
+        >
+            {children}
+        </LargeDialog>
+    ) : (
+        <>{children}</>
     );
 };

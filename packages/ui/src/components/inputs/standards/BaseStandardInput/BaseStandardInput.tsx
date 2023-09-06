@@ -16,7 +16,6 @@ export const BaseStandardInput = ({
     isEditing,
     label,
     storageKey,
-    zIndex,
 }: BaseStandardInputProps) => {
     const [field, , helpers] = useField(fieldName ?? "");
 
@@ -136,8 +135,7 @@ export const BaseStandardInput = ({
                     {...formik.values}
                     isEditing={isEditing}
                     fieldName={fieldName}
-                    // yup={field.value.yup}
-                    zIndex={zIndex}
+                // yup={field.value.yup}
                 />
                 <p>{JSON.stringify(formik.values)}</p>
             </>}

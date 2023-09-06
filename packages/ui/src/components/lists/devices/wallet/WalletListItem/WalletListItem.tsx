@@ -41,6 +41,7 @@ export function WalletListItem({
             sx={{
                 display: "flex",
                 padding: 1,
+                borderBottom: `1px solid ${palette.divider}`,
             }}
         >
             {/* Left informational column */}

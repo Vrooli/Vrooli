@@ -92,52 +92,47 @@ export const shortcuts: PreSearchItem[] = [
     {
         label: "SearchApi",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Apis}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Api}`,
     },
     {
         label: "SearchNote",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Notes}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Note}`,
     },
     {
         label: "SearchOrganization",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Organizations}`,
-    },
-    {
-        label: "SearchQuestion",
-        keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Questions}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Organization}`,
     },
     {
         label: "SearchProject",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Projects}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Project}`,
     },
     {
         label: "SearchQuestion",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Questions}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Question}`,
     },
     {
         label: "SearchRoutine",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Routines}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Routine}`,
     },
     {
         label: "SearchSmartContract",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.SmartContracts}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.SmartContract}`,
     },
     {
         label: "SearchStandard",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Standards}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Standard}`,
     },
     {
         label: "SearchUser",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Users}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.User}`,
     },
     {
         label: "SearchRun",

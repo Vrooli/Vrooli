@@ -3,15 +3,14 @@ import { ShapeModel } from "types";
 import { MeetingInviteShape, shapeMeetingInvite } from "./meetingInvite";
 import { OrganizationShape } from "./organization";
 import { ScheduleShape, shapeSchedule } from "./schedule";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type MeetingTranslationShape = Pick<MeetingTranslation, "id" | "language" | "description" | "link" | "name"> & {
     __typename?: "MeetingTranslation";
 }
 
 export type MeetingShape = Pick<Meeting, "id" | "openToAnyoneWithInvite" | "showOnOrganizationProfile"> & {
-    __typename?: "Meeting";
+    __typename: "Meeting";
     organization: { id: string } | OrganizationShape;
     restrictedToRoles?: { id: string }[] | null;
     invites?: MeetingInviteShape[] | null;

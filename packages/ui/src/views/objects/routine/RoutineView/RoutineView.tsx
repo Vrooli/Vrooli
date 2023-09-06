@@ -1,9 +1,8 @@
 import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
-import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
+import { Box, Button, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { RunButton } from "components/buttons/RunButton/RunButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
@@ -12,31 +11,31 @@ import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
-import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
-import { UpTransition } from "components/transitions";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik, useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon, RoutineIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, setSearchParams, useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
-import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
@@ -48,16 +47,15 @@ const statsHelpText =
     "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
 export const RoutineView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
-    zIndex,
 }: RoutineViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion>({
         ...endpointGetRoutineVersion,
@@ -65,8 +63,9 @@ export const RoutineView = ({
             // Throw error if we are not creating a new routine
             if (!build || build !== true) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
         },
-        partialData,
+        objectType: "RoutineVersion",
     });
+    console.log("this is the existing", existing);
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
     useEffect(() => {
@@ -75,13 +74,9 @@ export const RoutineView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { name, description, instructions } = useMemo(() => {
-        const { description, instructions, name } = getTranslation(existing ?? partialData, [language]);
+        const { description, instructions, name } = getTranslation(existing, [language]);
         return { name, description, instructions };
-    }, [existing, language, partialData]);
-
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
+    }, [existing, language]);
 
     const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
     const viewGraph = useCallback(() => {
@@ -94,12 +89,12 @@ export const RoutineView = ({
 
     const handleRunDelete = useCallback((run: RunRoutine) => {
         if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, "you.runs", existing.you.runs.filter(r => r.id !== run.id)));
+        setRoutineVersion(setDotNotationValue(existing, "you.runs", existing.you?.runs?.filter(r => r.id !== run.id)) ?? existing);
     }, [existing, setRoutineVersion]);
 
     const handleRunAdd = useCallback((run: RunRoutine) => {
         if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, "you.runs", [run, ...existing.you.runs]));
+        setRoutineVersion(setDotNotationValue(existing, "you.runs", [run, ...(existing.you?.runs ?? [])]) ?? existing);
     }, [existing, setRoutineVersion]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
@@ -116,7 +111,7 @@ export const RoutineView = ({
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
-        if (!existing) return null;
+        if (!existing.inputs || !Array.isArray(existing.inputs)) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < existing.inputs?.length; i++) {
             const currInput = existing.inputs[i];
@@ -147,7 +142,7 @@ export const RoutineView = ({
 
     const [runComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
     const markAsComplete = useCallback(() => {
-        if (!existing) return;
+        if (!existing.id) return;
         fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
             fetch: runComplete,
             inputs: {
@@ -193,24 +188,21 @@ export const RoutineView = ({
                 objectId={existing?.id ?? ""}
                 objectType={CommentFor.RoutineVersion}
                 onAddCommentClose={closeAddCommentDialog}
-                zIndex={zIndex}
             />
         </Box>
-    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette, zIndex]);
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={firstString(name, t("Routine"))}
+                title={firstString(name, t("Routine", { count: 1 }))}
                 below={availableLanguages.length > 1 && <SelectLanguageMenu
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -224,51 +216,39 @@ export const RoutineView = ({
                     padding: 2,
                 }}>
                     {/* Dialog for building routine */}
-                    {existing && <Dialog
-                        id="run-routine-view-dialog"
-                        fullScreen
-                        open={isBuildOpen}
+                    <BuildView
+                        handleCancel={stopBuild}
                         onClose={stopBuild}
-                        TransitionComponent={UpTransition}
-                        sx={{
-                            zIndex: zIndex + 1,
-                        }}
-                    >
-                        <BuildView
-                            handleCancel={stopBuild}
-                            onClose={stopBuild}
-                            // Intentionally blank, since this is a read-only view
+                        // Intentionally blank, since this is a read-only view
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
+                        handleSubmit={() => { }}
+                        isEditing={false}
+                        isOpen={isBuildOpen}
+                        loading={isLoading}
+                        routineVersion={existing as RoutineVersion}
+                        translationData={{
+                            language,
+                            languages: availableLanguages,
+                            setLanguage,
                             // eslint-disable-next-line @typescript-eslint/no-empty-function
-                            handleSubmit={() => { }}
-                            isEditing={false}
-                            loading={isLoading}
-                            routineVersion={existing}
-                            translationData={{
-                                language,
-                                languages: availableLanguages,
-                                setLanguage,
-                                // eslint-disable-next-line @typescript-eslint/no-empty-function
-                                handleAddLanguage: () => { },
-                                // eslint-disable-next-line @typescript-eslint/no-empty-function
-                                handleDeleteLanguage: () => { },
-                            }}
-                            zIndex={zIndex + 1}
-                        />
-                    </Dialog>}
+                            handleAddLanguage: () => { },
+                            // eslint-disable-next-line @typescript-eslint/no-empty-function
+                            handleDeleteLanguage: () => { },
+                        }}
+                    />
                     {/* Relationships */}
                     <RelationshipList
                         isEditing={false}
                         objectType={"Routine"}
-                        zIndex={zIndex}
                     />
                     {/* Resources */}
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                        list={resourceList as ResourceList}
+                        list={resourceList as unknown as ResourceList}
                         canUpdate={false}
                         // eslint-disable-next-line @typescript-eslint/no-empty-function
                         handleUpdate={() => { }}
                         loading={isLoading}
-                        zIndex={zIndex}
+                        parent={{ __typename: "RoutineVersion", id: existing?.id ?? "" }}
                     />}
                     {/* Box with description and instructions */}
                     {(!!description || !!instructions) && <Stack direction="column" spacing={4} sx={containerProps(palette)}>
@@ -278,7 +258,6 @@ export const RoutineView = ({
                             text={description}
                             loading={isLoading}
                             loadingLines={2}
-                            zIndex={zIndex}
                         />
                         {/* Instructions */}
                         <TextCollapse
@@ -286,15 +265,13 @@ export const RoutineView = ({
                             text={instructions}
                             loading={isLoading}
                             loadingLines={4}
-                            zIndex={zIndex}
                         />
                     </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
-                    {existing?.nodes.length === 0 && existing?.nodeLinks.length === 0 && <Box sx={containerProps(palette)}>
+                    {existing.nodes?.length === 0 && existing.nodeLinks?.length === 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse
                             isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"
-                            zIndex={zIndex}
                         >
                             {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
                                 <GeneratedInputComponentWithLabel
@@ -304,7 +281,6 @@ export const RoutineView = ({
                                     index={index}
                                     textPrimary={palette.background.textPrimary}
                                     onUpload={() => { }}
-                                    zIndex={zIndex}
                                 />
                             ))}
                             {getCurrentUser(session).id && <Button
@@ -324,7 +300,6 @@ export const RoutineView = ({
                                 title={t("ThisIsMultiStep")}
                                 help={"ThisIsMultiStepHelp"}
                                 variant="subheader"
-                                zIndex={zIndex}
                             />
                             <Button
                                 startIcon={<RoutineIcon />}
@@ -340,53 +315,50 @@ export const RoutineView = ({
                         maxCharacters={30}
                         parentId={existing?.id ?? ""}
                         tags={tags as Tag[]}
-                        sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                        sx={{ marginTop: 4 }}
                     />}
-                    {/* Date and version labels */}
-                    <Stack direction="row" spacing={1} mt={2} mb={1}>
-                        {/* Date created */}
-                        <DateDisplay
-                            loading={isLoading}
-                            showIcon={true}
-                            timestamp={existing?.created_at}
-                            zIndex={zIndex}
+                    <Box>
+                        {/* Date and version labels */}
+                        <Stack direction="row" spacing={1} mt={2} mb={1}>
+                            {/* Date created */}
+                            <DateDisplay
+                                loading={isLoading}
+                                showIcon={true}
+                                timestamp={existing?.created_at}
+                            />
+                            <VersionDisplay
+                                currentVersion={existing}
+                                prefix={" - "}
+                                versions={existing?.root?.versions}
+                            />
+                        </Stack>
+                        {/* Votes, reports, and other basic stats */}
+                        <StatsCompact
+                            handleObjectUpdate={() => { }}
+                            object={existing}
                         />
-                        <VersionDisplay
-                            currentVersion={existing}
-                            prefix={" - "}
-                            versions={existing?.root?.versions}
-                            zIndex={zIndex}
+                        {/* Action buttons */}
+                        <ObjectActionsRow
+                            actionData={actionData}
+                            exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                            object={existing}
                         />
-                    </Stack>
-                    {/* Votes, reports, and other basic stats */}
-                    {/* <StatsCompact
-                handleObjectUpdate={updateRoutineVersion}
-                loading={loading}
-                object={existing}
-            /> */}
-                    {/* Action buttons */}
-                    <ObjectActionsRow
-                        actionData={actionData}
-                        exclude={[ObjectAction.Edit]} // Handled elsewhere
-                        object={existing}
-                        zIndex={zIndex}
-                    />
+                    </Box>
                     {/* Comments */}
                     {comments}
                 </Stack>}
             </Formik>
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
-            <SideActionButtons
+            <SideActionsButtons
                 // Treat as a dialog when build view is open
                 display={isBuildOpen ? "dialog" : display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                    <IconButton aria-label={t("UpdateRoutine")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 ) : null}
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
                 {existing?.nodes?.length ? <RunButton
@@ -396,9 +368,8 @@ export const RoutineView = ({
                     isBuildGraphOpen={isBuildOpen}
                     isEditing={false}
                     runnableObject={existing}
-                    zIndex={zIndex}
                 /> : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

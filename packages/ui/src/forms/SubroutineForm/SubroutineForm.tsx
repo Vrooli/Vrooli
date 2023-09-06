@@ -1,6 +1,6 @@
 import { DUMMY_ID, exists, nodeRoutineListItemValidation, orDefault, ResourceList, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
@@ -13,17 +13,17 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { TagList } from "components/lists/TagList/TagList";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CloseIcon, OpenInNewIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { combineErrorsWithTranslations, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "utils/shape/models/nodeRoutineListItem";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
@@ -49,15 +49,12 @@ export const subroutineInitialValues = (
     }]),
 });
 
-export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {
-    return existing === undefined
-        ? shapeNodeRoutineListItem.create(values)
-        : shapeNodeRoutineListItem.update(existing, values);
-};
+export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape | undefined, isCreate: boolean) =>
+    isCreate ? shapeNodeRoutineListItem.create(values) : shapeNodeRoutineListItem.update(existing as NodeRoutineListItemShape, values);
 
-export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {
-    const transformedValues = transformSubroutineValues(values, existing);
-    const validationSchema = nodeRoutineListItemValidation[existing === undefined ? "create" : "update"]({});
+export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape | undefined, isCreate: boolean) => {
+    const transformedValues = transformSubroutineValues(values, existing, isCreate);
+    const validationSchema = nodeRoutineListItemValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -73,7 +70,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -146,14 +142,12 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                 <Title
                     variant="header"
                     title={nameField.value}
-                    zIndex={zIndex}
                 />
                 {/* Version */}
                 <VersionDisplay
                     currentVersion={{ versionLabel: versionlabelField.value }}
                     prefix={" - "}
                     versions={versionsField.value ?? []}
-                    zIndex={zIndex}
                 />
                 {/* Position */}
                 {isEditing ? <Box sx={{ margin: "auto" }}>
@@ -203,7 +197,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                         isEditing={isEditing}
                         isFormDirty={dirty}
                         objectType={"Routine"}
-                        zIndex={zIndex}
                     />
                     {
                         (canUpdateRoutineVersion || (exists(resourceListField.value) && Array.isArray(resourceListField.value.resources) && resourceListField.value.resources.length > 0)) && <Grid item xs={12} mb={2}>
@@ -212,7 +205,7 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                 canUpdate={canUpdateRoutineVersion}
                                 handleUpdate={(newList) => { resourceListHelpers.setValue(newList); }}
                                 mutate={false}
-                                zIndex={zIndex}
+                                parent={{ __typename: "RoutineVersion", id: values.id }}
                             />
                         </Grid>
                     }
@@ -225,12 +218,10 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                     handleDelete={handleDeleteLanguage}
                                     handleCurrent={setLanguage}
                                     languages={languages}
-                                    zIndex={zIndex}
                                 /> : <SelectLanguageMenu
                                     currentLanguage={language}
                                     handleCurrent={setLanguage}
                                     languages={languages}
-                                    zIndex={zIndex}
                                 />}
                             </Grid>
                             {/* Name */}
@@ -244,7 +235,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                         language,
                                     }}
                                     title={t("Name")}
-                                    zIndex={zIndex}
                                 />
                             </Grid>
                             {/* Description */}
@@ -261,7 +251,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                         placeholder: "Description",
                                     }}
                                     title={t("Description")}
-                                    zIndex={zIndex}
                                 />
                             </Grid>
                             {/* Instructions */}
@@ -278,12 +267,11 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                         minRows: 4,
                                     }}
                                     title={t("Instructions")}
-                                    zIndex={zIndex}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 {
-                                    canUpdateRoutineVersion ? <TagSelector name='routineVersion.root.tags' zIndex={zIndex} /> :
+                                    canUpdateRoutineVersion ? <TagSelector name='routineVersion.root.tags' /> :
                                         <TagList parentId={""} tags={(tagsField.value ?? []) as any[]} />
                                 }
                             </Grid>
@@ -307,7 +295,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                 isInput={true}
                                 language={language}
                                 list={inputsField.value}
-                                zIndex={zIndex}
                             />
                         </Grid>}
                         {/* Outputs */}
@@ -318,13 +305,12 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                 isInput={false}
                                 language={language}
                                 list={outputsField.value}
-                                zIndex={zIndex}
                             />
                         </Grid>}
                     </Grid>
                 </FormContainer>
             </BaseForm>
-            {canUpdateRoutineVersion && <GridSubmitButtons
+            {canUpdateRoutineVersion && <BottomActionsButtons
                 display="dialog"
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -332,7 +318,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />}
         </>
     );

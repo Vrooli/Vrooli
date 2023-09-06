@@ -1,7 +1,7 @@
 import { Box, Grid, Slider } from "@mui/material";
+import { useThrottle } from "hooks/useThrottle";
 import { useCallback } from "react";
-import { useThrottle } from "utils/hooks/useThrottle";
-import { GridSubmitButtons } from "../GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "../BottomActionsButtons/BottomActionsButtons";
 import { BuildEditButtonsProps } from "../types";
 
 export const BuildEditButtons = ({
@@ -15,7 +15,6 @@ export const BuildEditButtons = ({
     isEditing,
     loading,
     scale,
-    zIndex,
 }: BuildEditButtonsProps) => {
 
     const handleSliderChangeThrottled = useThrottle((delta) => {
@@ -64,15 +63,15 @@ export const BuildEditButtons = ({
                 />
             </Box>
             <Grid container spacing={1} ml={2}>
-                <GridSubmitButtons
+                <BottomActionsButtons
                     disabledCancel={loading || !canCancelMutate}
                     disabledSubmit={loading || !canSubmitMutate}
                     display="page"
                     errors={errors}
+                    hideTextOnMobile
                     isCreate={isAdding}
                     onCancel={handleCancel}
                     onSubmit={handleSubmit}
-                    zIndex={zIndex}
                 />
             </Grid>
         </Box>

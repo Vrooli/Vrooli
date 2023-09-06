@@ -2,7 +2,7 @@
  * Used to create/update a link between two routineVersion nodes
  */
 import { Autocomplete, Box, DialogContent, Grid, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -17,7 +17,6 @@ export const MoveNodeMenu = ({
     language,
     node,
     routineVersion,
-    zIndex,
 }: MoveNodeMenuProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -172,25 +171,22 @@ export const MoveNodeMenu = ({
             isOpen={isOpen}
             onClose={() => { handleClose(); }}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 help={t("NodeMoveDialogHelp")}
                 onClose={onClose}
                 title={t("NodeMove")}
-                zIndex={zIndex + 1000}
             />
             <DialogContent>
                 {formContent}
                 {/* Action buttons */}
                 <Grid container spacing={1} sx={{ padding: 0, paddingTop: "24px" }}>
-                    <GridSubmitButtons
+                    <BottomActionsButtons
                         display="dialog"
                         isCreate={false}
                         onCancel={closeDialog}
                         onSubmit={moveNode}
-                        zIndex={zIndex + 1000}
                     />
                 </Grid>
             </DialogContent>

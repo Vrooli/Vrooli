@@ -7,11 +7,11 @@ import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { WalletInstallDialog } from "components/dialogs/WalletInstallDialog/WalletInstallDialog";
 import { WalletSelectDialog } from "components/dialogs/WalletSelectDialog/WalletSelectDialog";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { hasWalletExtension, validateWallet } from "utils/authentication/walletIntegration";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { updateArray } from "utils/shape/general";
 import { WalletListProps } from "../types";
@@ -21,7 +21,6 @@ export const WalletList = ({
     handleUpdate,
     numVerifiedEmails,
     list,
-    zIndex,
 }: WalletListProps) => {
     const { t } = useTranslation();
 
@@ -167,13 +166,11 @@ export const WalletList = ({
                 handleOpenInstall={openWalletInstallDialog}
                 open={connectOpen}
                 onClose={closeWalletConnectDialog}
-                zIndex={zIndex + 1}
             />
             {/* Install dialog for downloading wallet extension */}
             <WalletInstallDialog
                 open={installOpen}
                 onClose={closeWalletInstallDialog}
-                zIndex={zIndex + (connectOpen ? 1 : 0)}
             />
             <ListContainer
                 emptyText={t("NoWallets", { ns: "error" })}
@@ -198,7 +195,6 @@ export const WalletList = ({
                 display: "flex",
                 justifyContent: "center",
                 paddingTop: 4,
-                paddingBottom: 6,
             }}>
                 <Button
                     fullWidth

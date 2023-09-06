@@ -1,8 +1,19 @@
-import { ResourceListSortBy } from "@local/shared";
+import { ResourceListFor, ResourceListSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { EndpointsResourceList, ResourceListEndpoints } from "../logic";
 
 export const typeDef = gql`
+    enum ResourceListFor {
+        ApiVersion
+        FocusMode
+        Organization
+        Post
+        ProjectVersion
+        RoutineVersion
+        SmartContractVersion
+        StandardVersion
+    }   
+
     enum ResourceListSortBy {
         DateCreatedAsc
         DateCreatedDesc
@@ -14,14 +25,8 @@ export const typeDef = gql`
 
     input ResourceListCreateInput {
         id: ID!
-        apiVersionConnect: ID
-        focusModeConnect: ID
-        organizationConnect: ID
-        postConnect: ID
-        projectVersionConnect: ID
-        routineVersionConnect: ID
-        smartContractVersionConnect: ID
-        standardVersionConnect: ID
+        listFor: ResourceListFor!
+        listForConnect: ID!
         resourcesCreate: [ResourceCreateInput!]
         translationsCreate: [ResourceListTranslationCreateInput!]
     }
@@ -110,10 +115,12 @@ export const typeDef = gql`
 `;
 
 export const resolvers: {
+    ResourceListFor: typeof ResourceListFor;
     ResourceListSortBy: typeof ResourceListSortBy;
     Query: EndpointsResourceList["Query"];
     Mutation: EndpointsResourceList["Mutation"];
 } = {
+    ResourceListFor,
     ResourceListSortBy,
     ...ResourceListEndpoints,
 };

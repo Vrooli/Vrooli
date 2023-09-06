@@ -7,7 +7,6 @@ import { Prisma } from "@prisma/client";
 import { hashPassword } from "../../auth";
 import { logger } from "../../events/logger";
 import { PrismaType } from "../../types";
-import { bots } from "./bots";
 
 export async function init(prisma: PrismaType) {
     //==============================================================
@@ -21,6 +20,23 @@ export async function init(prisma: PrismaType) {
     }
 
     const EN = "en";
+
+    // TODO temporary
+    // Delete CIP-0025 standards
+    await prisma.standard.deleteMany({
+        where: {
+            createdById: "3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2",
+            versions: {
+                some: {
+                    translations: {
+                        some: {
+                            name: "CIP-0025 - NFT Metadata Standard",
+                        },
+                    },
+                },
+            },
+        },
+    });
 
     //==============================================================
     /* #endregion Initialization */
@@ -327,6 +343,7 @@ export async function init(prisma: PrismaType) {
             id: adminId,
         },
         update: {
+            handle: "matt",
             premium: {
                 upsert: {
                     create: {
@@ -344,6 +361,7 @@ export async function init(prisma: PrismaType) {
         },
         create: {
             id: adminId,
+            handle: "matt",
             name: "Matt Halloran",
             password: hashPassword(process.env.ADMIN_PASSWORD ?? ""),
             reputation: 1000000, // TODO temporary until community grows
@@ -397,10 +415,12 @@ export async function init(prisma: PrismaType) {
             id: valyxaId,
         },
         update: {
+            handle: "valyxa",
             invitedByUser: { connect: { id: adminId } },
         },
         create: {
             id: valyxaId,
+            handle: "valyxa",
             isBot: true,
             name: "Valyxa",
             password: hashPassword(process.env.VALYXA_PASSWORD ?? ""),
@@ -446,68 +466,6 @@ export async function init(prisma: PrismaType) {
         },
     });
 
-    // Load bots.json from this directory.
-    // TODO this is temporary. Remove when these bots are added to production.
-    // Create each bot
-    for (const bot of bots) {
-        const exisingBot = await prisma.user.findFirst({
-            where: {
-                name: bot.name,
-                invitedByUser: { id: adminId },
-            },
-        });
-        const botSettings = JSON.stringify({
-            translations: {
-                [EN]: {
-                    occupation: bot.occupation,
-                    persona: bot.persona,
-                    startingMessage: bot.startingMessage,
-                    tone: bot.tone,
-                    keyPhrases: bot.keyPhrases,
-                    domainKnowledge: bot.domainKnowledge,
-                    bias: bot.bias,
-                    creativity: bot.creativity,
-                    verbosity: bot.verbosity,
-                },
-            },
-        });
-        if (exisingBot) {
-            logger.info(`🤖 Bot ${bot.name} already exists`);
-            await prisma.user.update({
-                where: { id: exisingBot.id },
-                data: {
-                    botSettings,
-                },
-            });
-            continue;
-        }
-        logger.info(`🤖 Creating bot ${bot.name}`);
-        await prisma.user.create({
-            data: {
-                name: bot.name,
-                isBot: true,
-                botSettings,
-                status: "Unlocked",
-                invitedByUser: { connect: { id: adminId } },
-                languages: {
-                    create: [{ language: EN }],
-                },
-                awards: {
-                    create: [{
-                        timeCurrentTierCompleted: new Date(),
-                        category: "AccountNew",
-                        progress: 1,
-                    }],
-                },
-                translations: {
-                    create: [{
-                        language: EN,
-                        bio: bot.bio,
-                    }],
-                },
-            },
-        });
-    }
     //==============================================================
     /* #endregion Create Admin */
     //==============================================================
@@ -529,6 +487,7 @@ export async function init(prisma: PrismaType) {
         vrooli = await prisma.organization.create({
             data: {
                 id: organizationId,
+                handle: "vrooli",
                 createdBy: { connect: { id: admin.id } },
                 translations: {
                     create: [
@@ -596,6 +555,14 @@ export async function init(prisma: PrismaType) {
                         },
                     },
                 },
+            },
+        });
+    }
+    else {
+        await prisma.organization.update({
+            where: { id: vrooli.id },
+            data: {
+                handle: "vrooli",
             },
         });
     }
@@ -710,6 +677,7 @@ export async function init(prisma: PrismaType) {
         logger.info("📚 Creating CIP-0025 standard");
         standardCip0025 = await prisma.standard_version.create({
             data: {
+                id: standardCip0025Id,
                 root: {
                     create: {
                         id: uuid(),

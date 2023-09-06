@@ -14,6 +14,7 @@ import { openLink, useLocation } from "route";
 import { greenNeonText, PulseButton, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, textPop } from "styles";
 import { SvgComponent } from "types";
 import { Forms } from "utils/consts";
+import { toDisplay } from "utils/display/pageTools";
 import { SlideTitle } from "../../../styles";
 import { LandingViewProps } from "../types";
 
@@ -36,13 +37,13 @@ const externalLinks: [string, string, SvgComponent][] = [
  * View displayed for Home page when not logged in
  */
 export const LandingView = ({
-    display = "page",
+    isOpen,
     onClose,
-    zIndex,
 }: LandingViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const theme = useTheme();
+    const display = toDisplay(isOpen);
 
     // Track if earth/sky is in view, and hndle scroll snap on slides
     const [earthTransform, setEarthTransform] = useState<string>("translate(0%, 100%) scale(1)");
@@ -70,6 +71,7 @@ export const LandingView = ({
             const earthHorizonSlide = document.getElementById(slide5Id);
             const earthFullSlide = document.getElementById(slide6Id);
             if (inView(earthFullSlide)) {
+                console.log("setting earth full view");
                 setEarthTransform("translate(25%, 25%) scale(0.8)");
                 setIsSkyVisible(true);
             } else if (inView(earthHorizonSlide)) {
@@ -93,12 +95,11 @@ export const LandingView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                zIndex={zIndex}
             />
             <SlidePage id="landing-slides" sx={{
                 background: theme.palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",
             }}>
-                <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 6 }}>
+                <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 5 }}>
                     <SlideContent id={slide1Id} sx={{
                         minHeight: {
                             xs: "calc(100vh - 64px - 56px)",
@@ -207,7 +208,7 @@ export const LandingView = ({
                         </SlideBox>
                     </SlideContent>
                 </SlideContainerNeon>
-                <SlideContainer id='sky-slide' sx={{ color: "white", background: "black", zIndex: 3 }}>
+                <SlideContainer id='sky-slide' sx={{ color: "white", background: "black", zIndex: 5 }}>
                     {/* Background stars */}
                     <TwinkleStars
                         amount={400}
@@ -240,7 +241,9 @@ export const LandingView = ({
                             maxWidth: "1000px",
                             maxHeight: "1000px",
                             transform: earthTransform,
-                            transition: "transform 1.5s ease-in-out",
+                            transition: (scrollDirectionRef.current === "up" && earthTransform === "translate(0%, 100%) scale(1)")
+                                ? "transform 0.2s ease-in-out"
+                                : "transform 1.5s ease-in-out",
                             zIndex: 5,
                         }}
                     />

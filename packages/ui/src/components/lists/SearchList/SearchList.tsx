@@ -5,19 +5,21 @@ import { Box, Button } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
+import { useFindMany } from "hooks/useFindMany";
 import { PlusIcon } from "icons";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { NavigableObject } from "types";
-import { listToListItems } from "utils/display/listTools";
-import { useFindMany } from "utils/hooks/useFindMany";
+import { ArgsType, NavigableObject } from "types";
+import { ListObject } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
-import { SearchListProps } from "../types";
+import { ObjectList } from "../ObjectList/ObjectList";
+import { ObjectListActions, SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({
     canNavigate = () => true,
-    canSearch = () => true,
+    canSearch,
+    display,
     dummyLength = 5,
     handleAdd,
     hideUpdateButton,
@@ -28,9 +30,7 @@ export function SearchList<DataType extends NavigableObject>({
     searchType,
     sxs,
     onItemClick,
-    onScrolledFar,
     where,
-    zIndex,
 }: SearchListProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -42,8 +42,7 @@ export function SearchList<DataType extends NavigableObject>({
         autocompleteOptions,
         loading,
         loadMore,
-        pageData,
-        parseData,
+        removeItem,
         searchString,
         setAdvancedSearchParams,
         setSortBy,
@@ -52,6 +51,7 @@ export function SearchList<DataType extends NavigableObject>({
         sortBy,
         sortByOptions,
         timeFrame,
+        updateItem,
     } = useFindMany<DataType>({
         canSearch,
         resolve,
@@ -60,37 +60,72 @@ export function SearchList<DataType extends NavigableObject>({
         where,
     });
 
-    const listItems = useMemo(() => listToListItems({
-        canNavigate,
-        dummyItems: new Array(dummyLength).fill(searchType),
-        hideUpdateButton,
-        items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
-        keyPrefix: `${searchType}-list-item`,
-        loading,
-        onClick: onItemClick,
-        zIndex,
-    }), [canNavigate, dummyLength, searchType, hideUpdateButton, allData, parseData, pageData, loading, onItemClick, zIndex]);
+    const onAction = useCallback((action: keyof ObjectListActions<DataType>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted":
+                removeItem(...(data as ArgsType<ObjectListActions<DataType>["Deleted"]>));
+                break;
+            case "Updated":
+                updateItem(...(data as ArgsType<ObjectListActions<DataType>["Updated"]>));
+                break;
+        }
+    }, [removeItem, updateItem]);
 
-    // If near the bottom of the page, load more data
-    // If scrolled past a certain point, show an "Add New" button
+    // Handle infinite scroll
+    const containerRef = useRef<HTMLDivElement>(null);
+    const getScrollingContainer = useCallback((element: HTMLElement | null): HTMLElement | Document | null => {
+        // If display is "page", use document instead
+        if (display === "page") return document;
+        // Traverse up the DOM
+        while (element) {
+            // If a dialog, find the first component with a role of "dialog", 
+            if (display === "dialog" && element.getAttribute("role") === "dialog") {
+                return element;
+            }
+            // If inline, find the first component with overflowY set to "scroll" or "auto"
+            const overflowY = window.getComputedStyle(element).overflowY; //TODO need to fix this to get ChatSideMenu infinite scroll to work, but in a way that doesn't break FindObjectDialog
+            if (display === "partial" && (overflowY === "scroll" || overflowY === "auto")) {
+                return element;
+            }
+            element = element.parentElement;
+        }
+        return null;
+    }, [display]);
     const handleScroll = useCallback(() => {
-        const scrolledY = window.scrollY;
-        const windowHeight = window.innerHeight;
-        if (!loading && scrolledY > windowHeight - 500) {
+        const container = getScrollingContainer(containerRef.current) ?? window;
+        if (!container) return;
+        let scrolledY: number;
+        let scrollableHeight: number;
+        if (container === document) {
+            // When container is document, you should use document.documentElement or document.body based on browser compatibility
+            scrolledY = window.scrollY || window.pageYOffset;
+            scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+        } else if (container instanceof HTMLElement) {
+            scrolledY = container.scrollTop;
+            scrollableHeight = container.scrollHeight - container.clientHeight;
+        } else {
+            return;
+        }
+        console.log("handlescroll should load more?", scrolledY, scrollableHeight - 500);
+        if (!loading && scrolledY > scrollableHeight - 500) {
             loadMore();
         }
-        if (scrolledY > 100) {
-            if (onScrolledFar) onScrolledFar();
-        }
-    }, [loading, loadMore, onScrolledFar]);
-
-    // Set event listener for infinite scroll
+    }, [getScrollingContainer, loading, loadMore]);
     useEffect(() => {
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, [handleScroll]);
+        const scrollingContainer = getScrollingContainer(containerRef.current);
+        if (scrollingContainer) {
+            scrollingContainer.addEventListener("scroll", handleScroll);
+            return () => scrollingContainer.removeEventListener("scroll", handleScroll);
+        } else {
+            console.error("Could not find scrolling container - infinite scroll disabled");
+            return;
+        }
+    }, [getScrollingContainer, handleScroll]);
 
-    const handleSearch = useCallback((newString: string) => { setSearchString(newString); }, [setSearchString]);
+    const handleSearch = useCallback((newString: string) => {
+        console.log("handleSearch called", newString);
+        setSearchString(newString);
+    }, [setSearchString]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -100,8 +135,19 @@ export function SearchList<DataType extends NavigableObject>({
         // Determine object from selected label
         const selectedItem = allData.find(o => (o as any)?.id === newValue?.id);
         if (!selectedItem) return;
+        // If onItemClick is supplied, call it instead of navigating
+        if (typeof onItemClick === "function") {
+            onItemClick(selectedItem);
+            return;
+        }
+        // If canNavigate is supplied, call it
+        if (canNavigate) {
+            const shouldContinue = canNavigate(selectedItem);
+            if (shouldContinue === false) return;
+        }
+        // Navigate to the object's page
         openObject(selectedItem, setLocation);
-    }, [allData, setLocation]);
+    }, [allData, canNavigate, onItemClick, setLocation]);
 
     return (
         <>
@@ -123,7 +169,6 @@ export function SearchList<DataType extends NavigableObject>({
                     onChange={handleSearch}
                     onInputChange={onInputSelect}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                    zIndex={zIndex}
                 />
             </Box>
             <SearchButtons
@@ -140,13 +185,23 @@ export function SearchList<DataType extends NavigableObject>({
                     ...sxs?.buttons,
                 }}
                 timeFrame={timeFrame}
-                zIndex={zIndex}
             />
             <ListContainer
+                ref={containerRef}
                 emptyText={t("NoResults", { ns: "error" })}
-                isEmpty={listItems.length === 0}
+                isEmpty={allData.length === 0 && !loading}
+                sx={{ ...sxs?.listContainer }}
             >
-                {listItems}
+                <ObjectList
+                    canNavigate={canNavigate}
+                    dummyItems={new Array(dummyLength).fill(searchType)}
+                    hideUpdateButton={hideUpdateButton}
+                    items={allData as ListObject[]}
+                    keyPrefix={`${searchType}-list-item`}
+                    loading={loading}
+                    onAction={onAction}
+                    onClick={onItemClick}
+                />
             </ListContainer>
             {/* Add new button */}
             {Boolean(handleAdd) && <Box sx={{

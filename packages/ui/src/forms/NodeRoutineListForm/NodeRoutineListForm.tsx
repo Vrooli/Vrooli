@@ -1,16 +1,16 @@
 import { DUMMY_ID, nodeTranslationValidation, NodeType, nodeValidation, orDefault, Session, uuid } from "@local/shared";
 import { Checkbox, FormControlLabel } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeRoutineListFormProps, NodeWithRoutineListShape } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { shapeNode } from "utils/shape/models/node";
 
@@ -46,15 +46,12 @@ export const nodeRoutineListInitialValues = (
     };
 };
 
-export const transformNodeRoutineListValues = (values: NodeWithRoutineListShape, existing?: NodeWithRoutineListShape) => {
-    return existing === undefined
-        ? shapeNode.create(values)
-        : shapeNode.update(existing, values);
-};
+export const transformNodeRoutineListValues = (values: NodeWithRoutineListShape, existing: NodeWithRoutineListShape, isCreate: boolean) =>
+    isCreate ? shapeNode.create(values) : shapeNode.update(existing, values);
 
-export const validateNodeRoutineListValues = async (values: NodeWithRoutineListShape, existing?: NodeWithRoutineListShape) => {
-    const transformedValues = transformNodeRoutineListValues(values, existing);
-    const validationSchema = nodeValidation[existing === undefined ? "create" : "update"]({});
+export const validateNodeRoutineListValues = async (values: NodeWithRoutineListShape, existing: NodeWithRoutineListShape, isCreate: boolean) => {
+    const transformedValues = transformNodeRoutineListValues(values, existing, isCreate);
+    const validationSchema = nodeValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -68,7 +65,6 @@ export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRouti
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -107,7 +103,6 @@ export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRouti
                             multiline: true,
                         }}
                         title={t("Label")}
-                        zIndex={zIndex}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
@@ -120,7 +115,6 @@ export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRouti
                             maxRows: 8,
                         }}
                         title={t("Description")}
-                        zIndex={zIndex}
                     />
                     <FormControlLabel
                         disabled={!isEditing}
@@ -150,7 +144,7 @@ export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRouti
                     />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -158,7 +152,6 @@ export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRouti
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

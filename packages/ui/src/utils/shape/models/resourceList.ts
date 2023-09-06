@@ -1,8 +1,7 @@
-import { ResourceList, ResourceListCreateInput, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput } from "@local/shared";
+import { ResourceList, ResourceListCreateInput, ResourceListFor, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ResourceShape, shapeResource } from "./resource";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type ResourceListTranslationShape = Pick<ResourceListTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "ResourceListTranslation";
@@ -10,6 +9,7 @@ export type ResourceListTranslationShape = Pick<ResourceListTranslation, "id" | 
 
 export type ResourceListShape = Pick<ResourceList, "id"> & {
     __typename?: "ResourceList";
+    listFor: { __typename: ResourceListFor, id: string };
     resources?: ResourceShape[] | null;
     translations?: ResourceListTranslationShape[] | null;
 }
@@ -22,6 +22,8 @@ export const shapeResourceListTranslation: ShapeModel<ResourceListTranslationSha
 export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreateInput, ResourceListUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, "id"),
+        listForConnect: d.listFor.id,
+        listFor: d.listFor.__typename,
         ...createRel(d, "resources", ["Create"], "many", shapeResource, (r) => ({ list: { id: d.id }, ...r })),
         ...createRel(d, "translations", ["Create"], "many", shapeResourceListTranslation),
     }),

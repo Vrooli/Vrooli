@@ -1,30 +1,30 @@
 import { DUMMY_ID, orDefault, Session, SmartContractVersion, smartContractVersionTranslationValidation, smartContractVersionValidation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { SmartContractFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { shapeSmartContractVersion, SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 
 export const smartContractInitialValues = (
     session: Session | undefined,
-    existing?: SmartContractVersion | undefined,
+    existing?: Partial<SmartContractVersion> | undefined,
 ): SmartContractVersionShape => ({
     __typename: "SmartContractVersion" as const,
     id: DUMMY_ID,
@@ -37,16 +37,17 @@ export const smartContractInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "SmartContract" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
         parent: null,
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     translations: orDefault(existing?.translations, [{
         __typename: "SmartContractVersionTranslation" as const,
         id: DUMMY_ID,
@@ -57,15 +58,12 @@ export const smartContractInitialValues = (
     }]),
 });
 
-export const transformSmartContractValues = (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {
-    return existing === undefined
-        ? shapeSmartContractVersion.create(values)
-        : shapeSmartContractVersion.update(existing, values);
-};
+export const transformSmartContractValues = (values: SmartContractVersionShape, existing: SmartContractVersionShape, isCreate: boolean) =>
+    isCreate ? shapeSmartContractVersion.create(values) : shapeSmartContractVersion.update(existing, values);
 
-export const validateSmartContractValues = async (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {
-    const transformedValues = transformSmartContractValues(values, existing);
-    const validationSchema = smartContractVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateSmartContractValues = async (values: SmartContractVersionShape, existing: SmartContractVersionShape, isCreate: boolean) => {
+    const transformedValues = transformSmartContractValues(values, existing, isCreate);
+    const validationSchema = smartContractVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -79,7 +77,6 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -113,7 +110,6 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                     <RelationshipList
                         isEditing={true}
                         objectType={"SmartContract"}
-                        zIndex={zIndex}
                     />
                     <FormSection>
                         <LanguageInput
@@ -122,7 +118,6 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -130,37 +125,32 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                             language={language}
                             name="name"
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="description"
                             maxChars={2048}
                             minRows={4}
                             maxRows={8}
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
                     </FormSection>
                     <CodeInput
                         disabled={false}
                         limitTo={[StandardLanguage.Solidity, StandardLanguage.Haskell]}
                         name="content"
-                        zIndex={zIndex}
                     />
                     <ResourceListHorizontalInput
                         isCreate={true}
-                        zIndex={zIndex}
+                        parent={{ __typename: "SmartContractVersion", id: values.id }}
                     />
-                    <TagSelector
-                        name="root.tags"
-                        zIndex={zIndex}
-                    />
+                    <TagSelector name="root.tags" />
                     <VersionInput
                         fullWidth
                         versions={versions}
                     />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -168,7 +158,6 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

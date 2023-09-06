@@ -1,12 +1,12 @@
 /**
  * Used to create/update a link between two routine nodes
  */
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { UnlinkedNodesDialog } from "components/dialogs/UnlinkedNodesDialog/UnlinkedNodesDialog";
+import { useWindowSize } from "hooks/useWindowSize";
 import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
-import { useWindowSize } from "utils/hooks/useWindowSize";
+import { useTranslation } from "react-i18next";
 import { GraphActionsProps } from "../types";
 
 export const GraphActions = ({
@@ -20,8 +20,8 @@ export const GraphActions = ({
     isEditing,
     language,
     nodesOffGraph,
-    zIndex,
 }: GraphActionsProps) => {
+    const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
@@ -45,47 +45,47 @@ export const GraphActions = ({
             },
         }}>
             {showAll && <>
-                <Tooltip title={canUndo ? "Undo" : ""}>
-                    <ColorIconButton
+                <Tooltip title={canUndo ? t("Undo") : ""}>
+                    <IconButton
                         id="undo-button"
                         disabled={!canUndo}
                         onClick={handleUndo}
-                        aria-label="Undo"
-                        background={palette.secondary.main}
+                        aria-label={t("Undo")}
+                        sx={{ background: palette.secondary.main }}
                     >
                         <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
-                <Tooltip title={canRedo ? "Redo" : ""}>
-                    <ColorIconButton
+                <Tooltip title={canRedo ? t("Redo") : ""}>
+                    <IconButton
                         id="redo-button"
                         disabled={!canRedo}
                         onClick={handleRedo}
-                        aria-label="Redo"
-                        background={palette.secondary.main}
+                        aria-label={t("Redo")}
+                        sx={{ background: palette.secondary.main }}
                     >
                         <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
-                <Tooltip title='Clean up graph'>
-                    <ColorIconButton
+                <Tooltip title={t("CleanGraph")}>
+                    <IconButton
                         id="clean-graph-button"
                         onClick={handleCleanUpGraph}
-                        aria-label='Clean up graph'
-                        background={palette.secondary.main}
+                        aria-label={t("CleanGraph")}
+                        sx={{ background: palette.secondary.main }}
                     >
                         <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
-                <Tooltip title='Add new link'>
-                    <ColorIconButton
+                <Tooltip title={t("AddNewLink")}>
+                    <IconButton
                         id="add-link-button"
                         onClick={handleOpenLinkDialog}
-                        aria-label='Add link'
-                        background={palette.secondary.main}
+                        aria-label={t("AddNewLink")}
+                        sx={{ background: palette.secondary.main }}
                     >
                         <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
             </>}
             {(isEditing || nodesOffGraph.length > 0) && <UnlinkedNodesDialog
@@ -94,7 +94,6 @@ export const GraphActions = ({
                 language={language}
                 nodes={nodesOffGraph}
                 open={unlinkedNodesOpen}
-                zIndex={zIndex + 3}
             />}
         </Stack>
     );

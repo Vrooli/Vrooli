@@ -2,7 +2,6 @@ import { uuid } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getDeviceInfo } from "utils/display/device";
 import { translateSnackMessage } from "utils/display/translationTools";
 import { PubSub, TranslatedSnackMessage, UntranslatedSnackMessage } from "utils/pubsub";
 import { BasicSnack, SnackSeverity } from "../BasicSnack/BasicSnack";
@@ -58,8 +57,6 @@ export const SnackStack = () => {
         });
         // Subscribe to special snack events
         const cookiesSub = PubSub.get().subscribeCookies(() => {
-            // Ignore if in standalone mode
-            if (getDeviceInfo().isStandalone) return;
             setIsCookieSnackOpen(true);
         });
         return () => {

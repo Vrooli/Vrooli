@@ -2,7 +2,7 @@ import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, userValidat
 import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, translationShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
-import { getSingleTypePermissions } from "../../validators";
+import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { UserFormat } from "../format/user";
 import { ModelLogic, Mutater } from "../types";
 import { BookmarkModel } from "./bookmark";
@@ -46,6 +46,7 @@ const updateProfile: Mutater<UserModelLogic & { GqlUpdate: ProfileUpdateInput }>
 const updateBot: Mutater<UserModelLogic & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
     bannerImage: data.bannerImage,
     botSettings: noNull(data.botSettings),
+    handle: data.handle ?? null,
     isPrivate: noNull(data.isPrivate),
     name: noNull(data.name),
     profileImage: data.profileImage,
@@ -75,7 +76,8 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
     format: UserFormat,
     mutate: {
         shape: {
-            pre: async ({ updateList }) => {
+            pre: async ({ updateList, prisma, userData }) => {
+                await handlesCheck(prisma, "User", [], updateList, userData.languages);
                 const maps = preShapeEmbeddableTranslatable({ createList: [], updateList, objectType: __typename });
                 return { ...maps };
             },
@@ -84,6 +86,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
                 id: data.id,
                 bannerImage: noNull(data.bannerImage),
                 botSettings: data.botSettings,
+                handle: data.handle ?? null,
                 isBot: true,
                 isPrivate: noNull(data.isPrivate),
                 name: data.name,
@@ -104,6 +107,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
         sortBy: UserSortBy,
         searchFields: {
             createdTimeFrame: true,
+            excludeIds: true,
             isBot: true,
             maxBookmarks: true,
             maxViews: true,
@@ -151,7 +155,12 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
-            owner: (userId) => ({ id: userId }),
+            owner: (userId) => ({
+                OR: [
+                    { id: userId },
+                    { isBot: true, invitedByUser: { id: userId } },
+                ],
+            }),
         },
         // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
     },

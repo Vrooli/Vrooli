@@ -13,6 +13,8 @@ export const noteVersion_update = {
     "status": true,
     "createdBy": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -44,7 +46,11 @@ export const noteVersion_update = {
         "language": true,
         "description": true,
         "name": true,
-        "text": true
+        "pages": {
+          "id": true,
+          "pageIndex": true,
+          "text": true
+        }
       },
       "__typename": "Note"
     },
@@ -62,6 +68,8 @@ export const noteVersion_update = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -103,6 +111,8 @@ export const noteVersion_update = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -175,7 +185,11 @@ export const noteVersion_update = {
     "language": true,
     "description": true,
     "name": true,
-    "text": true
+    "pages": {
+      "id": true,
+      "pageIndex": true,
+      "text": true
+    }
   },
   "versionNotes": true,
   "id": true,

@@ -1,11 +1,7 @@
 import { Reminder } from "@local/shared";
-import { UpsertProps, ViewProps } from "../types";
+import { CrudProps } from "../types";
+import { NewReminderShape } from "./ReminderCrud/ReminderCrud";
 
-export interface ReminderUpsertProps extends UpsertProps<Reminder> {
-    handleDelete?: () => void;
-    index?: number;
-    listId?: string;
-    partialData?: Partial<Reminder>;
-    reminderListId?: string;
+export interface ReminderCrudProps extends Omit<CrudProps<Reminder>, "overrideObject"> {
+    overrideObject?: NewReminderShape;
 }
-export type ReminderViewProps = ViewProps<Reminder>

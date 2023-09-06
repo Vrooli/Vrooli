@@ -1,6 +1,8 @@
 export const meeting_create = {
   "attendees": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,
@@ -39,6 +41,8 @@ export const meeting_create = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -97,6 +101,8 @@ export const meeting_create = {
       "owner": {
         "User": {
           "id": true,
+          "created_at": true,
+          "updated_at": true,
           "bannerImage": true,
           "handle": true,
           "isBot": true,
@@ -161,6 +167,56 @@ export const meeting_create = {
             "color": true,
             "label": true,
             "__typename": "Label"
+          },
+          "reminderList": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "reminders": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "name": true,
+              "description": true,
+              "dueDate": true,
+              "index": true,
+              "isComplete": true,
+              "reminderItems": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "name": true,
+                "description": true,
+                "dueDate": true,
+                "index": true,
+                "isComplete": true,
+                "__typename": "ReminderItem"
+              },
+              "__typename": "Reminder"
+            },
+            "__typename": "ReminderList"
+          },
+          "resourceList": {
+            "id": true,
+            "created_at": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true,
+              "name": true
+            },
+            "resources": {
+              "id": true,
+              "index": true,
+              "link": true,
+              "usedFor": true,
+              "translations": {
+                "id": true,
+                "language": true,
+                "description": true,
+                "name": true
+              }
+            }
           },
           "schedule": {
             "id": true,
@@ -273,6 +329,8 @@ export const meeting_create = {
             "owner": {
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -314,6 +372,8 @@ export const meeting_create = {
           "owner": {
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -476,6 +536,8 @@ export const meeting_create = {
       },
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -647,6 +709,8 @@ export const meeting_create = {
       },
       "user": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

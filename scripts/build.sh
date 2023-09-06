@@ -9,6 +9,7 @@
 # Arguments (all optional):
 # -v: Version number to use (e.g. "1.0.0")
 # -d: Deploy to VPS (y/N)
+# -u: Send to Docker Hub (y/N)
 # -h: Show this help message
 # -a: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)
 # -e: .env file location (e.g. "/root/my-folder/.env"). Defaults to .env-prod
@@ -17,13 +18,16 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Read arguments
 ENV_FILE="${HERE}/../.env-prod"
-while getopts "v:d:ha:e:" opt; do
+while getopts "v:d:u:ha:e:" opt; do
     case $opt in
     v)
         VERSION=$OPTARG
         ;;
     d)
         DEPLOY=$OPTARG
+        ;;
+    u)
+        SEND_TO_DOCKER_HUB=$OPTARG
         ;;
     a)
         API_GENERATE=$OPTARG
@@ -32,9 +36,10 @@ while getopts "v:d:ha:e:" opt; do
         ENV_FILE=$OPTARG
         ;;
     h)
-        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h] [-a API_GENERATE] [-e ENV_FILE]"
+        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-u SEND_TO_DOCKER_HUB] [-h] [-a API_GENERATE] [-e ENV_FILE]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
         echo "  -d --deploy: Deploy to VPS (y/N)"
+        echo "  -u --send-to-docker-hub: Send to Docker Hub (y/N)"
         echo "  -h --help: Show this help message"
         echo "  -a --api-generate: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
         echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
@@ -225,7 +230,7 @@ rm -f sitemap.xml sitemaps/*.xml.gz
 rmdir sitemaps
 cd ../..
 
-# Compress build
+# Compress build TODO should probably compress builds for server and shared too, as well as all node_modules folders
 info "Compressing build..."
 tar -czf ${HERE}/../build.tar.gz -C ${HERE}/../packages/ui/dist .
 trap "rm build.tar.gz" EXIT
@@ -238,12 +243,12 @@ fi
 cd ${HERE}/..
 info "Building (and Pulling) Docker images..."
 docker-compose --env-file ${ENV_FILE} -f docker-compose-prod.yml build
-docker pull postgres:13-alpine
+docker pull ankane/pgvector:v0.4.1
 docker pull redis:7-alpine
 
 # Save and compress Docker images
 info "Saving Docker images..."
-docker save -o production-docker-images.tar ui:prod server:prod postgres:13-alpine redis:7-alpine
+docker save -o production-docker-images.tar ui:prod server:prod ankane/pgvector:v0.4.1 redis:7-alpine
 if [ $? -ne 0 ]; then
     error "Failed to save Docker images"
     exit 1
@@ -257,9 +262,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # Send docker images to Docker Hub
-prompt "Would you like to send the Docker images to Docker Hub? (y/N)"
-read -n1 -r SEND_TO_DOCKER_HUB
-echo
+if [ -z "$SEND_TO_DOCKER_HUB" ]; then
+    prompt "Would you like to send the Docker images to Docker Hub? (y/N)"
+    read -n1 -r SEND_TO_DOCKER_HUB
+    echo
+fi
 if [ "${SEND_TO_DOCKER_HUB}" = "y" ] || [ "${SEND_TO_DOCKER_HUB}" = "Y" ]; then
     "${HERE}/dockerToRegistry.sh -b n -v ${VERSION}"
     if [ $? -ne 0 ]; then

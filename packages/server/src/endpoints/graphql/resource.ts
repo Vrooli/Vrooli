@@ -38,7 +38,8 @@ export const typeDef = gql`
         index: Int
         link: String!
         usedFor: ResourceUsedFor!
-        listConnect: ID!
+        listConnect: ID
+        listCreate: ResourceListCreateInput
         translationsCreate: [ResourceTranslationCreateInput!]
     }
     input ResourceUpdateInput {
@@ -47,6 +48,7 @@ export const typeDef = gql`
         link: String
         usedFor: ResourceUsedFor
         listConnect: ID
+        listCreate: ResourceListCreateInput
         translationsDelete: [ID!]
         translationsCreate: [ResourceTranslationCreateInput!]
         translationsUpdate: [ResourceTranslationUpdateInput!]

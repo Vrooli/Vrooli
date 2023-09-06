@@ -48,16 +48,18 @@ const awardTier = (
     findNext = false,
 ): [number, AwardKey | null] => {
     for (let i = 0; i < list.length; i++) {
-        const [min] = list[i];
+        const item = list[i];
+        if (!item) continue;
+        const [min] = item;
         if (count < min) {
             const returnIndex = findNext ? Math.min(i + 1, list.length - 1) : i;
-            return list[returnIndex] || null;
+            return list[returnIndex] ?? [0, null];
         }
 
     }
     // If not found and findNext is true, return the first tier
-    if (findNext) return list.length > 0 ? list[0] : [0, null];
-    return [0, null];
+    const foundResult = list.length > 0 ? list[list.length - 1] : undefined;
+    return foundResult ?? [0, null];
 };
 
 /**

@@ -1,15 +1,13 @@
 import { Box, IconButton, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { Title } from "components/text/Title/Title";
 import { CloseIcon } from "icons";
 import { noSelect } from "styles";
 import { MenuTitleProps } from "../types";
 
 export const MenuTitle = ({
     ariaLabel,
-    helpText,
     onClose,
-    title,
-    zIndex,
+    ...titleData
 }: MenuTitleProps) => {
     const { palette } = useTheme();
 
@@ -28,9 +26,10 @@ export const MenuTitle = ({
                 color: palette.primary.contrastText,
                 textAlign: "center",
                 fontSize: { xs: "1.5rem", sm: "2rem" },
+                ...titleData.sxs?.root,
             }}
         >
-            <Box sx={{ marginLeft: "auto" }} >{title}</Box>
+            {/* <Box sx={{ marginLeft: "auto" }} >{title}</Box>
             {helpText && <HelpButton
                 markdown={helpText}
                 sx={{
@@ -41,8 +40,14 @@ export const MenuTitle = ({
                     marginTop: "auto",
                     marginBottom: "auto",
                 }}
-                zIndex={zIndex}
-            />}
+            />} */}
+            <Title
+                variant="subheader"
+                {...titleData}
+                sxs={{
+                    stack: { marginLeft: "auto", padding: 1 },
+                }}
+            />
             <IconButton
                 aria-label="close"
                 edge="end"

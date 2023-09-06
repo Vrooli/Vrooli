@@ -1,33 +1,31 @@
 import { DUMMY_ID, Node, NodeLink, orDefault, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
-import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CompleteIcon, RoutineIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
-import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineVersionShape, shapeRoutineVersion } from "utils/shape/models/routineVersion";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
@@ -35,7 +33,7 @@ import { BuildView } from "views/BuildView/BuildView";
 
 export const routineInitialValues = (
     session: Session | undefined,
-    existing?: RoutineVersion | null | undefined,
+    existing?: Partial<RoutineVersion> | null | undefined,
 ): RoutineVersionShape => ({
     __typename: "RoutineVersion" as const,
     id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
@@ -46,18 +44,19 @@ export const routineInitialValues = (
     nodeLinks: [],
     nodes: [],
     outputs: [],
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Routine" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
         parent: null,
         permissions: JSON.stringify({}),
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
-    resourceList: orDefault<ResourceListShape>(existing?.resourceList, {
+    resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     }),
@@ -71,15 +70,12 @@ export const routineInitialValues = (
     }]),
 });
 
-export const transformRoutineValues = (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
-    return existing === undefined
-        ? shapeRoutineVersion.create(values)
-        : shapeRoutineVersion.update(existing, values);
-};
+export const transformRoutineValues = (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) =>
+    isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
 
-export const validateRoutineValues = async (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
-    const transformedValues = transformRoutineValues(values, existing);
-    const validationSchema = routineVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateRoutineValues = async (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) => {
+    const transformedValues = transformRoutineValues(values, existing, isCreate);
+    const validationSchema = routineVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -97,11 +93,9 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -191,11 +185,10 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Routine"}
-                        zIndex={zIndex}
                     />
                     <ResourceListHorizontalInput
                         isCreate={true}
-                        zIndex={zIndex}
+                        parent={{ __typename: "RoutineVersion", id: values.id }}
                     />
                     <FormSection>
                         <LanguageInput
@@ -204,7 +197,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -212,28 +204,23 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             language={language}
                             name="name"
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="description"
                             maxChars={2048}
                             maxRows={4}
                             minRows={2}
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="instructions"
                             maxChars={8192}
                             minRows={4}
                             placeholder={t("Instructions")}
-                            zIndex={zIndex}
                         />
                         <br />
-                        <TagSelector
-                            name="root.tags"
-                            zIndex={zIndex}
-                        />
+                        <TagSelector name="root.tags" />
                         <VersionInput
                             fullWidth
                             versions={versions}
@@ -265,7 +252,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                                 title="Use subroutines?"
                                 help={helpTextSubroutines}
                                 variant="subheader"
-                                zIndex={zIndex}
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
@@ -290,35 +276,26 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             isMultiStep === true && (
                                 <>
                                     {/* Dialog for building routine graph */}
-                                    <LargeDialog
-                                        id="build-routine-graph-dialog"
+                                    <BuildView
+                                        handleCancel={handleGraphClose}
                                         onClose={handleGraphClose}
+                                        handleSubmit={handleGraphSubmit}
+                                        isEditing={true}
                                         isOpen={isGraphOpen}
-                                        titleId=""
-                                        zIndex={zIndex + 1300}
-                                        sxs={{ paper: { display: "contents" } }}
-                                    >
-                                        <BuildView
-                                            handleCancel={handleGraphClose}
-                                            onClose={handleGraphClose}
-                                            handleSubmit={handleGraphSubmit}
-                                            isEditing={true}
-                                            loading={false}
-                                            routineVersion={{
-                                                id: idField.value,
-                                                nodeLinks: nodeLinksField.value as NodeLink[],
-                                                nodes: nodesField.value as Node[],
-                                            }}
-                                            translationData={{
-                                                language,
-                                                setLanguage,
-                                                handleAddLanguage,
-                                                handleDeleteLanguage,
-                                                languages,
-                                            }}
-                                            zIndex={zIndex + 2300}
-                                        />
-                                    </LargeDialog>
+                                        loading={false}
+                                        routineVersion={{
+                                            id: idField.value,
+                                            nodeLinks: nodeLinksField.value as NodeLink[],
+                                            nodes: nodesField.value as Node[],
+                                        }}
+                                        translationData={{
+                                            language,
+                                            setLanguage,
+                                            handleAddLanguage,
+                                            handleDeleteLanguage,
+                                            languages,
+                                        }}
+                                    />
                                     {/* Button to display graph */}
                                     <Grid item xs={12} mb={4}>
                                         <Button
@@ -344,7 +321,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                                             isInput={true}
                                             language={language}
                                             list={inputsField.value}
-                                            zIndex={zIndex}
                                         />
                                     </Grid>
                                     <Grid item xs={12} mb={4}>
@@ -354,7 +330,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                                             isInput={false}
                                             language={language}
                                             list={outputsField.value}
-                                            zIndex={zIndex}
                                         />
                                     </Grid>
                                 </>
@@ -363,7 +338,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                     </FormSection>
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -371,7 +346,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

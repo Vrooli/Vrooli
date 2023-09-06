@@ -1,10 +1,10 @@
 import { exists } from "@local/shared";
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemProjectVersion } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { ProjectIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -13,14 +13,12 @@ import { useLocation } from "route";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
-import { SessionContext } from "utils/SessionContext";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { ProjectButtonProps } from "../types";
 
 export function ProjectButton({
     isEditing,
     objectType,
-    zIndex,
 }: ProjectButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -95,7 +93,6 @@ export function ProjectButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"
@@ -104,13 +101,12 @@ export function ProjectButton({
             >
                 <TextShrink id="project" sx={{ ...commonLabelProps() }}>{t("Project", { count: 1 })}</TextShrink>
                 <Tooltip title={tooltip}>
-                    <ColorIconButton
-                        background={palette.primary.light}
-                        sx={{ ...smallButtonProps(isEditing, true) }}
+                    <IconButton
                         onClick={handleProjectClick}
+                        sx={{ ...smallButtonProps(isEditing, true), background: palette.primary.light }}
                     >
                         {Icon && <Icon {...commonIconProps()} />}
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
             </Stack>
         </>

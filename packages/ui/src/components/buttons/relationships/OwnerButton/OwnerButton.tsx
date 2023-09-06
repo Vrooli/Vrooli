@@ -1,12 +1,12 @@
 import { exists } from "@local/shared";
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
 import { ListMenuItemData, SelectOrCreateObjectType } from "components/dialogs/types";
 import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
 import { RelationshipItemOrganization, RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { OrganizationIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -16,7 +16,6 @@ import { getCurrentUser } from "utils/authentication/session";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
-import { SessionContext } from "utils/SessionContext";
 import { OwnerShape } from "utils/shape/models/types";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { OwnerButtonProps } from "../types";
@@ -34,7 +33,6 @@ const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
 export function OwnerButton({
     isEditing,
     objectType,
-    zIndex,
 }: OwnerButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -130,7 +128,6 @@ export function OwnerButton({
                 data={ownerTypes}
                 onSelect={handleOwnerDialogSelect}
                 onClose={closeOwnerDialog}
-                zIndex={zIndex + 1}
             />
             {/* Popup for selecting organization or user */}
             {findType && <FindObjectDialog
@@ -139,7 +136,6 @@ export function OwnerButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"
@@ -148,13 +144,12 @@ export function OwnerButton({
             >
                 <TextShrink id="owner" sx={{ ...commonLabelProps() }}>{t("Owner")}</TextShrink>
                 <Tooltip title={tooltip}>
-                    <ColorIconButton
-                        background={palette.primary.light}
-                        sx={{ ...smallButtonProps(isEditing, true) }}
+                    <IconButton
                         onClick={handleOwnerClick}
+                        sx={{ ...smallButtonProps(isEditing, true), background: palette.primary.light }}
                     >
                         {Icon && <Icon {...commonIconProps()} />}
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
             </Stack>
         </>

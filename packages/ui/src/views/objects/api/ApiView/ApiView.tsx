@@ -9,37 +9,38 @@ import { ResourceListVertical } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
+import { SessionContext } from "contexts/SessionContext";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { ApiIcon, EditIcon, EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
 import { ApiViewProps } from "../types";
 
 export const ApiView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
-    zIndex,
 }: ApiViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion>({
         ...endpointGetApiVersion,
-        partialData,
+        objectType: "ApiVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (apiVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [apiVersion?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
@@ -48,7 +49,7 @@ export const ApiView = ({
     const { canBookmark, details, name, resourceList, summary } = useMemo(() => {
         const { canBookmark } = apiVersion?.root?.you ?? {};
         const resourceList: ResourceList | null | undefined = apiVersion?.resourceList;
-        const { details, name, summary } = getTranslation(apiVersion ?? partialData, [language]);
+        const { details, name, summary } = getTranslation(apiVersion, [language]);
         return {
             details,
             canBookmark,
@@ -56,11 +57,7 @@ export const ApiView = ({
             resourceList,
             summary,
         };
-    }, [language, apiVersion, partialData]);
-
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
+    }, [language, apiVersion]);
 
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
@@ -75,9 +72,9 @@ export const ApiView = ({
             }}
             loading={isLoading}
             mutate={true}
-            zIndex={zIndex}
+            parent={{ __typename: "ApiVersion", id: apiVersion?.id ?? "" }}
         />
-    ) : null, [resourceList, permissions.canUpdate, isLoading, zIndex, apiVersion, setApiVersion]);
+    ) : null, [resourceList, permissions.canUpdate, isLoading, apiVersion, setApiVersion]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -145,7 +142,6 @@ export const ApiView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
-                        zIndex={zIndex}
                     />
                 }
                 {/* Joined date */}
@@ -155,7 +151,6 @@ export const ApiView = ({
                     textBeforeDate="Joined"
                     timestamp={apiVersion?.created_at}
                     width={"33%"}
-                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -169,7 +164,7 @@ export const ApiView = ({
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <ShareButton object={apiVersion} zIndex={zIndex} />
+                    <ShareButton object={apiVersion} />
                     <ReportsLink object={apiVersion} />
                     <BookmarkButton
                         disabled={!canBookmark}
@@ -178,19 +173,18 @@ export const ApiView = ({
                         isBookmarked={apiVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={apiVersion?.root?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
-                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, zIndex, canBookmark, actionData]);
+    ), [palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, canBookmark, actionData]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
-                zIndex={zIndex}
+                title={firstString(name, t("Api", { count: 1 }))}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -198,7 +192,6 @@ export const ApiView = ({
                 anchorEl={moreMenuAnchor}
                 object={apiVersion as any}
                 onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
             />
             <Box sx={{
                 background: palette.mode === "light" ? "#b2b3b3" : "#303030",
@@ -217,7 +210,6 @@ export const ApiView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
-                        zIndex={zIndex}
                     />}
                 </Box>
                 {overviewComponent}

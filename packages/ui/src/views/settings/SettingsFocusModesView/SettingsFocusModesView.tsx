@@ -2,30 +2,30 @@ import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, Ma
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { SessionContext } from "contexts/SessionContext";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { multiLineEllipsis } from "styles";
+import { multiLineEllipsis, pagePaddingBottom } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { FocusModeUpsert } from "views/objects/focusMode";
 import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({
-    display = "page",
+    isOpen,
     onClose,
-    zIndex,
 }: SettingsFocusModesViewProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const [focusModes, setFocusModes] = useState<FocusMode[]>([]);
     useEffect(() => {
@@ -50,7 +50,7 @@ export const SettingsFocusModesView = ({
         }
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            messageKey: "DeleteFocusModeConfirm",
+            messageKey: "DeleteConfirm",
             buttons: [
                 {
                     labelKey: "Yes", onClick: () => {
@@ -154,29 +154,19 @@ export const SettingsFocusModesView = ({
     return (
         <>
             {/* Dialog to create/update focus modes */}
-            <LargeDialog
-                id="schedule-dialog"
-                onClose={handleCloseDialog}
+            <FocusModeUpsert
+                isCreate={editingFocusMode === null}
                 isOpen={isDialogOpen}
-                titleId={""}
-                zIndex={zIndex + 2}
-            >
-                <FocusModeUpsert
-                    display="dialog"
-                    isCreate={editingFocusMode === null}
-                    onCancel={handleCloseDialog}
-                    onCompleted={handleCompleted}
-                    partialData={editingFocusMode ?? undefined}
-                    zIndex={zIndex + 1002}
-                />
-            </LargeDialog>
+                onCancel={handleCloseDialog}
+                onCompleted={handleCompleted}
+                overrideObject={editingFocusMode ?? { __typename: "FocusMode" }}
+            />
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
                 title={t("FocusMode", { count: 2 })}
-                zIndex={zIndex}
             />
-            <Stack direction="row">
+            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>

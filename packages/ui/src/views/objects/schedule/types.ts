@@ -1,6 +1,7 @@
 import { Schedule } from "@local/shared";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
-import { UpsertProps, ViewProps } from "../types";
+import { ObjectViewProps } from "views/types";
+import { UpsertProps } from "../types";
 
 export interface ScheduleUpsertProps extends UpsertProps<Schedule> {
     canChangeTab?: boolean;
@@ -10,6 +11,5 @@ export interface ScheduleUpsertProps extends UpsertProps<Schedule> {
     index?: number;
     isMutate: boolean;
     listId?: string;
-    partialData?: Partial<Schedule>;
 }
-export type ScheduleViewProps = ViewProps<Schedule>
+export type ScheduleViewProps = ObjectViewProps<Schedule>

@@ -167,12 +167,29 @@ export const processAndStoreFiles = async <TInput extends object | undefined>(
 ): Promise<{ [x: string]: string[] }> => {
     const s3 = getS3Client();
 
+    // Keep track of the number of files processed for each field, so 
+    // we can ensure they don't exceed the maximum defined in the config.
+    const fileCounts: { [fieldName: string]: number } = {};
+
     // Create promise for each file
     const fileUrlsPromises = files.map(async file => {
         const urls: string[] = [];
 
+        // Increment the count for this field
+        fileCounts[file.fieldname] = (fileCounts[file.fieldname] || 0) + 1;
+
         // Find the correct input configuration for this file
         const fileConfig = config?.fields?.find(field => field.fieldName === file.fieldname);
+
+        // Check if the maximum number of files for this field has been exceeded
+        if (fileConfig?.maxFiles !== undefined && fileCounts[file.fieldname] > fileConfig.maxFiles) {
+            throw new CustomError("0524", "MaxFilesExceeded", ["en"], { file: file.filename });
+        }
+
+        // Check if the file size exceeds the maximum allowed size
+        if (fileConfig?.maxFileSize !== undefined && file.size > fileConfig.maxFileSize) {
+            throw new CustomError("0525", "MaxFileSizeExceeded", ["en"], { file: file.filename });
+        }
 
         // Get the file name
         const filenameBase = fileConfig?.fileNameBase ? fileConfig.fileNameBase(input, userData) : uuid();

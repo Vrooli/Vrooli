@@ -1,4 +1,4 @@
-import { BaseViewProps } from "views/types";
+import { ViewProps } from "views/types";
 
-export type PrivacyPolicyViewProps = BaseViewProps
-export type TermsViewProps = BaseViewProps
+export type PrivacyPolicyViewProps = ViewProps
+export type TermsViewProps = ViewProps

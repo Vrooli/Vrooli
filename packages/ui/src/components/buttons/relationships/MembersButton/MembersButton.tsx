@@ -1,7 +1,5 @@
 import { User } from "@local/shared";
-import { Box, Stack, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { Box, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
@@ -26,7 +24,6 @@ const renderIcon = (Icon: IconType, key: number) => {
 export const MembersButton = ({
     isEditing,
     objectType,
-    zIndex,
 }: MembersButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -74,33 +71,22 @@ export const MembersButton = ({
 
     return (
         <>
-            <LargeDialog
-                id="members-dialog"
-                onClose={closeDialog}
+            {/* Dialog for managing members */}
+            <MemberManageView
                 isOpen={isDialogOpen}
-                zIndex={zIndex}
-                sxs={{
-                    paper: {
-                        minHeight: "min(100vh - 64px, 600px)",
-                    },
-                }}
-            >
-                <MemberManageView
-                    onClose={closeDialog}
-                    organizationId={idField.value ?? ""}
-                    zIndex={zIndex + 1000}
-                />
-            </LargeDialog>
+                onClose={closeDialog}
+                organizationId={idField.value ?? ""}
+            />
             <Stack
                 direction="column"
                 alignItems="center"
                 justifyContent="center"
             >
                 <TextShrink id="members" sx={{ ...commonLabelProps() }}>{t("Member", { count: 2 })}</TextShrink>
-                <ColorIconButton
-                    background={palette.primary.light}
+                <IconButton
                     sx={{
                         ...smallButtonProps(isEditing, true),
+                        background: palette.primary.light,
                         borderRadius: "12px",
                         color: "white",
                         position: "relative",
@@ -118,7 +104,7 @@ export const MembersButton = ({
                             {renderIcon(icons[3], 3)}
                         </Stack>
                     </Stack>
-                </ColorIconButton>
+                </IconButton>
             </Stack>
         </>
     );

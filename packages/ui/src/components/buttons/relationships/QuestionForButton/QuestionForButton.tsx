@@ -1,6 +1,5 @@
 import { exists, QuestionForType } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemQuestionForObject } from "components/lists/types";
@@ -9,6 +8,7 @@ import { AddIcon, ApiIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon,
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { highlightStyle } from "styles";
 import { SvgComponent } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
@@ -31,7 +31,6 @@ const questionForTypeIcons: Record<QuestionForType, SvgComponent> = {
 export function QuestionForButton({
     isEditing,
     objectType,
-    zIndex,
 }: QuestionForButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -99,7 +98,6 @@ export function QuestionForButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={Object.keys(QuestionForType) as SelectOrCreateObjectType[]}
-                zIndex={zIndex + 1}
             />
             <Stack
                 direction="column"
@@ -119,7 +117,7 @@ export function QuestionForButton({
                             borderRadius: 8,
                             paddingRight: 2,
                             ...largeButtonProps(isEditing, true),
-                            ...buttonSx(palette.primary.light, !isEditing),
+                            ...highlightStyle(palette.primary.light, !isEditing),
                         }}
                     >
                         <IconButton>

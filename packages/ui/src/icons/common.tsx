@@ -393,6 +393,27 @@ export const Header3Icon = (props: SvgProps) => (
     />
 );
 
+export const Header4Icon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M2.84 5.37v13.21h2.2V12.8H9.8v5.78H12V5.37H9.8v5.68H5.04V5.37H2.84zm15.58.07-5.13 8.3v1.13c.05.26.42.49.7.49h4.57v3.2h1.6v-3.2h1c.31 0 .37-.3.37-.45v-1.3h-1.36V5.45h-1.75zm.2 2.55c-.04.49-.06.93-.06 1.34v4.29h-3.3l3.37-5.63z"
+    />
+);
+
+export const Header5Icon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M2.84 5.37v13.21h2.2V12.8H9.8v5.78H12V5.37H9.8v5.68H5.04V5.37H2.84zm12.52.08-.9 6.36 1.16.4c1.03-.5 2.4-.56 3.09.26.84.98.4 2.65.38 2.75a2.1 2.1 0 0 1-1.03 1.4c-1.04.26-1.91.15-2.76-.57-.3-.22-.64-.2-.85.16l-.57.95a4.08 4.08 0 0 0 3.17 1.54c2.44 0 4.03-2.04 4.03-4.66 0-1.36-.47-2.98-1.98-3.7a4.4 4.4 0 0 0-2.83-.13l.38-2.73h2.97c.59 0 1.09-.25 1.09-1.08v-.95h-5.35z"
+    />
+);
+
+export const Header6Icon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M2.84 5.37v13.21h2.2V12.8H9.8v5.78H12V5.37H9.8v5.68H5.04V5.37H2.84zm15.86.08c-.62 0-.65.06-.99.52l-2.58 4.2c-1.04 1.81-1.62 3.74-1.02 5.81.3.94.86 1.87 1.93 2.4.87.42 2.12.47 3.11-.02a3.96 3.96 0 0 0 2-2.34 5.5 5.5 0 0 0 0-3.44c-.65-1.76-1.99-2.2-2.93-2.2-.36 0-.91.06-1.46.39l.38-.56 3.2-4.76H18.7zm-1.11 6.6c1.3 0 1.98 1.04 1.98 2.41 0 1.36-.83 2.41-2.01 2.41-1.1 0-1.93-.76-1.93-2.43 0-1.24.7-2.4 1.96-2.4z"
+    />
+);
+
 export const HeaderIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
@@ -883,6 +904,14 @@ export const SearchIcon = (props: SvgProps) => (
     />
 );
 
+export const SendIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"
+    />
+);
+
+
 export const SettingsIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
@@ -974,6 +1003,13 @@ export const SuccessIcon = (props: SvgProps) => (
     />
 );
 
+export const TableIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"
+    />
+);
+
 export const TagIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
@@ -1006,6 +1042,13 @@ export const TwitterIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
         d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"
+    />
+);
+
+export const UnderlineIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"
     />
 );
 

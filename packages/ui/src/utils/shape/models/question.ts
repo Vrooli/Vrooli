@@ -1,15 +1,14 @@
 import { Question, QuestionCreateInput, QuestionForType, QuestionTranslation, QuestionTranslationCreateInput, QuestionTranslationUpdateInput, QuestionUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { shapeTag, TagShape } from "./tag";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type QuestionTranslationShape = Pick<QuestionTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "QuestionTranslation";
 }
 
 export type QuestionShape = Pick<Question, "id" | "isPrivate"> & {
-    __typename?: "Question";
+    __typename: "Question";
     acceptedAnswer?: { id: string } | null;
     forObject?: { __typename: QuestionForType | `${QuestionForType}`, id: string } | null;
     referencing?: string;

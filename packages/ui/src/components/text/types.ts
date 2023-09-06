@@ -1,6 +1,7 @@
-import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, User } from "@local/shared";
+import { Routine } from "@local/shared";
 import { BoxProps, TypographyProps } from "@mui/material";
 import { SvgComponent, SxType } from "types";
+import { ListObject } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
@@ -8,16 +9,6 @@ export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
     showIcon?: boolean;
     textBeforeDate?: string;
     timestamp?: number;
-    zIndex: number;
-}
-
-export interface MarkdownDisplayProps {
-    content: string | undefined;
-    isEditable?: boolean;
-    onChange?: (content: string) => void;
-    sx?: SxType;
-    variant?: TypographyProps["variant"];
-    zIndex: number;
 }
 
 export interface OwnerLabelProps {
@@ -30,10 +21,8 @@ export interface OwnerLabelProps {
     }
 }
 
-export type StatsCompactPropsObject = Api | Organization | Project | Quiz | Routine | SmartContract | Standard | User;
-export interface StatsCompactProps<T extends StatsCompactPropsObject> {
+export interface StatsCompactProps<T extends ListObject> {
     handleObjectUpdate: (object: T) => void;
-    loading: boolean;
     object: T | null | undefined;
 }
 
@@ -43,9 +32,12 @@ export interface TextShrinkProps extends TypographyProps {
 }
 
 export interface TitleProps {
+    /** Informational icons displayed to the right of the title */
+    adornments?: JSX.Element[];
     help?: string;
     /** Icon displayed to the left of the title */
     Icon?: SvgComponent;
+    /** Action icons displayed to the right of the title and adornments */
     options?: {
         Icon: SvgComponent;
         label: string;
@@ -59,19 +51,13 @@ export interface TitleProps {
     /** Replaces title if provided */
     titleComponent?: JSX.Element;
     /** Determines size */
-    variant: "header" | "subheader";
-    zIndex: number;
+    variant?: "header" | "subheader";
 }
 
 export interface VersionDisplayProps extends BoxProps {
     confirmVersionChange?: (callback: () => void) => void;
-    currentVersion: { versionLabel: string } | null | undefined;
+    currentVersion: Partial<{ versionLabel: string }> | null | undefined;
     loading?: boolean;
     prefix?: string;
     versions?: { versionLabel: string }[];
-    zIndex: number;
-}
-
-export interface ViewsDisplayProps {
-    views: number | null;
 }

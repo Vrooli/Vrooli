@@ -1,6 +1,8 @@
 export const issue_create = {
   "closedBy": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,
@@ -10,6 +12,8 @@ export const issue_create = {
   },
   "createdBy": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,
@@ -100,6 +104,8 @@ export const issue_create = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

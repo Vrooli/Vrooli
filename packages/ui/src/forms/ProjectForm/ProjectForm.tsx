@@ -1,28 +1,28 @@
 import { DUMMY_ID, orDefault, ProjectVersion, projectVersionTranslationValidation, projectVersionValidation, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { DirectoryListHorizontal } from "components/lists/directory";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ProjectFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ProjectVersionShape, shapeProjectVersion } from "utils/shape/models/projectVersion";
 
 export const projectInitialValues = (
     session: Session | undefined,
-    existing?: ProjectVersion | null | undefined,
+    existing?: Partial<ProjectVersion> | null | undefined,
 ): ProjectVersionShape => ({
     __typename: "ProjectVersion" as const,
     id: DUMMY_ID,
@@ -32,6 +32,8 @@ export const projectInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Project" as const,
         id: DUMMY_ID,
@@ -39,9 +41,8 @@ export const projectInitialValues = (
         owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         parent: null,
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     directories: orDefault(existing?.directories, [{
         __typename: "ProjectVersionDirectory" as const,
         id: DUMMY_ID,
@@ -63,15 +64,12 @@ export const projectInitialValues = (
     }]),
 });
 
-export const transformProjectValues = (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
-    return existing === undefined
-        ? shapeProjectVersion.create(values)
-        : shapeProjectVersion.update(existing, values);
-};
+export const transformProjectValues = (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) =>
+    isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
 
-export const validateProjectValues = async (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
-    const transformedValues = transformProjectValues(values, existing);
-    const validationSchema = projectVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateProjectValues = async (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) => {
+    const transformedValues = transformProjectValues(values, existing, isCreate);
+    const validationSchema = projectVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -85,7 +83,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
     onCancel,
     values,
     versions,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -122,7 +119,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Project"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
                     <FormSection>
@@ -132,7 +128,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -140,14 +135,13 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                             language={language}
                             name="name"
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="description"
                             maxChars={2048}
                             minRows={4}
                             maxRows={8}
                             placeholder={t("Description")}
-                            zIndex={zIndex}
                         />
                     </FormSection>
                     <DirectoryListHorizontal
@@ -156,7 +150,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                         handleUpdate={directoryHelpers.setValue}
                         loading={isLoading}
                         mutate={false}
-                        zIndex={zIndex}
                     />
                     <VersionInput
                         fullWidth
@@ -164,7 +157,7 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                     />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -172,7 +165,6 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

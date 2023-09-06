@@ -46,9 +46,9 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                 id: data.id,
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 creator: { connect: { id: rest.userData.id } },
-                // Create invite for non-bots
+                // Create invite for non-bots and not yourself
                 invites: {
-                    create: data.invitesCreate?.map((u) => ({
+                    create: data.invitesCreate?.filter((u) => !rest.preMap[__typename].bots.includes(u.userConnect) && u.userConnect !== rest.userData.id).map((u) => ({
                         id: u.id,
                         user: { connect: { id: u.userConnect } },
                         status: rest.preMap[__typename].bots.some((b: User) => b.id === u.userConnect) ? ChatInviteStatus.Accepted : ChatInviteStatus.Pending,
@@ -67,7 +67,7 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                         },
                     ],
                 },
-                // If only chatting with a bot, add start message
+                // If only chatting with a bot, add start message TODO needs persona of bot
                 ...(data.invitesCreate?.length === 1 && rest.preMap[__typename].bots.some((b) => b.id === data.invitesCreate![0].userConnect) ? {
                     messages: {
                         create: [{
@@ -87,13 +87,14 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                 ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
                 // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", relation: "labels", data, ...rest })),
+                ...(await shapeHelper({ relation: "messages", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 // Handle invites
                 invites: {
-                    create: data.invitesCreate?.map((u) => ({
+                    create: data.invitesCreate?.filter((u) => !rest.preMap[__typename].bots.includes(u.userConnect) && u.userConnect !== rest.userData.id).map((u) => ({
                         id: u.id,
                         user: { connect: { id: u.userConnect } },
                         status: rest.preMap[__typename].bots.includes(u.userConnect) ? ChatInviteStatus.Accepted : ChatInviteStatus.Pending,
@@ -109,19 +110,17 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                 },
                 // Handle participants
                 participants: {
-                    // Automatically accept bots, and add yourself
+                    // Automatically accept bots. You should already be a participant, so no need to add yourself
                     create: [
                         ...(rest.preMap[__typename].bots.map((u: User) => ({
                             user: { connect: { id: u.id } },
                         }))),
-                        {
-                            user: { connect: { id: rest.userData.id } },
-                        },
                     ],
                     delete: data.participantsDelete?.map((id) => ({ id })),
                 },
                 // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Delete", "Disconnect"], parentType: "Chat", relation: "labels", data, ...rest })),
+                ...(await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },

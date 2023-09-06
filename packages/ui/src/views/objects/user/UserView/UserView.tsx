@@ -1,103 +1,83 @@
-import { BookmarkFor, CommonKey, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuidValidate, VisibilityType } from "@local/shared";
-import { Avatar, Box, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
+import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { SearchListGenerator } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
-import { PageTab } from "components/types";
-import { BotIcon, CommentIcon, EditIcon, EllipsisIcon, InfoIcon, OrganizationIcon, ProjectIcon, SearchIcon, UserIcon } from "icons";
+import { SessionContext } from "contexts/SessionContext";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useTabs } from "hooks/useTabs";
+import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getLastUrlPart, useLocation } from "route";
-import { OverviewContainer } from "styles";
-import { SvgComponent } from "types";
+import { setSearchParams, useLocation } from "route";
+import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
+import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
+import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
+import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { base36ToUuid } from "utils/navigation/urlTools";
+import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { SearchType } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
+import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
 import { UserViewProps } from "../types";
 
-enum TabOptions {
-    Details = "Details",
-    Project = "Project",
-    Organization = "Organization",
-}
-
-type TabParams = {
-    Icon: SvgComponent;
-    searchType: SearchType;
-    tabType: Omit<TabOptions, TabOptions.Details>;
-    where: { [x: string]: any };
-} | {
-    Icon: SvgComponent;
-    tabType: TabOptions.Details;
-}
-
-// Data for each tab
-const tabParams: TabParams[] = [
-    // Only available for bots
-    {
-        Icon: InfoIcon,
-        tabType: TabOptions.Details,
-    }, {
-        Icon: ProjectIcon,
-        searchType: SearchType.Project,
-        tabType: TabOptions.Project,
-        where: {},
-    }, {
-        Icon: OrganizationIcon,
-        searchType: SearchType.Organization,
-        tabType: TabOptions.Organization,
-        where: {},
-    },
-];
-
 export const UserView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
-    zIndex,
 }: UserViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
-    const [, setLocation] = useLocation();
+    const [location, setLocation] = useLocation();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
 
+    // Parse information from URL
+    const urlInfo = useMemo(() => {
+        // Use common function to parse URL
+        let urlInfo = { ...parseSingleItemUrl({ url: location }), isOwnProfile: false };
+        // If it returns a handle of "profile", it's not actually a handle - it's the current user
+        if (urlInfo.handle === "profile" && session) {
+            urlInfo.isOwnProfile = true;
+            const currentUser = getCurrentUser(session);
+            urlInfo = { ...urlInfo, handle: currentUser?.handle ?? undefined, id: currentUser?.id };
+        }
+        return urlInfo;
+    }, [location, session]);
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
     const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
-    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<any, User>(endpointGetProfile);
-    const [user, setUser] = useState<User | null | undefined>(null);
+    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
+    const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
+    console.log("got user data", user);
     useDisplayServerError(userErrors ?? profileErrors);
+    // Get user or profile data
     useEffect(() => {
-        const urlEnding = getLastUrlPart({});
-        if (urlEnding && uuidValidate(base36ToUuid(urlEnding))) getUserData({ id: base36ToUuid(urlEnding) });
-        else if (typeof urlEnding === "string" && urlEnding.toLowerCase() === "profile") getProfileData();
-        else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
-    }, [getUserData, getProfileData]);
+        if (urlInfo.isOwnProfile) getProfileData();
+        else if (urlInfo.id) getUserData({ id: urlInfo.id });
+        else if (urlInfo.handle) getUserData({ handle: urlInfo.handle });
+    }, [getUserData, getProfileData, urlInfo]);
+    // Set user data
     useEffect(() => {
-        setUser(userData ?? profileData ?? partialData as any);
-    }, [userData, profileData, partialData]);
+        const knownData = userData ?? profileData;
+        // If there is knownData, update local storage
+        if (knownData) setCookiePartialData(knownData, "full");
+        setUser(knownData ?? getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
+    }, [userData, profileData, urlInfo]);
     const permissions = useMemo(() => user ? getYou(user) : defaultYou, [user]);
-    console.log("permissions", permissions, user);
     const isLoading = useMemo(() => isUserLoading || isProfileLoading, [isUserLoading, isProfileLoading]);
 
     const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
@@ -107,52 +87,42 @@ export const UserView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
-        const { creativity, verbosity, translations } = findBotData(language, user ?? partialData as User | null | undefined);
+    const { adornments, bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
+        const { creativity, verbosity, translations } = findBotData(language, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language]);
+        const { adornments } = getDisplay(user, [language], palette);
         return {
+            adornments,
             bannerImageUrl: extractImageUrl(user?.bannerImage, user?.updated_at, 1000),
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             botData: { ...botTranslations, creativity, verbosity },
-            name: user?.name ?? partialData?.name,
-            handle: user?.handle ?? partialData?.handle,
+            name: user?.name,
+            handle: user?.handle,
         };
-    }, [language, partialData, user]);
+    }, [language, palette, user]);
 
-    useEffect(() => {
-        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
-        else document.title = `${name} | Vrooli`;
-    }, [handle, name]);
-
-    // Handle tabs
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-        // Remove details tab if not a bot
-        const tabs = user?.isBot ? tabParams : tabParams.filter(t => t.tabType !== TabOptions.Details);
-        // Return tabs shaped for the tab component
-        return tabs.map((tab, i) => ({
-            color: palette.secondary.dark,
-            index: i,
-            Icon: tab.Icon,
-            label: t(tab.tabType as CommonKey, { count: 2, defaultValue: tab.tabType }),
-            value: tab.tabType,
-        })) as PageTab<TabOptions>[];
-    }, [palette.secondary.dark, t, user?.isBot]);
-    const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
-    const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
-    useEffect(() => {
-        setCurrTab(tabs[0]);
-    }, [tabs]);
-
-    // Create search data
-    const searchData = useMemo<SearchListGenerator | null>(() => {
-        if (!user || !user.id || !uuidValidate(user.id) || currTab.value === TabOptions.Details) return null;
-        if (currTab.value === TabOptions.Organization)
-            return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user.id], visibility: VisibilityType.All });
-        return toSearchListData("Project", "SearchProject", { ownedByUserId: user.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
-    }, [user, currTab.value, permissions.canUpdate]);
+    const availableTabs = useMemo(() => {
+        // Details tab is only for bots
+        if (user?.isBot) return userTabParams;
+        return userTabParams.filter(tab => tab.tabType !== UserPageTabOption.Details);
+    }, [user]);
+    const {
+        currTab,
+        handleTabChange,
+        searchPlaceholderKey,
+        searchType,
+        tabs,
+        where,
+    } = useTabs<UserPageTabOption>({ tabParams: availableTabs, display });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
+    // If showing search filter, focus the search input
+    useEffect(() => {
+        if (!showSearchFilters) return;
+        const searchInput = document.getElementById("search-bar-user-view-list");
+        searchInput?.focus();
+    }, [showSearchFilters]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -169,157 +139,39 @@ export const UserView = ({
         setObject: setUser,
     });
 
-    /**
-     * Displays name, handle, avatar, bio, and quick links
-     */
-    const overviewComponent = useMemo(() => (
-        <OverviewContainer>
-            <Stack direction="row" spacing={1} sx={{
-                height: "48px",
-                marginLeft: 2,
-                marginRight: 2,
-                marginTop: 1,
-                alignItems: "flex-start",
-                // Apply auto margin to the second element to push the first one to the left
-                "& > :nth-child(2)": {
-                    marginLeft: "auto",
-                },
-            }}>
-                <Avatar
-                    src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
-                    sx={{
-                        backgroundColor: profileColors[0],
-                        color: profileColors[1],
-                        boxShadow: 2,
-                        width: "max(min(100px, 40vw), 75px)",
-                        height: "max(min(100px, 40vw), 75px)",
-                        top: "-100%",
-                        fontSize: "min(50px, 10vw)",
-                        marginRight: "auto",
-                        // Bots show up as squares, to distinguish them from users
-                        ...(user?.isBot ? { borderRadius: "8px" } : {}),
-                        // Show in center on large screens
-                        [breakpoints.up("sm")]: {
-                            position: "absolute",
-                            left: "50%",
-                            top: "-25%",
-                            transform: "translateX(-50%)",
-                        },
-                    }}
-                >
-                    {user?.isBot ? <BotIcon
-                        width="75%"
-                        height="75%"
-                    /> : <UserIcon
-                        width="75%"
-                        height="75%"
-                    />}
-                </Avatar>
-                <Tooltip title={t("MoreOptions")}>
-                    <IconButton
-                        aria-label={t("MoreOptions")}
-                        size="small"
-                        onClick={openMoreMenu}
-                        sx={{
-                            display: "block",
-                            marginLeft: "auto",
-                            marginRight: 1,
-                        }}
-                    >
-                        <EllipsisIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Tooltip>
-                <BookmarkButton
-                    disabled={user?.id === getCurrentUser(session).id}
-                    objectId={user?.id ?? ""}
-                    bookmarkFor={BookmarkFor.User}
-                    isBookmarked={user?.you?.isBookmarked ?? false}
-                    bookmarks={user?.bookmarks ?? 0}
-                    onChange={(isBookmarked: boolean) => { }}
-                    zIndex={zIndex}
-                />
-            </Stack>
-            <Stack direction="column" p={2} justifyContent="center" sx={{
-                alignItems: "flex-start",
-                [breakpoints.up("sm")]: {
-                    alignItems: "center",
-                },
-            }}>
-                {/* Title */}
-                {
-                    isLoading ? (
-                        <TextLoading size="header" sx={{ width: "50%" }} />
-                    ) : <Title
-                        title={name}
-                        variant="header"
-                        options={permissions.canUpdate ? [{
-                            label: t("Edit"),
-                            Icon: EditIcon,
-                            onClick: () => { actionData.onActionStart("Edit"); },
-                        }] : []}
-                        zIndex={zIndex}
-                        sxs={{ stack: { padding: 0, paddingBottom: 2 } }}
-                    />
-                }
-                {/* Handle */}
-                {
-                    handle && <Link href={`https://handle.me/${handle}`} underline="hover">
-                        <Typography
-                            variant="h6"
-                            textAlign="center"
-                            sx={{
-                                color: palette.secondary.dark,
-                                cursor: "pointer",
-                            }}
-                        >${handle}</Typography>
-                    </Link>
-                }
-                {/* Bio */}
-                {
-                    isLoading ? (
-                        <TextLoading lines={2} size="body1" sx={{ width: "85%" }} />
-                    ) : (
-                        <MarkdownDisplay
-                            variant="body1"
-                            sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
-                            content={bio ?? "No bio set"}
-                            zIndex={zIndex}
-                        />
-                    )
-                }
-                <Stack direction="row" spacing={2} sx={{
-                    alignItems: "center",
-                    [breakpoints.up("sm")]: {
-                        alignItems: "flex-start",
-                    },
-                }}>
-                    {/* Joined date */}
-                    <DateDisplay
-                        loading={isLoading}
-                        showIcon={true}
-                        textBeforeDate="Joined"
-                        timestamp={user?.created_at}
-                        zIndex={zIndex}
-                    />
-                    <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
-                </Stack>
-            </Stack>
-        </OverviewContainer>
-    ), [user, profileColors, breakpoints, t, openMoreMenu, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, session, zIndex, isLoading, name, permissions.canUpdate, handle, bio, actionData]);
+    /** Opens add new page */
+    const toAddNew = useCallback(() => {
+        setLocation(`${LINKS[currTab.tabType]}/add`);
+    }, [currTab.tabType, setLocation]);
 
-    /**
-     * Opens add new page
-     */
-    const toAddNew = useCallback((event: any) => {
-        setLocation(`${LINKS[currTab.value]}/add`);
-    }, [currTab.value, setLocation]);
+    /** Opens dialog to add or invite user to an organization/meeting/chat */
+    const handleAddOrInvite = useCallback(() => {
+        if (!user) return;
+        // Users are invited, and bots are added (since you don't need permission to use a public bot)
+        const needsInvite = !user.isBot;
+        // TODO open dialog
+    }, [user]);
+
+    /** Starts a new chat */
+    const handleStartChat = useCallback(() => {
+        if (!user || !user.id) return;
+        // Create URL search params
+        setSearchParams(setLocation, {
+            invites: {
+                id: uuid(),
+                userConnect: user.id,
+            }
+        })
+        // Navigate to chat page
+        setLocation(`${LINKS.Chat}/add`);
+    }, [user]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
-                zIndex={zIndex}
+                tabTitle={handle ? `${name} (@${handle})` : name}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -327,20 +179,11 @@ export const UserView = ({
                 anchorEl={moreMenuAnchor}
                 object={user}
                 onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
             />
-            <Box sx={{
-                display: "flex",
-                paddingBottom: { xs: 0, sm: 2, md: 5 },
-                backgroundColor: palette.mode === "light" ? "#b2b3b3" : "#303030",
+            {/* Popup menu for adding/inviting to an organization/meeting/chat */}
+            {/* TODO */}
+            <BannerImageContainer sx={{
                 backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                position: "relative",
-                paddingTop: "40px",
-                [breakpoints.down("sm")]: {
-                    paddingTop: "120px",
-                },
             }}>
                 {/* Language display/select */}
                 <Box sx={{
@@ -353,75 +196,276 @@ export const UserView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
-                        zIndex={zIndex}
                     />}
                 </Box>
-                {overviewComponent}
-            </Box>
+            </BannerImageContainer>
+            <OverviewContainer>
+                <OverviewProfileStack>
+                    <OverviewProfileAvatar
+                        src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
+                        sx={{
+                            backgroundColor: profileColors[0],
+                            color: profileColors[1],
+                            // Bots show up as squares, to distinguish them from users
+                            ...(user?.isBot ? { borderRadius: "8px" } : {}),
+                        }}
+                    >
+                        {user?.isBot ?
+                            <BotIcon width="75%" height="75%" /> :
+                            <UserIcon width="75%" height="75%" />}
+                    </OverviewProfileAvatar>
+                    <Tooltip title={t("MoreOptions")}>
+                        <IconButton
+                            aria-label={t("MoreOptions")}
+                            size="small"
+                            onClick={openMoreMenu}
+                            sx={{
+                                display: "block",
+                                marginLeft: "auto",
+                                marginRight: 1,
+                            }}
+                        >
+                            <EllipsisIcon fill={palette.background.textSecondary} />
+                        </IconButton>
+                    </Tooltip>
+                    <BookmarkButton
+                        disabled={user?.id === getCurrentUser(session).id}
+                        objectId={user?.id ?? ""}
+                        bookmarkFor={BookmarkFor.User}
+                        isBookmarked={user?.you?.isBookmarked ?? false}
+                        bookmarks={user?.bookmarks ?? 0}
+                        onChange={(isBookmarked: boolean) => { }}
+                    />
+                </OverviewProfileStack>
+                <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
+                    alignItems: "flex-start",
+                }}>
+                    {/* Title */}
+                    {
+                        (isLoading && !name) ? (
+                            <TextLoading size="header" sx={{ width: "50%" }} />
+                        ) : <Title
+                            title={name}
+                            variant="header"
+                            adornments={adornments}
+                            options={permissions.canUpdate ? [{
+                                label: t("Edit"),
+                                Icon: EditIcon,
+                                onClick: () => { actionData.onActionStart("Edit"); },
+                            }] : []}
+                            sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
+                        />
+                    }
+                    {/* Handle */}
+                    {
+                        handle && <Typography
+                            variant="h6"
+                            textAlign="center"
+                            fontFamily="monospace"
+                            onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
+                                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                            }}
+                            sx={{
+                                color: palette.secondary.dark,
+                                cursor: "pointer",
+                                paddingBottom: 2,
+                            }}
+                        >@{handle}</Typography>
+                    }
+                    {/* Bio */}
+                    {
+                        (isLoading && !bio) ? (
+                            <TextLoading lines={2} size="body1" sx={{ width: "85%" }} />
+                        ) : (
+                            <MarkdownDisplay
+                                variant="body1"
+                                sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
+                                content={bio ?? "No bio set"}
+                            />
+                        )
+                    }
+                    <Stack direction="row" spacing={2} sx={{
+                        alignItems: "center",
+                    }}>
+                        {/* Joined date */}
+                        <DateDisplay
+                            loading={isLoading}
+                            showIcon={true}
+                            textBeforeDate="Joined"
+                            timestamp={user?.created_at}
+                        />
+                        <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
+                    </Stack>
+                </Stack>
+            </OverviewContainer>
             {/* View routines, organizations, standards, and projects associated with this user */}
-            <Box sx={{ margin: "auto", maxWidth: "800px" }}>
+            <Box sx={{ margin: "auto", maxWidth: `min(${breakpoints.values.sm}px, 100%)` }}>
                 <PageTabs
                     ariaLabel="user-tabs"
+                    fullWidth
                     currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}
                     sx={{
-                        [breakpoints.down("sm")]: {
-                            background: palette.background.paper,
-                            borderBottom: `1px solid ${palette.divider}`,
-                        },
+                        background: palette.background.paper,
+                        borderBottom: `1px solid ${palette.divider}`,
                     }}
                 />
-                {currTab.value === TabOptions.Details && (
-                    <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
-                        {botData.occupation && <Typography variant="h6">Occupation: {botData.occupation}</Typography>}
-                        {botData.persona && <Typography variant="h6">Persona: {botData.persona}</Typography>}
-                        {botData.startMessage && <Typography variant="h6">Starting Message: {botData.startMessage}</Typography>}
-                        {botData.tone && <Typography variant="h6">Tone: {botData.tone}</Typography>}
-                        {botData.keyPhrases && <Typography variant="h6">Key Phrases: {botData.keyPhrases}</Typography>}
-                        {botData.domainKnowledge && <Typography variant="h6">Domain Knowledge: {botData.domainKnowledge}</Typography>}
-                        {botData.bias && <Typography variant="h6">Bias: {botData.bias}</Typography>}
-                        {botData.creativity && <Typography variant="h6">Creativity: {botData.creativity * 100}%</Typography>}
-                        {botData.verbosity && <Typography variant="h6">Verbosity: {botData.verbosity * 100}%</Typography>}
-                    </Stack>
+                {currTab.tabType === UserPageTabOption.Details && (
+                    <FormSection sx={{
+                        overflowX: "hidden",
+                        marginTop: 0,
+                        borderRadius: "0px",
+                    }}>
+                        {botData.occupation && <TextField
+                            disabled
+                            fullWidth
+                            label={t("Occupation")}
+                            value={botData.occupation}
+                        />}
+                        {botData.persona && <TextField
+                            disabled
+                            fullWidth
+                            label={t("Persona")}
+                            value={botData.persona}
+                        />}
+                        {botData.startMessage && <TextField
+                            disabled
+                            fullWidth
+                            label={t("StartMessage")}
+                            value={botData.startMessage}
+                        />}
+                        {botData.tone && <TextField
+                            disabled
+                            fullWidth
+                            label={t("Tone")}
+                            value={botData.tone}
+                        />}
+                        {botData.keyPhrases && <TextField
+                            disabled
+                            fullWidth
+                            label={t("KeyPhrases")}
+                            value={botData.keyPhrases}
+                        />}
+                        {botData.domainKnowledge && <TextField
+                            disabled
+                            fullWidth
+                            label={t("DomainKnowledge")}
+                            value={botData.domainKnowledge}
+                        />}
+                        {botData.bias && <TextField
+                            disabled
+                            fullWidth
+                            label={t("Bias")}
+                            value={botData.bias}
+                        />}
+                        <Stack>
+                            <Typography id="creativity-slider" gutterBottom>
+                                {t("Creativity")}
+                            </Typography>
+                            <Slider
+                                aria-labelledby="creativity-slider"
+                                disabled
+                                value={botData.creativity as number}
+                                valueLabelDisplay="auto"
+                                min={0.1}
+                                max={1}
+                                step={0.1}
+                                marks={[
+                                    {
+                                        value: 0.1,
+                                        label: t("Low"),
+                                    },
+                                    {
+                                        value: 1,
+                                        label: t("High"),
+                                    },
+                                ]}
+                                sx={{
+                                    "& .MuiSlider-markLabel": {
+                                        "&[data-index=\"0\"]": {
+                                            marginLeft: 2,
+                                        },
+                                        "&[data-index=\"1\"]": {
+                                            marginLeft: -2,
+                                        },
+                                    },
+                                }}
+                            />
+                        </Stack>
+                        <Stack>
+                            <Typography id="verbosity-slider" gutterBottom>
+                                {t("Verbosity")}
+                            </Typography>
+                            <Slider
+                                aria-labelledby="verbosity-slider"
+                                disabled
+                                value={botData.verbosity as number}
+                                valueLabelDisplay="auto"
+                                min={0.1}
+                                max={1}
+                                step={0.1}
+                                marks={[
+                                    {
+                                        value: 0.1,
+                                        label: t("Low"),
+                                    },
+                                    {
+                                        value: 1,
+                                        label: t("High"),
+                                    },
+                                ]}
+                                sx={{
+                                    "& .MuiSlider-markLabel": {
+                                        "&[data-index=\"0\"]": {
+                                            marginLeft: 2,
+                                        },
+                                        "&[data-index=\"1\"]": {
+                                            marginLeft: -2,
+                                        },
+                                    },
+                                }}
+                            />
+                        </Stack>
+                    </FormSection>
                 )}
-                {searchData !== null && currTab.value !== TabOptions.Details && <Box>
+                {currTab.tabType !== UserPageTabOption.Details && <Box>
                     <SearchList
-                        canSearch={() => true}
+                        display={display}
                         dummyLength={display === "page" ? 5 : 3}
                         handleAdd={permissions.canUpdate ? toAddNew : undefined}
                         hideUpdateButton={true}
                         id="user-view-list"
-                        searchType={searchData.searchType}
-                        searchPlaceholder={searchData.placeholder}
+                        searchType={searchType}
+                        searchPlaceholder={searchPlaceholderKey}
                         sxs={showSearchFilters ? {
                             search: { marginTop: 2 },
+                            listContainer: { borderRadius: 0 },
                         } : {
                             search: { display: "none" },
                             buttons: { display: "none" },
+                            listContainer: { borderRadius: 0 },
                         }}
                         take={20}
-                        where={searchData.where}
-                        zIndex={zIndex}
+                        where={where({ userId: user?.id ?? "", permissions })}
                     />
                 </Box>}
             </Box>
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
-                {/* Toggle search filters */}
-                {currTab.value !== TabOptions.Details ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
+                {currTab.tabType !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton> : null}
-                {/* Message button */}
-                {user?.isBot ? (
-                    <ColorIconButton aria-label="message" background={palette.secondary.main} onClick={() => { }} >
-                        <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
-                ) : null}
-            </SideActionButtons>
+                </IconButton> : null}
+                <IconButton aria-label={t("AddToTeam")} onClick={handleAddOrInvite} sx={{ background: palette.secondary.main }}>
+                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton>
+                <IconButton aria-label={t("MessageSend")} onClick={handleStartChat} sx={{ background: palette.secondary.main }}>
+                    <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton>
+            </SideActionsButtons>
         </>
     );
 };

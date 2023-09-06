@@ -1,6 +1,5 @@
 import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine, uuidValidate } from "@local/shared";
-import { Box, Tooltip, useTheme } from "@mui/material";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { RunPickerMenu } from "components/dialogs/RunPickerMenu/RunPickerMenu";
 import { PlayIcon } from "icons";
@@ -12,7 +11,6 @@ import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getProjectVersionStatus, getRoutineVersionStatus } from "utils/runUtils";
 import { RunView } from "views/runs";
-import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { RunButtonProps } from "../types";
 
 /**
@@ -27,7 +25,6 @@ export const RunButton = ({
     isBuildGraphOpen,
     isEditing,
     runnableObject,
-    zIndex,
 }: RunButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -122,22 +119,13 @@ export const RunButton = ({
             <PopoverWithArrow
                 anchorEl={errorAnchorEl}
                 handleClose={closeError}
-                zIndex={zIndex + 1}
             >{t("RoutineCannotRunInvalid", { ns: "error" })}</PopoverWithArrow>
             {/* Run dialog */}
-            <LargeDialog
-                id="run-routine-view-dialog"
-                onClose={runStop}
+            {runnableObject && <RunView
                 isOpen={isRunOpen}
-                titleId=""
-                zIndex={zIndex + 3}
-            >
-                {runnableObject && <RunView
-                    onClose={runStop}
-                    runnableObject={runnableObject}
-                    zIndex={zIndex + 1003}
-                />}
-            </LargeDialog>
+                onClose={runStop}
+                runnableObject={runnableObject}
+            />}
             {/* Chooses which run to use */}
             <RunPickerMenu
                 anchorEl={selectRunAnchor}
@@ -146,24 +134,23 @@ export const RunButton = ({
                 onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
                 runnableObject={runnableObject}
-                zIndex={zIndex + 2}
             />
             {/* Run button */}
             <Tooltip title="Run Routine" placement="top">
                 {/* Button wrapped in div so it can be pressed when disabled */}
                 <Box onClick={runStart}>
-                    <ColorIconButton
+                    <IconButton
                         aria-label="run-routine"
                         disabled={status === Status.Invalid}
-                        background={palette.secondary.main}
                         sx={{
+                            background: palette.secondary.main,
                             padding: 0,
                             width: "54px",
                             height: "54px",
                         }}
                     >
                         <PlayIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 </Box>
             </Tooltip>
         </>

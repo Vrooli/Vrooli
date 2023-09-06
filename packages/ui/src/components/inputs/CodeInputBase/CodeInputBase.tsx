@@ -15,14 +15,14 @@ import { jsonToString } from "utils/shape/general";
 import { redo, undo } from "@codemirror/commands";
 import { Extension, StateField } from "@codemirror/state";
 import { BlockInfo, Decoration, EditorView, gutter, GutterMarker, showTooltip } from "@codemirror/view";
-import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
-import { AssistantDialogProps } from "components/dialogs/types";
+import { SessionContext } from "contexts/SessionContext";
 import { ErrorIcon, MagicIcon, OpenThreadIcon, RedoIcon, UndoIcon, WarningIcon } from "icons";
 import ReactDOMServer from "react-dom/server";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
+import { assistantChatInfo, ChatCrud } from "views/objects/chat/ChatCrud/ChatCrud";
+import { ChatCrudProps } from "views/objects/chat/types";
 import { CodeInputBaseProps } from "../types";
 
 export enum StandardLanguage {
@@ -416,7 +416,6 @@ export const CodeInputBase = ({
     format,
     limitTo,
     variables,
-    zIndex,
 }: CodeInputBaseProps) => {
     console.log("codeinputbase", limitTo);
     const { palette } = useTheme();
@@ -512,13 +511,13 @@ export const CodeInputBase = ({
     }, [mode]);
 
     // Handle assistant dialog
-    const [assistantDialogProps, setAssistantDialogProps] = useState<AssistantDialogProps>({
+    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
+        isCreate: true,
         isOpen: false,
+        overrideObject: assistantChatInfo,
         task: "standard",
-        handleClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        zIndex: zIndex + 1,
+        onCompleted: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
     });
     const openAssistantDialog = useCallback(() => {
         if (disabled) return;
@@ -597,7 +596,7 @@ export const CodeInputBase = ({
     return (
         <>
             {/* Assistant dialog for generating text */}
-            <AssistantDialog {...assistantDialogProps} />
+            <ChatCrud {...assistantDialogProps} />
             <Stack direction="column" spacing={0} sx={{
                 borderRadius: 1.5,
                 overflow: "hidden",
@@ -659,7 +658,6 @@ export const CodeInputBase = ({
                             <HelpButton
                                 markdown={t(help, { ns: "langs" })}
                                 sx={{ fill: palette.secondary.contrastText }}
-                                zIndex={zIndex}
                             />
                             {supportsValidation && <StatusButton
                                 status={errors.length === 0 ? Status.Valid : Status.Invalid}
@@ -668,7 +666,6 @@ export const CodeInputBase = ({
                                     marginRight: "auto",
                                     height: "fit-content",
                                 }}
-                                zIndex={zIndex}
                             />}
                         </Box>
                     </Grid>

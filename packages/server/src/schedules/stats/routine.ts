@@ -34,26 +34,30 @@ const batchRunCounts = async (
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const versionId = run.routineVersion?.id;
-            if (!versionId || !result[versionId]) { return; }
+            if (!versionId) return;
+            const currResult = result[versionId];
+            if (!currResult) return;
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
-                result[versionId].runsStarted += 1;
+                currResult.runsStarted += 1;
             }
             // If runCompleted within period, increment runsCompleted 
             // and update averages
             if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
-                result[versionId].runsCompleted += 1;
-                if (run.timeElapsed !== null) result[versionId].runCompletionTimeAverage += run.timeElapsed;
-                result[versionId].runContextSwitchesAverage += run.contextSwitches;
+                currResult.runsCompleted += 1;
+                if (run.timeElapsed !== null) currResult.runCompletionTimeAverage += run.timeElapsed;
+                currResult.runContextSwitchesAverage += run.contextSwitches;
             }
         });
     },
     finalizeResult: (result) => {
         // For the averages, divide by the number of runs completed
         Object.keys(result).forEach(versionId => {
-            if (result[versionId].runsCompleted > 0) {
-                result[versionId].runCompletionTimeAverage /= result[versionId].runsCompleted;
-                result[versionId].runContextSwitchesAverage /= result[versionId].runsCompleted;
+            const currResult = result[versionId];
+            if (!currResult) return;
+            if (currResult.runsCompleted > 0) {
+                currResult.runCompletionTimeAverage /= currResult.runsCompleted;
+                currResult.runContextSwitchesAverage /= currResult.runsCompleted;
             }
         });
         return result;
@@ -97,16 +101,17 @@ export const logRoutineStats = async (
         const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
         // Create stats for each routine
         await prisma.stats_routine.createMany({
-            data: batch.map(routineVersion => ({
-                routineId: routineVersion.root.id,
-                periodStart,
-                periodEnd,
-                periodType,
-                runsStarted: runCountsByVersion[routineVersion.id].runsStarted,
-                runsCompleted: runCountsByVersion[routineVersion.id].runsCompleted,
-                runCompletionTimeAverage: runCountsByVersion[routineVersion.id].runCompletionTimeAverage,
-                runContextSwitchesAverage: runCountsByVersion[routineVersion.id].runContextSwitchesAverage,
-            })),
+            data: batch.map(routineVersion => {
+                const runCounts = runCountsByVersion[routineVersion.id];
+                if (!runCounts) return;
+                return {
+                    routineId: routineVersion.root.id,
+                    periodStart,
+                    periodEnd,
+                    periodType,
+                    ...runCounts,
+                };
+            }).filter((data): data is Exclude<typeof data, undefined> => !!data),
         });
     },
     select: {

@@ -2,32 +2,32 @@ import { endpointGetMeeting, Meeting } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
 import { MeetingViewProps } from "../types";
 
 export const MeetingView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
-    zIndex,
 }: MeetingViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    const display = toDisplay(isOpen);
 
     const { object: existing, isLoading, setObject: setMeeting } = useObjectFromUrl<Meeting>({
         ...endpointGetMeeting,
-        partialData,
+        objectType: "Meeting",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
@@ -37,10 +37,6 @@ export const MeetingView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { name } = useMemo(() => ({ name: getDisplay(existing, [language]).title ?? "" }), [existing, language]);
-
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
 
     const actionData = useObjectActions({
         object: existing,
@@ -59,9 +55,7 @@ export const MeetingView = ({
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

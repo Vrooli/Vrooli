@@ -56,21 +56,23 @@ const objectToFormData = <T extends object>(obj: T, form?: FormData, namespace?:
 
 interface FetchLazyWrapperProps<Input extends object | undefined, Output> {
     fetch: (input?: Input) => Promise<ServerResponse<Output>>;
-    // Input to pass to endpoint
+    /** Input to pass to endpoint */
     inputs?: Input;
-    // Callback to determine if mutation was a success, using mutation's return data
+    /** Callback to determine if mutation was a success, using mutation's return data */
     successCondition?: (data: Output) => boolean;
-    // Message displayed on success
+    /** Message displayed on success */
     successMessage?: (data: Output) => SnackPub<CommonKey>;
-    // Callback triggered on success
+    /** Callback triggered on success */
     onSuccess?: (data: Output) => any;
-    // Message displayed on error
+    /** Message displayed on error */
     errorMessage?: (response?: ServerResponse) => SnackPub<ErrorKey | CommonKey>;
-    // If true, display default error snack. Will not display if error message is set
+    /** If true, display default error snack. Will not display if error message is set */
     showDefaultErrorSnack?: boolean;
-    // Callback triggered on error
+    /** Callback triggered on error */
     onError?: (response: ServerResponse) => any;
-    // Milliseconds before showing a spinner. If undefined or null, spinner disabled
+    /** Callback triggered on either success or error */
+    onCompleted?: (response: ServerResponse) => any;
+    /** Milliseconds before showing a spinner. If undefined or null, spinner disabled */
     spinnerDelay?: number | null;
 }
 
@@ -83,6 +85,7 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
     errorMessage,
     showDefaultErrorSnack = true,
     onError,
+    onCompleted,
     spinnerDelay = 1000,
 }: FetchLazyWrapperProps<Input, Output>): Promise<ServerResponse<Output>> => {
     // Helper function to handle errors
@@ -107,6 +110,10 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
         if (typeof onError === "function") {
             onError(isError ? data as ServerResponse : { errors: [{ message: "Unknown error occurred" }] });
         }
+        // If completed callback is set, call it
+        if (typeof onCompleted === "function") {
+            onCompleted(isError ? data as ServerResponse : { errors: [{ message: "Unknown error occurred" }] });
+        }
     };
     // Start loading spinner
     if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
@@ -115,7 +122,6 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
     const finalInputs = inputs && Object.values(inputs).some(value => value instanceof File)
         ? objectToFormData(inputs)
         : inputs;
-    console.log("before fetch", finalInputs, inputs);
     await fetch(finalInputs as Input)
         .then((response: ServerResponse<Output>) => {
             result = response;
@@ -147,6 +153,10 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
             // If the success callback is set, call it
             if (typeof onSuccess === "function") {
                 onSuccess(data);
+            }
+            // If the completed callback is set, call it
+            if (typeof onCompleted === "function") {
+                onCompleted(response);
             }
         }).catch((error: ServerResponse<Output>) => {
             result = error;

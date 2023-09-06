@@ -1,14 +1,14 @@
 import { Comment, CommentFor, commentTranslationValidation, commentValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
+import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { CommentFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { CommentShape, shapeComment } from "utils/shape/models/comment";
 
@@ -31,15 +31,12 @@ export const commentInitialValues = (
     }]),
 });
 
-export const transformCommentValues = (values: CommentShape, existing?: CommentShape) => {
-    return existing === undefined
-        ? shapeComment.create(values)
-        : shapeComment.update(existing, values);
-};
+export const transformCommentValues = (values: CommentShape, existing: CommentShape, isCreate: boolean) =>
+    isCreate ? shapeComment.create(values) : shapeComment.update(existing, values);
 
-export const validateCommentValues = async (values: CommentShape, existing?: CommentShape) => {
-    const transformedValues = transformCommentValues(values, existing);
-    const validationSchema = commentValidation[existing === undefined ? "create" : "update"]({});
+export const validateCommentValues = async (values: CommentShape, existing: CommentShape, isCreate: boolean) => {
+    const transformedValues = transformCommentValues(values, existing, isCreate);
+    const validationSchema = commentValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -52,7 +49,6 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -74,19 +70,17 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
                 dirty={dirty}
                 display={display}
                 isLoading={isLoading}
-                maxWidth={700}
                 ref={ref}
             >
                 <FormContainer>
-                    <TranslatedMarkdownInput
+                    <TranslatedRichInput
                         language={language}
                         name="text"
                         placeholder={t("PleaseBeNice")}
                         minRows={3}
-                        zIndex={zIndex}
                     />
                 </FormContainer>
-                <GridSubmitButtons
+                <BottomActionsButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
@@ -94,7 +88,6 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
-                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

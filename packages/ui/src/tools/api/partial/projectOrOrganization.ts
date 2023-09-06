@@ -3,7 +3,7 @@ import { GqlPartial } from "../types";
 import { rel } from "../utils";
 
 export const projectOrOrganization: GqlPartial<ProjectOrOrganization> = {
-    __typename: "ProjectOrOrganization" as any,
+    __typename: "ProjectOrOrganization" as ProjectOrOrganization["__typename"],
     full: {
         __define: {
             0: async () => rel((await import("./project")).project, "full"),

@@ -1,28 +1,107 @@
-import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, User, userValidation } from "@local/shared";
-import { Box, Stack } from "@mui/material";
+import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, User, userTranslationValidation, userValidation } from "@local/shared";
+import { Box, Stack, TextField } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { Formik } from "formik";
-import { SettingsProfileForm } from "forms/settings";
+import { SessionContext } from "contexts/SessionContext";
+import { Field, Formik } from "formik";
+import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useProfileQuery } from "hooks/useProfileQuery";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useProfileQuery } from "utils/hooks/useProfileQuery";
+import { FormSection, pagePaddingBottom } from "styles";
+import { toDisplay } from "utils/display/pageTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { shapeProfile } from "utils/shape/models/profile";
 import { createPrims } from "utils/shape/models/tools";
-import { SettingsProfileViewProps } from "../types";
+import { SettingsProfileFormProps, SettingsProfileViewProps } from "../types";
+
+const SettingsProfileForm = ({
+    display,
+    dirty,
+    isLoading,
+    numVerifiedWallets,
+    onCancel,
+    values,
+    ...props
+}: SettingsProfileFormProps) => {
+    const session = useContext(SessionContext);
+    const { t } = useTranslation();
+
+    // Handle translations
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        setLanguage,
+        translationErrors,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
+        fields: ["bio"],
+        validationSchema: userTranslationValidation.update({}),
+    });
+
+    return (
+        <>
+            <BaseForm
+                dirty={dirty}
+                display={display}
+                isLoading={isLoading}
+                maxWidth={500}
+            >
+                <ProfilePictureInput
+                    onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
+                    onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                    name="profileImage"
+                    profile={{ __typename: "User", ...values }}
+                />
+                <FormSection sx={{ marginTop: 2 }}>
+                    <LanguageInput
+                        currentLanguage={language}
+                        handleAdd={handleAddLanguage}
+                        handleDelete={handleDeleteLanguage}
+                        handleCurrent={setLanguage}
+                        languages={languages}
+                    />
+                    <Field fullWidth name="name" label={t("Name")} as={TextField} />
+                    <Field fullWidth name="handle" label={t("Handle")} as={TextField} />
+                    <TranslatedRichInput
+                        language={language}
+                        maxChars={2048}
+                        minRows={4}
+                        name="bio"
+                        placeholder={t("Bio")}
+                    />
+                </FormSection>
+            </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={false}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
+        </>
+    );
+};
 
 export const SettingsProfileView = ({
-    display = "page",
+    isOpen,
     onClose,
-    zIndex,
 }: SettingsProfileViewProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
@@ -33,9 +112,8 @@ export const SettingsProfileView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Profile")}
-                zIndex={zIndex}
             />
-            <Stack direction="row">
+            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <Formik
@@ -71,8 +149,8 @@ export const SettingsProfileView = ({
                                     ...values,
                                 }),
                                 successMessage: () => ({ messageKey: "SettingsUpdated" }),
-                                onSuccess: (updated) => { helpers.setSubmitting(false); onProfileUpdate(updated); },
-                                onError: () => { helpers.setSubmitting(false); },
+                                onSuccess: (updated) => { onProfileUpdate(updated); },
+                                onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
                         validationSchema={userValidation.update({})}
@@ -82,7 +160,6 @@ export const SettingsProfileView = ({
                             isLoading={isProfileLoading || isUpdating}
                             numVerifiedWallets={profile?.wallets?.filter(w => w.verified)?.length ?? 0}
                             onCancel={formik.resetForm}
-                            zIndex={zIndex}
                             {...formik}
                         />}
                     </Formik>

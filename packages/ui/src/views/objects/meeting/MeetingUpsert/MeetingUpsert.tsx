@@ -1,51 +1,69 @@
-import { endpointGetMeeting, endpointPostMeeting, endpointPutMeeting, FindByIdInput, Meeting, MeetingCreateInput, MeetingUpdateInput } from "@local/shared";
+import { endpointGetMeeting, endpointPostMeeting, endpointPutMeeting, Meeting, MeetingCreateInput, MeetingUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { MeetingForm, meetingInitialValues, transformMeetingValues, validateMeetingValues } from "forms/MeetingForm/MeetingForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
+import { MeetingShape } from "utils/shape/models/meeting";
 import { MeetingUpsertProps } from "../types";
 
 export const MeetingUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
-    zIndex,
+    overrideObject,
 }: MeetingUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Meeting>(endpointGetMeeting);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Meeting, MeetingShape>({
+        ...endpointGetMeeting,
+        objectType: "Meeting",
+        overrideObject,
+        transform: (data) => meetingInitialValues(session, data),
+    });
 
-    const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => meetingInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<Meeting>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<MeetingCreateInput, Meeting>(endpointPostMeeting);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<MeetingUpdateInput, Meeting>(endpointPutMeeting);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<MeetingCreateInput | MeetingUpdateInput, Meeting>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Meeting, MeetingCreateInput, MeetingUpdateInput>({
+        display,
+        endpointCreate: endpointPostMeeting,
+        endpointUpdate: endpointPutMeeting,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="meeting-upsert-dialog"
+            isOpen={isOpen}
+            onClose={handleClose}
+        >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(isCreate ? "CreateMeeting" : "UpdateMeeting")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
@@ -53,12 +71,12 @@ export const MeetingUpsert = ({
                     }
                     fetchLazyWrapper<MeetingCreateInput | MeetingUpdateInput, Meeting>({
                         fetch,
-                        inputs: transformMeetingValues(values, existing),
+                        inputs: transformMeetingValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateMeetingValues(values, existing)}
+                validate={async (values) => await validateMeetingValues(values, existing, isCreate)}
             >
                 {(formik) => <MeetingForm
                     display={display}
@@ -66,11 +84,11 @@ export const MeetingUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
-                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

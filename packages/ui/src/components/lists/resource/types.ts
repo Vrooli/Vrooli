@@ -1,4 +1,4 @@
-import { Resource, ResourceList } from "@local/shared";
+import { Resource, ResourceList, ResourceListFor } from "@local/shared";
 import { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
 
 export interface ResourceCardProps {
@@ -17,10 +17,10 @@ export interface ResourceListHorizontalProps {
     canUpdate?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
     id?: string;
-    list: ResourceList | null;
+    list: ResourceList | null | undefined;
     loading?: boolean;
     mutate?: boolean;
-    zIndex: number;
+    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
 }
 
 export interface ResourceListVerticalProps {
@@ -29,7 +29,7 @@ export interface ResourceListVerticalProps {
     list: ResourceList | null | undefined;
     loading: boolean;
     mutate: boolean;
-    zIndex: number;
+    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
 }
 
 export interface ResourceListItemProps {
@@ -54,5 +54,4 @@ export interface ResourceListItemContextMenuProps {
     onDelete: (index: number) => void;
     onMove: (index: number) => void;
     resource: Resource | null;
-    zIndex: number;
 }

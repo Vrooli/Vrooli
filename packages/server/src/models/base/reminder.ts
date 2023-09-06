@@ -43,6 +43,7 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
                 dueDate: noNull(data.dueDate),
                 index: noNull(data.index),
                 isComplete: noNull(data.isComplete),
+                ...(await shapeHelper({ relation: "reminderList", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: false, objectType: "ReminderList", parentRelationshipName: "reminders", data, ...rest })),
                 ...(await shapeHelper({ relation: "reminderItems", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest })),
             }),
         },

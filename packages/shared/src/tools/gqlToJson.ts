@@ -60,10 +60,10 @@ const parseEndpoints = (): RestPair[] => {
         const methodMatch = block.match(methodRegex);
         const tagMatch = block.match(tagRegex);
 
-        if (nameMatch && endpointMatch && methodMatch) {
+        if (nameMatch && endpointMatch && methodMatch && nameMatch.length > 1 && endpointMatch.length > 1 && methodMatch.length > 1) {
             const restPair: RestPair = {
-                name: nameMatch[1],
-                endpoint: endpointMatch[1],
+                name: nameMatch[1]!,
+                endpoint: endpointMatch[1]!,
                 method: methodMatch[1] as "GET" | "POST" | "PUT" | "DELETE",
                 tag: tagMatch ? tagMatch[1] : undefined,
             };
@@ -263,7 +263,7 @@ const main = async () => {
     // Write the OpenAPI schema to a file
     fs.writeFile(path.resolve(dirname, "../../../docs/docs/assets/openapi.json"), data, (err) => {
         if (err) throw err;
-        console.log("The OpenAPI schema has been saved!");
+        console.info("The OpenAPI schema has been saved!");
     });
 };
 

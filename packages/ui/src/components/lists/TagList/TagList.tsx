@@ -53,7 +53,10 @@ export const TagList = ({
                 spacing={1}
                 justifyContent="left"
                 alignItems="center"
-                sx={{ ...(sx ?? {}) }}
+                sx={{
+                    overflowX: "auto",
+                    ...sx,
+                }}
             >
                 {chips}
                 {numTagsCutOff > 0 && <Typography variant="body1">+{numTagsCutOff}</Typography>}

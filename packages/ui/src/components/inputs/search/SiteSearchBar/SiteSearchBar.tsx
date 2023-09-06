@@ -2,17 +2,15 @@ import { BookmarkFor } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, PopperProps, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
-import { Dimensions } from "components/graphs/types";
+import { SessionContext } from "contexts/SessionContext";
+import { useDebounce } from "hooks/useDebounce";
 import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { ChangeEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AutocompleteOption, SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { useDebounce } from "utils/hooks/useDebounce";
-import { useDimensions } from "utils/hooks/useDimensions";
 import { getLocalStorageKeys } from "utils/localStorage";
 import { performAction } from "utils/navigation/quickActions";
-import { SessionContext } from "utils/SessionContext";
 import { SiteSearchBarProps } from "../types";
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
@@ -117,10 +115,11 @@ const typeToIcon = (type: string, fill: string): JSX.Element | null => {
     return Icon ? <Icon fill={fill} /> : null;
 };
 
-const FullWidthPopper = function (props: PopperProps & { dimensions: Dimensions }) {
+const FullWidthPopper = function (props: PopperProps) {
+    const parentWidth = props.anchorEl && (props.anchorEl as HTMLElement).parentElement ? (props.anchorEl as HTMLElement).parentElement?.clientWidth : null;
     return <Popper {...props} sx={{
         left: "-12px!important",
-        minWidth: props.dimensions.width ?? "fit-content",
+        minWidth: parentWidth ?? (props.anchorEl as HTMLElement)?.clientWidth ?? "fit-content",
         maxWidth: "100%",
     }} placement="bottom-start" /> as JSX.Element;
 };
@@ -140,7 +139,6 @@ export function SiteSearchBar({
     loading = false,
     showSecondaryLabel = false,
     sxs,
-    zIndex,
     ...props
 }: SiteSearchBarProps) {
     const session = useContext(SessionContext);
@@ -295,9 +293,6 @@ export function SiteSearchBar({
         }
     }, [highlightedOption, onChangeDebounced]);
 
-    const { dimensions, ref, refreshDimensions } = useDimensions<HTMLFormElement>();
-    useEffect(() => { refreshDimensions(); }, [internalValue, refreshDimensions]);
-
     return (
         <Autocomplete
             disablePortal
@@ -314,7 +309,7 @@ export function SiteSearchBar({
             }}
             // The real onSubmit, since onSubmit is only triggered after 2 presses of the enter key (don't know why)
             onChange={onSubmit}
-            PopperComponent={(params) => (<FullWidthPopper {...params} dimensions={dimensions} />)}
+            PopperComponent={FullWidthPopper}
             renderOption={(props, option) => {
                 return (
                     <MenuItem
@@ -359,7 +354,6 @@ export function SiteSearchBar({
                             bookmarkFor={option.__typename as unknown as BookmarkFor}
                             bookmarks={option.bookmarks}
                             sxs={{ root: { marginRight: 1 } }}
-                            zIndex={zIndex}
                         />}
                         {/* If history, show delete icon */}
                         {option.isFromHistory && <Tooltip placement='right' title='Remove'>
@@ -376,7 +370,6 @@ export function SiteSearchBar({
             renderInput={(params) => (
                 <Paper
                     component="form"
-                    ref={ref}
                     sx={{
                         ...(sxs?.paper ?? {}),
                         p: "2px 4px",
@@ -412,20 +405,9 @@ export function SiteSearchBar({
                                     marginTop: "0",
                                 },
                             },
-                            // // Drop down/up icon
-                            // '& .MuiAutocomplete-endAdornment': {
-                            //     width: '48px',
-                            //     height: '48px',
-                            //     top: '0',
-                            //     position: 'relative',
-                            //     '& .MuiButtonBase-root': {
-                            //         width: '48px',
-                            //         height: '48px',
-                            //     }
-                            // }
                         }}
                     />
-                    <MicrophoneButton onTranscriptChange={handleChange} zIndex={zIndex} />
+                    <MicrophoneButton onTranscriptChange={handleChange} />
                     <IconButton sx={{
                         width: "48px",
                         height: "48px",

@@ -1,4 +1,5 @@
 import { Box } from "@mui/material";
+import { SearchType } from "utils/search/objectToSearch";
 import { AdvancedSearchButton } from "../AdvancedSearchButton/AdvancedSearchButton";
 import { SortButton } from "../SortButton/SortButton";
 import { TimeButton } from "../TimeButton/TimeButton";
@@ -15,7 +16,6 @@ export const SearchButtons = ({
     sortByOptions,
     sx,
     timeFrame,
-    zIndex,
 }: SearchButtonsProps) => {
     return (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 1, ...sx }}>
@@ -27,15 +27,13 @@ export const SearchButtons = ({
             <TimeButton
                 setTimeFrame={setTimeFrame}
                 timeFrame={timeFrame}
-                zIndex={zIndex}
             />
-            <AdvancedSearchButton
+            {searchType !== SearchType.Popular && <AdvancedSearchButton
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
                 searchType={searchType}
                 setAdvancedSearchParams={setAdvancedSearchParams}
-                zIndex={zIndex}
-            />
+            />}
         </Box>
     );
 };

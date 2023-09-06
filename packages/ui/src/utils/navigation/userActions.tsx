@@ -7,7 +7,7 @@ import { openLink, SetLocation } from "route";
 import { SvgComponent } from "types";
 import { checkIfLoggedIn } from "utils/authentication/session";
 
-export enum ACTION_TAGS {
+export enum NAV_ACTION_TAGS {
     Home = "Home",
     Search = "Search",
     Create = "Create",
@@ -18,10 +18,10 @@ export enum ACTION_TAGS {
     MyStuff = "MyStuff",
 }
 
-export type ActionArray = [string, ACTION_TAGS, LINKS, SvgComponent, number];
-export interface Action {
+export type NavActionArray = [string, NAV_ACTION_TAGS, LINKS, SvgComponent, number];
+export interface NavAction {
     label: CommonKey;
-    value: ACTION_TAGS;
+    value: NAV_ACTION_TAGS;
     link: string;
     Icon: SvgComponent;
     numNotifications: number;
@@ -30,50 +30,50 @@ export interface Action {
 // Returns navigational actions available to the user
 interface GetUserActionsProps {
     session?: Session | null | undefined;
-    exclude?: ACTION_TAGS[] | null | undefined;
+    exclude?: NAV_ACTION_TAGS[] | null | undefined;
 }
-export function getUserActions({ session, exclude = [] }: GetUserActionsProps): Action[] {
+export function getUserActions({ session, exclude = [] }: GetUserActionsProps): NavAction[] {
     // Check if user is logged in using session
     const isLoggedIn = checkIfLoggedIn(session);
-    const actions: ActionArray[] = [];
+    const actions: NavActionArray[] = [];
     // Home always available. Page changes based on login status, 
     // but we don't worry about that here.
     actions.push(
-        ["Home", ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+        ["Home", NAV_ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
     );
     // Search always available
     actions.push(
-        ["Search", ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
+        ["Search", NAV_ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
     );
     // Actions for logged in users
     if (isLoggedIn) {
         actions.push(
-            ["Create", ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
-            ["Inbox", ACTION_TAGS.Inbox, LINKS.Inbox, NotificationsAllIcon, 0],
-            ["MyStuff", ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
+            ["Create", NAV_ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
+            ["Inbox", NAV_ACTION_TAGS.Inbox, LINKS.Inbox, NotificationsAllIcon, 0],
+            ["MyStuff", NAV_ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
         );
     }
     // Display about, pricing, and login for logged out users 
     else {
-        actions.push(["About", ACTION_TAGS.About, LINKS.About, HelpIcon, 0]);
-        actions.push(["Pricing", ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
-        actions.push(["Log In", ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
+        actions.push(["About", NAV_ACTION_TAGS.About, LINKS.About, HelpIcon, 0]);
+        actions.push(["Pricing", NAV_ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
+        actions.push(["Log In", NAV_ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
     }
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
 }
 
 /** Factory for creating action objects */
-const createAction = (action: ActionArray): Action => {
+const createAction = (action: NavActionArray): NavAction => {
     const keys = ["label", "value", "link", "Icon", "numNotifications"];
-    return action.reduce((obj, val, i) => { obj[keys[i]] = val; return obj; }, {}) as Action;
+    return action.reduce((obj, val, i) => { obj[keys[i]] = val; return obj; }, {}) as NavAction;
 };
 
 // Factory for creating a list of action objects
-export const createActions = (actions: ActionArray[]): Action[] => actions.map(a => createAction(a));
+export const createActions = (actions: NavActionArray[]): NavAction[] => actions.map(a => createAction(a));
 
 /** Display actions in a horizontal menu */
 interface ActionsToMenuProps {
-    actions: Action[];
+    actions: NavAction[];
     setLocation: SetLocation;
     sx?: SxProps<Theme>;
 }
@@ -94,7 +94,7 @@ export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuPr
 
 // Display actions in a bottom navigation
 interface ActionsToBottomNavProps {
-    actions: Action[];
+    actions: NavAction[];
     setLocation: SetLocation;
 }
 export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavProps) => {
@@ -114,14 +114,17 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
                 else openLink(setLocation, link);
             }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
-            sx={{ color: "white" }}
+            sx={{
+                color: "white",
+                minWidth: "58px", // Default min width is too big for some screens, like closed Galaxy Fold 
+            }}
         />
     ));
 };
 
 // Display an action as an icon button
 interface ActionToIconButtonProps {
-    action: Action;
+    action: NavAction;
     setLocation: SetLocation;
     classes?: { [key: string]: string };
 }

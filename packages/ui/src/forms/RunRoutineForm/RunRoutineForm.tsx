@@ -1,8 +1,7 @@
 import { DUMMY_ID, RunRoutine, runRoutineValidation, RunStatus, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunRoutineFormProps } from "forms/types";
@@ -18,7 +17,7 @@ import { ScheduleUpsert } from "views/objects/schedule";
 
 export const runRoutineInitialValues = (
     session: Session | undefined,
-    existing?: RunRoutine | null | undefined,
+    existing?: Partial<RunRoutine> | null | undefined,
 ): RunRoutineShape => ({
     __typename: "RunRoutine" as const,
     id: DUMMY_ID,
@@ -33,15 +32,12 @@ export const runRoutineInitialValues = (
     ...existing,
 });
 
-export function transformRunRoutineValues(values: RunRoutineShape, existing?: RunRoutineShape) {
-    return existing === undefined
-        ? shapeRunRoutine.create(values)
-        : shapeRunRoutine.update(existing, values);
-}
+export const transformRunRoutineValues = (values: RunRoutineShape, existing: RunRoutineShape, isCreate: boolean) =>
+    isCreate ? shapeRunRoutine.create(values) : shapeRunRoutine.update(existing, values);
 
-export const validateRunRoutineValues = async (values: RunRoutineShape, existing?: RunRoutineShape) => {
-    const transformedValues = transformRunRoutineValues(values, existing);
-    const validationSchema = runRoutineValidation[existing === undefined ? "create" : "update"]({});
+export const validateRunRoutineValues = async (values: RunRoutineShape, existing: RunRoutineShape, isCreate: boolean) => {
+    const transformedValues = transformRunRoutineValues(values, existing, isCreate);
+    const validationSchema = runRoutineValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -54,7 +50,6 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -79,27 +74,18 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
     return (
         <>
             {/* Dialog to create/update schedule */}
-            <LargeDialog
-                id="schedule-dialog"
-                onClose={handleCloseScheduleDialog}
+            <ScheduleUpsert
+                canChangeTab={false}
+                canSetScheduleFor={false}
+                defaultTab={CalendarPageTabOption.RunRoutine}
+                handleDelete={handleDeleteSchedule}
+                isCreate={editingSchedule === null}
+                isMutate={false}
                 isOpen={isScheduleDialogOpen}
-                titleId={""}
-                zIndex={zIndex + 1}
-            >
-                <ScheduleUpsert
-                    canChangeTab={false}
-                    canSetScheduleFor={false}
-                    defaultTab={CalendarPageTabOption.RunRoutines}
-                    display="dialog"
-                    handleDelete={handleDeleteSchedule}
-                    isCreate={editingSchedule === null}
-                    isMutate={false}
-                    onCancel={handleCloseScheduleDialog}
-                    onCompleted={handleScheduleCompleted}
-                    partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+                onCancel={handleCloseScheduleDialog}
+                onCompleted={handleScheduleCompleted}
+                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
+            />
             <BaseForm
                 dirty={dirty}
                 display={display}
@@ -182,7 +168,7 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
                     {/* TODO */}
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={isCreate}
@@ -190,7 +176,6 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

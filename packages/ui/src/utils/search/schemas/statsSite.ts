@@ -9,4 +9,4 @@ export const statsSiteSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const statsSiteSearchParams = () => toParams(statsSiteSearchSchema(), endpointGetStatsSite, StatsSiteSortBy, StatsSiteSortBy.PeriodStartAsc);
+export const statsSiteSearchParams = () => toParams(statsSiteSearchSchema(), endpointGetStatsSite, undefined, StatsSiteSortBy, StatsSiteSortBy.PeriodStartAsc);

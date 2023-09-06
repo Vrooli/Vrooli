@@ -1,6 +1,5 @@
 import { calculateVersionsFromString, meetsMinVersion } from "@local/shared";
-import { Stack, TextField, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, TextField, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "icons";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -90,42 +89,42 @@ export const VersionInput = ({
                 }}
             />
             <Tooltip placement="top" title="Major bump (increment the first number)">
-                <ColorIconButton
+                <IconButton
                     aria-label='major-bump'
-                    background={palette.secondary.main}
                     onClick={bumpMajor}
                     sx={{
                         borderRadius: "0",
+                        background: palette.secondary.main,
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
                         height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
                     <BumpMajorIcon fill="white" />
-                </ColorIconButton>
+                </IconButton>
             </Tooltip>
             <Tooltip placement="top" title="Moderate bump (increment the middle number)">
-                <ColorIconButton
+                <IconButton
                     aria-label='moderate-bump'
-                    background={palette.secondary.main}
                     onClick={bumpModerate}
                     sx={{
                         borderRadius: "0",
+                        background: palette.secondary.main,
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
                         height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
                     <BumpModerateIcon fill="white" />
-                </ColorIconButton>
+                </IconButton>
             </Tooltip>
             <Tooltip placement="top" title="Minor bump (increment the last number)">
-                <ColorIconButton
+                <IconButton
                     aria-label='minor-bump'
-                    background={palette.secondary.main}
                     onClick={bumpMinor}
                     sx={{
                         borderRadius: "0 5px 5px 0",
+                        background: palette.secondary.main,
                         height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
                     <BumpMinorIcon fill="white" />
-                </ColorIconButton>
+                </IconButton>
             </Tooltip>
         </Stack>
     );

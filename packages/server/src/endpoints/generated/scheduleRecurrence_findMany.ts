@@ -35,6 +35,8 @@ export const scheduleRecurrence_findMany = {
             },
             "User": {
               "id": true,
+              "created_at": true,
+              "updated_at": true,
               "bannerImage": true,
               "handle": true,
               "isBot": true,
@@ -52,6 +54,53 @@ export const scheduleRecurrence_findMany = {
             "id": true,
             "color": true,
             "label": true
+          },
+          "reminderList": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "reminders": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "name": true,
+              "description": true,
+              "dueDate": true,
+              "index": true,
+              "isComplete": true,
+              "reminderItems": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "name": true,
+                "description": true,
+                "dueDate": true,
+                "index": true,
+                "isComplete": true
+              }
+            }
+          },
+          "resourceList": {
+            "id": true,
+            "created_at": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true,
+              "name": true
+            },
+            "resources": {
+              "id": true,
+              "index": true,
+              "link": true,
+              "usedFor": true,
+              "translations": {
+                "id": true,
+                "language": true,
+                "description": true,
+                "name": true
+              }
+            }
           },
           "id": true,
           "name": true,
@@ -90,6 +139,8 @@ export const scheduleRecurrence_findMany = {
               },
               "User": {
                 "id": true,
+                "created_at": true,
+                "updated_at": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -276,6 +327,8 @@ export const scheduleRecurrence_findMany = {
           },
           "user": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -349,6 +402,8 @@ export const scheduleRecurrence_findMany = {
           },
           "user": {
             "id": true,
+            "created_at": true,
+            "updated_at": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,

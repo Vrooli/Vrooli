@@ -1,51 +1,70 @@
-import { endpointGetSmartContractVersion, endpointPostSmartContractVersion, endpointPutSmartContractVersion, FindVersionInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
+import { endpointGetSmartContractVersion, endpointPostSmartContractVersion, endpointPutSmartContractVersion, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { SmartContractForm, smartContractInitialValues, transformSmartContractValues, validateSmartContractValues } from "forms/SmartContractForm/SmartContractForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
+import { SmartContractShape } from "utils/shape/models/smartContract";
+import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 import { SmartContractUpsertProps } from "../types";
 
 export const SmartContractUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
-    zIndex,
+    overrideObject,
 }: SmartContractUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, SmartContractVersion>(endpointGetSmartContractVersion);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<SmartContractVersion, SmartContractVersionShape>({
+        ...endpointGetSmartContractVersion,
+        objectType: "SmartContractVersion",
+        overrideObject,
+        transform: (existing) => smartContractInitialValues(session, existing),
+    });
 
-    const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => smartContractInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<SmartContractVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<SmartContractVersionCreateInput, SmartContractVersion>(endpointPostSmartContractVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<SmartContractVersionUpdateInput, SmartContractVersion>(endpointPutSmartContractVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<SmartContractVersionCreateInput | SmartContractVersionUpdateInput, SmartContractVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostSmartContractVersion,
+        endpointUpdate: endpointPutSmartContractVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="smart-contract-upsert-dialog"
+            isOpen={isOpen}
+            onClose={handleClose}
+        >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(isCreate ? "CreateSmartContract" : "UpdateSmartContract")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
@@ -53,12 +72,12 @@ export const SmartContractUpsert = ({
                     }
                     fetchLazyWrapper<SmartContractVersionCreateInput | SmartContractVersionUpdateInput, SmartContractVersion>({
                         fetch,
-                        inputs: transformSmartContractValues(values, existing),
+                        inputs: transformSmartContractValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateSmartContractValues(values, existing)}
+                validate={async (values) => await validateSmartContractValues(values, existing, isCreate)}
             >
                 {(formik) => <SmartContractForm
                     display={display}
@@ -66,12 +85,12 @@ export const SmartContractUpsert = ({
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
-                    versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
-                    zIndex={zIndex}
+                    versions={(existing?.root as SmartContractShape)?.versions?.map(v => v.versionLabel) ?? []}
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

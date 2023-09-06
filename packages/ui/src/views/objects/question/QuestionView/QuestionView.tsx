@@ -1,46 +1,44 @@
 import { CommentFor, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
-import { Box, Stack, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
 import { TagShape } from "utils/shape/models/tag";
 import { QuestionViewProps } from "../types";
 
 export const QuestionView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
-    zIndex,
 }: QuestionViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question>({
         ...endpointGetQuestion,
-        partialData,
+        objectType: "Question",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
@@ -51,10 +49,6 @@ export const QuestionView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { title, subtitle } = useMemo(() => getDisplay(existing, [language]), [existing, language]);
-
-    useEffect(() => {
-        document.title = `${title} | Vrooli`;
-    }, [title]);
 
     const initialValues = useMemo(() => questionInitialValues(session, existing), [existing, session]);
     const tags = useMemo<TagShape[] | null | undefined>(() => initialValues?.tags as TagShape[] | null | undefined, [initialValues]);
@@ -79,24 +73,21 @@ export const QuestionView = ({
                 objectId={existing?.id ?? ""}
                 objectType={CommentFor.Question}
                 onAddCommentClose={closeAddCommentDialog}
-                zIndex={zIndex}
             />
         </Box>
-    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette, zIndex]);
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={firstString(title, t("Question"))}
+                title={firstString(title, t("Question", { count: 1 }))}
                 below={availableLanguages.length > 1 && <SelectLanguageMenu
                     currentLanguage={language}
                     handleCurrent={setLanguage}
                     languages={availableLanguages}
-                    zIndex={zIndex}
                 />}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -112,7 +103,6 @@ export const QuestionView = ({
                     <RelationshipList
                         isEditing={false}
                         objectType={"Question"}
-                        zIndex={zIndex}
                     />
                     {/* Date and tags */}
                     <Stack direction="row" spacing={1} mt={2} mb={1}>
@@ -121,40 +111,36 @@ export const QuestionView = ({
                             loading={isLoading}
                             showIcon={true}
                             timestamp={existing?.created_at}
-                            zIndex={zIndex}
                         />
                         {exists(tags) && tags.length > 0 && <TagList
                             maxCharacters={30}
                             parentId={existing?.id ?? ""}
                             tags={tags as Tag[]}
-                            sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                            sx={{ marginTop: 4 }}
                         />}
                     </Stack>
-                    <MarkdownDisplay content={subtitle} zIndex={zIndex} />
+                    <MarkdownDisplay content={subtitle} />
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}
                         exclude={[ObjectAction.Edit]} // Handled elsewhere
                         object={existing}
-                        zIndex={zIndex}
                     />
                     {/* Comments */}
                     {comments}
                 </Stack>}
             </Formik>
-            {/* Edit button (if canUpdate)*/}
-            <SideActionButtons
+            <SideActionsButtons
                 display={display}
-                zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                    <IconButton aria-label={t("UpdateQuestion")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
+                    </IconButton>
                 ) : null}
-            </SideActionButtons>
+            </SideActionsButtons>
         </>
     );
 };

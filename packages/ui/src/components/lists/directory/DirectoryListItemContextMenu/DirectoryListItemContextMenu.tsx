@@ -1,5 +1,6 @@
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
 import { ListMenuItemData } from "components/dialogs/types";
+import { SessionContext } from "contexts/SessionContext";
 import { CopyIcon, DeleteIcon, ShareIcon } from "icons";
 import { useContext } from "react";
 import { SvgComponent } from "types";
@@ -7,7 +8,6 @@ import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { DirectoryListItemContextMenuProps } from "../types";
 
 export enum DirectoryContextMenuOption {
@@ -37,7 +37,6 @@ export const DirectoryListItemContextMenu = ({
     index,
     onClose,
     onDelete,
-    zIndex,
 }: DirectoryListItemContextMenuProps) => {
     const session = useContext(SessionContext);
 
@@ -74,7 +73,6 @@ export const DirectoryListItemContextMenu = ({
             data={listOptionsFiltered}
             onSelect={onMenuItemSelect}
             onClose={onClose}
-            zIndex={zIndex}
         />
     );
 };

@@ -68,20 +68,38 @@ export const typeDef = gql`
         language: String!
         description: String
         name: String!
-        text: String!
+        pagesCreate: [NotePageCreateInput!]
     }
     input NoteVersionTranslationUpdateInput {
         id: ID!
         language: String!
         description: String
         name: String
-        text: String
+        pagesCreate: [NotePageCreateInput!]
+        pagesUpdate: [NotePageUpdateInput!]
+        pagesDelete: [ID!]
     }
     type NoteVersionTranslation {
         id: ID!
         language: String!
         description: String
         name: String!
+        pages: [NotePage!]!
+    }
+
+    input NotePageCreateInput {
+        id: ID!
+        pageIndex: Int!
+        text: String!
+    }
+    input NotePageUpdateInput {
+        id: ID!
+        pageIndex: Int
+        text: String
+    }
+    type NotePage {
+        id: ID!
+        pageIndex: Int!
         text: String!
     }
 

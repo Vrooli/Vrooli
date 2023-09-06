@@ -1,7 +1,9 @@
 // Used to display popular/search results of a particular object type
-import { adaHandleRegex, ResourceUsedFor, urlRegex, walletAddressRegex } from "@local/shared";
+import { handleRegex, ResourceUsedFor, urlRegex, walletAddressRegex } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import { SessionContext } from "contexts/SessionContext";
+import usePress from "hooks/usePress";
 import { DeleteIcon, EditIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { openLink, useLocation } from "route";
@@ -11,10 +13,8 @@ import { getResourceIcon } from "utils/display/getResourceIcon";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import usePress from "utils/hooks/usePress";
 import { getResourceUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { ResourceListItemProps } from "../types";
 
 /**
@@ -25,7 +25,7 @@ import { ResourceListItemProps } from "../types";
 const getResourceType = (link: string): ResourceType | null => {
     if (urlRegex.test(link)) return ResourceType.Url;
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
-    if (adaHandleRegex.test(link)) return ResourceType.Handle;
+    if (handleRegex.test(link)) return ResourceType.Handle;
     return null;
 };
 

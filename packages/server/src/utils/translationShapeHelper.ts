@@ -32,12 +32,12 @@ export const translationShapeHelper = async <
             translationsCreate: (data as any).translationsCreate?.map(({ language, ...rest }) => ({
                 ...rest,
                 language,
-                embeddingNeedsUpdate: embeddingNeedsUpdate[language]?.[(data as any).id] ?? undefined,
+                embeddingNeedsUpdate: embeddingNeedsUpdate[language] ?? undefined,
             })),
             translationsUpdate: (data as any).translationsUpdate?.map(({ language, ...rest }) => ({
                 ...rest,
                 language,
-                embeddingNeedsUpdate: embeddingNeedsUpdate[language]?.[(data as any).id] ?? undefined,
+                embeddingNeedsUpdate: embeddingNeedsUpdate[language] ?? undefined,
             })),
         },
         isOneToOne: false,

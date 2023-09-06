@@ -1,8 +1,8 @@
 import { DUMMY_ID, Report, ReportFor, reportValidation, Session } from "@local/shared";
 import { TextField } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RichInput } from "components/inputs/RichInput/RichInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -30,15 +30,15 @@ const ReportReasons = {
     [ReportOptions.Other]: "Other",
 };
 
+/** New resources must include a createdFor __typename and ID */
+export type NewReportShape = Partial<Omit<Report, "createdFor">> & { createdFor: { __typename: ReportFor, id: string } };
+
 export const reportInitialValues = (
     session: Session | undefined,
-    createdFor: ReportFor,
-    createdForId: string,
-    existing?: Report | null | undefined,
+    existing: NewReportShape,
 ): ReportShape => ({
     __typename: "Report" as const,
     id: DUMMY_ID,
-    createdFor: { __typename: createdFor, id: createdForId },
     reason: "",
     otherReason: "",
     details: "",
@@ -46,16 +46,13 @@ export const reportInitialValues = (
     ...existing,
 });
 
-export const transformReportValues = (values: ReportShape, existing?: ReportShape) => {
-    return existing === undefined
-        ? shapeReport.create(values)
-        : shapeReport.update(existing, values);
-};
+export const transformReportValues = (values: ReportShape, existing: ReportShape, isCreate: boolean) =>
+    isCreate ? shapeReport.create(values) : shapeReport.update(existing, values);
 
-export const validateReportValues = async (values: ReportShape, existing?: ReportShape) => {
-    const transformedValues = transformReportValues(values, existing);
+export const validateReportValues = async (values: ReportShape, existing: ReportShape, isCreate: boolean) => {
+    const transformedValues = transformReportValues(values, existing, isCreate);
     console.log("transformed report", transformedValues);
-    const validationSchema = reportValidation[existing === undefined ? "create" : "update"]({});
+    const validationSchema = reportValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -68,7 +65,6 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { t } = useTranslation();
@@ -94,7 +90,6 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                         currentLanguage={languageField.value}
                         handleCurrent={setLanguage}
                         languages={[languageField.value]}
-                        zIndex={zIndex}
                     />
                     <Selector
                         name="reason"
@@ -111,17 +106,16 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                         helperText={t("ReasonCustomHelp")}
                         as={TextField}
                     />}
-                    <MarkdownInput
+                    <RichInput
                         maxChars={8192}
                         maxRows={10}
                         minRows={4}
                         name="details"
                         placeholder={t("DetailsOptional")}
-                        zIndex={zIndex}
                     />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={isCreate}
@@ -129,7 +123,6 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

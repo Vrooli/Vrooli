@@ -6,7 +6,6 @@ export const GeneratedLanguageInput = ({
     disabled,
     fieldData,
     index,
-    zIndex,
 }: GeneratedInputComponentProps) => {
     console.log('rendering language input');
     const [field, , helpers] = useField(fieldData.fieldName);
@@ -26,7 +25,6 @@ export const GeneratedLanguageInput = ({
             handleDelete={deleteLanguage}
             handleCurrent={() => { }} //TODO
             languages={field.value}
-            zIndex={zIndex}
         />
     )
 }

@@ -1,6 +1,6 @@
 import { DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
 import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector } from "components/inputs/Selector/Selector";
@@ -32,15 +32,12 @@ export const scheduleInitialValues = (
     ...existing,
 });
 
-export const transformScheduleValues = (values: ScheduleShape, existing?: ScheduleShape) => {
-    return existing === undefined
-        ? shapeSchedule.create(values)
-        : shapeSchedule.update(existing, values);
-};
+export const transformScheduleValues = (values: ScheduleShape, existing: ScheduleShape, isCreate: boolean) =>
+    isCreate ? shapeSchedule.create(values) : shapeSchedule.update(existing, values);
 
-export const validateScheduleValues = async (values: ScheduleShape, existing?: ScheduleShape) => {
-    const transformedValues = transformScheduleValues(values, existing);
-    const validationSchema = scheduleValidation[existing === undefined ? "create" : "update"]({});
+export const validateScheduleValues = async (values: ScheduleShape, existing: ScheduleShape, isCreate: boolean) => {
+    const transformedValues = transformScheduleValues(values, existing, isCreate);
+    const validationSchema = scheduleValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -57,7 +54,6 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
     onCancel,
     touched,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -102,14 +98,12 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
                     {canSetScheduleFor && <RelationshipList
                         isEditing={true}
                         objectType={"Schedule"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />}
                     <Title
                         title="Schedule Time Frame"
                         help="This section is used to define the overall time frame for the schedule.\n\n*Start time* and *End time* specify the beginning and the end of the period during which the schedule is active.\n\nThe *Timezone* is used to set the time zone for the entire schedule."
                         variant="subheader"
-                        zIndex={zIndex}
                     />
                     <Stack direction="column" spacing={2}>
                         <DateInput
@@ -122,14 +116,13 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
                             label="End time"
                             type="datetime-local"
                         />
-                        <TimezoneSelector name="timezone" label="Timezone" zIndex={zIndex} />
+                        <TimezoneSelector name="timezone" label="Timezone" />
                     </Stack>
                     {/* Set up recurring events */}
                     <Title
                         title="Recurring events"
                         help="Recurring events are used to set up repeated occurrences of the event in the schedule, such as daily, weekly, monthly, or yearly. *Recurrence type* determines the frequency of the repetition. *Interval* is the number of units between repetitions (e.g., every 2 weeks). Depending on the recurrence type, you may need to specify additional information such as *Day of week*, *Day of month*, or *Month of year*. Optionally, you can set an *End date* for the recurrence."
                         variant="subheader"
-                        zIndex={zIndex}
                     />
                     {recurrencesField.value.length ? <Box>
                         {recurrencesField.value.map((recurrence, index) => (
@@ -245,7 +238,7 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
                     {/* TODO */}
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={errors as any}
                 isCreate={isCreate}
@@ -253,7 +246,6 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

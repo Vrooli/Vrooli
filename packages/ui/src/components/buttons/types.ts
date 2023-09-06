@@ -1,8 +1,8 @@
 import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
-import { ButtonProps, IconButtonProps } from "@mui/material";
+import { ButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
-import { NavigableObject, SvgProps, SxType } from "types";
+import { NavigableObject, PartialWithType, SvgProps, SxType } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
@@ -12,13 +12,12 @@ export interface AdvancedSearchButtonProps {
     advancedSearchSchema: FormSchema | null | undefined;
     searchType: SearchType | `${SearchType}`;
     setAdvancedSearchParams: (params: object | null) => unknown;
-    zIndex: number;
 }
 
 export interface BuildEditButtonsProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;
-    errors: GridSubmitButtonsProps["errors"];
+    errors: BottomActionsButtonsProps["errors"];
     handleCancel: () => unknown;
     handleScaleChange: (delta: number) => unknown;
     handleSubmit: () => unknown;
@@ -26,21 +25,11 @@ export interface BuildEditButtonsProps {
     isEditing: boolean;
     loading: boolean;
     scale: number;
-    zIndex: number;
 }
 
 export type CameraButtonProps = {
     disabled?: boolean;
     onTranscriptChange: (result: string) => unknown;
-}
-
-export interface ColorIconButtonProps extends IconButtonProps {
-    background: string;
-    children: JSX.Element | null | undefined;
-    disabled?: boolean;
-    href?: string;
-    onClick?: (event: React.MouseEvent<HTMLElement>) => unknown;
-    sx?: SxType;
 }
 
 export interface CommentsButtonProps {
@@ -54,23 +43,26 @@ export interface EllipsisActionButtonProps {
     children: JSX.Element | null | undefined;
 }
 
-export interface GridActionButtonsProps {
+export interface BottomActionsGridProps {
     children: OrArray<JSX.Element | null | undefined>;
-    display: ViewDisplayType;
+    display: ViewDisplayType
+    sx?: SxType;
 }
 
-export interface GridSubmitButtonsProps {
+export interface BottomActionsButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
     display: ViewDisplayType;
     errors?: { [key: string]: string | string[] | null | undefined };
+    hideButtons?: boolean;
+    /** Hides button text on mobile */
+    hideTextOnMobile?: boolean;
     isCreate: boolean;
     loading?: boolean;
     onCancel: () => unknown;
     onSetSubmitting?: (isSubmitting: boolean) => unknown;
     onSubmit?: () => unknown;
-    sideActionButtons?: Omit<SideActionButtonsProps, "hasGridActions">;
-    zIndex: number;
+    sideActionButtons?: Omit<SideActionsButtonsProps, "display" | "hasGridActions">;
 }
 
 export interface HelpButtonProps extends ButtonProps {
@@ -83,13 +75,11 @@ export interface HelpButtonProps extends ButtonProps {
     sxRoot?: object;
     /** Style applied to the question mark icon */
     sx?: SvgProps;
-    zIndex: number;
 }
 
 export type MicrophoneButtonProps = {
     disabled?: boolean;
     onTranscriptChange: (result: string) => unknown;
-    zIndex: number;
 }
 
 export interface PopupMenuProps extends ButtonProps {
@@ -100,7 +90,6 @@ export interface PopupMenuProps extends ButtonProps {
 export interface ReportButtonProps {
     forId: string;
     reportFor: ReportFor;
-    zIndex: number;
 }
 
 export interface ReportsButtonProps {
@@ -109,7 +98,7 @@ export interface ReportsButtonProps {
 }
 
 export interface ReportsLinkProps {
-    object: (NavigableObject & { reportsCount: number }) | null | undefined;
+    object: (NavigableObject & { reportsCount?: number }) | null | undefined;
 }
 
 export interface RunButtonProps {
@@ -118,8 +107,7 @@ export interface RunButtonProps {
     handleRunDelete: (run: RunProject | RunRoutine) => unknown;
     isBuildGraphOpen: boolean;
     isEditing: boolean;
-    runnableObject: ProjectVersion | RoutineVersion | null;
-    zIndex: number;
+    runnableObject: PartialWithType<ProjectVersion | RoutineVersion> | null;
 }
 
 export interface SearchButtonsProps {
@@ -133,22 +121,18 @@ export interface SearchButtonsProps {
     sortByOptions: any; // No way to specify generic enum
     sx?: SxType;
     timeFrame: TimeFrame | undefined;
-    zIndex: number;
 }
 
 export interface ShareButtonProps {
     object: NavigableObject | null | undefined;
-    zIndex: number;
 }
 
-export interface SideActionButtonsProps {
+export interface SideActionsButtonsProps {
     children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
     /** If true, displays higher up */
     hasGridActions?: boolean;
-    isLeftHanded?: boolean;
     sx?: SxType;
-    zIndex: number;
 }
 
 export interface SortButtonProps {
@@ -166,7 +150,6 @@ export interface BookmarkButtonProps {
     bookmarkFor: BookmarkFor;
     bookmarks?: number | null; // Defaults to 0
     sxs?: { root?: SxType };
-    zIndex: number;
 }
 
 export interface StatusMessageArray {
@@ -177,7 +160,6 @@ export interface StatusMessageArray {
 export interface StatusButtonProps extends ButtonProps {
     status: Status;
     messages: string[];
-    zIndex: number;
 }
 
 export type TimeFrame = {
@@ -188,7 +170,6 @@ export type TimeFrame = {
 export interface TimeButtonProps {
     setTimeFrame: (timeFrame: TimeFrame | undefined) => unknown;
     timeFrame: TimeFrame | undefined;
-    zIndex: number;
 }
 
 export interface VoteButtonProps {

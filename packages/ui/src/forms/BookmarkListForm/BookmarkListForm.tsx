@@ -1,6 +1,6 @@
 import { Bookmark, BookmarkList, bookmarkListValidation, DUMMY_ID, Session, uuid } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemText, Stack, TextField, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
@@ -17,7 +17,7 @@ import { BookmarkListShape, shapeBookmarkList } from "utils/shape/models/bookmar
 
 export const bookmarkListInitialValues = (
     session: Session | undefined,
-    existing?: BookmarkList | null | undefined,
+    existing?: Partial<BookmarkList> | null | undefined,
 ): BookmarkListShape => ({
     __typename: "BookmarkList" as const,
     id: DUMMY_ID,
@@ -26,16 +26,12 @@ export const bookmarkListInitialValues = (
     ...existing,
 });
 
-export function transformBookmarkListValues(values: BookmarkListShape, existing?: BookmarkListShape) {
-    console.log("transformBookmarkListValues", values, shapeBookmarkList.create(values));
-    return existing === undefined
-        ? shapeBookmarkList.create(values)
-        : shapeBookmarkList.update(existing, values);
-}
+export const transformBookmarkListValues = (values: BookmarkListShape, existing: BookmarkListShape, isCreate: boolean) =>
+    isCreate ? shapeBookmarkList.create(values) : shapeBookmarkList.update(existing, values);
 
-export const validateBookmarkListValues = async (values: BookmarkListShape, existing?: BookmarkListShape) => {
-    const transformedValues = transformBookmarkListValues(values, existing);
-    const validationSchema = bookmarkListValidation[existing === undefined ? "create" : "update"]({});
+export const validateBookmarkListValues = async (values: BookmarkListShape, existing: BookmarkListShape, isCreate: boolean) => {
+    const transformedValues = transformBookmarkListValues(values, existing, isCreate);
+    const validationSchema = bookmarkListValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -48,7 +44,6 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -91,7 +86,6 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                 isOpen={searchOpen}
                 handleCancel={closeSearch}
                 handleComplete={closeSearch}
-                zIndex={zIndex + 1}
             />
             <BaseForm
                 dirty={dirty}
@@ -143,7 +137,6 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                                     <MarkdownDisplay
                                         content={getDisplay(bookmark as Bookmark).subtitle}
                                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
-                                        zIndex={zIndex}
                                     />
                                 </Stack>
                                 <IconButton
@@ -167,17 +160,16 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                         Add Bookmark
                     </Button>
                 </Stack>
-                <GridSubmitButtons
-                    display={display}
-                    errors={props.errors}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                    zIndex={zIndex}
-                />
             </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={props.errors}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
         </>
     );
 });

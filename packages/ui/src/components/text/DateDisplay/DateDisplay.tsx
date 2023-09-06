@@ -1,10 +1,10 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import usePress from "hooks/usePress";
 import { ScheduleIcon } from "icons";
 import { useCallback, useState } from "react";
 import { displayDate } from "utils/display/stringTools";
-import usePress from "utils/hooks/usePress";
 import { DateDisplayProps } from "../types";
 
 /**
@@ -16,15 +16,14 @@ export const DateDisplay = ({
     showIcon = true,
     textBeforeDate = "",
     timestamp,
-    zIndex,
     ...props
 }: DateDisplayProps) => {
     const { palette } = useTheme();
 
     // Full date popup
-    const [anchorEl, setAnchorEl] = useState<any | null>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = useCallback((target: EventTarget) => {
-        setAnchorEl(target);
+        setAnchorEl(target as HTMLElement);
     }, []);
     const close = useCallback(() => setAnchorEl(null), []);
 
@@ -34,7 +33,7 @@ export const DateDisplay = ({
         onClick: open,
     });
 
-    if (loading) return (
+    if (loading && !timestamp) return (
         <TextLoading size="body2" sx={{ width: "100px", ...props }} />
     );
     if (!timestamp) return null;
@@ -44,7 +43,6 @@ export const DateDisplay = ({
             <PopoverWithArrow
                 anchorEl={anchorEl}
                 handleClose={close}
-                zIndex={(zIndex ?? 100000) + 1}
             >
                 <Typography variant="body2" color={palette.background.textPrimary}>
                     {displayDate(timestamp, true)}

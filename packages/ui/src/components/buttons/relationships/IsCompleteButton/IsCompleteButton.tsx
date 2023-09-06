@@ -1,5 +1,4 @@
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
 import { CompleteIcon } from "icons";
@@ -43,9 +42,12 @@ export function IsCompleteButton({
         >
             <TextShrink id="complete" sx={{ ...commonLabelProps() }}>{t(field?.value ? "Complete" : "Incomplete")}</TextShrink>
             <Tooltip title={tooltip}>
-                <ColorIconButton background={palette.primary.light} sx={{ ...smallButtonProps(isEditing, false) }} onClick={handleClick}>
+                <IconButton
+                    onClick={handleClick}
+                    sx={{ ...smallButtonProps(isEditing, false), background: palette.primary.light }}
+                >
                     {Icon && <Icon {...commonIconProps()} />}
-                </ColorIconButton>
+                </IconButton>
             </Tooltip>
         </Stack>
     );

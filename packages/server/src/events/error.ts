@@ -5,7 +5,7 @@ import { randomString } from "../auth";
 import { logger } from "./logger";
 
 /**
- * Generates unique erro code by appending 
+ * Generates unique error code by appending 
  * a unique string with a randomly generated string. 
  * This way, you can locate both the location in the code which 
  * generated the error, and the exact line in the log file where 

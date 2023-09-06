@@ -1,14 +1,15 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput, endpointPostDeleteMany, Resource } from "@local/shared";
+import { Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
+import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { updateArray } from "utils/shape/general";
+import { ResourceUpsert } from "views/objects/resource";
 import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceListVerticalProps } from "../types";
@@ -16,56 +17,35 @@ import { ResourceListVerticalProps } from "../types";
 export const ResourceListVertical = ({
     canUpdate = true,
     handleUpdate,
-    mutate,
     list,
     loading,
-    zIndex,
+    mutate,
+    parent,
 }: ResourceListVerticalProps) => {
     const { t } = useTranslation();
-
-    const onAdd = useCallback((newResource: Resource) => {
-        if (!list) return;
-        if (handleUpdate) {
-            handleUpdate({
-                ...list,
-                resources: [...(list?.resources as any) ?? [], newResource],
-            });
-        }
-    }, [handleUpdate, list]);
-
-    const onUpdate = useCallback((index: number, updatedResource: Resource) => {
-        if (!list) return;
-        if (handleUpdate) {
-            handleUpdate({
-                ...list,
-                resources: updateArray(list.resources, index, updatedResource) as any[],
-            });
-        }
-    }, [handleUpdate, list]);
+    console.log("resourcelistvertical", list);
 
     const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
+        const updatedList = {
+            ...list,
+            resources: list.resources.filter(r => r.id !== resource.id),
+        };
         if (mutate && resource.id) {
             fetchLazyWrapper<DeleteManyInput, Count>({
                 fetch: deleteMutation,
                 inputs: { ids: [resource.id], objectType: "Resource" as any },
                 onSuccess: () => {
                     if (handleUpdate) {
-                        handleUpdate({
-                            ...list,
-                            resources: list.resources.filter(r => r.id !== resource.id) as any,
-                        });
+                        handleUpdate(updatedList);
                     }
                 },
             });
         }
         else if (handleUpdate) {
-            handleUpdate({
-                ...list,
-                resources: list.resources.filter(r => r.id !== resource.id) as any,
-            });
+            handleUpdate(updatedList);
         }
     }, [deleteMutation, handleUpdate, list, mutate]);
 
@@ -77,7 +57,7 @@ export const ResourceListVertical = ({
     const openContext = useCallback((target: EventTarget, index: number) => {
         setContextAnchor(target);
         const resource = list?.resources[index];
-        setSelectedResource(resource as any);
+        setSelectedResource(resource ?? null);
     }, [list?.resources]);
     const closeContext = useCallback(() => {
         setContextAnchor(null);
@@ -93,20 +73,39 @@ export const ResourceListVertical = ({
         setEditingIndex(index);
         setIsDialogOpen(true);
     }, []);
+    const onCompleted = useCallback((resource: Resource) => {
+        closeDialog();
+        if (!list || !handleUpdate) return;
+        const index = resource.index;
+        if (index && index >= 0) {
+            handleUpdate({
+                ...list,
+                resources: updateArray(list.resources, index, resource) as Resource[],
+            });
+        }
+        else {
+            handleUpdate({
+                ...list,
+                resources: [...(list?.resources ?? []), resource],
+            });
+        }
+    }, [closeDialog, handleUpdate, list]);
 
-    const dialog = useMemo(() => (
-        list ? <ResourceDialog
-            index={editingIndex}
+    const dialog = useMemo(() => {
+        return <ResourceUpsert
+            isCreate={editingIndex < 0}
             isOpen={isDialogOpen}
-            partialData={(editingIndex >= 0) ? list.resources[editingIndex as number] as any : undefined}
-            listId={list.id}
-            onClose={closeDialog}
-            onCreated={onAdd}
-            onUpdated={onUpdate}
-            mutate={mutate}
-            zIndex={zIndex + 1}
-        /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
+            isMutate={mutate}
+            onCancel={closeDialog}
+            onCompleted={onCompleted}
+            overrideObject={editingIndex >= 0 && list?.resources ?
+                { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
+                resourceInitialValues(undefined, {
+                    index: 0,
+                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
+                }) as NewResourceShape}
+        />;
+    }, [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id]);
 
     return (
         <>
@@ -117,13 +116,25 @@ export const ResourceListVertical = ({
                 anchorEl={contextAnchor}
                 index={selectedIndex ?? -1}
                 onClose={closeContext}
-                onAddBefore={() => { }} //TODO
-                onAddAfter={() => { }} //TODO
+                onAddBefore={() => {
+                    setEditingIndex(selectedIndex ?? 0);
+                    openDialog();
+                }}
+                onAddAfter={() => {
+                    setEditingIndex(selectedIndex ? selectedIndex + 1 : 0);
+                    openDialog();
+                }}
                 onDelete={onDelete}
                 onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
-                onMove={() => { }} //TODO
+                onMove={(index: number) => {
+                    if (handleUpdate && list) {
+                        handleUpdate({
+                            ...list,
+                            resources: updateArray(list.resources, selectedIndex ?? 0, list.resources[index]) as any[],
+                        });
+                    }
+                }}
                 resource={selectedResource}
-                zIndex={zIndex + 1}
             />
             {/* Add resource dialog */}
             {dialog}

@@ -45,7 +45,6 @@ export const ResourceListItemContextMenu = ({
     onDelete,
     onMove,
     resource,
-    zIndex,
 }: ResourceListItemContextMenuProps) => {
 
     const onMenuItemSelect = (value: ResourceContextMenuOption) => {
@@ -93,7 +92,6 @@ export const ResourceListItemContextMenu = ({
             data={listOptionsFiltered}
             onSelect={onMenuItemSelect}
             onClose={onClose}
-            zIndex={zIndex}
         />
     );
 };

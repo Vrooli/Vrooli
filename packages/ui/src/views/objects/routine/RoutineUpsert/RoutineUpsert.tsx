@@ -1,52 +1,71 @@
-import { endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
+import { endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RoutineForm, routineInitialValues, transformRoutineValues, validateRoutineValues } from "forms/RoutineForm/RoutineForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useFormDialog } from "hooks/useFormDialog";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useUpsertActions } from "hooks/useUpsertActions";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
+import { RoutineShape } from "utils/shape/models/routine";
+import { RoutineVersionShape } from "utils/shape/models/routineVersion";
 import { RoutineUpsertProps } from "../types";
 
 export const RoutineUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     isSubroutine = false,
     onCancel,
     onCompleted,
-    zIndex,
+    overrideObject,
 }: RoutineUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => parseSingleItemUrl({}), []);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, RoutineVersion>(endpointGetRoutineVersion);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
+        ...endpointGetRoutineVersion,
+        objectType: "RoutineVersion",
+        overrideObject,
+        transform: (existing) => routineInitialValues(session, existing),
+    });
 
-    const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => routineInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<RoutineVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<RoutineVersionCreateInput, RoutineVersion>(endpointPostRoutineVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<RoutineVersionUpdateInput, RoutineVersion>(endpointPutRoutineVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostRoutineVersion,
+        endpointUpdate: endpointPutRoutineVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
+    const { formRef, handleClose } = useFormDialog({ handleCancel });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="routine-upsert-dialog"
+            isOpen={isOpen}
+            onClose={handleClose}
+        >
             <TopBar
                 display={display}
-                onClose={handleCancel}
+                onClose={handleClose}
                 title={t(isCreate ? "CreateRoutine" : "UpdateRoutine")}
-                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
@@ -54,12 +73,12 @@ export const RoutineUpsert = ({
                     }
                     fetchLazyWrapper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
                         fetch,
-                        inputs: transformRoutineValues(values, existing),
+                        inputs: transformRoutineValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateRoutineValues(values, existing)}
+                validate={async (values) => await validateRoutineValues(values, existing, isCreate)}
             >
                 {(formik) => <RoutineForm
                     display={display}
@@ -68,12 +87,12 @@ export const RoutineUpsert = ({
                     isOpen={true}
                     isSubroutine={isSubroutine}
                     onCancel={handleCancel}
+                    onClose={handleClose}
                     ref={formRef}
-                    versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
-                    zIndex={zIndex}
+                    versions={(existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? []}
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

@@ -1,6 +1,5 @@
 import { exists } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemRunRoutine } from "components/lists/types";
@@ -9,6 +8,7 @@ import { AddIcon, RoutineIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { highlightStyle } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { openObject } from "utils/navigation/openObject";
@@ -18,7 +18,6 @@ import { RunRoutineButtonProps } from "../types";
 export function RunRoutineButton({
     isEditing,
     objectType,
-    zIndex,
 }: RunRoutineButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -86,7 +85,6 @@ export function RunRoutineButton({
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}
                 limitTo={[findType]}
-                zIndex={zIndex + 1}
             />}
             <Stack
                 direction="column"
@@ -106,7 +104,7 @@ export function RunRoutineButton({
                             borderRadius: 8,
                             paddingRight: 2,
                             ...largeButtonProps(isEditing, true),
-                            ...buttonSx(palette.primary.light, !isEditing),
+                            ...highlightStyle(palette.primary.light, !isEditing),
                         }}
                     >
                         {Icon && (

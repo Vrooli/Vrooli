@@ -1,4 +1,4 @@
-import { endpointGetSmartContracts, SmartContractSortBy } from "@local/shared";
+import { endpointGetSmartContract, endpointGetSmartContracts, SmartContractSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
@@ -21,4 +21,4 @@ export const smartContractSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const smartContractSearchParams = () => toParams(smartContractSearchSchema(), endpointGetSmartContracts, SmartContractSortBy, SmartContractSortBy.ScoreDesc);
+export const smartContractSearchParams = () => toParams(smartContractSearchSchema(), endpointGetSmartContracts, endpointGetSmartContract, SmartContractSortBy, SmartContractSortBy.ScoreDesc);

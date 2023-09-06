@@ -1,9 +1,10 @@
-import { Comment, CommentFor, StandardVersion, Tag } from "@local/shared";
+import { Comment, CommentFor, ResourceListFor, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
+import { CSSProperties } from "react";
 import { SvgComponent, SxType } from "types";
-import { ListObjectType } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
 
@@ -19,13 +20,13 @@ export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
 
 export interface CommentUpsertInputProps {
     comment: Comment | undefined;
+    isOpen: boolean;
     language: string;
     objectId: string;
     objectType: CommentFor;
     onCancel: () => unknown;
     onCompleted: (comment: Comment) => unknown;
     parent: Comment | null;
-    zIndex: number;
 }
 
 export interface CodeInputBaseProps {
@@ -87,7 +88,6 @@ export interface CodeInputBaseProps {
      * }
      */
     variables?: { [x: string]: JSONVariable };
-    zIndex: number;
 }
 
 export type CodeInputProps = Omit<CodeInputBaseProps, "defaultValue" | "format" | "variables">
@@ -125,17 +125,15 @@ export interface LanguageInputProps {
      * All languages that currently have translations for the object being edited.
      */
     languages: string[];
-    zIndex: number;
 }
 
 export interface LinkInputProps {
     label?: string;
     name?: string;
     onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => unknown;
-    zIndex: number;
 }
 
-export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
+export type RichInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
@@ -150,7 +148,7 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
      * Callback to provide data for "@" tagging dropdown. 
      * If not provided, the dropdown will not appear.
      */
-    getTaggableItems?: (query: string) => Promise<ListObjectType[]>;
+    getTaggableItems?: (query: string) => Promise<ListObject[]>;
     helperText?: string | boolean | null | undefined;
     maxChars?: number;
     maxRows?: number;
@@ -166,10 +164,54 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
         root?: SxType;
         textArea?: Record<string, unknown>;
     };
-    zIndex: number;
 }
 
-export type MarkdownInputProps = Omit<MarkdownInputBaseProps, "onChange" | "value">
+export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
+
+export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "disableAssistant" | "helperText" | "maxChars" | "sxs"> {
+    id: string;
+    openAssistantDialog: (selectedText: string) => unknown;
+    onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
+    redo: () => unknown;
+    toggleMarkdown: () => unknown;
+    undo: () => unknown;
+    sx?: CSSProperties;
+}
+
+export type RichInputMarkdownProps = RichInputChildProps;
+export type RichInputLexicalProps = RichInputChildProps;
+
+export interface RichInputChildView {
+    handleAction: (action: Exclude<RichInputAction, "Mode">, data?: unknown) => unknown;
+}
+
+export type RichInputAction =
+    "Assistant" |
+    "Bold" |
+    "Code" |
+    "Header1" |
+    "Header2" |
+    "Header3" |
+    "Header4" |
+    "Header5" |
+    "Header6" |
+    "Italic" |
+    "Link" |
+    "ListBullet" |
+    "ListCheckbox" |
+    "ListNumber" |
+    "Mode" |
+    "Quote" |
+    "Redo" |
+    "Spoiler" |
+    "Strikethrough" |
+    "Table" |
+    "Underline" |
+    "Undo";
+export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo">]: boolean };
+export interface RichInputToolbarView {
+    updateActiveStates: (activeStates: RichInputActiveStates) => unknown;
+}
 
 export type PasswordTextFieldProps = TextFieldProps & {
     autoComplete?: string;
@@ -197,7 +239,6 @@ export interface ProfilePictureInputProps {
         /** Used for cache busting */
         updated_at?: string;
     } | null | undefined;
-    zIndex: number;
 }
 
 export interface IntegerInputProps extends BoxProps {
@@ -219,7 +260,7 @@ export interface ResourceListHorizontalInputProps {
     disabled?: boolean;
     isCreate: boolean;
     isLoading?: boolean;
-    zIndex: number;
+    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
 }
 
 export interface SelectorProps<T extends string | number | { [x: string]: any }> {
@@ -261,14 +302,12 @@ export type StandardVersionSelectSwitchProps = {
     } | null;
     onChange: (value: StandardVersion | null) => unknown;
     disabled?: boolean;
-    zIndex: number;
 }
 
 export interface TagSelectorProps {
     disabled?: boolean;
     name: string;
     placeholder?: string;
-    zIndex: number;
 }
 
 export interface TagSelectorBaseProps {
@@ -276,12 +315,9 @@ export interface TagSelectorBaseProps {
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => unknown;
     placeholder?: string;
     tags: (TagShape | Tag)[];
-    zIndex: number
 }
 
-export interface TimezoneSelectorProps extends Omit<SelectorProps<string>, "getOptionLabel" | "options"> {
-    zIndex: number;
-}
+export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
 
 export interface ToggleSwitchProps {
     checked: boolean;
@@ -295,7 +331,7 @@ export interface ToggleSwitchProps {
     sx?: SxType;
 }
 
-export interface TranslatedMarkdownInputProps {
+export interface TranslatedRichInputProps {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
@@ -314,7 +350,6 @@ export interface TranslatedMarkdownInputProps {
         root?: SxType;
         textArea?: Record<string, unknown>;
     };
-    zIndex: number;
 }
 
 export interface TranslatedTextFieldProps {

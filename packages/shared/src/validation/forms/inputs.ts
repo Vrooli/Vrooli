@@ -34,6 +34,9 @@ export const jsonStandardInputForm = yup.object().shape({
             const keys = Object.keys(variables);
             for (let i = 0; i < keys.length; i++) {
                 const key = keys[i];
+                if (typeof key !== "string") {
+                    return false;
+                }
                 const value = variables[key];
                 if (typeof value !== "object") {
                     return false;

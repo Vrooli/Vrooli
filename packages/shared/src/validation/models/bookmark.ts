@@ -11,7 +11,7 @@ export const bookmarkValidation: YupModel = {
     }, [
         ["for", ["Connect"], "one", "req"],
         ["list", ["Connect", "Create"], "one", "opt", bookmarkListValidation, ["bookmarks"]],
-    ], [], o),
+    ], [["listConnect", "listCreate"]], o),
     update: ({ o }) => yupObj({
         id: req(id),
     }, [

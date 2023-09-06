@@ -1642,12 +1642,6 @@ export const endpointGetViews = {
     tag: "view",
 } as const;
 
-export const endpointPostWalletHandles = {
-    endpoint: "/wallet/handles",
-    method: "POST",
-    tag: "wallet",
-} as const;
-
 export const endpointPutWallet = {
     endpoint: "/wallet/:id",
     method: "PUT",

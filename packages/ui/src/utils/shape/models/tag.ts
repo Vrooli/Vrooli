@@ -1,7 +1,6 @@
 import { Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
-import { createPrims, createRel, shapeUpdate, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updateRel, updateTranslationPrims } from "./tools";
 
 export type TagTranslationShape = Pick<TagTranslation, "id" | "language" | "description"> & {
     __typename?: "TagTranslation";

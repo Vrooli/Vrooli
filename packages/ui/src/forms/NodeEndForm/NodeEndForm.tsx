@@ -1,16 +1,16 @@
 import { DUMMY_ID, nodeTranslationValidation, NodeType, nodeValidation, orDefault, RoutineVersion, Session, uuid } from "@local/shared";
 import { Checkbox, FormControlLabel, Tooltip } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeEndFormProps, NodeWithEndShape } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { shapeNode } from "utils/shape/models/node";
 
@@ -43,15 +43,12 @@ export const nodeEndInitialValues = (
     };
 };
 
-export const transformNodeEndValues = (values: NodeWithEndShape, existing?: NodeWithEndShape) => {
-    return existing === undefined
-        ? shapeNode.create(values)
-        : shapeNode.update(existing, values);
-};
+export const transformNodeEndValues = (values: NodeWithEndShape, existing: NodeWithEndShape, isCreate: boolean) =>
+    isCreate ? shapeNode.create(values) : shapeNode.update(existing, values);
 
-export const validateNodeEndValues = async (values: NodeWithEndShape, existing?: NodeWithEndShape) => {
-    const transformedValues = transformNodeEndValues(values, existing);
-    const validationSchema = nodeValidation[existing === undefined ? "create" : "update"]({});
+export const validateNodeEndValues = async (values: NodeWithEndShape, existing: NodeWithEndShape, isCreate: boolean) => {
+    const transformedValues = transformNodeEndValues(values, existing, isCreate);
+    const validationSchema = nodeValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -65,7 +62,6 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -103,7 +99,6 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                             multiline: true,
                         }}
                         title={t("Label")}
-                        zIndex={zIndex}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
@@ -116,7 +111,6 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                             maxRows: 8,
                         }}
                         title={t("Description")}
-                        zIndex={zIndex}
                     />
                     <Tooltip placement={"top"} title={t("NodeWasSuccessfulHelp")}>
                         <FormControlLabel
@@ -136,7 +130,7 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                     </Tooltip>
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -144,7 +138,6 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

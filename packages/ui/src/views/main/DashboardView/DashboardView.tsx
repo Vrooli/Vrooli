@@ -1,65 +1,66 @@
-import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, NoteVersion, Reminder, ResourceList, uuid } from "@local/shared";
-import { Stack } from "@mui/material";
+import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
+import { Box, Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "components/inputs/search";
-import { ReminderList } from "components/lists/reminder";
+import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ResourceListHorizontal } from "components/lists/resource";
+import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { HomePrompt } from "components/text/HomePrompt/HomePrompt";
-import { PageTab } from "components/types";
-import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon } from "icons";
+import { SessionContext } from "contexts/SessionContext";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useFetch } from "hooks/useFetch";
+import { useReactSearch } from "hooks/useReactSearch";
+import { PageTab } from "hooks/useTabs";
+import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon, ReminderIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { centeredDiv } from "styles";
 import { AutocompleteOption, CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { getDisplay, listToAutocomplete, listToListItems } from "utils/display/listTools";
+import { getDisplay, listToAutocomplete } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
-import { useFetch } from "utils/hooks/useFetch";
-import { useReactSearch } from "utils/hooks/useReactSearch";
 import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
-import { NoteUpsert } from "views/objects/note";
+import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { DashboardViewProps } from "../types";
 
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
-    display = "page",
+    isOpen,
     onClose,
-    zIndex,
 }: DashboardViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     // Handle focus modes
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<FocusMode>[]>(() => allFocusModes.map((mode, index) => ({
+    const tabs = useMemo<PageTab<FocusMode, false>[]>(() => allFocusModes.map((mode, index) => ({
         index,
         label: mode.name,
-        value: mode,
+        tabType: mode,
     })), [allFocusModes]);
     const currTab = useMemo(() => {
-        const match = tabs.find(tab => tab.value.id === activeFocusMode?.mode?.id);
+        const match = tabs.find(tab => tab.tabType.id === activeFocusMode?.mode?.id);
         if (match) return match;
         if (tabs.length) return tabs[0];
         return null;
     }, [tabs, activeFocusMode]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode, false>) => {
         e.preventDefault();
         PubSub.get().publishFocusMode({
             __typename: "ActiveFocusMode" as const,
-            mode: tab.value,
+            mode: tab.tabType,
             stopCondition: FocusModeStopCondition.NextBegins,
         });
     }, []);
@@ -75,6 +76,11 @@ export const DashboardView = ({
         inputs: { searchString: searchString.trim() },
     }, [searchString, activeFocusMode]);
     useDisplayServerError(errors);
+
+    useEffect(() => {
+        if (searchString && searchString.length) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
+        else setLocation(LINKS.Home, { replace: true });
+    }, [searchString, setLocation]);
 
     /** Only show tabs if:
     * 1. The user is logged in 
@@ -157,27 +163,26 @@ export const DashboardView = ({
         setLocation(LINKS.Calendar);
     }, [setLocation]);
 
-    const onClick = useCallback(() => {
-        if (searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
-    }, [searchString, setLocation]);
-
     const [reminders, setReminders] = useState<Reminder[]>([]);
     useEffect(() => {
         if (data?.reminders) {
             setReminders(data.reminders);
         }
     }, [data]);
-    const handleReminderUpdate = useCallback((updatedReminders: Reminder[]) => {
-        setReminders(updatedReminders);
+    const onReminderAction = useCallback((action: keyof ObjectListActions<Reminder>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const id = data[0] as string;
+                setReminders(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
+                break;
+            }
+            case "Updated": {
+                const updated = data[0] as Reminder;
+                setReminders(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
+                break;
+            }
+        }
     }, []);
-
-    const reminderListId = useMemo(() => {
-        // First, try to find list using foccus mode
-        const sessionReminderListId = activeFocusMode?.mode?.reminderList?.id;
-        // If that doesn't work, try to find list using the reminders and hope for the best
-        const reminderList = reminders.length > 0 ? reminders[0].reminderList.id : null;
-        return sessionReminderListId ?? reminderList ?? "";
-    }, [activeFocusMode, reminders]);
 
     const [notes, setNotes] = useState<Note[]>([]);
     useEffect(() => {
@@ -185,30 +190,29 @@ export const DashboardView = ({
             setNotes(data.notes);
         }
     }, [data]);
-
-    const noteItems = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill("Note"),
-        items: notes,
-        keyPrefix: "note-list-item",
-        loading,
-        onClick,
-        zIndex,
-    }), [onClick, notes, loading, zIndex]);
-
-    const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
-    const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
-    const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false); }, []);
-    const onNoteCreated = useCallback((note: NoteVersion) => {
-        closeCreateNote();
-        // Convert NoteVersion to Note before adding to list
-        const { root, ...rest } = note;
-        const asRoot = { ...root, versions: [note] };
-        setNotes(n => [asRoot, ...n]);
-    }, [closeCreateNote]);
+    const onNoteAction = useCallback((action: keyof ObjectListActions<Note>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const id = data[0] as string;
+                setNotes(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
+                break;
+            }
+            case "Updated": {
+                const updated = data[0] as Note;
+                setNotes(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
+                break;
+            }
+        }
+    }, []);
 
     // Calculate upcoming events using schedules 
+    const [schedules, setSchedules] = useState<Schedule[]>([]);
+    useEffect(() => {
+        if (data?.schedules) {
+            setSchedules(data.schedules);
+        }
+    }, [data]);
     const upcomingEvents = useMemo(() => {
-        const schedules = data?.schedules ?? [];
         // Initialize result
         const result: CalendarEvent[] = [];
         // Loop through schedules
@@ -230,35 +234,29 @@ export const DashboardView = ({
         });
         // Sort events by start date, and return the first 10
         result.sort((a, b) => a.start.getTime() - b.start.getTime());
-        const first10 = result.slice(0, 10);
-        // Convert to list items
-        return listToListItems({
-            dummyItems: new Array(5).fill("Event"),
-            items: first10,
-            keyPrefix: "event-list-item",
-            loading,
-            onClick,
-            zIndex,
-        });
-    }, [onClick, data?.schedules, loading, session, zIndex]);
+        return result.slice(0, 10);
+    }, [schedules, session]);
+    const onEventAction = useCallback((action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const eventId = data[0] as string;
+                const event = upcomingEvents.find(event => event.id === eventId);
+                if (!event) return;
+                const schedule = event.schedule;
+                setSchedules(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === schedule.id)));
+                break;
+            }
+            case "Updated": {
+                const updatedEvent = data[0] as CalendarEvent;
+                const schedule = updatedEvent.schedule;
+                setSchedules(curr => updateArray(curr, curr.findIndex(item => item.id === schedule.id), schedule));
+                break;
+            }
+        }
+    }, [upcomingEvents]);
 
     return (
-        <PageContainer>
-            {/* Create note dialog */}
-            <LargeDialog
-                id="add-note-dialog"
-                onClose={closeCreateNote}
-                isOpen={isCreateNoteOpen}
-                zIndex={zIndex + 1}
-            >
-                <NoteUpsert
-                    display="dialog"
-                    isCreate={true}
-                    onCancel={closeCreateNote}
-                    onCompleted={onNoteCreated}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+        <PageContainer sx={{ marginBottom: 2 }}>
             {/* Main content */}
             <TopBar
                 display={display}
@@ -274,7 +272,6 @@ export const DashboardView = ({
                         tabs={tabs}
                     />
                 )}
-                zIndex={zIndex}
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: "5vh", sm: "20vh" } }}>
@@ -289,11 +286,16 @@ export const DashboardView = ({
                     onInputChange={onInputSelect}
                     showSecondaryLabel={true}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                    zIndex={zIndex}
                 />
             </Stack>
             {/* Result feeds */}
-            <Stack spacing={10} direction="column" mt={10}>
+            <Box sx={{
+                display: "flex",
+                flexDirection: "column",
+                margin: "auto",
+                marginTop: 10,
+                gap: 4,
+            }}>
                 {/* Resources */}
                 <ResourceListHorizontal
                     id="main-resource-list"
@@ -302,52 +304,77 @@ export const DashboardView = ({
                     handleUpdate={setResourceList}
                     loading={loading}
                     mutate={true}
-                    zIndex={zIndex}
+                    parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
                 />
                 {/* Events */}
                 <ListTitleContainer
                     Icon={MonthIcon}
                     id="main-event-list"
-                    isEmpty={upcomingEvents.length === 0}
-                    title={t("Schedule")}
+                    isEmpty={upcomingEvents.length === 0 && !loading}
+                    title={t("Schedule", { count: 1 })}
                     options={[{
                         Icon: OpenInNewIcon,
                         label: t("Open"),
                         onClick: openSchedule,
                     }]}
-                    zIndex={zIndex}
                 >
-                    {upcomingEvents}
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Event")}
+                        items={upcomingEvents}
+                        keyPrefix="event-list-item"
+                        loading={loading}
+                        onAction={onEventAction}
+                    />
                 </ListTitleContainer>
                 {/* Reminders */}
-                <ReminderList
-                    handleUpdate={handleReminderUpdate}
+                <ListTitleContainer
+                    Icon={ReminderIcon}
                     id="main-reminder-list"
-                    loading={loading}
-                    listId={reminderListId}
-                    reminders={reminders}
-                    zIndex={zIndex}
-                />
+                    isEmpty={reminders.length === 0 && !loading}
+                    title={t("Reminder", { count: 2 })}
+                    options={[{
+                        Icon: OpenInNewIcon,
+                        label: t("SeeAll"),
+                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminder}`); },
+                    }, {
+                        Icon: AddIcon,
+                        label: t("Create"),
+                        onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
+                    }]}
+                >
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Reminder")}
+                        items={reminders}
+                        keyPrefix="reminder-list-item"
+                        loading={loading}
+                        onAction={onReminderAction}
+                    />
+                </ListTitleContainer>
                 {/* Notes */}
                 <ListTitleContainer
                     Icon={NoteIcon}
                     id="main-note-list"
-                    isEmpty={noteItems.length === 0}
+                    isEmpty={notes.length === 0 && !loading}
                     title={t("Note", { count: 2 })}
                     options={[{
                         Icon: OpenInNewIcon,
                         label: t("SeeAll"),
-                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Notes}`); },
+                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Note}`); },
                     }, {
                         Icon: AddIcon,
                         label: t("Create"),
-                        onClick: openCreateNote,
+                        onClick: () => { setLocation(`${LINKS.Note}/add`); },
                     }]}
-                    zIndex={zIndex}
                 >
-                    {noteItems}
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Note")}
+                        items={notes}
+                        keyPrefix="note-list-item"
+                        loading={loading}
+                        onAction={onNoteAction}
+                    />
                 </ListTitleContainer>
-            </Stack>
+            </Box>
         </PageContainer>
     );
 };

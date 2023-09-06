@@ -1,15 +1,14 @@
 /**
  * Dialog for sharing an object
  */
-import { Box, Palette, Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Box, IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import usePress from "hooks/usePress";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
 import { getDeviceInfo } from "utils/display/device";
-import usePress from "utils/hooks/usePress";
 import { getObjectUrl, ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
@@ -26,6 +25,7 @@ const postTitle: { [key in ObjectType]?: string } = {
 };
 
 const buttonProps = (palette: Palette) => ({
+    background: palette.secondary.main,
     height: "48px",
     width: "48px",
 });
@@ -38,7 +38,6 @@ export const ShareObjectDialog = ({
     object,
     open,
     onClose,
-    zIndex,
 }: ShareObjectDialogProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -51,14 +50,10 @@ export const ShareObjectDialog = ({
     const linkedInUrl = useMemo(() => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`, [title, url]);
 
     const copyLink = () => {
-        navigator.clipboard.writeText(url);
+        console.log("copying link", url);
+        navigator.clipboard.writeText(`${window.location.origin}${url}`);
         PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
     };
-
-    /**
-     * Opens navigator share dialog (if supported)
-     */
-    const shareNative = () => { navigator.share({ title, url }); };
 
     /**
     * When QR code is long-pressed in standalone mode (i.e. app is downloaded), open copy/save photo dialog
@@ -93,73 +88,21 @@ export const ShareObjectDialog = ({
             isOpen={open}
             onClose={onClose}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <TopBar
                 display="dialog"
                 onClose={onClose}
                 title={t("Share")}
                 titleId={titleId}
-                zIndex={zIndex + 1000}
             />
-            <Box sx={{ padding: 2 }}>
-                <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
-                    <Tooltip title={t("CopyLink")}>
-                        <ColorIconButton
-                            onClick={copyLink}
-                            background={palette.secondary.main}
-                            sx={buttonProps(palette)}
-                        >
-                            <CopyIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
-                    </Tooltip>
-                    <Tooltip title={t("ShareByEmail")}>
-                        <ColorIconButton
-                            href={emailUrl}
-                            onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
-                            background={palette.secondary.main}
-                            sx={buttonProps(palette)}
-                        >
-                            <EmailIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
-                    </Tooltip>
-                    <Tooltip title={t("TweetIt")}>
-                        <ColorIconButton
-                            href={twitterUrl}
-                            onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
-                            background={palette.secondary.main}
-                            sx={buttonProps(palette)}
-                        >
-                            <TwitterIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
-                    </Tooltip>
-                    <Tooltip title={t("LinkedInPost")}>
-                        <ColorIconButton
-                            href={linkedInUrl}
-                            onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
-                            background={palette.secondary.main}
-                            sx={buttonProps(palette)}
-                        >
-                            <LinkedInIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
-                    </Tooltip>
-                    <Tooltip title={t("Other")}>
-                        <ColorIconButton
-                            onClick={shareNative}
-                            background={palette.secondary.main}
-                            sx={buttonProps(palette)}
-                        >
-                            <EllipsisIcon fill={palette.secondary.contrastText} />
-                        </ColorIconButton>
-                    </Tooltip>
-                </Stack>
+            <Stack direction="column" spacing={2} p={2} sx={{ justifyContent: "center", alignItems: "center" }}>
                 <Box
                     id="qr-code-box"
                     {...pressEvents}
                     sx={{
                         width: "210px",
                         height: "210px",
-                        background: palette.secondary.main,
+                        background: "white",
                         borderRadius: 1,
                         padding: 0.5,
                         marginLeft: "auto",
@@ -168,10 +111,55 @@ export const ShareObjectDialog = ({
                     <QRCode
                         size={200}
                         style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                        value={window.location.href}
+                        value={`${window.location.origin}${url}`}
                     />
                 </Box>
-            </Box>
+                <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
+                    <Tooltip title={t("CopyLink")}>
+                        <IconButton
+                            onClick={copyLink}
+                            sx={buttonProps(palette)}
+                        >
+                            <CopyIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title={t("ShareByEmail")}>
+                        <IconButton
+                            href={emailUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
+                            sx={buttonProps(palette)}
+                        >
+                            <EmailIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title={t("TweetIt")}>
+                        <IconButton
+                            href={twitterUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
+                            sx={buttonProps(palette)}
+                        >
+                            <TwitterIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title={t("LinkedInPost")}>
+                        <IconButton
+                            href={linkedInUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
+                            sx={buttonProps(palette)}
+                        >
+                            <LinkedInIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
+                    {navigator.share && <Tooltip title={t("Other")}>
+                        <IconButton
+                            onClick={() => { navigator.share({ title, url }); }}
+                            sx={buttonProps(palette)}
+                        >
+                            <EllipsisIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>}
+                </Stack>
+            </Stack>
         </LargeDialog>
     );
 };

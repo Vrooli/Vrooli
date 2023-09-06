@@ -1,4 +1,4 @@
-import { endpointGetMembers, MemberSortBy } from "@local/shared";
+import { endpointGetMember, endpointGetMembers, MemberSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const memberSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const memberSearchParams = () => toParams(memberSearchSchema(), endpointGetMembers, MemberSortBy, MemberSortBy.DateCreatedDesc);
+export const memberSearchParams = () => toParams(memberSearchSchema(), endpointGetMembers, endpointGetMember, MemberSortBy, MemberSortBy.DateCreatedDesc);

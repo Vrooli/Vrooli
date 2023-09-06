@@ -4,16 +4,16 @@
 import { DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostRunProject, endpointPostRunRoutine, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success, uuid } from "@local/shared";
 import { Button, IconButton, List, ListItem, ListItemText, Menu, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { SessionContext } from "contexts/SessionContext";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { DeleteIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { parseSearchParams } from "route";
 import { displayDate } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { base36ToUuid } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRunPercentComplete } from "utils/runUtils";
-import { SessionContext } from "utils/SessionContext";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
 
@@ -26,7 +26,6 @@ export const RunPickerMenu = ({
     onDelete,
     onSelect,
     runnableObject,
-    zIndex,
 }: RunPickerMenuProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -48,7 +47,7 @@ export const RunPickerMenu = ({
     const [createRunProject] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointPostRunProject);
     const [createRunRoutine] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
     const createNewRun = useCallback(() => {
-        if (!runnableObject) {
+        if (!runnableObject || !runnableObject.id) {
             PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
@@ -119,7 +118,7 @@ export const RunPickerMenu = ({
     }, [open, runnableObject, createNewRun, onSelect, session?.isLoggedIn, handleClose]);
 
     const runOptions: ListMenuItemData<RunProject | RunRoutine>[] = useMemo(() => {
-        if (!runnableObject || !runnableObject.you.runs) return [];
+        if (!runnableObject || !runnableObject.you || !runnableObject.you.runs) return [];
         // Find incomplete runs
         const runs = (runnableObject.you?.runs as (RunRoutine | RunProject)[]).filter(run => run.status === RunStatus.InProgress);
         return runs.map((run) => ({
@@ -191,7 +190,6 @@ export const RunPickerMenu = ({
                 ariaLabel={titleId}
                 onClose={handleClose}
                 title={"Continue Existing Run?"}
-                zIndex={zIndex}
             />
             <List>
                 {items}

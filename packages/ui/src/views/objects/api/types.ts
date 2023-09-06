@@ -1,5 +1,6 @@
 import { ApiVersion } from "@local/shared";
-import { UpsertProps, ViewProps } from "../types";
+import { ObjectViewProps } from "views/types";
+import { UpsertProps } from "../types";
 
 export type ApiUpsertProps = UpsertProps<ApiVersion>
-export type ApiViewProps = ViewProps<ApiVersion>
+export type ApiViewProps = ObjectViewProps<ApiVersion>

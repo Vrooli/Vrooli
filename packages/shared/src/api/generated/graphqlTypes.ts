@@ -556,6 +556,7 @@ export type BookmarkUpdateInput = {
 export type BotCreateInput = {
   bannerImage?: InputMaybe<Scalars['Upload']>;
   botSettings: Scalars['String'];
+  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
@@ -566,6 +567,7 @@ export type BotCreateInput = {
 export type BotUpdateInput = {
   bannerImage?: InputMaybe<Scalars['Upload']>;
   botSettings?: InputMaybe<Scalars['String']>;
+  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
@@ -600,6 +602,7 @@ export type ChatCreateInput = {
   invitesCreate?: InputMaybe<Array<ChatInviteCreateInput>>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  messagesCreate?: InputMaybe<Array<ChatMessageCreateInput>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -689,6 +692,7 @@ export type ChatMessage = {
   chat: Chat;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  reactionSummaries: Array<ReactionSummary>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
@@ -890,6 +894,9 @@ export type ChatUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  messagesCreate?: InputMaybe<Array<ChatMessageCreateInput>>;
+  messagesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  messagesUpdate?: InputMaybe<Array<ChatMessageUpdateInput>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   participantsDelete?: InputMaybe<Array<Scalars['ID']>>;
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1169,10 +1176,6 @@ export type FindByIdOrHandleInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
 
-export type FindHandlesInput = {
-  organizationId?: InputMaybe<Scalars['ID']>;
-};
-
 export type FindVersionInput = {
   handleRoot?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
@@ -1343,6 +1346,7 @@ export enum GqlModelType {
   QuizQuestion = 'QuizQuestion',
   QuizQuestionResponse = 'QuizQuestionResponse',
   Reaction = 'Reaction',
+  ReactionSummary = 'ReactionSummary',
   Reminder = 'Reminder',
   ReminderItem = 'ReminderItem',
   ReminderList = 'ReminderList',
@@ -1386,13 +1390,6 @@ export enum GqlModelType {
   View = 'View',
   Wallet = 'Wallet'
 }
-
-export type Handle = {
-  __typename: 'Handle';
-  handle: Scalars['String'];
-  id: Scalars['ID'];
-  wallet: Wallet;
-};
 
 export type HomeInput = {
   searchString: Scalars['String'];
@@ -3293,6 +3290,25 @@ export type NoteEdge = {
   node: Note;
 };
 
+export type NotePage = {
+  __typename: 'NotePage';
+  id: Scalars['ID'];
+  pageIndex: Scalars['Int'];
+  text: Scalars['String'];
+};
+
+export type NotePageCreateInput = {
+  id: Scalars['ID'];
+  pageIndex: Scalars['Int'];
+  text: Scalars['String'];
+};
+
+export type NotePageUpdateInput = {
+  id: Scalars['ID'];
+  pageIndex?: InputMaybe<Scalars['Int']>;
+  text?: InputMaybe<Scalars['String']>;
+};
+
 export type NoteSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdById?: InputMaybe<Scalars['ID']>;
@@ -3449,7 +3465,7 @@ export type NoteVersionTranslation = {
   id: Scalars['ID'];
   language: Scalars['String'];
   name: Scalars['String'];
-  text: Scalars['String'];
+  pages: Array<NotePage>;
 };
 
 export type NoteVersionTranslationCreateInput = {
@@ -3457,7 +3473,7 @@ export type NoteVersionTranslationCreateInput = {
   id: Scalars['ID'];
   language: Scalars['String'];
   name: Scalars['String'];
-  text: Scalars['String'];
+  pagesCreate?: InputMaybe<Array<NotePageCreateInput>>;
 };
 
 export type NoteVersionTranslationUpdateInput = {
@@ -3465,7 +3481,9 @@ export type NoteVersionTranslationUpdateInput = {
   id: Scalars['ID'];
   language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
-  text?: InputMaybe<Scalars['String']>;
+  pagesCreate?: InputMaybe<Array<NotePageCreateInput>>;
+  pagesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  pagesUpdate?: InputMaybe<Array<NotePageUpdateInput>>;
 };
 
 export type NoteVersionUpdateInput = {
@@ -3897,11 +3915,12 @@ export type PhoneCreateInput = {
   phoneNumber: Scalars['String'];
 };
 
-export type PopularInput = {
-  objectType?: InputMaybe<PopularObjectType>;
-  searchString: Scalars['String'];
-  sortBy?: InputMaybe<PopularSortBy>;
-  take?: InputMaybe<Scalars['Int']>;
+export type Popular = Api | Note | Organization | Project | Question | Routine | SmartContract | Standard | User;
+
+export type PopularEdge = {
+  __typename: 'PopularEdge';
+  cursor: Scalars['String'];
+  node: Popular;
 };
 
 export enum PopularObjectType {
@@ -3916,22 +3935,48 @@ export enum PopularObjectType {
   User = 'User'
 }
 
-export type PopularResult = {
-  __typename: 'PopularResult';
-  apis: Array<Api>;
-  notes: Array<Note>;
-  organizations: Array<Organization>;
-  projects: Array<Project>;
-  questions: Array<Question>;
-  routines: Array<Routine>;
-  smartContracts: Array<SmartContract>;
-  standards: Array<Standard>;
-  users: Array<User>;
+export type PopularPageInfo = {
+  __typename: 'PopularPageInfo';
+  endCursorApi?: Maybe<Scalars['String']>;
+  endCursorNote?: Maybe<Scalars['String']>;
+  endCursorOrganization?: Maybe<Scalars['String']>;
+  endCursorProject?: Maybe<Scalars['String']>;
+  endCursorQuestion?: Maybe<Scalars['String']>;
+  endCursorRoutine?: Maybe<Scalars['String']>;
+  endCursorSmartContract?: Maybe<Scalars['String']>;
+  endCursorStandard?: Maybe<Scalars['String']>;
+  endCursorUser?: Maybe<Scalars['String']>;
+  hasNextPage: Scalars['Boolean'];
+};
+
+export type PopularSearchInput = {
+  apiAfter?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  noteAfter?: InputMaybe<Scalars['String']>;
+  objectType?: InputMaybe<PopularObjectType>;
+  organizationAfter?: InputMaybe<Scalars['String']>;
+  projectAfter?: InputMaybe<Scalars['String']>;
+  questionAfter?: InputMaybe<Scalars['String']>;
+  routineAfter?: InputMaybe<Scalars['String']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  smartContractAfter?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<PopularSortBy>;
+  standardAfter?: InputMaybe<Scalars['String']>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userAfter?: InputMaybe<Scalars['String']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type PopularSearchResult = {
+  __typename: 'PopularSearchResult';
+  edges: Array<PopularEdge>;
+  pageInfo: PopularPageInfo;
 };
 
 export enum PopularSortBy {
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   ViewsAsc = 'ViewsAsc',
   ViewsDesc = 'ViewsDesc'
 }
@@ -4882,7 +4927,6 @@ export type Query = {
   chats: ChatSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
-  findHandles: Array<Scalars['String']>;
   focusMode?: Maybe<FocusMode>;
   focusModes: FocusModeSearchResult;
   home: HomeResult;
@@ -4911,7 +4955,7 @@ export type Query = {
   organizations: OrganizationSearchResult;
   payment?: Maybe<Payment>;
   payments: PaymentSearchResult;
-  popular: PopularResult;
+  popular: PopularSearchResult;
   post?: Maybe<Post>;
   posts: PostSearchResult;
   profile: User;
@@ -5092,11 +5136,6 @@ export type QueryCommentsArgs = {
 };
 
 
-export type QueryFindHandlesArgs = {
-  input: FindHandlesInput;
-};
-
-
 export type QueryFocusModeArgs = {
   input: FindByIdInput;
 };
@@ -5233,7 +5272,7 @@ export type QueryPaymentsArgs = {
 
 
 export type QueryPopularArgs = {
-  input: PopularInput;
+  input: PopularSearchInput;
 };
 
 
@@ -6314,6 +6353,12 @@ export enum ReactionSortBy {
   DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
+export type ReactionSummary = {
+  __typename: 'ReactionSummary';
+  count: Scalars['Int'];
+  emoji: Scalars['String'];
+};
+
 export type ReactionTo = Api | ChatMessage | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard;
 
 export type ReadAssetsInput = {
@@ -6443,6 +6488,8 @@ export type ReminderUpdateInput = {
   reminderItemsCreate?: InputMaybe<Array<ReminderItemCreateInput>>;
   reminderItemsDelete?: InputMaybe<Array<Scalars['ID']>>;
   reminderItemsUpdate?: InputMaybe<Array<ReminderItemUpdateInput>>;
+  reminderListConnect?: InputMaybe<Scalars['ID']>;
+  reminderListCreate?: InputMaybe<ReminderListCreateInput>;
 };
 
 export type Report = {
@@ -6482,6 +6529,7 @@ export enum ReportFor {
   Post = 'Post',
   ProjectVersion = 'ProjectVersion',
   RoutineVersion = 'RoutineVersion',
+  SmartContractVersion = 'SmartContractVersion',
   StandardVersion = 'StandardVersion',
   Tag = 'Tag',
   User = 'User'
@@ -6668,7 +6716,8 @@ export type ResourceCreateInput = {
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
   link: Scalars['String'];
-  listConnect: Scalars['ID'];
+  listConnect?: InputMaybe<Scalars['ID']>;
+  listCreate?: InputMaybe<ResourceListCreateInput>;
   translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
   usedFor: ResourceUsedFor;
 };
@@ -6697,16 +6746,10 @@ export type ResourceList = {
 };
 
 export type ResourceListCreateInput = {
-  apiVersionConnect?: InputMaybe<Scalars['ID']>;
-  focusModeConnect?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
-  organizationConnect?: InputMaybe<Scalars['ID']>;
-  postConnect?: InputMaybe<Scalars['ID']>;
-  projectVersionConnect?: InputMaybe<Scalars['ID']>;
+  listFor: ResourceListFor;
+  listForConnect: Scalars['ID'];
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  routineVersionConnect?: InputMaybe<Scalars['ID']>;
-  smartContractVersionConnect?: InputMaybe<Scalars['ID']>;
-  standardVersionConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<ResourceListTranslationCreateInput>>;
 };
 
@@ -6715,6 +6758,17 @@ export type ResourceListEdge = {
   cursor: Scalars['String'];
   node: ResourceList;
 };
+
+export enum ResourceListFor {
+  ApiVersion = 'ApiVersion',
+  FocusMode = 'FocusMode',
+  Organization = 'Organization',
+  Post = 'Post',
+  ProjectVersion = 'ProjectVersion',
+  RoutineVersion = 'RoutineVersion',
+  SmartContractVersion = 'SmartContractVersion',
+  StandardVersion = 'StandardVersion'
+}
 
 export type ResourceListSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -6838,6 +6892,7 @@ export type ResourceUpdateInput = {
   index?: InputMaybe<Scalars['Int']>;
   link?: InputMaybe<Scalars['String']>;
   listConnect?: InputMaybe<Scalars['ID']>;
+  listCreate?: InputMaybe<ResourceListCreateInput>;
   translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<ResourceTranslationUpdateInput>>;
@@ -9533,6 +9588,7 @@ export type UserEdge = {
 export type UserSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isBot?: InputMaybe<Scalars['Boolean']>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
@@ -9651,7 +9707,6 @@ export enum VisibilityType {
 
 export type Wallet = {
   __typename: 'Wallet';
-  handles: Array<Handle>;
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
   organization?: Maybe<Organization>;
@@ -9873,7 +9928,6 @@ export type ResolversTypes = {
   EmailSignUpInput: EmailSignUpInput;
   FindByIdInput: FindByIdInput;
   FindByIdOrHandleInput: FindByIdOrHandleInput;
-  FindHandlesInput: FindHandlesInput;
   FindVersionInput: FindVersionInput;
   Float: ResolverTypeWrapper<Scalars['Float']>;
   FocusMode: ResolverTypeWrapper<FocusMode>;
@@ -9888,7 +9942,6 @@ export type ResolversTypes = {
   FocusModeStopCondition: FocusModeStopCondition;
   FocusModeUpdateInput: FocusModeUpdateInput;
   GqlModelType: GqlModelType;
-  Handle: ResolverTypeWrapper<Handle>;
   HomeInput: HomeInput;
   HomeResult: ResolverTypeWrapper<HomeResult>;
   ID: ResolverTypeWrapper<Scalars['ID']>;
@@ -9997,6 +10050,9 @@ export type ResolversTypes = {
   Note: ResolverTypeWrapper<Omit<Note, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   NoteCreateInput: NoteCreateInput;
   NoteEdge: ResolverTypeWrapper<NoteEdge>;
+  NotePage: ResolverTypeWrapper<NotePage>;
+  NotePageCreateInput: NotePageCreateInput;
+  NotePageUpdateInput: NotePageUpdateInput;
   NoteSearchInput: NoteSearchInput;
   NoteSearchResult: ResolverTypeWrapper<NoteSearchResult>;
   NoteSortBy: NoteSortBy;
@@ -10050,9 +10106,12 @@ export type ResolversTypes = {
   PaymentType: PaymentType;
   Phone: ResolverTypeWrapper<Phone>;
   PhoneCreateInput: PhoneCreateInput;
-  PopularInput: PopularInput;
+  Popular: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['User'];
+  PopularEdge: ResolverTypeWrapper<Omit<PopularEdge, 'node'> & { node: ResolversTypes['Popular'] }>;
   PopularObjectType: PopularObjectType;
-  PopularResult: ResolverTypeWrapper<PopularResult>;
+  PopularPageInfo: ResolverTypeWrapper<PopularPageInfo>;
+  PopularSearchInput: PopularSearchInput;
+  PopularSearchResult: ResolverTypeWrapper<PopularSearchResult>;
   PopularSortBy: PopularSortBy;
   Post: ResolverTypeWrapper<Omit<Post, 'owner'> & { owner: ResolversTypes['Owner'] }>;
   PostCreateInput: PostCreateInput;
@@ -10201,6 +10260,7 @@ export type ResolversTypes = {
   ReactionSearchInput: ReactionSearchInput;
   ReactionSearchResult: ResolverTypeWrapper<ReactionSearchResult>;
   ReactionSortBy: ReactionSortBy;
+  ReactionSummary: ResolverTypeWrapper<ReactionSummary>;
   ReactionTo: ResolversTypes['Api'] | ResolversTypes['ChatMessage'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
   Reminder: ResolverTypeWrapper<Reminder>;
@@ -10245,6 +10305,7 @@ export type ResolversTypes = {
   ResourceList: ResolverTypeWrapper<ResourceList>;
   ResourceListCreateInput: ResourceListCreateInput;
   ResourceListEdge: ResolverTypeWrapper<ResourceListEdge>;
+  ResourceListFor: ResourceListFor;
   ResourceListSearchInput: ResourceListSearchInput;
   ResourceListSearchResult: ResolverTypeWrapper<ResourceListSearchResult>;
   ResourceListSortBy: ResourceListSortBy;
@@ -10618,7 +10679,6 @@ export type ResolversParentTypes = {
   EmailSignUpInput: EmailSignUpInput;
   FindByIdInput: FindByIdInput;
   FindByIdOrHandleInput: FindByIdOrHandleInput;
-  FindHandlesInput: FindHandlesInput;
   FindVersionInput: FindVersionInput;
   Float: Scalars['Float'];
   FocusMode: FocusMode;
@@ -10629,7 +10689,6 @@ export type ResolversParentTypes = {
   FocusModeSearchInput: FocusModeSearchInput;
   FocusModeSearchResult: FocusModeSearchResult;
   FocusModeUpdateInput: FocusModeUpdateInput;
-  Handle: Handle;
   HomeInput: HomeInput;
   HomeResult: HomeResult;
   ID: Scalars['ID'];
@@ -10727,6 +10786,9 @@ export type ResolversParentTypes = {
   Note: Omit<Note, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   NoteCreateInput: NoteCreateInput;
   NoteEdge: NoteEdge;
+  NotePage: NotePage;
+  NotePageCreateInput: NotePageCreateInput;
+  NotePageUpdateInput: NotePageUpdateInput;
   NoteSearchInput: NoteSearchInput;
   NoteSearchResult: NoteSearchResult;
   NoteUpdateInput: NoteUpdateInput;
@@ -10772,8 +10834,11 @@ export type ResolversParentTypes = {
   PaymentSearchResult: PaymentSearchResult;
   Phone: Phone;
   PhoneCreateInput: PhoneCreateInput;
-  PopularInput: PopularInput;
-  PopularResult: PopularResult;
+  Popular: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['User'];
+  PopularEdge: Omit<PopularEdge, 'node'> & { node: ResolversParentTypes['Popular'] };
+  PopularPageInfo: PopularPageInfo;
+  PopularSearchInput: PopularSearchInput;
+  PopularSearchResult: PopularSearchResult;
   Post: Omit<Post, 'owner'> & { owner: ResolversParentTypes['Owner'] };
   PostCreateInput: PostCreateInput;
   PostEdge: PostEdge;
@@ -10900,6 +10965,7 @@ export type ResolversParentTypes = {
   ReactionEdge: ReactionEdge;
   ReactionSearchInput: ReactionSearchInput;
   ReactionSearchResult: ReactionSearchResult;
+  ReactionSummary: ReactionSummary;
   ReactionTo: ResolversParentTypes['Api'] | ResolversParentTypes['ChatMessage'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
   Reminder: Reminder;
@@ -11424,6 +11490,7 @@ export type ChatMessageResolvers<ContextType = any, ParentType extends Resolvers
   chat?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  reactionSummaries?: Resolver<Array<ResolversTypes['ReactionSummary']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11624,13 +11691,6 @@ export type FocusModeFilterResolvers<ContextType = any, ParentType extends Resol
 export type FocusModeSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['FocusModeSearchResult'] = ResolversParentTypes['FocusModeSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['FocusModeEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type HandleResolvers<ContextType = any, ParentType extends ResolversParentTypes['Handle'] = ResolversParentTypes['Handle']> = {
-  handle?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  wallet?: Resolver<ResolversTypes['Wallet'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12197,6 +12257,13 @@ export type NoteEdgeResolvers<ContextType = any, ParentType extends ResolversPar
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type NotePageResolvers<ContextType = any, ParentType extends ResolversParentTypes['NotePage'] = ResolversParentTypes['NotePage']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  pageIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type NoteSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['NoteSearchResult'] = ResolversParentTypes['NoteSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['NoteEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
@@ -12244,7 +12311,7 @@ export type NoteVersionTranslationResolvers<ContextType = any, ParentType extend
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  pages?: Resolver<Array<ResolversTypes['NotePage']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12471,16 +12538,33 @@ export type PhoneResolvers<ContextType = any, ParentType extends ResolversParent
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type PopularResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularResult'] = ResolversParentTypes['PopularResult']> = {
-  apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
-  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
-  organizations?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
-  projects?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
-  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
-  routines?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
-  smartContracts?: Resolver<Array<ResolversTypes['SmartContract']>, ParentType, ContextType>;
-  standards?: Resolver<Array<ResolversTypes['Standard']>, ParentType, ContextType>;
-  users?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+export type PopularResolvers<ContextType = any, ParentType extends ResolversParentTypes['Popular'] = ResolversParentTypes['Popular']> = {
+  __resolveType: TypeResolveFn<'Api' | 'Note' | 'Organization' | 'Project' | 'Question' | 'Routine' | 'SmartContract' | 'Standard' | 'User', ParentType, ContextType>;
+};
+
+export type PopularEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularEdge'] = ResolversParentTypes['PopularEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Popular'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type PopularPageInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularPageInfo'] = ResolversParentTypes['PopularPageInfo']> = {
+  endCursorApi?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorNote?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorOrganization?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorProject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorQuestion?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorRoutine?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorSmartContract?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorStandard?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorUser?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  hasNextPage?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type PopularSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularSearchResult'] = ResolversParentTypes['PopularSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['PopularEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PopularPageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12842,7 +12926,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   chats?: Resolver<ResolversTypes['ChatSearchResult'], ParentType, ContextType, RequireFields<QueryChatsArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
-  findHandles?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType, RequireFields<QueryFindHandlesArgs, 'input'>>;
   focusMode?: Resolver<Maybe<ResolversTypes['FocusMode']>, ParentType, ContextType, RequireFields<QueryFocusModeArgs, 'input'>>;
   focusModes?: Resolver<ResolversTypes['FocusModeSearchResult'], ParentType, ContextType, RequireFields<QueryFocusModesArgs, 'input'>>;
   home?: Resolver<ResolversTypes['HomeResult'], ParentType, ContextType, RequireFields<QueryHomeArgs, 'input'>>;
@@ -12871,7 +12954,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   organizations?: Resolver<ResolversTypes['OrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryOrganizationsArgs, 'input'>>;
   payment?: Resolver<Maybe<ResolversTypes['Payment']>, ParentType, ContextType, RequireFields<QueryPaymentArgs, 'input'>>;
   payments?: Resolver<ResolversTypes['PaymentSearchResult'], ParentType, ContextType, RequireFields<QueryPaymentsArgs, 'input'>>;
-  popular?: Resolver<ResolversTypes['PopularResult'], ParentType, ContextType, RequireFields<QueryPopularArgs, 'input'>>;
+  popular?: Resolver<ResolversTypes['PopularSearchResult'], ParentType, ContextType, RequireFields<QueryPopularArgs, 'input'>>;
   post?: Resolver<Maybe<ResolversTypes['Post']>, ParentType, ContextType, RequireFields<QueryPostArgs, 'input'>>;
   posts?: Resolver<ResolversTypes['PostSearchResult'], ParentType, ContextType, RequireFields<QueryPostsArgs, 'input'>>;
   profile?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
@@ -13225,6 +13308,12 @@ export type ReactionEdgeResolvers<ContextType = any, ParentType extends Resolver
 export type ReactionSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReactionSearchResult'] = ResolversParentTypes['ReactionSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['ReactionEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ReactionSummaryResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReactionSummary'] = ResolversParentTypes['ReactionSummary']> = {
+  count?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  emoji?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14688,7 +14777,6 @@ export type ViewToResolvers<ContextType = any, ParentType extends ResolversParen
 };
 
 export type WalletResolvers<ContextType = any, ParentType extends ResolversParentTypes['Wallet'] = ResolversParentTypes['Wallet']> = {
-  handles?: Resolver<Array<ResolversTypes['Handle']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
@@ -14759,7 +14847,6 @@ export type Resolvers<ContextType = any> = {
   FocusModeEdge?: FocusModeEdgeResolvers<ContextType>;
   FocusModeFilter?: FocusModeFilterResolvers<ContextType>;
   FocusModeSearchResult?: FocusModeSearchResultResolvers<ContextType>;
-  Handle?: HandleResolvers<ContextType>;
   HomeResult?: HomeResultResolvers<ContextType>;
   Issue?: IssueResolvers<ContextType>;
   IssueEdge?: IssueEdgeResolvers<ContextType>;
@@ -14803,6 +14890,7 @@ export type Resolvers<ContextType = any> = {
   NodeTranslation?: NodeTranslationResolvers<ContextType>;
   Note?: NoteResolvers<ContextType>;
   NoteEdge?: NoteEdgeResolvers<ContextType>;
+  NotePage?: NotePageResolvers<ContextType>;
   NoteSearchResult?: NoteSearchResultResolvers<ContextType>;
   NoteVersion?: NoteVersionResolvers<ContextType>;
   NoteVersionEdge?: NoteVersionEdgeResolvers<ContextType>;
@@ -14828,7 +14916,10 @@ export type Resolvers<ContextType = any> = {
   PaymentEdge?: PaymentEdgeResolvers<ContextType>;
   PaymentSearchResult?: PaymentSearchResultResolvers<ContextType>;
   Phone?: PhoneResolvers<ContextType>;
-  PopularResult?: PopularResultResolvers<ContextType>;
+  Popular?: PopularResolvers<ContextType>;
+  PopularEdge?: PopularEdgeResolvers<ContextType>;
+  PopularPageInfo?: PopularPageInfoResolvers<ContextType>;
+  PopularSearchResult?: PopularSearchResultResolvers<ContextType>;
   Post?: PostResolvers<ContextType>;
   PostEdge?: PostEdgeResolvers<ContextType>;
   PostSearchResult?: PostSearchResultResolvers<ContextType>;
@@ -14896,6 +14987,7 @@ export type Resolvers<ContextType = any> = {
   Reaction?: ReactionResolvers<ContextType>;
   ReactionEdge?: ReactionEdgeResolvers<ContextType>;
   ReactionSearchResult?: ReactionSearchResultResolvers<ContextType>;
+  ReactionSummary?: ReactionSummaryResolvers<ContextType>;
   ReactionTo?: ReactionToResolvers<ContextType>;
   Reminder?: ReminderResolvers<ContextType>;
   ReminderEdge?: ReminderEdgeResolvers<ContextType>;

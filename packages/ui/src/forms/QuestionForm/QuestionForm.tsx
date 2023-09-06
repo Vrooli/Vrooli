@@ -1,25 +1,25 @@
 import { DUMMY_ID, orDefault, Question, questionTranslationValidation, questionValidation, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { QuestionFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
 
 export const questionInitialValues = (
     session: Session | undefined,
-    existing?: Question | null | undefined,
+    existing?: Partial<Question> | null | undefined,
 ): QuestionShape => ({
     __typename: "Question" as const,
     id: DUMMY_ID,
@@ -37,15 +37,12 @@ export const questionInitialValues = (
     }]),
 });
 
-export function transformQuestionValues(values: QuestionShape, existing?: QuestionShape) {
-    return existing === undefined
-        ? shapeQuestion.create(values)
-        : shapeQuestion.update(existing, values);
-}
+export const transformQuestionValues = (values: QuestionShape, existing: QuestionShape, isCreate: boolean) =>
+    isCreate ? shapeQuestion.create(values) : shapeQuestion.update(existing, values);
 
-export const validateQuestionValues = async (values: QuestionShape, existing?: QuestionShape) => {
-    const transformedValues = transformQuestionValues(values, existing);
-    const validationSchema = questionValidation[existing === undefined ? "create" : "update"]({});
+export const validateQuestionValues = async (values: QuestionShape, existing: QuestionShape, isCreate: boolean) => {
+    const transformedValues = transformQuestionValues(values, existing, isCreate);
+    const validationSchema = questionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -58,7 +55,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -92,7 +88,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                     <RelationshipList
                         isEditing={true}
                         objectType={"Question"}
-                        zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
                     <FormSection>
@@ -102,7 +97,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -110,7 +104,7 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                             language={language}
                             name="name"
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             name="description"
                             placeholder={t("Description")}
@@ -128,16 +122,12 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                                     background: palette.background.paper,
                                 },
                             }}
-                            zIndex={zIndex}
                         />
                     </FormSection>
-                    <TagSelector
-                        name="tags"
-                        zIndex={zIndex}
-                    />
+                    <TagSelector name="tags" />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -145,7 +135,6 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

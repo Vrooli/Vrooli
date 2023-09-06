@@ -12,9 +12,7 @@ export type ApiShape = Pick<Api, "id" | "isPrivate"> & {
     owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
-    // Updating, deleting, and reordering versions must be done separately. 
-    // This only creates/updates a single version, which is most often the case
-    versionInfo?: ApiVersionShape | null;
+    versions?: Omit<ApiVersionShape, "root">[] | null;
 }
 
 export const shapeApi: ShapeModel<ApiShape, ApiCreateInput, ApiUpdateInput> = {
@@ -24,13 +22,13 @@ export const shapeApi: ShapeModel<ApiShape, ApiCreateInput, ApiUpdateInput> = {
         ...createRel(d, "labels", ["Connect", "Create"], "many", shapeLabel),
         ...createRel(d, "parent", ["Connect"], "one"),
         ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
-        ...createVersion(d, shapeApiVersion, (v) => ({ ...v, root: { id: d.id } })),
+        ...createVersion(d, shapeApiVersion),
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isPrivate"),
         ...updateOwner(o, u, "ownedBy"),
         ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
-        ...updateVersion(o, u, shapeApiVersion, (v, i) => ({ ...v, root: { id: i.id } })),
+        ...updateVersion(o, u, shapeApiVersion),
     }, a),
 };

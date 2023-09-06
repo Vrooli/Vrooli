@@ -1,31 +1,28 @@
-import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, Tag, User } from "@local/shared";
+import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
+import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
-import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
+import { NavigableObject, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
-import { ListObjectType } from "utils/display/listTools";
-import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
+import { ListObject } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
+import { ViewDisplayType } from "views/types";
 
-export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | Question | RoutineVersion | SmartContractVersion | StandardVersion | User;
-export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
+export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
     object: T | null | undefined;
-    zIndex: number;
 }
 
 
-type ActionFunctions<T> = {
+export type ActionFunctions<T> = {
     [K in keyof T]: T[K] extends (...args: infer U) => any ? U : never;
 };
 
-export type ActionsType<A = undefined> = A extends undefined
-    ? { onAction?: undefined }
-    : { onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => void }
+export type ActionsType<T extends ListObject> = { onAction: <K extends keyof ObjectListActions<T>>(action: K, ...args: ActionFunctions<ObjectListActions<T>>[K]) => unknown }
 
-type ObjectListItemBaseProps<T extends ListObjectType> = {
+type ObjectListItemBaseProps<T extends ListObject> = {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
@@ -33,58 +30,30 @@ type ObjectListItemBaseProps<T extends ListObjectType> = {
     canNavigate?: (item: NavigableObject) => boolean | void;
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
-    /**
-     * True if update button should be hidden
-     */
+    handleContextMenu: (target: EventTarget, object: ListObject | null) => unknown;
+    /** If update button should be hidden */
     hideUpdateButton?: boolean;
-    /**
-     * True if data is still being fetched
-     */
+    /** If data is still being fetched */
     loading: boolean;
     data: T | null;
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: T["__typename"];
     onClick?: (data: T) => void;
     subtitleOverride?: string;
     titleOverride?: string;
     toTheRight?: React.ReactNode;
-    zIndex: number;
 }
-export type ObjectListItemProps<T extends ListObjectType, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
+export type ObjectListItemProps<T extends ListObject> = ObjectListItemBaseProps<T> & ActionsType<T>;
 
-export type ChatListItemActions = {
-    MarkAsRead: (id: string) => void;
-    Delete: (id: string) => void;
-};
-export type NotificationListItemActions = {
-    MarkAsRead: (id: string) => void;
-    Delete: (id: string) => void;
-};
-export type ReminderListItemActions = {
-    Delete: (id: string) => void;
-    Update: (data: Reminder) => void;
+export type ObjectListActions<T> = {
+    Deleted: (id: string) => void;
+    Updated: (data: T) => void;
 };
 
-/**
- * Maps object types to their list item's custom actions.
- * Not all object types have custom actions.
- */
-export interface ListActions {
-    Chat: ChatListItemActions;
-    Notification: NotificationListItemActions;
-    Reminder: ReminderListItemActions;
-}
-
-
-export type ChatListItemProps = ObjectListItemProps<Chat, ChatListItemActions>
-
+export type ChatListItemProps = ObjectListItemProps<Chat>
 export type MemberListItemProps = ObjectListItemProps<Member>
-
-export type NotificationListItemProps = ObjectListItemProps<Notification, NotificationListItemActions>
-
-export type ReminderListItemProps = ObjectListItemProps<Reminder, ReminderListItemActions>
-
+export type NotificationListItemProps = ObjectListItemProps<Notification>
+export type ReminderListItemProps = ObjectListItemProps<Reminder>
 export type RunProjectListItemProps = ObjectListItemProps<RunProject>
-
 export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
 export interface DateRangeMenuProps {
@@ -99,12 +68,12 @@ export interface DateRangeMenuProps {
      * matches.
      */
     strictIntervalRange?: number;
-    zIndex: number;
 }
 
 export type RelationshipItemFocusMode = Pick<FocusMode, "id" | "name"> &
 {
     __typename: "FocusMode";
+    reminderList?: Partial<ReminderList>;
 };
 export type RelationshipItemMeeting = Pick<Meeting, "id"> &
 {
@@ -147,7 +116,6 @@ export interface RelationshipListProps {
     isEditing: boolean;
     isFormDirty?: boolean;
     objectType: ObjectType;
-    zIndex: number;
     sx?: SxType;
 }
 
@@ -173,6 +141,7 @@ export interface SearchListProps {
      */
     canNavigate?: (item: any) => boolean,
     canSearch?: (where: any) => boolean;
+    display: ViewDisplayType | "partial";
     /**
      * How many dummy lists to display while loading. Smaller is better for lists displayed 
      * in dialogs, since a large dummy list with a small number of results will give 
@@ -185,17 +154,16 @@ export interface SearchListProps {
     id: string;
     searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
-    resolve?: (data: any) => unknown;
+    resolve?: (data: any, searchType: SearchType | `${SearchType}`) => unknown;
     searchType: SearchType | `${SearchType}`;
     sxs?: {
         search?: SxType;
         buttons?: SxType;
+        listContainer?: SxType;
     }
     onItemClick?: (item: any) => unknown;
-    onScrolledFar?: () => unknown; // Called when scrolled far enough to prompt the user to create a new object
     /** Additional where clause to pass to the query */
     where?: { [key: string]: object };
-    zIndex: number;
 }
 
 export interface SearchQueryVariablesInput<SortBy> {
@@ -204,6 +172,7 @@ export interface SearchQueryVariablesInput<SortBy> {
     searchString?: string | null;
     after?: string | null;
     take?: number | null;
+    createdTimeFrame?: TimeFrame | null;
 }
 
 export interface SettingsToggleListItemProps {
@@ -221,11 +190,6 @@ export interface TagListProps {
     parentId: string;
     sx?: SxType;
     tags: Partial<Tag>[];
-}
-
-export interface AwardCardProps {
-    award: AwardDisplay;
-    isEarned: boolean;
 }
 
 export interface CardGridProps {

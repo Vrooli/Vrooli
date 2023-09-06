@@ -15,7 +15,6 @@ export function TitleContainer({
     options = [],
     sx,
     title,
-    zIndex,
 }: TitleContainerProps) {
     const { palette } = useTheme();
 
@@ -27,19 +26,13 @@ export function TitleContainer({
                 options={options.filter(({ Icon }) => Icon) as TitleProps["options"]}
                 title={title}
                 variant="subheader"
-                zIndex={zIndex}
             />
             <Box
                 sx={{
-                    boxShadow: 4,
                     borderRadius: { xs: 0, sm: 2 },
                     overflow: "overlay",
                     background: palette.background.paper,
                     width: "min(100%, 700px)",
-                    cursor: onClick ? "pointer" : "default",
-                    "&:hover": {
-                        filter: `brightness(onClick ? ${102} : ${100}%)`,
-                    },
                     ...sx,
                 }}
             >

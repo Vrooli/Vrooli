@@ -20,11 +20,13 @@ const addFragments = <T extends { __typename: string }>(
     // need to convert the object to an actual gql string (i.e. the final step)
     for (const partial of Object.values(define ?? {})) {
         // If __selectionType or __typename are not specified (which should always be for fragments), log error and skip
-        if (!exists(partial.__selectionType) || !exists(partial.__typename)) {
+        const typename = partial.__typename;
+        const selectionType = partial.__selectionType;
+        if (!typename || !selectionType) {
             console.error(`Error: __selectionType or __typename is not defined for a fragment ${partial.__typename}`, partial);
             continue;
         }
-        const actualKey = uniqueFragmentName(partial.__typename!, partial.__selectionType!);
+        const actualKey = uniqueFragmentName(typename, selectionType);
         // If fragment not in result, add it
         if (!exists(result[actualKey])) {
             const { __define, ...rest } = partial;
@@ -68,17 +70,14 @@ export const partialShape = async <T extends { __typename: string }>(
         // NOTE: This case is only reached if the __union field is at the top level of the selection object, rather than 
         // nested within another property. Most of the time, the next case will be reached instead.
         if (key === "__union") {
-            // Initialize __union field if it doesn't exist
-            if (!exists(result.__union)) {
-                result.__union = {};
-            }
+            const resultUnion = result.__union ?? {};
             for (const [unionKey, value] of Object.entries(data.__union!)) {
                 // If value is a string or number, it must be a key for a fragment in the __define field. 
                 if (typeof value === "string" || typeof value === "number") {
                     // Rename the field to ensure uniqueness
-                    if (!exists(currDefine[value])) continue;
                     const defineData = currDefine[value];
-                    result.__union![unionKey] = uniqueFragmentName(defineData.__typename!, defineData.__selectionType!);
+                    if (!defineData) continue;
+                    resultUnion[unionKey] = uniqueFragmentName(defineData.__typename!, defineData.__selectionType!);
                 }
                 // Otherwise (i.e. its a [possibly lazy] object), add without fragments to the __union field
                 else {
@@ -86,24 +85,22 @@ export const partialShape = async <T extends { __typename: string }>(
                     const { __define, ...rest } = await unlazy(value as any);
                     uniqueFragments = addFragments(uniqueFragments, __define);
                     // Add the object to the __union field
-                    result.__union![unionKey] = { ...rest };
+                    resultUnion[unionKey] = { ...rest };
                 }
             }
+            result.__union = resultUnion;
         }
         // If the value is an object with key __union, rename each field in the union to ensure uniqueness
         // This will ensure that it is unique across all objects.
         else if (exists(data[key]?.__union)) {
-            // Initialize __union field if it doesn't exist
-            if (!exists(result[key])) {
-                result[key] = { __union: {} };
-            }
+            const resultUnion = result[key]?.__union ?? {};
             for (const [unionKey, value] of Object.entries(data[key].__union)) {
                 // If value is a string or number, it must be a key for a fragment in the __define field. 
                 if (typeof value === "string" || typeof value === "number") {
                     // Rename the field to ensure uniqueness
-                    if (!exists(currDefine[value])) continue;
                     const defineData = currDefine[value];
-                    result[key].__union![unionKey] = uniqueFragmentName(defineData.__typename!, defineData.__selectionType!);
+                    if (!defineData) continue;
+                    resultUnion[unionKey] = uniqueFragmentName(defineData.__typename!, defineData.__selectionType!);
                 }
                 // Otherwise (i.e. its a [possibly lazy] object), add without fragments to the __union field
                 else {
@@ -111,9 +108,10 @@ export const partialShape = async <T extends { __typename: string }>(
                     const { __define, ...rest } = await unlazy(value as any);
                     uniqueFragments = addFragments(uniqueFragments, __define);
                     // Add the object to the __union field
-                    result[key].__union![unionKey] = { ...rest };
+                    resultUnion[unionKey] = { ...rest };
                 }
             }
+            result[key] = { ...result[key], __union: resultUnion };
         }
         // If the value is an object with key __use (i.e. references a fragment), replace value to ensure uniqueness 
         else if (exists(data[key]?.__use)) {
@@ -121,6 +119,7 @@ export const partialShape = async <T extends { __typename: string }>(
             const useKey = data[key].__use;
             if (exists(currDefine[useKey])) {
                 const defineData = currDefine[useKey];
+                if (!defineData) continue;
                 result[key] = { __typename: key, __use: uniqueFragmentName(defineData.__typename!, defineData.__selectionType!) };
             }
             // If there are other keys in the object besides __use and __typename, add them to the result

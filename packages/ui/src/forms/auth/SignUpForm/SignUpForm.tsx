@@ -5,11 +5,11 @@ import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordT
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
@@ -18,7 +18,6 @@ import { SignUpFormProps } from "../../types";
 export const SignUpForm = ({
     onClose,
     onFormChange = () => { },
-    zIndex,
 }: SignUpFormProps) => {
     const theme = useTheme();
     const { t } = useTranslation();
@@ -34,7 +33,6 @@ export const SignUpForm = ({
                 display="dialog"
                 onClose={onClose}
                 title={t("SignUp")}
-                zIndex={zIndex}
             />
             <Formik
                 initialValues={{
@@ -45,6 +43,11 @@ export const SignUpForm = ({
                     confirmPassword: "",
                 }}
                 onSubmit={(values, helpers) => {
+                    if (values.password !== values.confirmPassword) {
+                        PubSub.get().publishSnack({ messageKey: "PasswordsDontMatch", severity: "Error" });
+                        helpers.setSubmitting(false);
+                        return;
+                    }
                     fetchLazyWrapper<EmailSignUpInput, Session>({
                         fetch: emailSignUp,
                         inputs: {
@@ -53,6 +56,7 @@ export const SignUpForm = ({
                             theme: theme.palette.mode ?? "light",
                         },
                         onSuccess: (data) => {
+                            setupPush();
                             PubSub.get().publishSession(data);
                             PubSub.get().publishAlertDialog({
                                 messageKey: "WelcomeVerifyEmail",
@@ -60,9 +64,6 @@ export const SignUpForm = ({
                                 buttons: [{
                                     labelKey: "Ok", onClick: () => {
                                         setLocation(LINKS.Home);
-                                        // Set up push notifications
-                                        setupPush();
-                                        // Start the tutorial
                                         PubSub.get().publishTutorial();
                                     },
                                 }],

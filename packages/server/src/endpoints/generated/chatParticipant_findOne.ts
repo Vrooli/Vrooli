@@ -1,6 +1,8 @@
 export const chatParticipant_findOne = {
   "user": {
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,

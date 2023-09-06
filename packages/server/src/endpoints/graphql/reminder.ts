@@ -31,6 +31,8 @@ export const typeDef = gql`
         dueDate: Date
         index: Int
         isComplete: Boolean
+        reminderListConnect: ID
+        reminderListCreate: ReminderListCreateInput
         reminderItemsCreate: [ReminderItemCreateInput!]
         reminderItemsUpdate: [ReminderItemUpdateInput!]
         reminderItemsDelete: [ID!]

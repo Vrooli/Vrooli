@@ -1,10 +1,11 @@
 import { endpointGetReports, Report, ReportSearchInput, ReportSearchResult } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useFetch } from "hooks/useFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getLastUrlPart } from "route";
-import { useFetch } from "utils/hooks/useFetch";
+import { getLastUrlPart, useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { ReportsViewProps } from "../types";
 
@@ -22,14 +23,15 @@ const objectTypeToIdField = {
 };
 
 export const ReportsView = ({
-    display = "page",
+    isOpen,
     onClose,
-    zIndex,
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
-    const { id } = useMemo(() => parseSingleItemUrl({}), []);
+    const [location] = useLocation();
+    const { id } = useMemo(() => parseSingleItemUrl({ url: location }), [location]);
     const objectType = useMemo(() => getLastUrlPart({ offset: 1 }), []);
 
     const { data } = useFetch<ReportSearchInput, ReportSearchResult>({
@@ -48,7 +50,6 @@ export const ReportsView = ({
                 help={t("ReportsHelp")}
                 onClose={onClose}
                 title={t("Report", { count: 2 })}
-                zIndex={zIndex}
             />
             {reports.map((report, i) => {
                 return <Box

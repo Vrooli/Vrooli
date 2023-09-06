@@ -2,8 +2,7 @@ import { Node, NodeCreateInput, NodeTranslation, NodeTranslationCreateInput, Nod
 import { ShapeModel } from "types";
 import { NodeEndShape, shapeNodeEnd } from "./nodeEnd";
 import { NodeRoutineListShape, shapeNodeRoutineList } from "./nodeRoutineList";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type NodeTranslationShape = Pick<NodeTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "NodeTranslation";

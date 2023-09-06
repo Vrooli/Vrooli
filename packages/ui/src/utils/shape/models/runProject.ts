@@ -7,7 +7,7 @@ import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type RunProjectShape = Pick<RunProject, "id" | "isPrivate" | "completedComplexity" | "contextSwitches" | "name" | "status" | "timeElapsed"> & {
-    __typename?: "RunProject";
+    __typename: "RunProject";
     steps?: RunProjectStepShape[] | null;
     schedule?: ScheduleShape | null;
     projectVersion?: { id: string } | ProjectVersionShape | null;

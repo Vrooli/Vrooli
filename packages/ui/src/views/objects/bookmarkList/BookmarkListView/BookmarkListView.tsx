@@ -1,60 +1,74 @@
 import { Bookmark, BookmarkCreateInput, BookmarkList, endpointGetBookmarkList, endpointPostBookmark, uuid } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box, IconButton, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SiteSearchBar } from "components/inputs/search";
+import { ObjectList } from "components/lists/ObjectList/ObjectList";
+import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { AddIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
-import { listToAutocomplete, listToListItems } from "utils/display/listTools";
+import { listToAutocomplete } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { SessionContext } from "utils/SessionContext";
+import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
 export const BookmarkListView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
-    zIndex,
 }: BookmarkListViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { object: existing, isLoading, setObject: setBookmarkList } = useObjectFromUrl<BookmarkList>({
         ...endpointGetBookmarkList,
-        partialData,
+        objectType: "BookmarkList",
     });
 
     const { label } = useMemo(() => ({ label: existing?.label ?? "" }), [existing]);
-
-    useEffect(() => {
-        document.title = `${label} | Vrooli`;
-    }, [label]);
-
-    const actionData = useObjectActions({
-        object: existing,
-        objectType: "BookmarkList",
-        setLocation,
-        setObject: setBookmarkList,
-    });
 
     const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
     useEffect(() => {
         setBookmarks(existing?.bookmarks ?? []);
     }, [existing?.bookmarks]);
+
+    const onAction = useCallback((action: keyof ObjectListActions<Bookmark>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const id = data[0] as string;
+                setBookmarks(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
+                break;
+            }
+            case "Updated": {
+                const updated = data[0] as Bookmark;
+                setBookmarks(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
+                break;
+            }
+        }
+    }, []);
+
+    const actionData = useObjectActions({
+        object: existing,
+        objectType: "BookmarkList",
+        onAction,
+        setLocation,
+        setObject: setBookmarkList,
+    });
 
     const [createBookmark, { loading: isCreating, errors: createErrors }] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
     const addNewBookmark = useCallback(async (to: any) => {
@@ -95,15 +109,6 @@ export const BookmarkListView = ({
     }, []);
 
     const autocompleteOptions = useMemo(() => listToAutocomplete(bookmarks, getUserLanguages(session)), [bookmarks, session]);
-    const bookmarkListItems = useMemo(() => (
-        listToListItems({
-            dummyItems: new Array(5).fill("Routine"),
-            items: bookmarks,
-            keyPrefix: "bookmark-list-item",
-            loading: isLoading,
-            zIndex,
-        })
-    ), [bookmarks, isLoading, zIndex]);
 
     return (
         <>
@@ -112,7 +117,6 @@ export const BookmarkListView = ({
                 isOpen={searchOpen}
                 handleCancel={closeSearch}
                 handleComplete={closeSearch}
-                zIndex={zIndex + 1}
             />
             <TopBar
                 display={display}
@@ -135,27 +139,29 @@ export const BookmarkListView = ({
                         onInputChange={onBookmarkSelect}
                         options={autocompleteOptions}
                         sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                        zIndex={zIndex}
                     />
                 </Box>}
-                zIndex={zIndex}
             />
             <>
-                <SideActionButtons display={display} zIndex={zIndex + 1}>
-                    {/* Edit button */}
-                    <ColorIconButton aria-label="Edit list" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                <SideActionsButtons display={display} >
+                    <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
-                    {/* Add button */}
-                    <ColorIconButton aria-label="Add bookmark" background={palette.secondary.main} onClick={openSearch} >
+                    </IconButton>
+                    <IconButton aria-label={t("AddBookmark")} onClick={openSearch} sx={{ background: palette.secondary.main }}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
-                </SideActionButtons>
+                    </IconButton>
+                </SideActionsButtons>
                 <ListContainer
                     emptyText={t("NoResults", { ns: "error" })}
-                    isEmpty={bookmarkListItems.length === 0}
+                    isEmpty={bookmarks.length === 0 && !isLoading}
                 >
-                    {bookmarkListItems}
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Routine")}
+                        items={bookmarks}
+                        keyPrefix="bookmark-list-item"
+                        loading={isLoading}
+                        onAction={onAction}
+                    />
                 </ListContainer>
             </>
         </>

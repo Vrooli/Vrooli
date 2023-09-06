@@ -1,38 +1,43 @@
-import { CommonKey, DUMMY_ID, orDefault, Resource, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
+import { CommonKey, DUMMY_ID, orDefault, Resource, ResourceListFor, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
 import { Stack } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ResourceFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 
+/** New resources must include a list ID and an index */
+export type NewResourceShape = Partial<Omit<Resource, "list">> & {
+    index: number,
+    list: Partial<Resource["list"]> & ({ id: string } | { listFor: ResourceListFor | `${ResourceListFor}`, listForId: string })
+};
+
 export const resourceInitialValues = (
     session: Session | undefined,
-    listId: string | undefined,
-    existing?: Resource | null | undefined,
+    existing: NewResourceShape,
 ): ResourceShape => ({
     __typename: "Resource" as const,
     id: DUMMY_ID,
-    index: 0,
     link: "",
-    list: {
-        __typename: "ResourceList" as const,
-        id: listId ?? DUMMY_ID,
-    },
     usedFor: ResourceUsedFor.Context,
     ...existing,
-    translations: orDefault(existing?.translations, [{
+    list: {
+        __typename: "ResourceList" as const,
+        ...existing.list,
+        id: existing.list?.id ?? DUMMY_ID,
+    },
+    translations: orDefault(existing.translations, [{
         __typename: "ResourceTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
@@ -41,15 +46,12 @@ export const resourceInitialValues = (
     }]),
 });
 
-export function transformResourceValues(values: ResourceShape, existing?: ResourceShape) {
-    return existing === undefined
-        ? shapeResource.create(values)
-        : shapeResource.update(existing, values);
-}
+export const transformResourceValues = (values: ResourceShape, existing: ResourceShape, isCreate: boolean) =>
+    isCreate ? shapeResource.create(values) : shapeResource.update(existing, values);
 
-export const validateResourceValues = async (values: ResourceShape, existing?: ResourceShape) => {
-    const transformedValues = transformResourceValues(values, existing);
-    const validationSchema = resourceValidation[existing === undefined ? "create" : "update"]({});
+export const validateResourceValues = async (values: ResourceShape, existing: ResourceShape, isCreate: boolean) => {
+    const transformedValues = transformResourceValues(values, existing, isCreate);
+    const validationSchema = resourceValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -62,7 +64,6 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
@@ -111,10 +112,9 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                         handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
                         languages={languages}
-                        zIndex={zIndex + 1}
                     />
                     {/* Enter link or search for object */}
-                    <LinkInput onObjectData={foundLinkData} zIndex={zIndex} />
+                    <LinkInput onObjectData={foundLinkData} />
                     <Selector
                         name="usedFor"
                         options={Object.keys(ResourceUsedFor)}
@@ -139,7 +139,7 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                     />
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -147,7 +147,6 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

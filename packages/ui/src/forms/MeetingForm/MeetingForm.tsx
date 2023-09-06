@@ -1,8 +1,7 @@
 import { DUMMY_ID, Meeting, meetingValidation, orDefault, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { MeetingFormProps } from "forms/types";
@@ -17,7 +16,7 @@ import { ScheduleUpsert } from "views/objects/schedule";
 
 export const meetingInitialValues = (
     session: Session | undefined,
-    existing?: Meeting | null | undefined,
+    existing?: Partial<Meeting> | null | undefined,
 ): MeetingShape => ({
     __typename: "Meeting" as const,
     id: DUMMY_ID,
@@ -41,15 +40,12 @@ export const meetingInitialValues = (
     }]),
 });
 
-export function transformMeetingValues(values: MeetingShape, existing?: MeetingShape) {
-    return existing === undefined
-        ? shapeMeeting.create(values)
-        : shapeMeeting.update(existing, values);
-}
+export const transformMeetingValues = (values: MeetingShape, existing: MeetingShape, isCreate: boolean) =>
+    isCreate ? shapeMeeting.create(values) : shapeMeeting.update(existing, values);
 
-export const validateMeetingValues = async (values: MeetingShape, existing?: MeetingShape) => {
-    const transformedValues = transformMeetingValues(values, existing);
-    const validationSchema = meetingValidation[existing === undefined ? "create" : "update"]({});
+export const validateMeetingValues = async (values: MeetingShape, existing: MeetingShape, isCreate: boolean) => {
+    const transformedValues = transformMeetingValues(values, existing, isCreate);
+    const validationSchema = meetingValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -62,7 +58,6 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const { palette } = useTheme();
@@ -87,27 +82,18 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
     return (
         <>
             {/* Dialog to create/update schedule */}
-            <LargeDialog
-                id="schedule-dialog"
-                onClose={handleCloseScheduleDialog}
+            <ScheduleUpsert
+                canChangeTab={false}
+                canSetScheduleFor={false}
+                defaultTab={CalendarPageTabOption.Meeting}
+                handleDelete={handleDeleteSchedule}
+                isCreate={editingSchedule === null}
+                isMutate={false}
                 isOpen={isScheduleDialogOpen}
-                titleId={""}
-                zIndex={zIndex + 1}
-            >
-                <ScheduleUpsert
-                    canChangeTab={false}
-                    canSetScheduleFor={false}
-                    defaultTab={CalendarPageTabOption.Meetings}
-                    display="dialog"
-                    handleDelete={handleDeleteSchedule}
-                    isCreate={editingSchedule === null}
-                    isMutate={false}
-                    onCancel={handleCloseScheduleDialog}
-                    onCompleted={handleScheduleCompleted}
-                    partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+                onCancel={handleCloseScheduleDialog}
+                onCompleted={handleScheduleCompleted}
+                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
+            />
             <BaseForm
                 dirty={dirty}
                 display={display}
@@ -190,7 +176,7 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
                     {/* TODO */}
                 </Stack>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={props.errors as any}
                 isCreate={isCreate}
@@ -198,7 +184,6 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

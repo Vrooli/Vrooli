@@ -17,7 +17,6 @@ export const UnlinkedNodesDialog = ({
     language,
     nodes,
     open,
-    zIndex,
 }: UnlinkedNodesDialogProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -36,7 +35,6 @@ export const UnlinkedNodesDialog = ({
             label: getTranslation(node, [language], false).name ?? null,
             labelVisible: false,
             scale: -0.5,
-            zIndex,
         };
         // Determine node to display based on nodeType
         switch (node.nodeType) {
@@ -69,7 +67,7 @@ export const UnlinkedNodesDialog = ({
             default:
                 return null;
         }
-    }, [language, zIndex]);
+    }, [language]);
 
     return (
         <Tooltip title={t("NodeUnlinked", { count: 2 })}>
@@ -89,16 +87,6 @@ export const UnlinkedNodesDialog = ({
                 width: open ? { xs: "100%", sm: "375px" } : "fit-content",
                 transition: "height 1s ease-in-out",
                 zIndex: 1500,
-                "&::-webkit-scrollbar": {
-                    width: 10,
-                },
-                "&::-webkit-scrollbar-track": {
-                    backgroundColor: "#dae5f0",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                    borderRadius: "100px",
-                    backgroundColor: "#409590",
-                },
             }}>
                 <Stack direction="row" onClick={handleToggleOpen} sx={{
                     display: "flex",

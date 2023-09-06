@@ -1,4 +1,5 @@
 import { Box, Dialog, DialogContent, DialogTitle, Palette, Typography, useTheme } from "@mui/material";
+import { useZIndex } from "hooks/useZIndex";
 import { useTranslation } from "react-i18next";
 import { TranscriptDialogProps } from "../types";
 
@@ -21,8 +22,8 @@ export const TranscriptDialog = ({
     isListening,
     showHint,
     transcript,
-    zIndex,
 }: TranscriptDialogProps) => {
+    const zIndex = useZIndex(isListening);
     const { t } = useTranslation();
     const { palette } = useTheme();
 

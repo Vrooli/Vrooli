@@ -1,27 +1,26 @@
 import { DUMMY_ID, orDefault, Organization, organizationTranslationValidation, organizationValidation, Session } from "@local/shared";
-import { useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { OrganizationFormProps } from "forms/types";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { OrganizationShape, shapeOrganization } from "utils/shape/models/organization";
 
 export const organizationInitialValues = (
     session: Session | undefined,
-    existing?: Organization | null | undefined,
+    existing?: Partial<Organization> | null | undefined,
 ): OrganizationShape => ({
     __typename: "Organization" as const,
     id: DUMMY_ID,
@@ -38,15 +37,12 @@ export const organizationInitialValues = (
     }]),
 });
 
-export const transformOrganizationValues = (values: OrganizationShape, existing?: OrganizationShape) => {
-    return existing === undefined
-        ? shapeOrganization.create(values)
-        : shapeOrganization.update(existing, values);
-};
+export const transformOrganizationValues = (values: OrganizationShape, existing: OrganizationShape, isCreate: boolean) =>
+    isCreate ? shapeOrganization.create(values) : shapeOrganization.update(existing, values);
 
-export const validateOrganizationValues = async (values: OrganizationShape, existing?: OrganizationShape) => {
-    const transformedValues = transformOrganizationValues(values, existing);
-    const validationSchema = organizationValidation[existing === undefined ? "create" : "update"]({});
+export const validateOrganizationValues = async (values: OrganizationShape, existing: OrganizationShape, isCreate: boolean) => {
+    const transformedValues = transformOrganizationValues(values, existing, isCreate);
+    const validationSchema = organizationValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -59,11 +55,9 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
     isOpen,
     onCancel,
     values,
-    zIndex,
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -93,14 +87,12 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                     <RelationshipList
                         isEditing={true}
                         objectType={"Organization"}
-                        zIndex={zIndex}
                     />
                     <ProfilePictureInput
                         onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
                         onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
-                        profile={{ __typename: "Organization", ...values }}
-                        zIndex={zIndex}
+                        profile={{ ...values }}
                     />
                     <FormSection>
                         <LanguageInput
@@ -109,7 +101,6 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             languages={languages}
-                            zIndex={zIndex + 1}
                         />
                         <TranslatedTextField
                             fullWidth
@@ -117,27 +108,23 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                             language={language}
                             name="name"
                         />
-                        <TranslatedMarkdownInput
+                        <TranslatedRichInput
                             language={language}
                             maxChars={2048}
                             minRows={4}
                             name="bio"
                             placeholder={t("Bio")}
-                            zIndex={zIndex}
                         />
                         <br />
-                        <TagSelector
-                            name="tags"
-                            zIndex={zIndex}
-                        />
+                        <TagSelector name="tags" />
                     </FormSection>
                     <ResourceListHorizontalInput
                         isCreate={true}
-                        zIndex={zIndex}
+                        parent={{ __typename: "Organization", id: values.id }}
                     />
                 </FormContainer>
             </BaseForm>
-            <GridSubmitButtons
+            <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
@@ -145,7 +132,6 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
-                zIndex={zIndex}
             />
         </>
     );

@@ -7,7 +7,7 @@ export const ChatMessageFormat: Formatter<ChatMessageModelLogic> = {
         __typename,
         chat: "Chat",
         user: "User",
-        // reactionSummaries: "ReactionSummary",
+        reactionSummaries: "ReactionSummary",
         reports: "Report",
     },
     prismaRelMap: {
@@ -16,7 +16,7 @@ export const ChatMessageFormat: Formatter<ChatMessageModelLogic> = {
         fork: "ChatMessage",
         children: "ChatMessage",
         user: "User",
-        // reactionSummaries: "ReactionSummary",
+        reactionSummaries: "ReactionSummary",
         reports: "Report",
     },
     joinMap: {},

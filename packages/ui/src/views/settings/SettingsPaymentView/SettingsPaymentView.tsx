@@ -2,20 +2,22 @@ import { LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Stack, Typography, useTheme } from "@mui/material";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { useStripe } from "hooks/useStripe";
 import { CancelIcon, OpenInNewIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { useStripe } from "utils/hooks/useStripe";
+import { pagePaddingBottom } from "styles";
+import { toDisplay } from "utils/display/pageTools";
 import { SettingsPaymentViewProps } from "../types";
 
 export const SettingsPaymentView = ({
-    display = "page",
+    isOpen,
     onClose,
-    zIndex,
 }: SettingsPaymentViewProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const {
         currentUser,
@@ -30,9 +32,8 @@ export const SettingsPaymentView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Payment", { count: 1 })}
-                zIndex={zIndex}
             />
-            <Stack direction="row" mt={2}>
+            <Stack direction="row" mt={2} sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto">
                     <Typography variant="h6" textAlign="center">{t(currentUser.hasPremium ? "AlreadyHavePremium" : "DoNotHavePremium")}</Typography>

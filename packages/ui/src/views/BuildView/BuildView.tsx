@@ -5,6 +5,7 @@ import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
 import { StatusMessageArray } from "components/buttons/types";
 import { FindSubroutineDialog } from "components/dialogs/FindSubroutineDialog/FindSubroutineDialog";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LinkDialog } from "components/dialogs/LinkDialog/LinkDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SubroutineInfoDialog } from "components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog";
@@ -13,13 +14,15 @@ import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeR
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { NodeWithRoutineListShape } from "forms/types";
+import { useHotkeys } from "hooks/useHotkeys";
+import { usePromptBeforeUnload } from "hooks/usePromptBeforeUnload";
+import { useStableObject } from "hooks/useStableObject";
 import { CloseIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
 import { BuildAction, Status } from "utils/consts";
-import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
-import { useStableObject } from "utils/hooks/useStableObject";
+import { toDisplay } from "utils/display/pageTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
@@ -48,19 +51,19 @@ const generateNewLink = (fromId: string, toId: string, routineVersionId: string)
 type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
 
 export const BuildView = ({
-    display = "dialog",
     handleCancel,
     handleSubmit,
     isEditing,
+    isOpen,
     loading,
     onClose,
     routineVersion,
     translationData,
-    zIndex,
 }: BuildViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
     const id: string = useMemo(() => routineVersion?.id ?? "", [routineVersion]);
 
     const stableRoutineVersion = useStableObject(routineVersion);
@@ -121,19 +124,10 @@ export const BuildView = ({
         setChangedRoutineVersion(changedRoutine);
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutineVersion]);
 
-    // Handle undo and redo keys
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // CTRL + Y or CTRL + SHIFT + Z = redo
-            if (e.ctrlKey && (e.key === "y" || e.key === "Z")) { redo(); }
-            // CTRL + Z = undo
-            else if (e.ctrlKey && e.key === "z") { undo(); }
-        };
-        // Attach the event listener
-        document.addEventListener("keydown", handleKeyDown);
-        // Remove the event listener
-        return () => { document.removeEventListener("keydown", handleKeyDown); };
-    }, [redo, undo]);
+    useHotkeys([
+        { keys: ["y", "Z"], ctrlKey: true, callback: redo },
+        { keys: ["z"], ctrlKey: true, callback: undo },
+    ]);
 
     usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
 
@@ -753,9 +747,7 @@ export const BuildView = ({
         }
     }, [addToChangeStack, changedRoutineVersion, createEndNode, handleNodeInsert]);
 
-    /**
-     * Add a new routine list AFTER a node
-     */
+    /** Add a new routine list AFTER a node */
     const handleAddListAfter = useCallback((nodeId: string) => {
         // Find links where this node is the "from" node
         const links = changedRoutineVersion.nodeLinks.filter(l => l.from.id === nodeId);
@@ -782,9 +774,7 @@ export const BuildView = ({
         }
     }, [addToChangeStack, changedRoutineVersion, createRoutineListNode, handleNodeInsert]);
 
-    /**
-     * Add a new routine list BEFORE a node
-     */
+    /** Add a new routine list BEFORE a node */
     const handleAddListBefore = useCallback((nodeId: string) => {
         // Find links where this node is the "to" node
         const links = changedRoutineVersion.nodeLinks.filter(l => l.to.id === nodeId);
@@ -812,9 +802,7 @@ export const BuildView = ({
         }
     }, [addToChangeStack, changedRoutineVersion, createRoutineListNode, handleNodeInsert]);
 
-    /**
-     * Updates the current selected subroutine
-     */
+    /** Updates the current selected subroutine */
     const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeRoutineListItemShape) => {
         // Update routine
         addToChangeStack({
@@ -848,9 +836,7 @@ export const BuildView = ({
         closeSubroutineDialog();
     }, [addToChangeStack, changedRoutineVersion, closeSubroutineDialog]);
 
-    /**
-     * Navigates to a subroutine's build page. Fist checks if there are unsaved changes
-     */
+    /** Navigates to a subroutine's build page. Fist checks if there are unsaved changes */
     const handleSubroutineViewFull = useCallback(() => {
         if (!openedSubroutine) return;
         if (!isEqual(routineVersion, changedRoutineVersion)) {
@@ -990,7 +976,6 @@ export const BuildView = ({
                 handleDelete={translationData.handleDeleteLanguage}
                 handleCurrent={translationData.setLanguage}
                 languages={translationData.languages}
-                zIndex={zIndex}
             />
         );
         return (
@@ -998,190 +983,187 @@ export const BuildView = ({
                 currentLanguage={translationData.language}
                 handleCurrent={translationData.setLanguage}
                 languages={translationData.languages}
-                zIndex={zIndex}
             />
         );
-    }, [translationData, isEditing, zIndex]);
+    }, [translationData, isEditing]);
 
     return (
-        <Box sx={{
-            display: "flex",
-            flexDirection: "column",
-            minHeight: "100%",
-            height: "100%",
-            width: "100%",
-        }}>
-            {/* Popup for adding new subroutines */}
-            {addSubroutineNode && <FindSubroutineDialog
-                handleCancel={closeAddSubroutineDialog}
-                handleComplete={handleSubroutineAdd}
-                isOpen={Boolean(addSubroutineNode)}
-                nodeId={addSubroutineNode}
-                routineVersionId={routineVersion?.id}
-                zIndex={zIndex + 3}
-            />}
-            {/* Popup for "Add after" dialog */}
-            {addAfterLinkNode && <AddAfterLinkDialog
-                handleSelect={handleNodeInsert}
-                handleClose={closeAddAfterLinkDialog}
-                isOpen={Boolean(addAfterLinkNode)}
-                nodes={changedRoutineVersion.nodes}
-                links={changedRoutineVersion.nodeLinks}
-                nodeId={addAfterLinkNode}
-                zIndex={zIndex + 3}
-            />}
-            {/* Popup for "Add before" dialog */}
-            {addBeforeLinkNode && <AddBeforeLinkDialog
-                handleSelect={handleNodeInsert}
-                handleClose={closeAddBeforeLinkDialog}
-                isOpen={Boolean(addBeforeLinkNode)}
-                nodes={changedRoutineVersion.nodes}
-                links={changedRoutineVersion.nodeLinks}
-                nodeId={addBeforeLinkNode}
-                zIndex={zIndex + 3}
-            />}
-            {/* Popup for creating new links */}
-            {changedRoutineVersion ? <LinkDialog
-                handleClose={handleLinkDialogClose as any}
-                handleDelete={handleLinkDelete as any}
-                isAdd={true}
-                isOpen={isLinkDialogOpen}
-                language={translationData.language}
-                link={undefined}
-                nodeFrom={linkDialogFrom as NodeShape}
-                nodeTo={linkDialogTo as NodeShape}
-                routineVersion={changedRoutineVersion}
-                zIndex={zIndex + 3}
-            // partial={ }
-            /> : null}
-            {/* Popup for moving nodes */}
-            {moveNode && <MoveNodeDialog
-                handleClose={closeMoveNodeDialog}
-                isOpen={Boolean(moveNode)}
-                language={translationData.language}
-                node={moveNode}
-                routineVersion={changedRoutineVersion as RoutineVersion}
-                zIndex={zIndex + 3}
-            />}
-            {/* Displays routine information when you click on a routine list item*/}
-            <SubroutineInfoDialog
-                data={openedSubroutine as SubroutineInfoDialogProps["data"]}
-                defaultLanguage={translationData.language}
-                isEditing={isEditing}
-                handleUpdate={handleSubroutineUpdate as any}
-                handleReorder={handleSubroutineReorder}
-                handleViewFull={handleSubroutineViewFull}
-                open={Boolean(openedSubroutine)}
-                onClose={closeSubroutineDialog}
-                zIndex={zIndex + 3}
-            />
-            {/* Displays routine information when you click on a routine list*/}
-            <NodeRoutineListDialog
-                handleClose={closeRoutineListDialog}
-                isEditing={isEditing}
-                isOpen={Boolean(openedRoutineList)}
-                language={translationData.language}
-                node={openedRoutineList}
-                zIndex={zIndex + 3}
-            />
-            {/* Navbar */}
-            <Stack
-                id="build-routine-information-bar"
-                direction="row"
-                spacing={1}
-                width="100%"
-                display="flex"
-                alignItems="center"
-                justifyContent="flex-start"
-                sx={{
-                    zIndex: 2,
-                    height: "48px",
-                    background: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                    paddingLeft: "calc(8px + env(safe-area-inset-left))",
-                    paddingRight: "calc(8px + env(safe-area-inset-right))",
-                    "@media print": {
-                        display: "none",
-                    },
-                }}
-            >
-                <StatusButton status={status.status} messages={status.messages} zIndex={zIndex} />
-                {/* Language */}
-                {languageComponent}
-                {/* Help button */}
-                <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} zIndex={zIndex} />
-                {/* Close Icon */}
-                <IconButton
-                    edge="start"
-                    aria-label="close"
-                    onClick={handleClose}
-                    color="inherit"
-                    sx={{
-                        position: "absolute",
-                        right: "env(safe-area-inset-right)",
-                    }}
-                >
-                    <CloseIcon width='32px' height='32px' />
-                </IconButton>
-            </Stack>
-            {/* Buttons displayed when editing (except for submit/cancel) */}
-            <GraphActions
-                canRedo={canRedo}
-                canUndo={canUndo}
-                handleCleanUpGraph={cleanUpGraph}
-                handleNodeDelete={handleNodeDelete}
-                handleOpenLinkDialog={openLinkDialog}
-                handleRedo={redo}
-                handleUndo={undo}
-                isEditing={isEditing}
-                language={translationData.language}
-                nodesOffGraph={nodesOffGraph}
-                zIndex={zIndex}
-            />
+        <MaybeLargeDialog
+            display={display}
+            id="build-dialog"
+            isOpen={isOpen}
+            onClose={handleClose}
+            sxs={{ paper: { display: "contents" } }}
+        >
             <Box sx={{
-                background: palette.background.default,
-                bottom: "0",
                 display: "flex",
                 flexDirection: "column",
-                position: "fixed",
+                minHeight: "100%",
+                height: "100%",
                 width: "100%",
             }}>
-                <NodeGraph
-                    columns={columns}
-                    handleAction={handleAction}
-                    handleBranchInsert={handleBranchInsert}
-                    handleLinkCreate={handleLinkCreate}
-                    handleLinkUpdate={handleLinkUpdate}
-                    handleLinkDelete={handleLinkDelete}
-                    handleNodeInsert={handleNodeInsert}
-                    handleNodeUpdate={handleNodeUpdate}
-                    handleNodeDrop={handleNodeDrop}
-                    handleScaleChange={handleScaleChange}
-                    isEditing={isEditing}
-                    labelVisible={true}
-                    language={translationData.language}
+                {/* Popup for adding new subroutines */}
+                {addSubroutineNode && <FindSubroutineDialog
+                    handleCancel={closeAddSubroutineDialog}
+                    handleComplete={handleSubroutineAdd}
+                    isOpen={Boolean(addSubroutineNode)}
+                    nodeId={addSubroutineNode}
+                    routineVersionId={routineVersion?.id}
+                />}
+                {/* Popup for "Add after" dialog */}
+                {addAfterLinkNode && <AddAfterLinkDialog
+                    handleSelect={handleNodeInsert}
+                    handleClose={closeAddAfterLinkDialog}
+                    isOpen={Boolean(addAfterLinkNode)}
+                    nodes={changedRoutineVersion.nodes}
                     links={changedRoutineVersion.nodeLinks}
-                    nodesById={nodesById}
+                    nodeId={addAfterLinkNode}
+                />}
+                {/* Popup for "Add before" dialog */}
+                {addBeforeLinkNode && <AddBeforeLinkDialog
+                    handleSelect={handleNodeInsert}
+                    handleClose={closeAddBeforeLinkDialog}
+                    isOpen={Boolean(addBeforeLinkNode)}
+                    nodes={changedRoutineVersion.nodes}
+                    links={changedRoutineVersion.nodeLinks}
+                    nodeId={addBeforeLinkNode}
+                />}
+                {/* Popup for creating new links */}
+                {changedRoutineVersion ? <LinkDialog
+                    handleClose={handleLinkDialogClose as any}
+                    handleDelete={handleLinkDelete as any}
+                    isAdd={true}
+                    isOpen={isLinkDialogOpen}
+                    language={translationData.language}
+                    link={undefined}
+                    nodeFrom={linkDialogFrom as NodeShape}
+                    nodeTo={linkDialogTo as NodeShape}
+                    routineVersion={changedRoutineVersion}
+                // partial={ }
+                /> : null}
+                {/* Popup for moving nodes */}
+                {moveNode && <MoveNodeDialog
+                    handleClose={closeMoveNodeDialog}
+                    isOpen={Boolean(moveNode)}
+                    language={translationData.language}
+                    node={moveNode}
+                    routineVersion={changedRoutineVersion as RoutineVersion}
+                />}
+                {/* Displays routine information when you click on a routine list item*/}
+                <SubroutineInfoDialog
+                    data={openedSubroutine as SubroutineInfoDialogProps["data"]}
+                    defaultLanguage={translationData.language}
+                    isEditing={isEditing}
+                    handleUpdate={handleSubroutineUpdate as any}
+                    handleReorder={handleSubroutineReorder}
+                    handleViewFull={handleSubroutineViewFull}
+                    open={Boolean(openedSubroutine)}
+                    onClose={closeSubroutineDialog}
+                />
+                {/* Displays routine information when you click on a routine list*/}
+                <NodeRoutineListDialog
+                    handleClose={closeRoutineListDialog}
+                    isEditing={isEditing}
+                    isOpen={Boolean(openedRoutineList)}
+                    language={translationData.language}
+                    node={openedRoutineList}
+                />
+                {/* Navbar */}
+                <Stack
+                    id="build-routine-information-bar"
+                    direction="row"
+                    spacing={1}
+                    width="100%"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="flex-start"
+                    sx={{
+                        zIndex: 2,
+                        height: "48px",
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
+                        paddingLeft: "calc(8px + env(safe-area-inset-left))",
+                        paddingRight: "calc(8px + env(safe-area-inset-right))",
+                        "@media print": {
+                            display: "none",
+                        },
+                    }}
+                >
+                    <StatusButton status={status.status} messages={status.messages} />
+                    {/* Language */}
+                    {languageComponent}
+                    {/* Help button */}
+                    <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} />
+                    {/* Close Icon */}
+                    <IconButton
+                        edge="start"
+                        aria-label="close"
+                        onClick={handleClose}
+                        color="inherit"
+                        sx={{
+                            position: "absolute",
+                            right: "env(safe-area-inset-right)",
+                        }}
+                    >
+                        <CloseIcon width='32px' height='32px' />
+                    </IconButton>
+                </Stack>
+                {/* Buttons displayed when editing (except for submit/cancel) */}
+                <GraphActions
+                    canRedo={canRedo}
+                    canUndo={canUndo}
+                    handleCleanUpGraph={cleanUpGraph}
+                    handleNodeDelete={handleNodeDelete}
+                    handleOpenLinkDialog={openLinkDialog}
+                    handleRedo={redo}
+                    handleUndo={undo}
+                    isEditing={isEditing}
+                    language={translationData.language}
+                    nodesOffGraph={nodesOffGraph}
+                />
+                <Box sx={{
+                    background: palette.background.default,
+                    bottom: "0",
+                    display: "flex",
+                    flexDirection: "column",
+                    position: "fixed",
+                    width: "100%",
+                }}>
+                    <NodeGraph
+                        columns={columns}
+                        handleAction={handleAction}
+                        handleBranchInsert={handleBranchInsert}
+                        handleLinkCreate={handleLinkCreate}
+                        handleLinkUpdate={handleLinkUpdate}
+                        handleLinkDelete={handleLinkDelete}
+                        handleNodeInsert={handleNodeInsert}
+                        handleNodeUpdate={handleNodeUpdate}
+                        handleNodeDrop={handleNodeDrop}
+                        handleScaleChange={handleScaleChange}
+                        isEditing={isEditing}
+                        labelVisible={true}
+                        language={translationData.language}
+                        links={changedRoutineVersion.nodeLinks}
+                        nodesById={nodesById}
+                        scale={scale}
+                    />
+                </Box>
+                <BuildEditButtons
+                    canCancelMutate={!loading}
+                    canSubmitMutate={!loading && !isEqual(routineVersion, changedRoutineVersion)}
+                    errors={{
+                        "graph": status.status !== Status.Valid ? status.messages : null,
+                        "unchanged": isEqual(routineVersion, changedRoutineVersion) ? "No changes made" : null,
+                    }}
+                    handleCancel={revertChanges}
+                    handleScaleChange={handleScaleChange}
+                    handleSubmit={() => { handleSubmit(changedRoutineVersion); }}
+                    isAdding={!uuidValidate(id)}
+                    isEditing={isEditing}
+                    loading={loading}
                     scale={scale}
-                    zIndex={zIndex}
                 />
             </Box>
-            <BuildEditButtons
-                canCancelMutate={!loading}
-                canSubmitMutate={!loading && !isEqual(routineVersion, changedRoutineVersion)}
-                errors={{
-                    "graph": status.status !== Status.Valid ? status.messages : null,
-                    "unchanged": isEqual(routineVersion, changedRoutineVersion) ? "No changes made" : null,
-                }}
-                handleCancel={revertChanges}
-                handleScaleChange={handleScaleChange}
-                handleSubmit={() => { handleSubmit(changedRoutineVersion); }}
-                isAdding={!uuidValidate(id)}
-                isEditing={isEditing}
-                loading={loading}
-                scale={scale}
-                zIndex={zIndex}
-            />
-        </Box>
+        </MaybeLargeDialog>
     );
 };

@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "route";
 import { convertFormikForSearch, convertSearchForFormik } from "utils/search/inputToSearch";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
-import { GridActionButtons } from "../GridActionButtons/GridActionButtons";
+import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
 import { searchButtonStyle } from "../styles";
 import { AdvancedSearchButtonProps } from "../types";
 
@@ -24,13 +24,11 @@ const AdvancedSearchDialog = ({
     handleSearch,
     isOpen,
     searchType,
-    zIndex,
 }: {
     handleClose: () => unknown;
     handleSearch: (searchQuery: SearchQuery) => unknown;
     isOpen: boolean;
     searchType: SearchType | `${SearchType}`;
-    zIndex: number;
 }) => {
     const theme = useTheme();
     const { t } = useTranslation();
@@ -70,7 +68,6 @@ const AdvancedSearchDialog = ({
             isOpen={isOpen}
             onClose={handleClose}
             titleId={titleId}
-            zIndex={zIndex}
         >
             <Formik
                 enableReinitialize={true}
@@ -95,7 +92,6 @@ const AdvancedSearchDialog = ({
                             label: t("Reset"),
                             onClick: () => { formik.resetForm(); },
                         }]}
-                        zIndex={zIndex + 1000}
                     />
                     <Box sx={{
                         margin: "auto",
@@ -112,11 +108,10 @@ const AdvancedSearchDialog = ({
                             // eslint-disable-next-line @typescript-eslint/no-empty-function
                             onUpload={() => { }}
                             theme={theme}
-                            zIndex={zIndex + 1000}
                         />}
                     </Box>
                     {/* Search/Cancel buttons */}
-                    <GridActionButtons display="dialog">
+                    <BottomActionsGrid display="dialog">
                         <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                             <Button
                                 fullWidth
@@ -134,7 +129,7 @@ const AdvancedSearchDialog = ({
                                 variant="outlined"
                             >{t("Cancel")}</Button>
                         </Grid>
-                    </GridActionButtons>
+                    </BottomActionsGrid>
                 </>}
             </Formik>
         </LargeDialog>
@@ -146,7 +141,6 @@ export const AdvancedSearchButton = ({
     advancedSearchSchema,
     searchType,
     setAdvancedSearchParams,
-    zIndex,
 }: AdvancedSearchButtonProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -182,6 +176,7 @@ export const AdvancedSearchButton = ({
         removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
         // Add set fields to search params
         addSearchParams(setLocation, valuesWithoutBlanks);
+        console.log("setting advanced search params 3", valuesWithoutBlanks);
         setAdvancedSearchParams(valuesWithoutBlanks);
     }, [advancedSearchSchema?.fields, setAdvancedSearchParams, setLocation]);
 
@@ -197,7 +192,6 @@ export const AdvancedSearchButton = ({
                 handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
                 searchType={searchType}
-                zIndex={zIndex + 1}
             />
             {advancedSearchParams && <Tooltip title={t("SeeAllSearchSettings")} placement="top">
                 <Box

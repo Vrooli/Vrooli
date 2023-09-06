@@ -1,5 +1,4 @@
-import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { noSelect } from "styles";
 import { ToggleSwitchProps } from "../types";
@@ -63,7 +62,8 @@ export function ToggleSwitch({
                         transform: "translateY(-50%)",
                     }}>
                         {/* Thumb */}
-                        <ColorIconButton background={(OnIcon || OffIcon) ? palette.secondary.main : "white"} sx={{
+                        <IconButton sx={{
+                            background: (OnIcon || OffIcon) ? palette.secondary.main : "white",
                             display: "inline-flex",
                             width: "30px",
                             height: "30px",
@@ -75,7 +75,7 @@ export function ToggleSwitch({
                             transform: `translateX(${checked ? "20" : "0"}px) translateY(-50%)`,
                         }}>
                             {Icon && <Icon fill="white" width="80%" height="80%" />}
-                        </ColorIconButton>
+                        </IconButton>
                     </Box>
                     {/* Input */}
                     <input

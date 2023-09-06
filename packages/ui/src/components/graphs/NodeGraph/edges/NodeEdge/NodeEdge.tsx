@@ -1,5 +1,4 @@
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { AddIcon, BranchIcon, DeleteIcon, EditIcon, LinkIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { calculateNodeSize } from "../../nodes";
@@ -54,63 +53,63 @@ export const NodeEdge = ({
             <Stack direction="row" spacing={1}>
                 {/* Insert Node */}
                 <Tooltip title='Insert node'>
-                    <ColorIconButton
+                    <IconButton
                         id="insert-node-on-edge-button"
-                        background={palette.secondary.main}
                         size="small"
                         onClick={() => { handleAdd(link); }}
                         aria-label='Insert node on edge'
+                        sx={{ background: palette.secondary.main }}
                     >
                         <AddIcon id="insert-node-on-edge-button-icon" fill={"white"} />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
                 {/* Connect unlinked node TODO */}
                 <Tooltip title='Connect unlinked node'>
-                    <ColorIconButton
+                    <IconButton
                         id="connect-node-on-edge-button"
-                        background='#d27787'
                         size="small"
                         onClick={() => { }}
                         aria-label='Connect unlinked node'
+                        sx={{ background: "#d27787" }}
                     >
                         <LinkIcon id="connect-node-on-edge-button-icon" fill={"white"} />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
                 {/* Insert Branch */}
                 <Tooltip title='Insert branch'>
-                    <ColorIconButton
+                    <IconButton
                         id="insert-branch-on-edge-button"
-                        background="#248791"
                         size="small"
                         onClick={() => { handleBranch(link); }}
                         aria-label='Insert branch on edge'
+                        sx={{ background: "#248791" }}
                     >
                         <BranchIcon id="insert-branch-on-edge-button-icon" fill='white' />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
                 {/* Edit Link TODO */}
                 <Tooltip title='Edit link'>
-                    <ColorIconButton
+                    <IconButton
                         id="edit-edge-button"
-                        background='#c5ab17'
                         size="small"
                         onClick={handleEditClick}
                         aria-label='Edit link'
+                        sx={{ background: "#c5ab17" }}
                     >
                         <EditIcon id="insert-node-on-edge-button-icon" fill={"white"} />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
                 {/* Delete link */}
                 <Tooltip title='Delete link'>
-                    <ColorIconButton
+                    <IconButton
                         id="delete-link-on-edge-button"
-                        background={palette.error.main}
                         size="small"
                         onClick={() => { handleDelete(link); }}
                         aria-label='Delete link button'
+                        sx={{ background: palette.error.main }}
                     >
                         <DeleteIcon id="delete-link-on-edge-button-icon" fill='white' />
-                    </ColorIconButton>
+                    </IconButton>
                 </Tooltip>
             </Stack>
         );

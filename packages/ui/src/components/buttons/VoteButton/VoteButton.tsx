@@ -1,11 +1,11 @@
 import { getReactionScore, removeModifiers, Success } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
+import { SessionContext } from "contexts/SessionContext";
+import { useVoter } from "hooks/useVoter";
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { useVoter } from "utils/hooks/useVoter";
-import { SessionContext } from "utils/SessionContext";
 import { VoteButtonProps } from "../types";
 
 export const VoteButton = ({
@@ -106,11 +106,11 @@ export const VoteButton = ({
                 role="button"
                 aria-pressed={getReactionScore(internalEmoji) > 0}
                 sx={{
-                    cursor: (userId || disabled) ? "pointer" : "default",
+                    cursor: (userId && !disabled) ? "pointer" : "default",
                     pointerEvents: "all",
                     display: "flex",
                     "&:hover": {
-                        filter: userId ? "brightness(120%)" : "none",
+                        filter: (userId && !disabled) ? "brightness(120%)" : "none",
                         transition: "filter 0.2s",
                     },
                 }}
@@ -126,11 +126,11 @@ export const VoteButton = ({
                 role="button"
                 aria-pressed={getReactionScore(internalEmoji) < 0}
                 sx={{
-                    cursor: (userId || disabled) ? "pointer" : "default",
+                    cursor: (userId && !disabled) ? "pointer" : "default",
                     pointerEvents: "all",
                     display: "flex",
                     "&:hover": {
-                        filter: userId ? "brightness(120%)" : "none",
+                        filter: (userId && !disabled) ? "brightness(120%)" : "none",
                         transition: "filter 0.2s",
                     },
                 }}

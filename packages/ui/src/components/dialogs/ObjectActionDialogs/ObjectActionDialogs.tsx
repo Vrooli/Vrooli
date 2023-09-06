@@ -1,13 +1,8 @@
-import { BookmarkFor, DeleteType, ReportFor } from "@local/shared";
-import { useContext } from "react";
-import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
-import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
-import { ReportDialog } from "../ReportDialog/ReportDialog";
+import { BookmarkFor, ReportFor } from "@local/shared";
+import { ReportUpsert } from "views/objects/report";
+import { StatsObjectView } from "views/StatsObjectView/StatsObjectView";
 import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
-import { StatsDialog } from "../StatsDialog/StatsDialog";
 import { ObjectActionDialogsProps } from "../types";
 
 export const ObjectActionDialogs = ({
@@ -27,22 +22,15 @@ export const ObjectActionDialogs = ({
     onActionStart,
     onActionComplete,
     closeBookmarkDialog,
-    openDeleteDialog,
     closeDeleteDialog,
-    openDonateDialog,
     closeDonateDialog,
-    openShareDialog,
     closeShareDialog,
-    openStatsDialog,
     closeStatsDialog,
-    openReportDialog,
     closeReportDialog,
+    DeleteDialogComponent,
     object,
     objectType,
-    zIndex,
 }: ObjectActionDialogsProps) => {
-    const session = useContext(SessionContext);
-
     return (
         <>
             {/* openAddCommentDialog?: () => void; //TODO: implement
@@ -54,35 +42,25 @@ export const ObjectActionDialogs = ({
                 onClose={closeBookmarkDialog}
                 isCreate={true}
                 isOpen={isBookmarkDialogOpen}
-                zIndex={zIndex + 1}
             />}
-            {object?.id && hasDeletingSupport && <DeleteDialog
-                isOpen={isDeleteDialogOpen}
-                objectId={object.id}
-                objectType={objectType as unknown as DeleteType}
-                objectName={getDisplay(object, getUserLanguages(session)).title}
-                handleClose={closeDeleteDialog}
-                zIndex={zIndex + 1}
-            />}
-            {object?.id && hasReportingSupport && <ReportDialog
-                forId={object.id}
-                onClose={closeReportDialog}
-                open={isReportDialogOpen}
-                reportFor={objectType as unknown as ReportFor}
-                zIndex={zIndex + 1}
+            {object?.id && DeleteDialogComponent}
+            {object?.id && hasReportingSupport && <ReportUpsert
+                isCreate={true}
+                isOpen={isReportDialogOpen}
+                onCancel={closeReportDialog}
+                onCompleted={closeReportDialog}
+                overrideObject={{ createdFor: { __typename: objectType as unknown as ReportFor, id: object.id } }}
             />}
             {hasSharingSupport && <ShareObjectDialog
                 object={object}
                 open={isShareDialogOpen}
                 onClose={closeShareDialog}
-                zIndex={zIndex + 1}
             />}
-            {hasStatsSupport && <StatsDialog
+            {hasStatsSupport && <StatsObjectView
                 handleObjectUpdate={() => { }} //TODO
                 isOpen={isStatsDialogOpen}
                 object={object as any}
                 onClose={closeStatsDialog}
-                zIndex={zIndex + 1}
             />}
         </>
     );

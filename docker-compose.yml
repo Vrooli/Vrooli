@@ -174,9 +174,6 @@ services:
         condition: service_healthy
     ports:
       - 8080:8080
-    volumes:
-      - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
-      - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
     command: /bin/sh -c "exec php -S [::]:8080 -t /var/www/html/"
   # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
   # translate:

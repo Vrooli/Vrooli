@@ -2,6 +2,8 @@ export const chat_create = {
   "participants": {
     "user": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -22,6 +24,8 @@ export const chat_create = {
     "status": true,
     "user": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -46,6 +50,8 @@ export const chat_create = {
     "updated_at": true,
     "user": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,
@@ -54,6 +60,11 @@ export const chat_create = {
       "__typename": "User"
     },
     "score": true,
+    "reactionSummaries": {
+      "emoji": true,
+      "count": true,
+      "__typename": "ReactionSummary"
+    },
     "reportsCount": true,
     "you": {
       "canDelete": true,
@@ -84,6 +95,8 @@ export const chat_create = {
     "owner": {
       "User": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

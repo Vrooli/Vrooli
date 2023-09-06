@@ -1,4 +1,4 @@
-import { Button, Grid, Popover, Stack, TextField } from "@mui/material";
+import { Box, Button, Grid, Popover, TextField } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,6 @@ export const DateRangeMenu = ({
     onSubmit,
     range,
     strictIntervalRange,
-    zIndex,
 }: DateRangeMenuProps) => {
     const { t } = useTranslation();
 
@@ -77,11 +76,16 @@ export const DateRangeMenu = ({
                 display="dialog"
                 onClose={onClose}
                 title={t("SelectDateRange")}
-                zIndex={zIndex}
+                variant="subheader"
             />
-            <Stack direction="column" spacing={2} m={2}>
-                <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
+            <Box sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                margin: 2,
+            }}>
+                <Grid container>
+                    <Grid item xs={12} sm={6} p={1}>
                         <TextField
                             fullWidth
                             name="start"
@@ -94,7 +98,7 @@ export const DateRangeMenu = ({
                             onChange={(e) => handleAfterChange(fromDatetimeLocal(e.target.value))}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={6} p={1}>
                         <TextField
                             fullWidth
                             name="end"
@@ -113,8 +117,13 @@ export const DateRangeMenu = ({
                     fullWidth
                     onClick={() => { onSubmit(after, before); onClose(); }}
                     variant="contained"
+                    sx={{
+                        marginLeft: 1,
+                        marginRight: 1,
+                        width: "-webkit-fill-available",
+                    }}
                 >{t("Ok")}</Button>
-            </Stack>
-        </Popover>
+            </Box>
+        </Popover >
     );
 };

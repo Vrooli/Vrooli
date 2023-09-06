@@ -46,7 +46,11 @@ export const comment_findOne = {
         "language": true,
         "description": true,
         "name": true,
-        "text": true
+        "pages": {
+          "id": true,
+          "pageIndex": true,
+          "text": true
+        }
       },
       "__typename": "NoteVersion"
     },
@@ -94,6 +98,8 @@ export const comment_findOne = {
       "updated_at": true,
       "createdBy": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -192,6 +198,8 @@ export const comment_findOne = {
       "updated_at": true,
       "createdBy": {
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -282,6 +290,8 @@ export const comment_findOne = {
   "owner": {
     "User": {
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "bannerImage": true,
       "handle": true,
       "isBot": true,

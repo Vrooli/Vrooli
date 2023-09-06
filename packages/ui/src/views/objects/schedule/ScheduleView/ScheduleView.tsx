@@ -2,33 +2,29 @@ import { endpointGetSchedule, Schedule } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
-import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { toDisplay } from "utils/display/pageTools";
 import { ScheduleViewProps } from "../types";
 
 export const ScheduleView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
-    zIndex,
 }: ScheduleViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useObjectFromUrl<Schedule>({
         ...endpointGetSchedule,
-        partialData,
+        objectType: "Schedule",
     });
-
-    // useEffect(() => {
-    //     document.title = `${name} | Vrooli`;
-    // }, [name]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -72,8 +68,7 @@ export const ScheduleView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t("Schedule")}
-                zIndex={zIndex}
+                title={t("Schedule", { count: 1 })}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -81,7 +76,6 @@ export const ScheduleView = ({
                 anchorEl={moreMenuAnchor}
                 object={schedule as any}
                 onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
             />
             <Box sx={{
                 background: palette.mode === "light" ? "#b2b3b3" : "#303030",

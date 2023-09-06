@@ -22,14 +22,14 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             select: () => ({
                 id: true,
                 root: { select: { tags: { select: { tag: true } } } },
-                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, text: true } },
+                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
                     name: trans?.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    text: trans?.text?.slice(0, 512),
+                    description: trans?.description?.slice(0, 256),
                 }, languages[0]);
             },
         },
@@ -51,23 +51,60 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                 const maps = preShapeVersion({ createList, updateList, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isPrivate: noNull(data.isPrivate),
-                versionLabel: data.versionLabel,
-                versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childNoteVersions", data, ...rest })),
-                ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isPrivate: noNull(data.isPrivate),
-                versionLabel: noNull(data.versionLabel),
-                versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
-                ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
+            create: async ({ data, ...rest }) => {
+                const { translations } = await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translationCreatesPromises = translations?.create?.map(async (translation) => ({
+                    ...translation,
+                    pagesCreate: undefined,
+                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
+                }));
+                const translationCreates = await Promise.all(translationCreatesPromises ?? []);
+                return {
+                    id: data.id,
+                    isPrivate: noNull(data.isPrivate),
+                    versionLabel: data.versionLabel,
+                    versionNotes: noNull(data.versionNotes),
+                    translations: {
+                        create: translationCreates,
+                    },
+                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childNoteVersions", data, ...rest })),
+                    ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                };
+            },
+            update: async ({ data, ...rest }) => {
+                // Translated pages require custom logic
+                const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translationCreatesPromises = translations?.create?.map(async (translation) => ({
+                    ...translation,
+                    pagesCreate: undefined,
+                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
+                }));
+                const translationUpdatesPromises = translations?.update?.map(async (translation) => ({
+                    where: translation.where,
+                    data: {
+                        ...translation.data,
+                        pagesCreate: undefined,
+                        pagesUpdate: undefined,
+                        pagesDelete: undefined,
+                        ...(await shapeHelper({ relation: "pages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation.data, ...rest })),
+                    },
+                }));
+                const translationCreates = await Promise.all(translationCreatesPromises ?? []);
+                const translationUpdates = await Promise.all(translationUpdatesPromises ?? []);
+                const translationDeletes = translations?.delete;
+                return {
+                    isPrivate: noNull(data.isPrivate),
+                    versionLabel: noNull(data.versionLabel),
+                    versionNotes: noNull(data.versionNotes),
+                    translations: {
+                        create: translationCreates,
+                        update: translationUpdates,
+                        delete: translationDeletes,
+                    },
+                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
+                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                };
+            },
             post: async (params) => {
                 await postShapeVersion({ ...params, objectType: __typename });
             },

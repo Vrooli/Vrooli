@@ -1,4 +1,4 @@
-import { Reaction } from "@local/shared";
+import { Reaction, ReactionSummary } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 
@@ -38,5 +38,13 @@ export const reaction: GqlPartial<Reaction> = {
                 Standard: 12,
             },
         },
+    },
+};
+
+export const reactionSummary: GqlPartial<ReactionSummary> = {
+    __typename: "ReactionSummary",
+    list: {
+        emoji: true,
+        count: true,
     },
 };

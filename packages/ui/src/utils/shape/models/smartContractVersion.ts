@@ -3,17 +3,16 @@ import { ShapeModel } from "types";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { shapeSmartContract, SmartContractShape } from "./smartContract";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
-import { updateTranslationPrims } from "./tools/updateTranslationPrims";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTranslation, "id" | "language" | "description" | "name" | "jsonVariable"> & {
     __typename?: "SmartContractVersionTranslation";
 }
 
 export type SmartContractVersionShape = Pick<SmartContractVersion, "id" | "content" | "contractType" | "default" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
-    __typename?: "SmartContractVersion";
+    __typename: "SmartContractVersion";
     directoryListings?: ProjectVersionDirectoryShape[] | null;
-    resourceList?: { id: string } | ResourceListShape | null;
+    resourceList?: Omit<ResourceListShape, "listFor"> | null;
     root?: { id: string } | SmartContractShape | null;
     suggestedNextBySmartContract?: { id: string }[] | null;
     translations?: SmartContractVersionTranslationShape[] | null;
@@ -29,14 +28,14 @@ export const shapeSmartContractVersion: ShapeModel<SmartContractVersionShape, Sm
         ...createPrims(d, "id", "content", "contractType", "default", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
         ...createRel(d, "directoryListings", ["Create"], "many", shapeProjectVersionDirectory),
         ...createRel(d, "root", ["Connect", "Create"], "one", shapeSmartContract, (r) => ({ ...r, isPrivate: d.isPrivate })),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
+        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "SmartContractVersion" } })),
         ...createRel(d, "translations", ["Create"], "many", shapeSmartContractVersionTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "content", "contractType", "default", "isPrivate", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "directoryListings", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),
         ...updateRel(o, u, "root", ["Update"], "one", shapeSmartContract),
-        ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList),
+        ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "SmartContractVersion" } })),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeSmartContractVersionTranslation),
     }, a),
 };

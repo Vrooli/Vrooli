@@ -35,6 +35,7 @@ export const chatMessage: GqlPartial<ChatMessage> = {
         updated_at: true,
         user: async () => rel((await import("./user")).user, "nav"),
         score: true,
+        reactionSummaries: async () => rel((await import("./reaction")).reactionSummary, "list"),
         reportsCount: true,
         you: () => rel(chatMessageYou, "full"),
     },

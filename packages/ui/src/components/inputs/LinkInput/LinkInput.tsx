@@ -1,5 +1,4 @@
-import { Box, Stack, TextField, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
@@ -13,7 +12,6 @@ export const LinkInput = ({
     label,
     name = "link",
     onObjectData,
-    zIndex,
 }: LinkInputProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -71,7 +69,6 @@ export const LinkInput = ({
                 isOpen={searchOpen}
                 handleCancel={closeSearch}
                 handleComplete={closeSearch}
-                zIndex={zIndex + 1}
             />
             <Box>
                 {/* Text field with button to open search dialog */}
@@ -88,17 +85,17 @@ export const LinkInput = ({
                             },
                         }}
                     />
-                    <ColorIconButton
-                        aria-label='find URL'
+                    <IconButton
+                        aria-label={t("SearchObjectLink")}
                         onClick={openSearch}
-                        background={palette.secondary.main}
                         sx={{
+                            background: palette.secondary.main,
                             borderRadius: "0 5px 5px 0",
                             height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                             color: palette.secondary.contrastText,
                         }}>
                         <SearchIcon />
-                    </ColorIconButton>
+                    </IconButton>
                 </Stack>
                 {/* Title/Subtitle */}
                 {title && (
@@ -106,12 +103,10 @@ export const LinkInput = ({
                         <MarkdownDisplay
                             sx={{ marginLeft: "8px" }}
                             content={`${title}${subtitle ? " - " + subtitle : ""}`}
-                            zIndex={zIndex}
                         />
                     </Tooltip>
                 )}
             </Box>
         </>
-
     );
 };

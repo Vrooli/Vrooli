@@ -6,13 +6,13 @@ import { fetchLazyWrapper } from "api";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { cardRoot } from "components/lists/styles";
+import { SessionContext } from "contexts/SessionContext";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { LinkIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
 import { DirectoryCard } from "../DirectoryCard/DirectoryCard";
 import { DirectoryListItemContextMenu } from "../DirectoryListItemContextMenu/DirectoryListItemContextMenu";
 import { DirectoryItem, DirectoryListHorizontalProps } from "../types";
@@ -23,7 +23,6 @@ export const DirectoryListHorizontal = ({
     handleUpdate,
     loading = false,
     mutate = true,
-    zIndex,
 }: DirectoryListHorizontalProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -147,7 +146,6 @@ export const DirectoryListHorizontal = ({
                 isOpen={isDialogOpen}
                 handleCancel={closeDialog}
                 handleComplete={onAdd as any}
-                zIndex={zIndex + 1}
             />
             {/* Right-click context menu */}
             <DirectoryListItemContextMenu
@@ -158,7 +156,6 @@ export const DirectoryListHorizontal = ({
                 onClose={closeContext}
                 onDelete={onDelete}
                 data={selectedItem}
-                zIndex={zIndex + 1}
             />
             {/* {title && <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>} */}
             <CardGrid minWidth={120} sx={{

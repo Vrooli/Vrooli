@@ -4,7 +4,7 @@ import { BookmarkShape, shapeBookmark } from "./bookmark";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type BookmarkListShape = Pick<BookmarkList, "id" | "label"> & {
-    __typename?: "BookmarkList";
+    __typename: "BookmarkList";
     bookmarks?: BookmarkShape[] | null;
 }
 

@@ -5,10 +5,6 @@ export const wallet: GqlPartial<Wallet> = {
     __typename: "Wallet",
     common: {
         id: true,
-        handles: {
-            id: true,
-            handle: true,
-        },
         name: true,
         publicAddress: true,
         stakingAddress: true,
