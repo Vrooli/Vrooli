@@ -33,7 +33,7 @@ export const MemberManageView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<MemberManagePageTabOption>({ tabParams: memberTabParams, display });
+    } = useTabs<MemberManagePageTabOption>({ id: "member-manage-tabs", tabParams: memberTabParams, display });
 
     const [isOpenToNewMembersField, , isOpenToNewMembersHelpers] = useField("isOpenToNewMembers");
 

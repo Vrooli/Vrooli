@@ -50,7 +50,7 @@ export const PrivacyPolicyView = ({
         return markdown;
     });
 
-    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ tabParams: policyTabParams, defaultTab: 0, display: "dialog" });
+    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
     const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabOption, false>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });

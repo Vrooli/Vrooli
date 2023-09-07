@@ -20,6 +20,7 @@ export const Cookies = {
     Theme: "theme",
     FontSize: "fontSize",
     Language: "language",
+    LastTab: "lastTab",
     IsLeftHanded: "isLeftHanded",
     FocusModeActive: "focusModeActive",
     FocusModeAll: "focusModeAll",
@@ -38,7 +39,7 @@ export type CookiePreferences = {
     targeting: boolean;
 }
 
-const getCookie = <T>(name: Cookies, typeCheck: (value: unknown) => value is T): T | undefined => {
+const getCookie = <T>(name: Cookies | string, typeCheck: (value: unknown) => value is T): T | undefined => {
     const cookie = localStorage.getItem(name);
     // Try to parse
     try {
@@ -52,13 +53,13 @@ const getCookie = <T>(name: Cookies, typeCheck: (value: unknown) => value is T):
     return undefined;
 };
 
-const setCookie = (name: Cookies, value: unknown) => { localStorage.setItem(name, JSON.stringify(value)); };
+const setCookie = (name: Cookies | string, value: unknown) => { localStorage.setItem(name, JSON.stringify(value)); };
 
 /**
  * Gets a cookie if it exists, otherwise sets it to the default value. 
  * Assumes that you have already checked that the cookie is allowed.
  */
-export const getOrSetCookie = <T>(name: Cookies, typeCheck: (value: unknown) => value is T, defaultValue?: T): T | undefined => {
+export const getOrSetCookie = <T>(name: Cookies | string, typeCheck: (value: unknown) => value is T, defaultValue?: T): T | undefined => {
     const cookie = getCookie(name, typeCheck);
     if (exists(cookie)) return cookie;
     if (exists(defaultValue)) setCookie(name, defaultValue);
@@ -200,6 +201,11 @@ export const getCookieShowMarkdown = <T extends boolean | undefined>(fallback?: 
     );
 export const setCookieShowMarkdown = (showMarkdown: boolean) => ifAllowed("functional", () => setCookie(Cookies.ShowMarkdown, showMarkdown));
 
+export const getCookieLastTab = <T>(id: string, fallback?: T): T | undefined => ifAllowed("functional", () => {
+    const lastTab = getOrSetCookie(`${Cookies.LastTab}-${id}`, (value: unknown): value is string => typeof value === "string", undefined);
+    return lastTab as unknown as T;
+}, fallback);
+export const setCookieLastTab = <T>(id: string, tabType: T) => ifAllowed("functional", () => setCookie(`${Cookies.LastTab}-${id}`, tabType));
 
 /** Supports ID data from URL params, as well as partial object */
 type PartialData = {

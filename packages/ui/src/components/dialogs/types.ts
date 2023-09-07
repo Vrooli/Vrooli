@@ -5,7 +5,7 @@ import { TitleProps } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
-import { DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
+import { DirectoryStep, RoutineListStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObject } from "utils/display/listTools";
@@ -146,7 +146,7 @@ export interface ReorderInputDialogProps {
 }
 
 export interface ShareObjectDialogProps extends DialogProps {
-    object: NavigableObject | null | undefined;
+    object: ListObject | null | undefined;
     open: boolean;
     onClose: () => unknown;
 }

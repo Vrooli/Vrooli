@@ -64,7 +64,7 @@ export const MyStuffView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<MyStuffPageTabOption>({ tabParams: filteredTabs, display });
+    } = useTabs<MyStuffPageTabOption>({ id: "my-stuff-tabs", tabParams: filteredTabs, display });
 
     // Menu for selection object type to create
     const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);

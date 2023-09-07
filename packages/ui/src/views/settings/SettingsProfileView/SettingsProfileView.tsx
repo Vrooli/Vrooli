@@ -55,7 +55,7 @@ const SettingsProfileForm = ({
                 dirty={dirty}
                 display={display}
                 isLoading={isLoading}
-                maxWidth={500}
+                maxWidth={600}
             >
                 <ProfilePictureInput
                     onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}

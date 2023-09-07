@@ -23,6 +23,25 @@ export type EndpointsAuth = {
 /** Expiry time for wallet authentication */
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
+/** Default user data */
+const DEFAULT_USER_DATA = {
+    isPrivateBookmarks: true,
+    isPrivateVotes: true,
+    focusModes: {
+        create: [{
+            name: "Work",
+            description: "This is an auto-generated focus mode. You can edit or delete it.",
+            reminderList: { create: {} },
+            resourceList: { create: {} },
+        }, {
+            name: "Study",
+            description: "This is an auto-generated focus mode. You can edit or delete it.",
+            reminderList: { create: {} },
+            resourceList: { create: {} },
+        }],
+    },
+};
+
 /**
  * GraphQL endpoints for all authentication queries and mutations. These include:
  * 1. Wallet login
@@ -128,19 +147,7 @@ export const AuthEndpoints: EndpointsAuth = {
                             { emailAddress: input.email },
                         ],
                     },
-                    focusModes: {
-                        create: [{
-                            name: "Work",
-                            description: "This is an auto-generated focus mode. You can edit or delete it.",
-                            reminderList: { create: {} },
-                            resourceList: { create: {} },
-                        }, {
-                            name: "Study",
-                            description: "This is an auto-generated focus mode. You can edit or delete it.",
-                            reminderList: { create: {} },
-                            resourceList: { create: {} },
-                        }],
-                    },
+                    ...DEFAULT_USER_DATA,
                 },
             });
             if (!user)
@@ -373,19 +380,7 @@ export const AuthEndpoints: EndpointsAuth = {
                         wallets: {
                             connect: { id: walletData.id },
                         },
-                        focusModes: {
-                            create: [{
-                                name: "Work",
-                                description: "This is an auto-generated focus mode. You can edit or delete it.",
-                                reminderList: { create: {} },
-                                resourceList: { create: {} },
-                            }, {
-                                name: "Study",
-                                description: "This is an auto-generated focus mode. You can edit or delete it.",
-                                reminderList: { create: {} },
-                                resourceList: { create: {} },
-                            }],
-                        },
+                        ...DEFAULT_USER_DATA,
                     },
                     select: { id: true },
                 });

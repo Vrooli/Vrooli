@@ -42,8 +42,9 @@ export const ScheduleUpsert = ({
         handleTabChange,
         tabs,
     } = useTabs<CalendarPageTabOption>({
+        id: "schedule-tabs",
         tabParams,
-        defaultTab: defaultTab ? (tabParams.findIndex(tp => tp.tabType === defaultTab) ?? 0) : 0,
+        defaultTab,
         display,
     });
 

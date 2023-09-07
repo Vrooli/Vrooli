@@ -38,7 +38,7 @@ export const SearchView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<SearchPageTabOption>({ tabParams: searchViewTabParams, display });
+    } = useTabs<SearchPageTabOption>({ id: "search-tabs", tabParams: searchViewTabParams, display });
 
     // Menu for selection object type to create
     const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);

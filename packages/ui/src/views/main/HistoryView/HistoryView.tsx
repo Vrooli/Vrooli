@@ -18,7 +18,7 @@ export const HistoryView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<HistoryPageTabOption>({ tabParams: historyTabParams, display });
+    } = useTabs<HistoryPageTabOption>({ id: "history-tabs", tabParams: historyTabParams, display });
 
     return (
         <>

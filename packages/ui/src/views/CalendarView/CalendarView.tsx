@@ -182,7 +182,7 @@ export const CalendarView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<CalendarPageTabOption>({ tabParams: calendarTabParams, display });
+    } = useTabs<CalendarPageTabOption>({ id: "calendar-tabs", tabParams: calendarTabParams, display });
 
     // Find schedules
     const {

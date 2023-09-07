@@ -21,7 +21,6 @@ import { toDisplay } from "utils/display/pageTools";
 import { InboxPageTabOption, inboxTabParams } from "utils/search/objectToSearch";
 import { InboxViewProps } from "../types";
 
-type InboxType = "Chat" | "Notification";
 type InboxObject = Chat | Notification;
 
 export const InboxView = ({
@@ -38,7 +37,7 @@ export const InboxView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<InboxPageTabOption>({ tabParams: inboxTabParams, display });
+    } = useTabs<InboxPageTabOption>({ id: "inbox-tabs", tabParams: inboxTabParams, display });
 
     const {
         allData,
@@ -131,7 +130,7 @@ export const InboxView = ({
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={allData.length === 0 && !loading}
-                sx={{ paddingBottom: pagePaddingBottom }}
+                sx={{ marginBottom: pagePaddingBottom }}
             >
                 <ObjectList
                     dummyItems={new Array(5).fill(searchType)}

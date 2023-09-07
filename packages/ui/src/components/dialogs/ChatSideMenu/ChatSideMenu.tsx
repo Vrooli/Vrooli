@@ -31,7 +31,7 @@ export const ChatSideMenu = () => {
         searchType,
         tabs,
         where,
-    } = useTabs<ChatPageTabOption>({ tabParams: chatTabParams, display: "dialog" });
+    } = useTabs<ChatPageTabOption>({ id: "chat-side-tabs", tabParams: chatTabParams, display: "dialog" });
 
     // Handle opening and closing
     const { isOpen, close } = useSideMenu(id, isMobile);

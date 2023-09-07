@@ -113,7 +113,7 @@ export const UserView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<UserPageTabOption>({ tabParams: availableTabs, display });
+    } = useTabs<UserPageTabOption>({ id: "user-tabs", tabParams: availableTabs, display });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -160,8 +160,8 @@ export const UserView = ({
             invites: {
                 id: uuid(),
                 userConnect: user.id,
-            }
-        })
+            },
+        });
         // Navigate to chat page
         setLocation(`${LINKS.Chat}/add`);
     }, [user]);

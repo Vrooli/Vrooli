@@ -90,7 +90,7 @@ export const OrganizationView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<OrganizationPageTabOption>({ tabParams: organizationTabParams, display });
+    } = useTabs<OrganizationPageTabOption>({ id: "organization-tabs", tabParams: organizationTabParams, display });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);

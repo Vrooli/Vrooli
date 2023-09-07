@@ -23,7 +23,7 @@ export const TermsView = ({
 
     const terms = useMarkdown(termsMarkdown);
 
-    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ tabParams: policyTabParams, defaultTab: 1, display: "dialog" });
+    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ id: "terms-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Terms, display: "dialog" });
     const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabOption, false>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });

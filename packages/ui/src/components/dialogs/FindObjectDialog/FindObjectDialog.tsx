@@ -99,7 +99,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         handleTabChange,
         searchType,
         tabs,
-    } = useTabs<FindObjectTabOption>({ tabParams: filteredTabs, display: "dialog" });
+    } = useTabs<FindObjectTabOption>({ id: "find-object-tabs", tabParams: filteredTabs, display: "dialog" });
 
     // Dialog for creating new object
     const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | null>(null);

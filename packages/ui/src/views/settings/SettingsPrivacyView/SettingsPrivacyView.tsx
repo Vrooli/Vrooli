@@ -37,7 +37,7 @@ const SettingsPrivacyForm = ({
                 isLoading={isLoading}
             >
                 {/* Overall notifications toggle */}
-                <ListContainer>
+                <ListContainer sx={{ marginBottom: 2 }}>
                     <SettingsToggleListItem
                         title={t("PrivateAccount")}
                         description={t("PushNotificationToggleDescription")}
