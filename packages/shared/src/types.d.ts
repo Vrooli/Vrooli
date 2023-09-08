@@ -1,6 +1,7 @@
 import { TFuncKey } from "i18next";
 import award from "./translations/locales/en/award.json" assert { type: "json" };
 import common from "./translations/locales/en/common.json" assert { type: "json" };
+import emojis from "./translations/locales/en/emojis.json" assert { type: "json" };
 import error from "./translations/locales/en/error.json" assert { type: "json" };
 import langs from "./translations/locales/en/langs.json" assert { type: "json" };
 import notify from "./translations/locales/en/notify.json" assert { type: "json" };
@@ -15,6 +16,7 @@ declare module "i18next" {
         resources: {
             award: typeof award;
             common: typeof common;
+            emojis: typeof emojis;
             // validate: typeof validate;
             error: typeof error;
             langs: typeof langs;
@@ -26,6 +28,7 @@ declare module "i18next" {
 // Translations
 export type AwardKey = TFuncKey<"award", undefined>
 export type CommonKey = TFuncKey<"common", undefined>
+export type EmojisKey = TFuncKey<"emojis", undefined>
 export type ErrorKey = TFuncKey<"error", undefined>
 export type LangsKey = TFuncKey<"langs", undefined>
 export type NotifyKey = TFuncKey<"notify", undefined>

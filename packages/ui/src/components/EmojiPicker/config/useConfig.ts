@@ -1,12 +1,8 @@
 import { usePickerConfig } from "../components/context/PickerConfigContext";
 import { isSystemDarkTheme } from "../DomUtils/isDarkTheme";
-import { EmojiClickData, EmojiStyle, SkinTonePickerLocation, SkinTones, SuggestionMode, Theme } from "../types";
+import { EmojiClickData, SkinTonePickerLocation, SkinTones, SuggestionMode, Theme } from "../types";
 import { CategoriesConfig } from "./categoryConfig";
-import {
-    DEFAULT_SEARCH_PLACEHOLDER,
-    PickerDimensions,
-    PreviewConfig
-} from "./config";
+import { DEFAULT_SEARCH_PLACEHOLDER, PickerDimensions, PreviewConfig } from "./config";
 import { CustomEmoji } from "./customEmojiConfig";
 
 export function useSearchPlaceHolderConfig(): string {
@@ -26,11 +22,6 @@ export function useDefaultSkinToneConfig(): SkinTones {
 export function useSkinTonesDisabledConfig(): boolean {
     const { skinTonesDisabled } = usePickerConfig();
     return skinTonesDisabled;
-}
-
-export function useEmojiStyleConfig(): EmojiStyle {
-    const { emojiStyle } = usePickerConfig();
-    return emojiStyle;
 }
 
 export function useAutoFocusSearchConfig(): boolean {
@@ -107,14 +98,6 @@ export function useSkinTonePickerLocationConfig(): SkinTonePickerLocation {
 export function useUnicodeToHide() {
     const { unicodeToHide } = usePickerConfig();
     return unicodeToHide;
-}
-
-export function useGetEmojiUrlConfig(): (
-    unified: string,
-    style: EmojiStyle
-) => string {
-    const { getEmojiUrl } = usePickerConfig();
-    return getEmojiUrl;
 }
 
 function getDimension(dimensionConfig: PickerDimensions): PickerDimensions {

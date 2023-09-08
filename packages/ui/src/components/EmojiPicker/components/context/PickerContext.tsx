@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useState } from "react";
+import { noop } from "utils/objects";
 import { useDefaultSkinToneConfig } from "../../config/useConfig";
 import { alphaNumericEmojiIndex } from "../../dataUtils/alphaNumericEmojiIndex";
 import { DataEmoji } from "../../dataUtils/DataTypes";
@@ -70,18 +71,18 @@ const PickerContext = React.createContext<{
     disallowMouseRef: React.MutableRefObject<boolean>;
     disallowedEmojisRef: React.MutableRefObject<Record<string, boolean>>;
 }>({
-    activeCategoryState: [null, () => { }],
-    activeSkinTone: [SkinTones.NEUTRAL, () => { }],
+    activeCategoryState: [null, noop],
+    activeSkinTone: [SkinTones.NEUTRAL, noop],
     disallowClickRef: { current: false },
     disallowMouseRef: { current: false },
     disallowedEmojisRef: { current: {} },
-    emojiVariationPickerState: [null, () => { }],
-    emojisThatFailedToLoadState: [new Set(), () => { }],
+    emojiVariationPickerState: [null, noop],
+    emojisThatFailedToLoadState: [new Set(), noop],
     filterRef: { current: {} },
     isPastInitialLoad: true,
     searchTerm: ["", () => new Promise<string>(() => undefined)],
-    skinToneFanOpenState: [false, () => { }],
-    suggestedUpdateState: [Date.now(), () => { }],
+    skinToneFanOpenState: [false, noop],
+    suggestedUpdateState: [Date.now(), noop],
 });
 
 type Props = Readonly<{

@@ -4,7 +4,6 @@ import { usePickerSizeConfig, useThemeConfig } from "../../config/useConfig";
 import { ClassNames } from "../../DomUtils/classNames";
 import useIsSearchMode from "../../hooks/useIsSearchMode";
 import { useKeyboardNavigation } from "../../hooks/useKeyboardNavigation";
-import { useOnFocus } from "../../hooks/useOnFocus";
 import { Theme } from "../../types";
 import { usePickerMainRef } from "../context/ElementRefContext";
 import { PickerContextProvider } from "../context/PickerContext";
@@ -33,7 +32,6 @@ function PickerRootElement({ children }: RootProps) {
     const { height, width } = usePickerSizeConfig();
 
     useKeyboardNavigation();
-    useOnFocus();
 
     const style = {
         height,

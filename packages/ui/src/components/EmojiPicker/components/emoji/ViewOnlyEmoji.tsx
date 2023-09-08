@@ -1,7 +1,6 @@
 import * as React from "react";
-import { emojiByUnified, emojiName, emojiUrlByUnified } from "../../dataUtils/emojiSelectors";
+import { emojiByUnified } from "../../dataUtils/emojiSelectors";
 import { isCustomEmoji } from "../../typeRefinements/typeRefinements";
-import { EmojiStyle } from "../../types";
 import { useEmojisThatFailedToLoadState } from "../context/PickerContext";
 import { BaseEmojiProps } from "./BaseEmojiProps";
 import { EmojiImg } from "./EmojiImg";
@@ -10,10 +9,8 @@ import { NativeEmoji } from "./NativeEmoji";
 export function ViewOnlyEmoji({
     emoji,
     unified,
-    emojiStyle,
     size,
     lazyLoad,
-    getEmojiUrl = emojiUrlByUnified,
 }: BaseEmojiProps) {
     const [, setEmojisThatFailedToLoad] = useEmojisThatFailedToLoadState();
 
@@ -33,7 +30,6 @@ export function ViewOnlyEmoji({
             <EmojiImg
                 style={style}
                 emojiName={unified}
-                emojiStyle={emojiStyle}
                 lazyLoad={lazyLoad}
                 imgUrl={emojiToRender.imgUrl}
                 onError={onError}
@@ -42,20 +38,7 @@ export function ViewOnlyEmoji({
     }
 
     return (
-        <>
-            {emojiStyle === EmojiStyle.NATIVE ? (
-                <NativeEmoji unified={unified} style={style} />
-            ) : (
-                <EmojiImg
-                    style={style}
-                    emojiName={emojiName(emojiToRender)}
-                    emojiStyle={emojiStyle}
-                    lazyLoad={lazyLoad}
-                    imgUrl={getEmojiUrl(unified, emojiStyle)}
-                    onError={onError}
-                />
-            )}
-        </>
+        <NativeEmoji unified={unified} style={style} />
     );
 
     function onError() {

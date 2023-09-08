@@ -1,19 +1,13 @@
-import { EmojiStyle } from "../../types";
-import { GetEmojiUrl } from "./BaseEmojiProps";
 import { ViewOnlyEmoji } from "./ViewOnlyEmoji";
 
 export function ExportedEmoji({
     unified,
     size = 32,
-    emojiStyle = EmojiStyle.APPLE,
     lazyLoad = false,
-    getEmojiUrl,
 }: {
     unified: string;
-    emojiStyle?: EmojiStyle;
     size?: number;
     lazyLoad?: boolean;
-    getEmojiUrl?: GetEmojiUrl;
 }) {
     if (!unified) {
         return null;
@@ -23,9 +17,7 @@ export function ExportedEmoji({
         <ViewOnlyEmoji
             unified={unified}
             size={size}
-            emojiStyle={emojiStyle}
             lazyLoad={lazyLoad}
-            getEmojiUrl={getEmojiUrl}
         />
     );
 }

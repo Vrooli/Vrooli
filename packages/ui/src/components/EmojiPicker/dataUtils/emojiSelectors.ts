@@ -1,18 +1,19 @@
+import { EmojisKey } from "@local/shared";
+import i18next from "i18next";
 import { Categories } from "../config/categoryConfig";
-import { cdnUrl } from "../config/cdnUrls";
 import { CustomEmoji } from "../config/customEmojiConfig";
 import emojis from "../data/emojis";
 import skinToneVariations, { skinTonesMapped } from "../data/skinToneVariations";
-import { EmojiStyle, SkinTones } from "../types";
+import { SkinTones } from "../types";
 import { indexEmoji } from "./alphaNumericEmojiIndex";
 import { DataEmoji, DataEmojis, EmojiProperties, WithName } from "./DataTypes";
 
-export function emojiNames(emoji: WithName): string[] {
-    return emoji[EmojiProperties.name] ?? [];
-}
-
 export function addedIn(emoji: DataEmoji): number {
     return parseFloat(emoji[EmojiProperties.added_in]);
+}
+
+export function emojiNames(emoji: WithName): string[] {
+    return emoji[EmojiProperties.name] ?? [];
 }
 
 export function emojiName(emoji?: WithName): string {
@@ -45,16 +46,7 @@ export function emojiUnified(emoji: DataEmoji, skinTone?: string): string {
 }
 
 export function emojisByCategory(category: Categories): DataEmojis {
-    // @ts-ignore
     return emojis?.[category] ?? [];
-}
-
-// WARNING: DO NOT USE DIRECTLY
-export function emojiUrlByUnified(
-    unified: string,
-    emojiStyle: EmojiStyle,
-): string {
-    return `${cdnUrl(emojiStyle)}${unified}.png`;
 }
 
 export function emojiVariations(emoji: DataEmoji): string[] {
@@ -87,7 +79,11 @@ export function emojiByUnified(unified?: string): DataEmoji | undefined {
     return allEmojisByUnified[withoutSkinTone];
 }
 
-export const allEmojis: DataEmojis = Object.values(emojis).flat();
+export const allEmojis = Object.values(emojis).map(category => category.map(emoji => ({
+    ...emoji,
+    name: (i18next.t(`emojis:${emoji.u.toLowerCase() as unknown as EmojisKey}`, { ns: "emojis" }) ?? "").split(", "),
+}))).flat() as DataEmoji[];
+console.log("got all emojis", allEmojis, i18next.t("Submit"), i18next.t("emojis:1f606", { ns: "emojis" }));
 
 export function addCustomEmojis(customEmojis: CustomEmoji[]): void {
     customEmojis.forEach(emoji => {
@@ -106,10 +102,10 @@ export function addCustomEmojis(customEmojis: CustomEmoji[]): void {
 
 function customToRegularEmoji(emoji: CustomEmoji): DataEmoji {
     return {
-        [EmojiProperties.name]: emoji.names.map(name => name.toLowerCase()),
-        [EmojiProperties.unified]: emoji.id.toLowerCase(),
-        [EmojiProperties.added_in]: "0",
-        [EmojiProperties.imgUrl]: emoji.imgUrl,
+        name: i18next.t(emoji.id.toLowerCase() as unknown as EmojisKey, { ns: "emojis" }).split(", "),
+        u: emoji.id.toLowerCase(),
+        a: "0",
+        imgUrl: emoji.imgUrl,
     };
 }
 

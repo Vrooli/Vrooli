@@ -1,5 +1,6 @@
 import award from "./locales/en/award.json" assert { type: "json" };
 import common from "./locales/en/common.json" assert { type: "json" };
+import emojis from "./locales/en/emojis.json" assert { type: "json" };
 import error from "./locales/en/error.json" assert { type: "json" };
 import langs from "./locales/en/langs.json" assert { type: "json" };
 import notify from "./locales/en/notify.json" assert { type: "json" };
@@ -13,6 +14,7 @@ const resources = {
         award,
         common,
         // validate,
+        emojis,
         error,
         langs,
         notify,
@@ -32,7 +34,7 @@ export const i18nConfig = (debug: boolean, appendNS = true) => ({
     debug,
     partialBundledLanguages: true,
     defaultNS,
-    ns: ["common", "error", "notify", "award", "tasks", "langs"], // 'validate'
+    ns: ["common", "error", "notify", "award", "tasks", "langs", "emojis"], // 'validate'
     nsSeparator: ":",
     fallbackLng: "en",
     resources,

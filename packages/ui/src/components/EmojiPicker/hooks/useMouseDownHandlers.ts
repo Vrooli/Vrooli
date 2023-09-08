@@ -1,14 +1,13 @@
 import * as React from "react";
 import { useEffect, useRef } from "react";
 import { useActiveSkinToneState, useDisallowClickRef, useEmojiVariationPickerState, useUpdateSuggested } from "../components/context/PickerContext";
-import { GetEmojiUrl } from "../components/emoji/BaseEmojiProps";
-import { useGetEmojiUrlConfig, useOnEmojiClickConfig } from "../config/useConfig";
+import { useOnEmojiClickConfig } from "../config/useConfig";
 import { DataEmoji } from "../dataUtils/DataTypes";
 import { activeVariationFromUnified, emojiHasVariations, emojiNames, emojiUnified } from "../dataUtils/emojiSelectors";
 import { parseNativeEmoji } from "../dataUtils/parseNativeEmoji";
 import { setSuggested } from "../dataUtils/suggested";
 import { emojiFromElement, isEmojiElement, NullableElement } from "../DomUtils/selectors";
-import { EmojiClickData, EmojiStyle, SkinTones } from "../types";
+import { EmojiClickData, SkinTones } from "../types";
 import { useCloseAllOpenToggles } from "./useCloseAllOpenToggles";
 import useSetVariationPicker from "./useSetVariationPicker";
 
@@ -23,7 +22,6 @@ export function useMouseDownHandlers(
     const [activeSkinTone] = useActiveSkinToneState();
     const onEmojiClick = useOnEmojiClickConfig();
     const [, updateSuggested] = useUpdateSuggested();
-    const getEmojiUrl = useGetEmojiUrlConfig();
 
     const onClick = React.useCallback(
         function onClick(event: MouseEvent) {
@@ -44,7 +42,7 @@ export function useMouseDownHandlers(
 
             updateSuggested();
             setSuggested(emoji, skinToneToUse);
-            onEmojiClick(emojiClickOutput(emoji, skinToneToUse, getEmojiUrl), event);
+            onEmojiClick(emojiClickOutput(emoji, skinToneToUse), event);
         },
         [
             activeSkinTone,
@@ -52,7 +50,6 @@ export function useMouseDownHandlers(
             disallowClickRef,
             onEmojiClick,
             updateSuggested,
-            getEmojiUrl,
         ],
     );
 
@@ -139,15 +136,11 @@ function emojiFromEvent(event: MouseEvent): [DataEmoji, string] | [] {
 function emojiClickOutput(
     emoji: DataEmoji,
     activeSkinTone: SkinTones,
-    getEmojiUrl: GetEmojiUrl,
 ): EmojiClickData {
     const unified = emojiUnified(emoji, activeSkinTone);
     return {
         activeSkinTone,
         emoji: parseNativeEmoji(unified),
-        getImageUrl(emojiStyle: EmojiStyle) {
-            return getEmojiUrl(unified, emojiStyle);
-        },
         names: emojiNames(emoji),
         unified,
         unifiedWithoutSkinTone: emojiUnified(emoji),

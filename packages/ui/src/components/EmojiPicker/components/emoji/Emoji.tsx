@@ -19,11 +19,9 @@ export function ClickableEmoji({
     unified,
     hidden,
     hiddenOnSearch,
-    emojiStyle,
     showVariations = true,
     size,
     lazyLoad,
-    getEmojiUrl,
 }: ClickableEmojiProps) {
     const hasVariations = emojiHasVariations(emoji);
 
@@ -40,9 +38,7 @@ export function ClickableEmoji({
                 unified={unified}
                 emoji={emoji}
                 size={size}
-                emojiStyle={emojiStyle}
                 lazyLoad={lazyLoad}
-                getEmojiUrl={getEmojiUrl}
             />
         </ClickableEmojiButton>
     );

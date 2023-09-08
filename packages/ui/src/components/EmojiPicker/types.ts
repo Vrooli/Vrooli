@@ -4,20 +4,11 @@ export type EmojiClickData = {
     unifiedWithoutSkinTone: string;
     emoji: string;
     names: string[];
-    getImageUrl: (emojiStyle: EmojiStyle) => string;
 };
 
 export enum SuggestionMode {
     RECENT = "recent",
     FREQUENT = "frequent"
-}
-
-export enum EmojiStyle {
-    NATIVE = "native",
-    APPLE = "apple",
-    TWITTER = "twitter",
-    GOOGLE = "google",
-    FACEBOOK = "facebook"
 }
 
 export enum Theme {

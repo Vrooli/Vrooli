@@ -1,7 +1,7 @@
 import emojis from "../data/emojis";
 
 export enum EmojiProperties {
-    name = "n",
+    name = "name",
     unified = "u",
     variations = "v",
     added_in = "a",
@@ -20,5 +20,5 @@ export type DataEmojis = DataEmoji[];
 export type DataGroups = keyof typeof emojis;
 
 export type WithName = {
-    [EmojiProperties.name]: string[];
+    name: string[];
 };

@@ -1,7 +1,6 @@
 import clsx from "clsx";
 import * as React from "react";
 import { ClassNames } from "../../DomUtils/classNames";
-import { EmojiStyle } from "../../types";
 
 export function EmojiImg({
     emojiName,
@@ -11,7 +10,6 @@ export function EmojiImg({
     onError,
 }: {
     emojiName: string;
-    emojiStyle: EmojiStyle;
     style: React.CSSProperties;
     lazyLoad?: boolean;
     imgUrl: string;

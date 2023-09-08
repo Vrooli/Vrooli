@@ -1,6 +1,5 @@
-import { GetEmojiUrl } from "../components/emoji/BaseEmojiProps";
-import { addCustomEmojis, emojiUrlByUnified } from "../dataUtils/emojiSelectors";
-import { EmojiClickData, EmojiStyle, SkinTonePickerLocation, SkinTones, SuggestionMode, Theme } from "../types";
+import { addCustomEmojis } from "../dataUtils/emojiSelectors";
+import { EmojiClickData, SkinTonePickerLocation, SkinTones, SuggestionMode, Theme } from "../types";
 import {
     baseCategoriesConfig, CategoriesConfig, mergeCategoriesConfig
 } from "./categoryConfig";
@@ -45,16 +44,12 @@ export function basePickerConfig(): PickerConfigInternal {
         categories: baseCategoriesConfig(),
         customEmojis: [],
         defaultSkinTone: SkinTones.NEUTRAL,
-        emojiStyle: EmojiStyle.APPLE,
         emojiVersion: null,
-        getEmojiUrl: emojiUrlByUnified,
         height: 450,
         lazyLoadEmojis: false,
         onEmojiClick: function defaultOnClickHandler(
-            // @ts-ignore
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             emoji: EmojiClickData,
-            // @ts-ignore
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             event: MouseEvent,
         ) { },
@@ -80,7 +75,6 @@ export type PickerConfigInternal = {
     defaultSkinTone: SkinTones;
     skinTonesDisabled: boolean;
     autoFocusSearch: boolean;
-    emojiStyle: EmojiStyle;
     categories: CategoriesConfig;
     onEmojiClick: (emoji: EmojiClickData, event: MouseEvent) => void;
     theme: Theme;
@@ -89,7 +83,6 @@ export type PickerConfigInternal = {
     previewConfig: PreviewConfig;
     height: PickerDimensions;
     width: PickerDimensions;
-    getEmojiUrl: GetEmojiUrl;
     searchDisabled: boolean;
     skinTonePickerLocation: SkinTonePickerLocation;
     unicodeToHide: Set<string>;

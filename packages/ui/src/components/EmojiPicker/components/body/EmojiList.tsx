@@ -1,5 +1,5 @@
 import { Categories, CategoryConfig, categoryFromCategoryConfig } from "../../config/categoryConfig";
-import { useCategoriesConfig, useEmojiStyleConfig, useGetEmojiUrlConfig, useLazyLoadEmojisConfig, useSkinTonesDisabledConfig } from "../../config/useConfig";
+import { useCategoriesConfig, useLazyLoadEmojisConfig, useSkinTonesDisabledConfig } from "../../config/useConfig";
 import { emojisByCategory, emojiUnified } from "../../dataUtils/emojiSelectors";
 import { ClassNames } from "../../DomUtils/classNames";
 import { useIsEmojiDisallowed } from "../../hooks/useDisallowedEmojis";
@@ -46,11 +46,9 @@ function RenderCategory({
 }) {
     const isEmojiHidden = useIsEmojiHidden();
     const lazyLoadEmojis = useLazyLoadEmojisConfig();
-    const emojiStyle = useEmojiStyleConfig();
     const isPastInitialLoad = useIsPastInitialLoad();
     const [activeSkinTone] = useActiveSkinToneState();
     const isEmojiDisallowed = useIsEmojiDisallowed();
-    const getEmojiUrl = useGetEmojiUrlConfig();
     const showVariations = !useSkinTonesDisabledConfig();
 
     // Small trick to defer the rendering of all emoji categories until the first category is visible
@@ -82,9 +80,7 @@ function RenderCategory({
                 unified={unified}
                 hidden={failedToLoad}
                 hiddenOnSearch={filteredOut}
-                emojiStyle={emojiStyle}
                 lazyLoad={lazyLoadEmojis}
-                getEmojiUrl={getEmojiUrl}
             />
         );
     });

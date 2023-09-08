@@ -1,7 +1,6 @@
 import clsx from "clsx";
 import * as React from "react";
 import { useEffect } from "react";
-import { useEmojiStyleConfig, useGetEmojiUrlConfig } from "../../config/useConfig";
 import { emojiHasVariations, emojiUnified, emojiVariations } from "../../dataUtils/emojiSelectors";
 import { ClassNames } from "../../DomUtils/classNames";
 import { focusFirstVisibleEmoji } from "../../DomUtils/keyboardNavigation";
@@ -20,14 +19,12 @@ export function EmojiVariationPicker() {
     const AnchoredEmojiRef = useAnchoredEmojiRef();
     const VariationPickerRef = useVariationPickerRef();
     const [emoji] = useEmojiVariationPickerState();
-    const emojiStyle = useEmojiStyleConfig();
 
     const { getTop, getMenuDirection } = useVariationPickerTop(
         VariationPickerRef,
     );
     const setAnchoredEmojiRef = useSetAnchoredEmojiRef();
     const getPointerStyle = usePointerStyle(VariationPickerRef);
-    const getEmojiUrl = useGetEmojiUrlConfig();
 
     const button = buttonFromTarget(AnchoredEmojiRef.current);
 
@@ -72,9 +69,7 @@ export function EmojiVariationPicker() {
                             key={unified}
                             emoji={emoji}
                             unified={unified}
-                            emojiStyle={emojiStyle}
                             showVariations={false}
-                            getEmojiUrl={getEmojiUrl}
                         />
                     ))
                 : null}

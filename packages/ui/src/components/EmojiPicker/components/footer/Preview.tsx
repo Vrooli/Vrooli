@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useEmojiStyleConfig, useGetEmojiUrlConfig, usePreviewConfig } from "../../config/useConfig";
+import { usePreviewConfig } from "../../config/useConfig";
 import { emojiByUnified, emojiName, emojiUnified } from "../../dataUtils/emojiSelectors";
 import { useEmojiPreviewEvents } from "../../hooks/useEmojiPreviewEvents";
 import { useIsSkinToneInPreview } from "../../hooks/useShouldShowSkinTonePicker";
@@ -30,9 +30,7 @@ export function Preview() {
 export function PreviewBody() {
     const previewConfig = usePreviewConfig();
     const [previewEmoji, setPreviewEmoji] = useState<PreviewEmoji>(null);
-    const emojiStyle = useEmojiStyleConfig();
     const [variationPickerEmoji] = useEmojiVariationPickerState();
-    const getEmojiUrl = useGetEmojiUrlConfig();
 
     useEmojiPreviewEvents(previewConfig.showPreview, setPreviewEmoji);
 
@@ -58,17 +56,13 @@ export function PreviewBody() {
                         <ViewOnlyEmoji
                             unified={previewEmoji?.unified as string}
                             emoji={emoji}
-                            emojiStyle={emojiStyle}
                             size={45}
-                            getEmojiUrl={getEmojiUrl}
                         />
                     ) : defaultEmoji ? (
                         <ViewOnlyEmoji
                             unified={emojiUnified(defaultEmoji)}
                             emoji={defaultEmoji}
-                            emojiStyle={emojiStyle}
                             size={45}
-                            getEmojiUrl={getEmojiUrl}
                         />
                     ) : null}
                 </div>
