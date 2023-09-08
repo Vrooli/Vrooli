@@ -1,11 +1,11 @@
 import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPutChatMessage, ReactionSummary } from "@local/shared";
-import { Avatar, Badge, Box, Grid, Menu, Stack, Typography, useTheme } from "@mui/material";
+import { Avatar, Badge, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
 import IconButton from "@mui/material/IconButton";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import EmojiPicker from "components/EmojiPicker";
+import EmojiPicker from "components/EmojiPicker/EmojiPicker";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
@@ -188,19 +188,10 @@ const ChatBubbleReactions = ({
                         <AddIcon />
                     </IconButton>
                 )}
-                <Menu
+                <EmojiPicker
                     anchorEl={anchorEl}
-                    open={Boolean(anchorEl)}
                     onClose={handleEmojiMenuClose}
-                    PaperProps={{
-                        style: {
-                            maxWidth: "min(100vw, 400px)",
-                            overflowX: "hidden",
-                        },
-                    }}
-                >
-                    <EmojiPicker />
-                </Menu>
+                />
             </Stack>
             {isBot && <Stack direction="row" spacing={1}>
                 <IconButton size="small">

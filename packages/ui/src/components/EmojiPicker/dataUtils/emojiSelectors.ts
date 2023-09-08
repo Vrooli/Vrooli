@@ -1,16 +1,8 @@
 import { EmojisKey } from "@local/shared";
 import i18next from "i18next";
-import { Categories } from "../config/categoryConfig";
-import { CustomEmoji } from "../config/customEmojiConfig";
 import emojis from "../data/emojis";
-import skinToneVariations, { skinTonesMapped } from "../data/skinToneVariations";
-import { SkinTones } from "../types";
-import { indexEmoji } from "./alphaNumericEmojiIndex";
-import { DataEmoji, DataEmojis, EmojiProperties, WithName } from "./DataTypes";
-
-export function addedIn(emoji: DataEmoji): number {
-    return parseFloat(emoji[EmojiProperties.added_in]);
-}
+import { SkinTones } from "../EmojiPicker";
+import { DataEmoji, EmojiProperties, WithName } from "./DataTypes";
 
 export function emojiNames(emoji: WithName): string[] {
     return emoji[EmojiProperties.name] ?? [];
@@ -28,7 +20,7 @@ export function unifiedWithoutSkinTone(unified: string): string {
     const splat = unified.split("-");
     const [skinTone] = splat.splice(1, 1);
 
-    if (skinTonesMapped[skinTone]) {
+    if (SkinTones[skinTone]) {
         return splat.join("-");
     }
 
@@ -38,23 +30,11 @@ export function unifiedWithoutSkinTone(unified: string): string {
 export function emojiUnified(emoji: DataEmoji, skinTone?: string): string {
     const unified = emoji[EmojiProperties.unified];
 
-    if (!skinTone || !emojiHasVariations(emoji)) {
+    if (!skinTone || !Array.isArray(emoji[EmojiProperties.variations]) || emoji[EmojiProperties.variations].length === 0) {
         return unified;
     }
 
     return emojiVariationUnified(emoji, skinTone) ?? unified;
-}
-
-export function emojisByCategory(category: Categories): DataEmojis {
-    return emojis?.[category] ?? [];
-}
-
-export function emojiVariations(emoji: DataEmoji): string[] {
-    return emoji[EmojiProperties.variations] ?? [];
-}
-
-export function emojiHasVariations(emoji: DataEmoji): boolean {
-    return emojiVariations(emoji).length > 0;
 }
 
 export function emojiVariationUnified(
@@ -62,7 +42,7 @@ export function emojiVariationUnified(
     skinTone?: string,
 ): string | undefined {
     return skinTone
-        ? emojiVariations(emoji).find(variation => variation.includes(skinTone))
+        ? (emoji[EmojiProperties.variations] ?? []).find(variation => variation.includes(skinTone))
         : emojiUnified(emoji);
 }
 
@@ -83,46 +63,8 @@ export const allEmojis = Object.values(emojis).map(category => category.map(emoj
     ...emoji,
     name: (i18next.t(`emojis:${emoji.u.toLowerCase() as unknown as EmojisKey}`, { ns: "emojis" }) ?? "").split(", "),
 }))).flat() as DataEmoji[];
-console.log("got all emojis", allEmojis, i18next.t("Submit"), i18next.t("emojis:1f606", { ns: "emojis" }));
-
-export function addCustomEmojis(customEmojis: CustomEmoji[]): void {
-    customEmojis.forEach(emoji => {
-        const emojiData = customToRegularEmoji(emoji);
-
-        if (allEmojisByUnified[emojiData[EmojiProperties.unified]]) {
-            return;
-        }
-
-        allEmojis.push(emojiData);
-        allEmojisByUnified[emojiData[EmojiProperties.unified]] = emojiData;
-        emojis[Categories.CUSTOM].push(emojiData as never);
-        indexEmoji(emojiData);
-    });
-}
-
-function customToRegularEmoji(emoji: CustomEmoji): DataEmoji {
-    return {
-        name: i18next.t(emoji.id.toLowerCase() as unknown as EmojisKey, { ns: "emojis" }).split(", "),
-        u: emoji.id.toLowerCase(),
-        a: "0",
-        imgUrl: emoji.imgUrl,
-    };
-}
+console.log("got all emojis", allEmojis, i18next.t("common:Submit"), i18next.t("emojis:1f606", { ns: "emojis" }));
 
 const allEmojisByUnified: {
     [unified: string]: DataEmoji;
 } = {};
-
-setTimeout(() => {
-    allEmojis.reduce((allEmojis, Emoji) => {
-        allEmojis[emojiUnified(Emoji)] = Emoji;
-        return allEmojis;
-    }, allEmojisByUnified);
-});
-
-export function activeVariationFromUnified(unified: string): SkinTones | null {
-    const [, suspectedSkinTone] = unified.split("-") as [string, SkinTones];
-    return skinToneVariations.includes(suspectedSkinTone)
-        ? suspectedSkinTone
-        : null;
-}

@@ -11,7 +11,7 @@ export enum EmojiProperties {
 export interface DataEmoji extends WithName {
     [EmojiProperties.unified]: string;
     [EmojiProperties.variations]?: string[];
-    [EmojiProperties.added_in]: string;
+    [EmojiProperties.added_in]: number;
     [EmojiProperties.imgUrl]?: string;
 }
 
