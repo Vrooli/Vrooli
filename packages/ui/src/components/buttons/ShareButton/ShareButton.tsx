@@ -3,6 +3,7 @@ import { ShareObjectDialog } from "components/dialogs/ShareObjectDialog/ShareObj
 import { ShareIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ListObject } from "utils/display/listTools";
 import { ShareButtonProps } from "../types";
 
 export const ShareButton = ({
@@ -18,7 +19,7 @@ export const ShareButton = ({
     return (
         <>
             <ShareObjectDialog
-                object={object}
+                object={object as ListObject}
                 open={open}
                 onClose={closeDialog}
             />

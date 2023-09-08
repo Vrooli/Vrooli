@@ -17,7 +17,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTabs } from "hooks/useTabs";
-import { EditIcon, EllipsisIcon, OrganizationIcon, SearchIcon } from "icons";
+import { EditIcon, EllipsisIcon, ExportIcon, OrganizationIcon, SearchIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -199,11 +199,6 @@ export const OrganizationView = ({
                         ) : <Title
                             title={name}
                             variant="header"
-                            options={permissions.canUpdate ? [{
-                                label: t("Edit"),
-                                Icon: EditIcon,
-                                onClick: () => { actionData.onActionStart("Edit"); },
-                            }] : []}
                             sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
                         />
                     }
@@ -298,6 +293,12 @@ export const OrganizationView = ({
                 {currTab.tabType !== OrganizationPageTabOption.Resource ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton> : null}
+                {permissions.canUpdate ? <IconButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }} sx={{ background: palette.secondary.main }}>
+                    <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton> : null}
+                <IconButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }} sx={{ background: palette.secondary.main, width: "52px", height: "52px" }}>
+                    <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
+                </IconButton>
             </SideActionsButtons>
         </>
     );

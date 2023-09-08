@@ -17,7 +17,7 @@ import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, SearchIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setSearchParams, useLocation } from "route";
@@ -248,11 +248,6 @@ export const UserView = ({
                             title={name}
                             variant="header"
                             adornments={adornments}
-                            options={permissions.canUpdate ? [{
-                                label: t("Edit"),
-                                Icon: EditIcon,
-                                onClick: () => { actionData.onActionStart("Edit"); },
-                            }] : []}
                             sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
                         />
                     }
@@ -459,6 +454,12 @@ export const UserView = ({
                 {currTab.tabType !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton> : null}
+                {permissions.canUpdate ? <IconButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }} sx={{ background: palette.secondary.main }}>
+                    <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton> : null}
+                <IconButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }} sx={{ background: palette.secondary.main, width: "52px", height: "52px" }}>
+                    <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
+                </IconButton>
                 <IconButton aria-label={t("AddToTeam")} onClick={handleAddOrInvite} sx={{ background: palette.secondary.main }}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>
