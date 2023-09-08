@@ -37,8 +37,6 @@ type UseTabsParam<T, S extends boolean = true> = TabParam<T, S>;
 /**
  * Contains logic for displaying tabs and handling tab changes.
  */
-// ... (the rest of your imports remain unchanged)
-
 export const useTabs = <T, S extends boolean = true>({
     defaultTab,
     display,
@@ -69,7 +67,6 @@ export const useTabs = <T, S extends boolean = true>({
 
     const [currTab, setCurrTab] = useState<PageTab<T, S>>(() => {
         const storedTab = getCookieLastTab<T>(id);
-        console.log("got stored tab", id, storedTab);
         if (display !== "page") {
             const defaultIndex = tabs.findIndex(tab => tab.tabType === (storedTab || defaultTab));
             return tabs[defaultIndex !== -1 ? defaultIndex : 0];

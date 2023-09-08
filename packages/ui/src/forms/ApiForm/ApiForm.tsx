@@ -216,16 +216,16 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                         versions={versions}
                     />
                 </FormContainer>
-                <BottomActionsButtons
-                    display={display}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
             </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
         </>
     );
 });

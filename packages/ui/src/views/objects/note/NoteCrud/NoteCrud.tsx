@@ -7,6 +7,7 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -24,6 +25,7 @@ import { useUpsertActions } from "hooks/useUpsertActions";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { FormContainer, FormSection } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYou, ListObject } from "utils/display/listTools";
@@ -198,9 +200,50 @@ const NoteForm = ({
                     language={language}
                     titleField="name"
                     subtitleField="description"
-                    validationEnabled={false}
                     variant="subheader"
                     sxs={{ stack: { padding: 0 } }}
+                    DialogContentForm={() => (
+                        <>
+                            <BaseForm
+                                dirty={dirty}
+                                display="dialog"
+                                style={{
+                                    width: "min(500px, 100vw)",
+                                    paddingBottom: "16px",
+                                }}
+                            >
+                                <FormContainer>
+                                    <RelationshipList
+                                        isEditing={true}
+                                        objectType={"Note"}
+                                        sx={{ marginBottom: 4 }}
+                                    />
+                                    <FormSection sx={{ overflowX: "hidden" }}>
+                                        <LanguageInput
+                                            currentLanguage={language}
+                                            handleAdd={handleAddLanguage}
+                                            handleDelete={handleDeleteLanguage}
+                                            handleCurrent={setLanguage}
+                                            languages={languages}
+                                        />
+                                        <TranslatedTextField
+                                            fullWidth
+                                            label={t("Name")}
+                                            language={language}
+                                            name="name"
+                                        />
+                                        <TranslatedRichInput
+                                            language={language}
+                                            maxChars={2048}
+                                            minRows={4}
+                                            name="description"
+                                            placeholder={t("Description")}
+                                        />
+                                    </FormSection>
+                                </FormContainer>
+                            </BaseForm>
+                        </>
+                    )}
                 />}
             />
             <BaseForm
@@ -260,7 +303,7 @@ const NoteForm = ({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
                 sideActionButtons={{
-                    children: (
+                    children: (!isCreate || (disabled && languages.length > 1)) ? (
                         <EllipsisActionButton>
                             <>
                                 <Box sx={{
@@ -268,21 +311,11 @@ const NoteForm = ({
                                     justifyContent: "center",
                                     alignItems: "center",
                                 }}>
-                                    {!disabled ? <LanguageInput
-                                        currentLanguage={language}
-                                        handleAdd={handleAddLanguage}
-                                        handleDelete={handleDeleteLanguage}
-                                        handleCurrent={setLanguage}
-                                        languages={languages}
-                                    /> : languages.length > 1 ? <SelectLanguageMenu
+                                    {disabled && languages.length > 1 ? <SelectLanguageMenu
                                         currentLanguage={language}
                                         handleCurrent={setLanguage}
                                         languages={languages}
                                     /> : undefined}
-                                    {!disabled && <RelationshipList
-                                        isEditing={true}
-                                        objectType={"Note"}
-                                    />}
                                 </Box>
                                 {!isCreate && (
                                     <ObjectActionsRow
@@ -293,7 +326,7 @@ const NoteForm = ({
                                 )}
                             </>
                         </EllipsisActionButton>
-                    ),
+                    ) : null,
                 }}
             />
         </MaybeLargeDialog>

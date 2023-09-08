@@ -2,7 +2,7 @@
     "name": "server",
     "author": "Vrooli",
     "license": "GPL-3.0",
-    "version": "1.9.6",
+    "version": "1.9.7",
     "private": true,
     "main": "dist/index.js",
     "type": "module",

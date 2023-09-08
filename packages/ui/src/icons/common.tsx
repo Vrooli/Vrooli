@@ -344,6 +344,13 @@ export const ExpandMoreIcon = (props: SvgProps) => (
     />
 );
 
+export const ExportIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="m16 5-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.11 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z"
+    />
+);
+
 export const FacebookIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
@@ -775,6 +782,13 @@ export const ProposalIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
         d="M18 13h-.68l-2 2h1.91L19 17H5l1.78-2h2.05l-2-2H6l-3 3v4c0 1.1.89 2 1.99 2H19c1.1 0 2-.89 2-2v-4l-3-3zm-1-5.05-4.95 4.95-3.54-3.54 4.95-4.95L17 7.95zm-4.24-5.66L6.39 8.66c-.39.39-.39 1.02 0 1.41l4.95 4.95c.39.39 1.02.39 1.41 0l6.36-6.36c.39-.39.39-1.02 0-1.41L14.16 2.3c-.38-.4-1.01-.4-1.4-.01z"
+    />
+);
+
+export const QrCodeIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M3 11h8V3H3v8zm2-6h4v4H5V5zM3 21h8v-8H3v8zm2-6h4v4H5v-4zm8-12v8h8V3h-8zm6 6h-4V5h4v4zm0 10h2v2h-2zm-6-6h2v2h-2zm2 2h2v2h-2zm-2 2h2v2h-2zm2 2h2v2h-2zm2-2h2v2h-2zm0-4h2v2h-2zm2 2h2v2h-2z"
     />
 );
 

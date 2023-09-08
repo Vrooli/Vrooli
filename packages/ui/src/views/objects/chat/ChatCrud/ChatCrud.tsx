@@ -425,7 +425,6 @@ const ChatForm = ({
                         onSubmit={onSubmit}
                         titleField="name"
                         subtitleField="description"
-                        validationEnabled={false}
                         variant="subheader"
                         sxs={{ stack: { padding: 0 } }}
                         DialogContentForm={() => (
@@ -470,7 +469,7 @@ const ChatForm = ({
                                             />
                                         </FormSection>
                                         {/* Invite link */}
-                                        <Stack direction="column" spacing={1} mb={6}>
+                                        <Stack direction="column" spacing={1}>
                                             <Stack direction="row" sx={{ alignItems: "center" }}>
                                                 <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
                                                 <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
@@ -525,6 +524,8 @@ const ChatForm = ({
                     />}
                 />
                 <Box sx={{
+                    display: "table",
+                    margin: "auto",
                     overflowY: "auto",
                     maxHeight: "calc(100vh - 64px)",
                     minHeight: "calc(100vh - 64px)",
