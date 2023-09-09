@@ -529,6 +529,7 @@ const ChatForm = ({
                     overflowY: "auto",
                     maxHeight: "calc(100vh - 64px)",
                     minHeight: "calc(100vh - 64px)",
+                    minWidth: "min(500px, 100vw)",
                 }}>
                     {existing.messages.map((message: ChatMessage, index) => {
                         const isOwn = message.user?.id === getCurrentUser(session).id;

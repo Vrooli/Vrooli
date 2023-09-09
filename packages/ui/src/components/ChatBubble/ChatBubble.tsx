@@ -131,8 +131,8 @@ const ChatBubbleReactions = ({
         setAnchorEl(null);
     };
     const handleAddReaction = (emoji: string) => {
-        // Add the reaction logic here
-        console.log("Added reaction:", emoji);
+        // TODO
+        console.log("Adding reaction:", emoji);
         setAnchorEl(null);
     };
 
@@ -183,6 +183,7 @@ const ChatBubbleReactions = ({
                 <EmojiPicker
                     anchorEl={anchorEl}
                     onClose={handleEmojiMenuClose}
+                    onSelect={handleAddReaction}
                 />
             </Stack>
             {isBot && <Stack direction="row" spacing={1}>

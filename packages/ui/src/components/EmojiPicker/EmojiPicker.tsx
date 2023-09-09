@@ -1,17 +1,16 @@
 import { CommonKey, EmojisKey } from "@local/shared";
-import { Box, Button, IconButton, Input, Palette, Paper, Popover, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, Input, Palette, Paper, Popover, useTheme } from "@mui/material";
 import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useTabs } from "hooks/useTabs";
 import { useZIndex } from "hooks/useZIndex";
 import i18next from "i18next";
 import { AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "icons";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { VariableSizeList } from "react-window";
 import emojis from "./data/emojis";
 
-const DEFAULT_SELECTED_EMOJI = "1f60a"; //😊
-const DEFAULT_SELECTION_CAPTION = "Select an emoji";
 const MINIMUM_VERSION: number | null = null;
 const KNOWN_FAILING_EMOJIS = ["2640-fe0f", "2642-fe0f", "2695-fe0f"];
 
@@ -119,7 +118,32 @@ function parseNativeEmoji(unified: string): string {
 }
 
 const emojiNames = (emoji: WithName): string[] => emoji[EmojiProperties.name] ?? [];
-const emojiName = (emoji?: WithName | null | undefined): string => emoji ? emojiNames(emoji)[0] : "";
+
+console.time("all emojis");
+const allEmojis = Object.values(emojis).map(category => category.map(emoji => ({
+    ...emoji,
+    name: (i18next.t(`emojis:${emoji.u.toLowerCase() as unknown as EmojisKey}`, { ns: "emojis" }) ?? "").split(", "),
+}))) as unknown as Record<CategoryTabOption, DataEmoji[]>;
+console.timeEnd("all emojis");
+console.log("got all emojis", allEmojis, i18next.t("common:Submit"), i18next.t("emojis:1f606", { ns: "emojis" }));
+
+const allEmojisByUnified = new Map<string, DataEmoji>();
+const allEmojisByName = new Map<string, DataEmoji>();
+
+function indexEmoji(emoji: DataEmoji): void {
+    emojiNames(emoji).forEach(name => {
+        allEmojisByName.set(name, emoji);
+    });
+}
+
+setTimeout(() => {
+    console.time("indexing");
+    Object.values(allEmojis).forEach(emojis => emojis.forEach(emoji => {
+        indexEmoji(emoji);
+        allEmojisByUnified.set(emoji[EmojiProperties.unified], emoji);
+    }));
+    console.timeEnd("indexing");
+});
 
 function unifiedWithoutSkinTone(unified: string): string {
     const splat = unified.split("-");
@@ -156,69 +180,35 @@ function emojiByUnified(unified?: string): DataEmoji | undefined {
         return;
     }
 
-    if (allEmojisByUnified[unified]) {
-        return allEmojisByUnified[unified];
+    if (allEmojisByUnified.has(unified)) {
+        return allEmojisByUnified.get(unified);
     }
 
     const withoutSkinTone = unifiedWithoutSkinTone(unified);
-    return allEmojisByUnified[withoutSkinTone];
+    return allEmojisByUnified.get(withoutSkinTone);
 }
-
-const allEmojis = Object.values(emojis).map(category => category.map(emoji => ({
-    ...emoji,
-    name: (i18next.t(`emojis:${emoji.u.toLowerCase() as unknown as EmojisKey}`, { ns: "emojis" }) ?? "").split(", "),
-}))) as unknown as Record<CategoryTabOption, DataEmoji[]>;
-console.log("got all emojis", allEmojis, i18next.t("common:Submit"), i18next.t("emojis:1f606", { ns: "emojis" }));
-
-const allEmojisByUnified: {
-    [unified: string]: DataEmoji;
-} = {};
-
-const alphaNumericEmojiIndex: BaseIndex = {};
-
-type BaseIndex = Record<string, Record<string, DataEmoji>>;
-
-function indexEmoji(emoji: DataEmoji): void {
-    const joinedNameString = emojiNames(emoji)
-        .flat()
-        .join("")
-        .toLowerCase()
-        .replace(/[^a-zA-Z\d]/g, "")
-        .split("");
-
-    joinedNameString.forEach(char => {
-        alphaNumericEmojiIndex[char] = alphaNumericEmojiIndex[char] ?? {};
-
-        alphaNumericEmojiIndex[char][emojiUnified(emoji)] = emoji;
-    });
-}
-
-setTimeout(() => {
-    Object.values(allEmojis).forEach(emojis => emojis.forEach(emoji => {
-        indexEmoji(emoji);
-        allEmojisByUnified[emoji[EmojiProperties.unified]] = emoji;
-    }));
-});
 
 type BaseEmojiProps = {
     emoji?: DataEmoji;
     unified: string;
 };
 
-
 function ClickableEmoji({
     emoji,
     unified,
     hiddenOnSearch,
+    onSelect,
 }: Readonly<BaseEmojiProps & {
     hiddenOnSearch?: boolean;
     emoji: DataEmoji;
+    onSelect: (emoji: string) => unknown;
 }>) {
     return (
         <Button
             data-unified={unified}
             aria-label={emojiNames[0]}
             data-full-name={emojiNames}
+            onClick={() => { onSelect(parseNativeEmoji(unified)); }}
             sx={{
                 fontSize: "1.5rem",
             }}
@@ -228,6 +218,14 @@ function ClickableEmoji({
     );
 }
 
+const calculateCategoryHeight = (numEmoji: number, pickerWidth: number): number => {
+    const emojiWidth = 64;
+    const emojiHeight = 54;
+    const totalPaddingIncludingScrollbar = 8 + 8 + 8;
+    const numEmojisPerRow = Math.floor((pickerWidth - totalPaddingIncludingScrollbar) / emojiWidth);
+    const numRows = Math.ceil(numEmoji / numEmojisPerRow);
+    return numRows * emojiHeight;
+};
 
 const SUGGESTED_LS_KEY = "epr_suggested";
 
@@ -252,10 +250,22 @@ function getSuggested(): SuggestedItem[] {
 
 function Suggested({
     category,
+    onHeightChange,
+    onSelect,
+    pickerWidth,
 }: {
     category: CategoryTabOption;
+    onHeightChange: (index: number, height: number) => unknown;
+    onSelect: (emoji: string) => unknown;
+    pickerWidth: number;
 }) {
     const suggested = useMemo(() => getSuggested(), []);
+    const categoryHeight = useMemo(() => calculateCategoryHeight(suggested.length, pickerWidth), [suggested, pickerWidth]);
+    useEffect(() => {
+        console.log("calculating suggested height change", categoryHeight);
+        onHeightChange(0, categoryHeight);
+    }, [categoryHeight, onHeightChange]);
+
     return (
         <EmojiCategory
             category={category}
@@ -273,6 +283,7 @@ function Suggested({
                         unified={suggestedItem.unified}
                         emoji={emoji}
                         key={suggestedItem.unified}
+                        onSelect={onSelect}
                     />
                 );
             })}
@@ -310,31 +321,39 @@ function RenderCategory({
     activeSkinTone,
     index,
     category,
+    onHeightChange,
+    onSelect,
+    pickerWidth,
 }: {
     activeSkinTone: SkinTone;
     index: number;
     category: CategoryTabOption;
+    onHeightChange: (index: number, height: number) => unknown;
+    onSelect: (emoji: string) => unknown;
+    pickerWidth: number;
 }) {
-    const [isPastInitialLoad, setIsPastInitialLoad] = useState(false);
+    const emojis = useMemo(() => {
+        console.log("calculating emojis in category");
+        return allEmojis[index]
+            .filter(emoji => (!emoji.a || !MINIMUM_VERSION) || (emoji.a >= MINIMUM_VERSION))
+            .map(emoji => {
+                const unified = emojiUnified(emoji, activeSkinTone);
+                return (
+                    <ClickableEmoji
+                        key={unified}
+                        emoji={emoji}
+                        unified={unified}
+                        hiddenOnSearch={false} //TODO
+                        onSelect={onSelect}
+                    />
+                );
+            });
+    }, [index, activeSkinTone, onSelect]);
+    const categoryHeight = useMemo(() => calculateCategoryHeight(emojis.length, pickerWidth), [emojis, pickerWidth]);
     useEffect(() => {
-        setIsPastInitialLoad(true);
-    }, [setIsPastInitialLoad]);
-
-    // Small trick to defer the rendering of all emoji categories until the first category is visible
-    // This way the user gets to actually see something and not wait for the whole picker to render.
-    const emojisToPush = (!isPastInitialLoad && index > 1) ? [] : (allEmojis[index] ?? []);
-
-    const emojis = emojisToPush.filter(emoji => (!emoji.a || !MINIMUM_VERSION) || (emoji.a >= MINIMUM_VERSION)).map(emoji => {
-        const unified = emojiUnified(emoji, activeSkinTone);
-        return (
-            <ClickableEmoji
-                key={unified}
-                emoji={emoji}
-                unified={unified}
-                hiddenOnSearch={false} //TODO
-            />
-        );
-    });
+        console.log("calculating category height change", categoryHeight);
+        onHeightChange(index, categoryHeight);
+    }, [categoryHeight, index, onHeightChange]);
 
     return (
         <EmojiCategory
@@ -349,18 +368,15 @@ function RenderCategory({
 export const EmojiPicker = ({
     anchorEl,
     onClose,
+    onSelect,
 }: {
     anchorEl: HTMLElement | null;
     onClose: () => unknown;
+    onSelect: (emoji: string) => unknown;
 }) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const zIndex = useZIndex(Boolean(anchorEl));
-
-    const visibleEmojis = Object.values(allEmojis).flat().filter(emoji => !emoji.a || (MINIMUM_VERSION && emoji.a >= MINIMUM_VERSION));
-
-    const [selectedEmoji, setSelectedEmoji] = useState<DataEmoji | null>(visibleEmojis.find(emoji => emoji.u === DEFAULT_SELECTED_EMOJI) ?? null);
-    const selectedEmojiName = emojiName(selectedEmoji) ?? DEFAULT_SELECTION_CAPTION;
 
     const [searchString, setSearchString] = useState("");
     const handleChange = (value: string) => {
@@ -383,6 +399,29 @@ export const EmojiPicker = ({
     const [activeSkinTone, setActiveSkinTone] = useState(SkinTone.Neutral);
     const [isSkinTonePickerOpen, setIsSkinTonePickerOpen] = useState(false);
 
+    // Logic for calculating each category's height. Needed for virtualized list.
+    const [pickerWidth, setPickerWidth] = useState(410);
+    const pickerRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (pickerRef.current) {
+            // setPickerWidth(pickerRef.current.clientWidth);
+        }
+    }, []);
+    useEffect(() => {
+        const handleResize = () => {
+            if (pickerRef.current) {
+                // setPickerWidth(pickerRef.current.clientWidth);
+            }
+        };
+        window.addEventListener("resize", handleResize);
+        return () => { window.removeEventListener("resize", handleResize); };
+    }, []);
+    const categoryHeights = useRef<number[]>(new Array(categoryTabParams.length).fill(0));
+    const onCategoryHeightChange = useCallback((index: number, height: number) => {
+        console.log("height change", index, height);
+        categoryHeights.current[index] = height;
+    }, []);
+
     return (
         <Popover
             anchorEl={anchorEl}
@@ -391,6 +430,8 @@ export const EmojiPicker = ({
             sx={{
                 zIndex: `${zIndex} !important`,
                 "& .MuiPopover-paper": {
+                    background: palette.background.default,
+                    border: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
                     width: "min(100%, 410px)",
                     height: "min(100%, 410px)",
                 },
@@ -398,6 +439,7 @@ export const EmojiPicker = ({
         >
             <Box
                 id="emoji-picker-main"
+                ref={pickerRef}
                 component="aside"
                 sx={{
                     position: "relative",
@@ -420,6 +462,7 @@ export const EmojiPicker = ({
                                 borderRadius: "10px",
                                 boxShadow: 0,
                                 width: "-webkit-fill-available",
+                                border: palette.mode === "light" ? `1px solid ${palette.divider}` : "none",
                             }}
                         >
                             <Input
@@ -494,12 +537,32 @@ export const EmojiPicker = ({
                     />
                 </Box>
                 {/* Body */}
-                <Box id="emoji-picker-body" p={1} sx={{ overflow: "scroll" }}>
+                <Box id="emoji-picker-body" p={1} sx={{ overflow: "hidden" }}>
                     {/* Emoji list */}
-                    <ul style={{ padding: 0, margin: 0 }}>
-                        {categoryTabParams.map((category, index) => {
+                    <VariableSizeList
+                        height={410}
+                        width={410}
+                        itemCount={categoryTabParams.length}
+                        itemSize={(index) => categoryHeights[index] ?? 0}
+                        overscanCount={2}
+                        style={{
+                            maxWidth: "100%",
+                            padding: 0,
+                            margin: 0,
+                        }}
+                    >
+                        {({ index }) => {
+                            const category = categoryTabParams[index];
                             if (category.tabType === CategoryTabOption.Suggested) {
-                                return <Suggested key={category.tabType} category={category.tabType} />;
+                                return (
+                                    <Suggested
+                                        key={category.tabType}
+                                        category={category.tabType}
+                                        onHeightChange={onCategoryHeightChange}
+                                        onSelect={onSelect}
+                                        pickerWidth={pickerWidth}
+                                    />
+                                );
                             }
                             return (
                                 <RenderCategory
@@ -507,16 +570,14 @@ export const EmojiPicker = ({
                                     index={index}
                                     activeSkinTone={activeSkinTone}
                                     category={category.tabType}
+                                    onHeightChange={onCategoryHeightChange}
+                                    onSelect={onSelect}
+                                    pickerWidth={pickerWidth}
                                 />
                             );
-                        })}
-                    </ul>
+                        }}
+                    </VariableSizeList>
                 </Box>
-                {/* Preview selected emoji */}
-                {selectedEmoji && <Box display="flex" flexDirection="row" alignItems="center">
-                    <Box sx={{ fontSize: "2rem" }}>{parseNativeEmoji(emojiUnified(selectedEmoji, activeSkinTone))}</Box>
-                    <Typography variant="body1" sx={{ marginLeft: 1 }}>{selectedEmojiName}</Typography>
-                </Box>}
             </Box>
         </Popover>
     );
