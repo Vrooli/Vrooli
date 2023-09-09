@@ -1847,5 +1847,11 @@
     "1f1ff-1f1fc": "flag-zw, zimbabwe flag",
     "1f3f4-e0067-e0062-e0065-e006e-e0067-e007f": "england flag, flag-england",
     "1f3f4-e0067-e0062-e0073-e0063-e0074-e007f": "scotland flag, flag-scotland",
-    "1f3f4-e0067-e0062-e0077-e006c-e0073-e007f": "wales flag, flag-wales"
+    "1f3f4-e0067-e0062-e0077-e006c-e0073-e007f": "wales flag, flag-wales",
+    "SkinToneNeutral": "Neutral",
+    "SkinToneLight": "Light",
+    "SkinToneMediumLight": "Medium-Light",
+    "SkinToneMedium": "Medium",
+    "SkinToneMediumDark": "Medium-Dark",
+    "SkinToneDark": "Dark"
 }

@@ -1,11 +1,11 @@
 import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPutChatMessage, ReactionSummary } from "@local/shared";
-import { Avatar, Badge, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
 import IconButton from "@mui/material/IconButton";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import EmojiPicker from "components/EmojiPicker/EmojiPicker";
+import { EmojiPicker } from "components/EmojiPicker/EmojiPicker";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
@@ -107,39 +107,6 @@ const ChatBubbleStatus = ({
     );
 };
 
-// const defaultReactions = ["👍", "👎", "❤️", "😂", "😮", "😢", "😡"];
-// const EmojiPicker = ({ anchorEl, open, onClose, onSelect }: {
-//     anchorEl: null | HTMLElement,
-//     open: boolean,
-//     onClose: () => void,
-//     onSelect: (emoji: string) => void,
-// }) => {
-//     return (
-//         <Menu
-//             anchorEl={anchorEl}
-//             open={open}
-//             onClose={onClose}
-//             PaperProps={{
-//                 style: {
-//                     maxWidth: "min(100vw, 400px)",
-//                     overflowX: "hidden",
-//                 },
-//             }}
-//         >
-//             <Box display="flex" flexWrap="wrap" gap={1} p={1}>
-//                 {defaultReactions.map((emoji, idx) => (
-//                     <Box key={idx} onClick={() => {
-//                         onSelect(emoji);
-//                         onClose();
-//                     }}>
-//                         {emoji}
-//                     </Box>
-//                 ))}
-//             </Box>
-//         </Menu>
-//     );
-// };
-
 /**
  * Displays message reactions and actions (i.e. refresh and report). 
  * Reactions are displayed as a list of emojis on the left, and bot actions are displayed
@@ -154,7 +121,7 @@ const ChatBubbleReactions = ({
     isOwn: boolean,
     reactions: ReactionSummary[],
 }) => {
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const { palette } = useTheme();
 
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const handleEmojiMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -166,23 +133,48 @@ const ChatBubbleReactions = ({
     const handleAddReaction = (emoji: string) => {
         // Add the reaction logic here
         console.log("Added reaction:", emoji);
-        setShowEmojiPicker(false);
+        setAnchorEl(null);
     };
 
     return (
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Stack direction="row" spacing={1} pl={6}>
+        <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            flexDirection={isOwn ? "row-reverse" : "row"}
+        >
+            <Stack
+                direction="row"
+                spacing={1}
+                ml={isOwn ? 0 : 6}
+                mr={isOwn ? 6 : 0}
+                pr={isOwn ? 1 : 0}
+                sx={{
+                    background: palette.background.paper,
+                    color: palette.background.textPrimary,
+                    borderRadius: 1,
+                    overflow: "overlay",
+                }}
+            >
                 {reactions.map((reaction) => (
-                    <Badge key={reaction.emoji} badgeContent={reaction.count} color="primary">
-                        <IconButton size="small" disabled={isOwn} style={{ borderRadius: "50%", backgroundColor: "#f0f0f0" }}>
+                    <Box key={reaction.emoji} display="flex" alignItems="center">
+                        <IconButton
+                            size="small"
+                            disabled={isOwn}
+                            onClick={() => { handleAddReaction(reaction.emoji); }}
+                            style={{ borderRadius: 0, background: "transparent" }}
+                        >
                             {reaction.emoji}
                         </IconButton>
-                    </Badge>
+                        <Typography variant="body2">
+                            {reaction.count}
+                        </Typography>
+                    </Box>
                 ))}
                 {!isOwn && (
                     <IconButton
                         size="small"
-                        style={{ borderRadius: "50%", backgroundColor: "#f0f0f0" }}
+                        style={{ borderRadius: 0, background: "transparent" }}
                         onClick={handleEmojiMenuOpen}
                     >
                         <AddIcon />
