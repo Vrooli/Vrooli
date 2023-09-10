@@ -1,4 +1,4 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatParticipant, CommentFor, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
+import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatParticipant, CommentFor, DeleteType, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
 import { Palette } from "@mui/material";
 import { BotIcon } from "icons";
 import { AutocompleteOption } from "types";
@@ -122,28 +122,43 @@ export const getYou = (
     // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
     const objectPermissions = { ...defaultYou };
     if (!object) return objectPermissions;
-    // If a bookmark, reaction, or view, use the "to" object
-    if (isOfType(object, "Bookmark", "Reaction", "View")) return getYou((object as Partial<Bookmark | Reaction | View>).to);
-    // If a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getYou((object as Partial<RunRoutine>).routineVersion);
-    // If a run project, use the project version
-    if (isOfType(object, "RunProject")) return getYou((object as Partial<RunProject>).projectVersion);
-    // Otherwise, get the permissions from the object
-    // Loop through all permission fields
-    for (const key in objectPermissions) {
+    // Helper function to get permissions
+    const getPermission = (key: keyof YouInflated): boolean => {
         // Check if the field is in the object
         const field = valueFromDot(object, `you.${key}`);
-        if (field === true || field === false || typeof field === "boolean") objectPermissions[key] = field;
+        if (field === true || field === false || typeof field === "boolean") return field;
         // If not, check if the field is in the root.you object
-        else {
-            const field = valueFromDot(object, `root.you.${key}`);
-            if (field === true || field === false || typeof field === "boolean") objectPermissions[key] = field;
-        }
+        const rootField = valueFromDot(object, `root.you.${key}`);
+        if (rootField === true || rootField === false || typeof rootField === "boolean") return rootField;
+        return false; // Default to false if no field found
+    };
+    // Get canDelete permission before any relation checks. 
+    // We do this because we'll always use the current object's "you" property for canDelete.
+    // For example, we'll want to know if we can delete a Member, rather than the User it's associated with.
+    objectPermissions.canDelete = getPermission("canDelete");
+    const withDelete = (permissions: YouInflated) => ({ ...permissions, canDelete: objectPermissions.canDelete });
+    // If a bookmark, reaction, or view, use the "to" object
+    if (isOfType(object, "Bookmark", "Reaction", "View")) return withDelete(getYou((object as Partial<Bookmark | Reaction | View>).to));
+    // If a run routine, use the "routineVersion" object
+    if (isOfType(object, "RunRoutine")) return withDelete(getYou((object as Partial<RunRoutine>).routineVersion));
+    // If a run project, use the "projectVersion" object
+    if (isOfType(object, "RunProject")) return withDelete(getYou((object as Partial<RunProject>).projectVersion));
+    // If a member or chatParticipant, use the "user" object
+    if (isOfType(object, "Member", "ChatParticipant")) return withDelete(getYou((object as Partial<Member | ChatParticipant>).user));
+    // Loop through all permission fields
+    for (const key in objectPermissions) {
+        if (key === "canDelete") continue; // Skip canDelete, since we already set it
+        objectPermissions[key] = getPermission(key as keyof YouInflated);
     }
     // Now remove permissions is the action is not allowed on the object type (e.g. can't react to a user).
-    if (objectPermissions.canReact && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(ReactionFor[type]))) objectPermissions.canReact = false;
-    if (objectPermissions.canBookmark && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(BookmarkFor[type]))) objectPermissions.canBookmark = false;
-    if (objectPermissions.canComment && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(CommentFor[type]))) objectPermissions.canComment = false;
+    const filterInvalidAction = (action: keyof YouInflated, enumType: Record<string, unknown>) => {
+        if (objectPermissions[action] && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(enumType[type]))) objectPermissions.canBookmark = false;
+    };
+    filterInvalidAction("canBookmark", BookmarkFor);
+    filterInvalidAction("canComment", CommentFor);
+    filterInvalidAction("canDelete", DeleteType);
+    filterInvalidAction("canReact", ReactionFor);
+    filterInvalidAction("canReport", ReportFor);
     return objectPermissions;
 };
 
@@ -353,7 +368,7 @@ export const getDisplay = (
                 width="100%"
                 height="100%"
                 style={{ padding: "1px" }}
-            />
+            />,
         );
     }
     // Return result

@@ -392,6 +392,10 @@ export const scheduleException_findOne = {
             },
             "__typename": "Role"
           },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
+          },
           "__typename": "Member"
         },
         "id": true,

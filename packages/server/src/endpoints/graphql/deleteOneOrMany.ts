@@ -15,6 +15,8 @@ export const typeDef = gql`
         Email
         FocusMode
         Issue
+        Member
+        MemberInvite
         Meeting
         MeetingInvite
         Node

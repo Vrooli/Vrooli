@@ -1,17 +1,19 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPutChatMessage, ReactionSummary } from "@local/shared";
+import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPostReact, endpointPutChatMessage, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
 import { Avatar, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
 import IconButton from "@mui/material/IconButton";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { EmojiPicker } from "components/EmojiPicker/EmojiPicker";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";
+import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon, BotIcon, EditIcon, ErrorIcon, ReportIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, EditIcon, ErrorIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -113,12 +115,16 @@ const ChatBubbleStatus = ({
  * as a list of icons on the right.
  */
 const ChatBubbleReactions = ({
+    handleReactionAdd,
     isBot,
     isOwn,
+    messageId,
     reactions,
 }: {
+    handleReactionAdd: (emoji: string) => unknown,
     isBot: boolean,
     isOwn: boolean,
+    messageId: string,
     reactions: ReactionSummary[],
 }) => {
     const { palette } = useTheme();
@@ -130,10 +136,9 @@ const ChatBubbleReactions = ({
     const handleEmojiMenuClose = () => {
         setAnchorEl(null);
     };
-    const handleAddReaction = (emoji: string) => {
-        // TODO
-        console.log("Adding reaction:", emoji);
+    const onReactionAdd = (emoji: string) => {
         setAnchorEl(null);
+        handleReactionAdd(emoji);
     };
 
     return (
@@ -161,7 +166,7 @@ const ChatBubbleReactions = ({
                         <IconButton
                             size="small"
                             disabled={isOwn}
-                            onClick={() => { handleAddReaction(reaction.emoji); }}
+                            onClick={() => { onReactionAdd(reaction.emoji); }}
                             style={{ borderRadius: 0, background: "transparent" }}
                         >
                             {reaction.emoji}
@@ -183,13 +188,11 @@ const ChatBubbleReactions = ({
                 <EmojiPicker
                     anchorEl={anchorEl}
                     onClose={handleEmojiMenuClose}
-                    onSelect={handleAddReaction}
+                    onSelect={onReactionAdd}
                 />
             </Stack>
             {isBot && <Stack direction="row" spacing={1}>
-                <IconButton size="small">
-                    <ReportIcon />
-                </IconButton>
+                <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
             </Stack>}
         </Box>
     );
@@ -208,6 +211,8 @@ export const ChatBubble = ({
 
     const [createMessage, { loading: isCreating, errors: createErrors }] = useLazyFetch<ChatMessageCreateInput, ChatMessage>(endpointPostChatMessage);
     const [updateMessage, { loading: isUpdating, errors: updateErrors }] = useLazyFetch<ChatMessageUpdateInput, ChatMessage>(endpointPutChatMessage);
+    const [react, { loading: isReacting, errors: reactErrors }] = useLazyFetch<ReactInput, Success>(endpointPostReact);
+    useDisplayServerError(createErrors ?? updateErrors ?? reactErrors);
 
     const [hasError, setHasError] = useState(false);
     useEffect(() => {
@@ -264,6 +269,38 @@ export const ChatBubble = ({
                 console.log("chatbubble setting error false 2", data);
                 setHasError(false);
                 onUpdated({ ...data, isUnsent: false });
+            },
+        });
+    };
+
+    const handleReactionAdd = (emoji: string) => {
+        if (message.isUnsent) return;
+        const originalSummaries = message.reactionSummaries;
+        // Add to summaries right away, so that the UI updates immediately
+        const existingReaction = message.reactionSummaries.find((r) => r.emoji === emoji);
+        if (existingReaction) {
+            onUpdated({
+                ...message,
+                reactionSummaries: message.reactionSummaries.map((r) => r.emoji === emoji ? { ...r, count: r.count + 1 } : r),
+            } as ChatBubbleProps["message"]);
+        } else {
+            onUpdated({
+                ...message,
+                reactionSummaries: [...message.reactionSummaries, { __typename: "ReactionSummary", emoji, count: 1 }],
+            } as ChatBubbleProps["message"]);
+        }
+        // Send the request to the backend
+        fetchLazyWrapper<ReactInput, Success>({
+            fetch: react,
+            inputs: {
+                emoji,
+                reactionFor: ReactionFor.ChatMessage,
+                forConnect: message.id,
+            },
+            successCondition: (data) => data.success,
+            onError: () => {
+                // If the request fails, revert the UI changes
+                onUpdated({ ...message, reactionSummaries: originalSummaries } as ChatBubbleProps["message"]);
             },
         });
     };
@@ -368,7 +405,13 @@ export const ChatBubble = ({
                 )}
             </Stack>
             {/* Reactions */}
-            <ChatBubbleReactions isBot={message.user?.isBot ?? false} isOwn={isOwn} reactions={message.reactionSummaries} />
+            <ChatBubbleReactions
+                handleReactionAdd={handleReactionAdd}
+                isBot={message.user?.isBot ?? false}
+                isOwn={isOwn}
+                messageId={message.id}
+                reactions={message.reactionSummaries}
+            />
         </Stack>
     );
 };

@@ -11,7 +11,7 @@ import { ReportModel } from "./report";
 import { ReportModelLogic, ReportResponseModelLogic } from "./types";
 
 const __typename = "ReportResponse" as const;
-const suppFields = [] as const;
+const suppFields = ["you"] as const;
 export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma) => prisma.report_response,

@@ -11,7 +11,7 @@ const NegativeReactions = ["👎", "😕", "😡", "😠", "🤬", "😞", "😟
  * @string reaction The emoji reaction to remove modifiers from
  */
 export function removeModifiers(reaction: string): string {
-    return reaction.replace(/[\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}\u{20E3}]/gu, "");
+    return typeof reaction === "string" ? reaction.replace(/[\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}\u{20E3}]/gu, "") : "";
 }
 
 /**

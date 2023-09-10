@@ -818,6 +818,10 @@ export const meetingInvite_update = {
           },
           "__typename": "Role"
         },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Member"
       },
       "id": true,

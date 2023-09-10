@@ -141,10 +141,10 @@ const ReminderForm = ({
         fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
             fetch,
             inputs: transformReminderValues(values, existing, isCreate),
-            onSuccess: (data) => { handleCompleted(data); handleUpdate(reminderInitialValues(session, data)) },
+            onSuccess: (data) => { handleCompleted(data); handleUpdate(reminderInitialValues(session, data)); },
             onCompleted: () => { props.setSubmitting(false); },
         });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, session, values]);
+    }, [disabled, existing, fetch, handleCompleted, handleUpdate, isCreate, props, session, values]);
 
     // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);

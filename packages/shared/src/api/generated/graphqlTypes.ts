@@ -1100,6 +1100,8 @@ export enum DeleteType {
   Issue = 'Issue',
   Meeting = 'Meeting',
   MeetingInvite = 'MeetingInvite',
+  Member = 'Member',
+  MemberInvite = 'MemberInvite',
   Node = 'Node',
   Note = 'Note',
   NoteVersion = 'NoteVersion',
@@ -1906,6 +1908,7 @@ export type Member = {
   roles: Array<Role>;
   updated_at: Scalars['Date'];
   user: User;
+  you: MemberYou;
 };
 
 export type MemberEdge = {
@@ -2024,6 +2027,12 @@ export type MemberUpdateInput = {
   id: Scalars['ID'];
   isAdmin?: InputMaybe<Scalars['Boolean']>;
   permissions?: InputMaybe<Scalars['String']>;
+};
+
+export type MemberYou = {
+  __typename: 'MemberYou';
+  canDelete: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type Mutation = {
@@ -6522,6 +6531,7 @@ export type ReportEdge = {
 
 export enum ReportFor {
   ApiVersion = 'ApiVersion',
+  ChatMessage = 'ChatMessage',
   Comment = 'Comment',
   Issue = 'Issue',
   NoteVersion = 'NoteVersion',
@@ -6602,6 +6612,7 @@ export type ReportResponseYou = {
 export type ReportSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   apiVersionId?: InputMaybe<Scalars['ID']>;
+  chatMessageId?: InputMaybe<Scalars['ID']>;
   commentId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   fromId?: InputMaybe<Scalars['ID']>;
@@ -10009,6 +10020,7 @@ export type ResolversTypes = {
   MemberSearchResult: ResolverTypeWrapper<MemberSearchResult>;
   MemberSortBy: MemberSortBy;
   MemberUpdateInput: MemberUpdateInput;
+  MemberYou: ResolverTypeWrapper<MemberYou>;
   Mutation: ResolverTypeWrapper<{}>;
   Node: ResolverTypeWrapper<Node>;
   NodeCreateInput: NodeCreateInput;
@@ -10746,6 +10758,7 @@ export type ResolversParentTypes = {
   MemberSearchInput: MemberSearchInput;
   MemberSearchResult: MemberSearchResult;
   MemberUpdateInput: MemberUpdateInput;
+  MemberYou: MemberYou;
   Mutation: {};
   Node: Node;
   NodeCreateInput: NodeCreateInput;
@@ -11909,6 +11922,7 @@ export type MemberResolvers<ContextType = any, ParentType extends ResolversParen
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['MemberYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11953,6 +11967,12 @@ export type MemberInviteYouResolvers<ContextType = any, ParentType extends Resol
 export type MemberSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['MemberSearchResult'] = ResolversParentTypes['MemberSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['MemberEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MemberYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['MemberYou'] = ResolversParentTypes['MemberYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14875,6 +14895,7 @@ export type Resolvers<ContextType = any> = {
   MemberInviteSearchResult?: MemberInviteSearchResultResolvers<ContextType>;
   MemberInviteYou?: MemberInviteYouResolvers<ContextType>;
   MemberSearchResult?: MemberSearchResultResolvers<ContextType>;
+  MemberYou?: MemberYouResolvers<ContextType>;
   Mutation?: MutationResolvers<ContextType>;
   Node?: NodeResolvers<ContextType>;
   NodeEnd?: NodeEndResolvers<ContextType>;

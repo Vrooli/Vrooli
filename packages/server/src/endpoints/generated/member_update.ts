@@ -45,6 +45,10 @@ export const member_update = {
           },
           "__typename": "Role"
         },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Member"
       },
       "id": true,
@@ -181,6 +185,10 @@ export const member_update = {
       "description": true
     },
     "__typename": "Role"
+  },
+  "you": {
+    "canDelete": true,
+    "canUpdate": true
   },
   "__typename": "Member"
 } as const;

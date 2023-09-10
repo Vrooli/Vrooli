@@ -5,6 +5,7 @@ import { getSingleTypePermissions } from "../../validators";
 import { ReportFormat } from "../format/report";
 import { ModelLogic } from "../types";
 import { ApiVersionModel } from "./apiVersion";
+import { ChatMessageModel } from "./chatMessage";
 import { CommentModel } from "./comment";
 import { IssueModel } from "./issue";
 import { NoteVersionModel } from "./noteVersion";
@@ -15,11 +16,12 @@ import { RoutineVersionModel } from "./routineVersion";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { StandardVersionModel } from "./standardVersion";
 import { TagModel } from "./tag";
-import { ApiVersionModelLogic, CommentModelLogic, IssueModelLogic, NoteVersionModelLogic, OrganizationModelLogic, PostModelLogic, ProjectVersionModelLogic, ReportModelLogic, RoutineVersionModelLogic, SmartContractVersionModelLogic, StandardVersionModelLogic, TagModelLogic, UserModelLogic } from "./types";
+import { ApiVersionModelLogic, ChatMessageModelLogic, CommentModelLogic, IssueModelLogic, NoteVersionModelLogic, OrganizationModelLogic, PostModelLogic, ProjectVersionModelLogic, ReportModelLogic, RoutineVersionModelLogic, SmartContractVersionModelLogic, StandardVersionModelLogic, TagModelLogic, UserModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
+    ChatMessage: "chatMessage",
     Comment: "comment",
     Issue: "issue",
     Organization: "organization",
@@ -43,6 +45,7 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             select: () => ({
                 id: true,
                 apiVersion: { select: ApiVersionModel.display.label.select() },
+                chatMessage: { select: ChatMessageModel.display.label.select() },
                 comment: { select: CommentModel.display.label.select() },
                 issue: { select: IssueModel.display.label.select() },
                 noteVersion: { select: NoteVersionModel.display.label.select() },
@@ -57,6 +60,7 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             }),
             get: (select, languages) => {
                 if (select.apiVersion) return ApiVersionModel.display.label.get(select.apiVersion as ApiVersionModelLogic["PrismaModel"], languages);
+                if (select.chatMessage) return ChatMessageModel.display.label.get(select.chatMessage as ChatMessageModelLogic["PrismaModel"], languages);
                 if (select.comment) return CommentModel.display.label.get(select.comment as CommentModelLogic["PrismaModel"], languages);
                 if (select.issue) return IssueModel.display.label.get(select.issue as IssueModelLogic["PrismaModel"], languages);
                 if (select.noteVersion) return NoteVersionModel.display.label.get(select.noteVersion as NoteVersionModelLogic["PrismaModel"], languages);
@@ -123,6 +127,7 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
         sortBy: ReportSortBy,
         searchFields: {
             apiVersionId: true,
+            chatMessageId: true,
             commentId: true,
             createdTimeFrame: true,
             fromId: true,

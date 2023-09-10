@@ -101,8 +101,12 @@ export const ReactionModel: ModelLogic<ReactionModelLogic, typeof suppFields> = 
      * @returns True if cast correctly (even if skipped because of duplicate)
      */
     react: async (prisma: PrismaType, userData: SessionUserToken, input: ReactInput): Promise<boolean> => {
-        // Define prisma type for reacted-on object
-        const prismaFor = (prisma[forMapper[input.reactionFor] as keyof PrismaType] as any);
+        // Define prisma type for reacted-on object (e.g. chatMessage)
+        const reactionForCamel = forMapper[input.reactionFor];
+        // Convert to snake case (e.g. chat_message)
+        const reactionForSnake = reactionForCamel.replace(/([A-Z])/g, "_$1").toLowerCase();
+        // Get prisma type for reacted-on object (e.g. prisma.chat_message)
+        const prismaFor = (prisma[reactionForSnake as keyof PrismaType] as any);
         // Check if object being reacted on exists
         const reactingFor: null | { id: string, score: number, reactionSummaries: reaction_summary[] } = await prismaFor.findUnique({
             where: { id: input.forConnect },

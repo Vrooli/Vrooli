@@ -9464,6 +9464,8 @@
               "Issue",
               "Meeting",
               "MeetingInvite",
+              "Member",
+              "MemberInvite",
               "Node",
               "Note",
               "NoteVersion",
@@ -9527,6 +9529,8 @@
               "Issue",
               "Meeting",
               "MeetingInvite",
+              "Member",
+              "MemberInvite",
               "Node",
               "Note",
               "NoteVersion",
@@ -13610,6 +13614,10 @@
           "user": {
             "$ref": "#/components/schemas/User",
             "title": "Member.user"
+          },
+          "you": {
+            "$ref": "#/components/schemas/MemberYou",
+            "title": "Member.you"
           }
         },
         "required": [
@@ -13621,7 +13629,8 @@
           "permissions",
           "roles",
           "updated_at",
-          "user"
+          "user",
+          "you"
         ],
         "additionalProperties": false,
         "title": "Member",
@@ -14217,6 +14226,33 @@
         ],
         "additionalProperties": false,
         "title": "MemberUpdateInput",
+        "type": "object"
+      },
+      "MemberYou": {
+        "properties": {
+          "__typename": {
+            "title": "MemberYou.__typename",
+            "enum": [
+              "MemberYou"
+            ],
+            "type": "string"
+          },
+          "canDelete": {
+            "title": "MemberYou.canDelete",
+            "type": "boolean"
+          },
+          "canUpdate": {
+            "title": "MemberYou.canUpdate",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "__typename",
+          "canDelete",
+          "canUpdate"
+        ],
+        "additionalProperties": false,
+        "title": "MemberYou",
         "type": "object"
       },
       "Node": {
@@ -30360,6 +30396,7 @@
           "createdFor": {
             "enum": [
               "ApiVersion",
+              "ChatMessage",
               "Comment",
               "Issue",
               "NoteVersion",
@@ -30803,6 +30840,11 @@
           },
           "apiVersionId": {
             "title": "ReportSearchInput.apiVersionId",
+            "nullable": true,
+            "type": "string"
+          },
+          "chatMessageId": {
+            "title": "ReportSearchInput.chatMessageId",
             "nullable": true,
             "type": "string"
           },

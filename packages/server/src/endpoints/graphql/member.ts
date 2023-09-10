@@ -24,6 +24,12 @@ export const typeDef = gql`
         organization: Organization!
         roles: [Role!]!
         user: User!
+        you: MemberYou!
+    }
+
+    type MemberYou {
+        canDelete: Boolean!
+        canUpdate: Boolean!
     }
 
     input MemberSearchInput {

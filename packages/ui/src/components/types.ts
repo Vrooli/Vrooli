@@ -7,7 +7,7 @@ export interface ChatBubbleProps {
     message: ChatMessage & { isUnsent?: boolean }
     index: number;
     isOwn: boolean;
-    onUpdated: (message: ChatMessage & { isUnsent: boolean }) => unknown;
+    onUpdated: (message: ChatMessage & { isUnsent?: boolean }) => unknown;
 }
 
 export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {

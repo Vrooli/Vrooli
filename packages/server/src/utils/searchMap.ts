@@ -76,6 +76,7 @@ export const SearchMap = {
     }),
     cardLast4: (cardLast4: Maybe<string>) => ({ cardLast4 }),
     chatId: (id: Maybe<string>) => oneToOneId(id, "chat"),
+    chatMessageId: (id: Maybe<string>) => oneToOneId(id, "chatMessage"),
     commentId: (id: Maybe<string>) => oneToOneId(id, "comment"),
     commentsId: (id: Maybe<string>) => oneToManyId(id, "comments"),
     completedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("completedAt", time),

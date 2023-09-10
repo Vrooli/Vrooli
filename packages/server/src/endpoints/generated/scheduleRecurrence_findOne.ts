@@ -392,6 +392,10 @@ export const scheduleRecurrence_findOne = {
             },
             "__typename": "Role"
           },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
+          },
           "__typename": "Member"
         },
         "id": true,

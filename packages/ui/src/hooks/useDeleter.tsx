@@ -22,6 +22,8 @@ const ObjectsToConfirmLevel: Record<DeleteType, ConfirmationLevel> = {
     Email: "minimal",
     FocusMode: "minimal",
     Issue: "minimal",
+    Member: "minimal",
+    MemberInvite: "none",
     Meeting: "minimal",
     MeetingInvite: "none",
     Node: "none",

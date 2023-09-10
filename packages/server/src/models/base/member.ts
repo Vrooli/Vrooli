@@ -1,5 +1,6 @@
 import { MaxObjects, MemberSortBy } from "@local/shared";
 import { defaultPermissions } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
 import { MemberFormat } from "../format/member";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
@@ -8,7 +9,7 @@ import { MemberModelLogic, OrganizationModelLogic, UserModelLogic } from "./type
 import { UserModel } from "./user";
 
 const __typename = "Member" as const;
-const suppFields = [] as const;
+const suppFields = ["you"] as const;
 export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma) => prisma.member,
@@ -38,6 +39,16 @@ export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
                 { user: UserModel.search.searchStringQuery() },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isTransferable: false,

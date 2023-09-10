@@ -123,6 +123,10 @@ export const chat_findMany = {
               "language": true,
               "description": true
             }
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
           }
         },
         "id": true,
