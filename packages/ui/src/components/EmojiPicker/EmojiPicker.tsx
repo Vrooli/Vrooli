@@ -6,9 +6,8 @@ import { useTabs } from "hooks/useTabs";
 import { useZIndex } from "hooks/useZIndex";
 import i18next from "i18next";
 import { AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "icons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { VariableSizeList } from "react-window";
 import emojis from "./data/emojis";
 
 const MINIMUM_VERSION: number | null = null;
@@ -218,14 +217,6 @@ function ClickableEmoji({
     );
 }
 
-const calculateCategoryHeight = (numEmoji: number, pickerWidth: number): number => {
-    const emojiWidth = 64;
-    const emojiHeight = 54;
-    const totalPaddingIncludingScrollbar = 8 + 8 + 8;
-    const numEmojisPerRow = Math.floor((pickerWidth - totalPaddingIncludingScrollbar) / emojiWidth);
-    const numRows = Math.ceil(numEmoji / numEmojisPerRow);
-    return numRows * emojiHeight;
-};
 
 const SUGGESTED_LS_KEY = "epr_suggested";
 
@@ -250,22 +241,12 @@ function getSuggested(): SuggestedItem[] {
 
 function Suggested({
     category,
-    onHeightChange,
     onSelect,
-    pickerWidth,
 }: {
     category: CategoryTabOption;
-    onHeightChange: (index: number, height: number) => unknown;
     onSelect: (emoji: string) => unknown;
-    pickerWidth: number;
 }) {
     const suggested = useMemo(() => getSuggested(), []);
-    const categoryHeight = useMemo(() => calculateCategoryHeight(suggested.length, pickerWidth), [suggested, pickerWidth]);
-    useEffect(() => {
-        console.log("calculating suggested height change", categoryHeight);
-        onHeightChange(0, categoryHeight);
-    }, [categoryHeight, onHeightChange]);
-
     return (
         <EmojiCategory
             category={category}
@@ -302,9 +283,9 @@ function EmojiCategory({
 }) {
     const { t } = useTranslation();
 
-    if (hidden) {
-        return null;
-    }
+    // if (hidden) {
+    //     return null;
+    // }
     return (
         <li
             data-name={category}
@@ -312,29 +293,27 @@ function EmojiCategory({
             style={{ listStyleType: "none" }}
         >
             <div>{t(`Emojis${category}`, { ns: "common", defaultValue: category })}</div>
-            <div>{children}</div>
+            {!hidden && <div>{children}</div>}
         </li>
     );
 }
 
-function RenderCategory({
+const RenderCategory = ({
     activeSkinTone,
     index,
+    isInView,
     category,
-    onHeightChange,
     onSelect,
-    pickerWidth,
 }: {
     activeSkinTone: SkinTone;
     index: number;
+    isInView: boolean;
     category: CategoryTabOption;
-    onHeightChange: (index: number, height: number) => unknown;
     onSelect: (emoji: string) => unknown;
-    pickerWidth: number;
-}) {
+}) => {
     const emojis = useMemo(() => {
-        console.log("calculating emojis in category");
-        return allEmojis[index]
+        const emojisToPush = isInView ? (allEmojis[index] ?? []) : [];
+        return emojisToPush
             .filter(emoji => (!emoji.a || !MINIMUM_VERSION) || (emoji.a >= MINIMUM_VERSION))
             .map(emoji => {
                 const unified = emojiUnified(emoji, activeSkinTone);
@@ -348,12 +327,7 @@ function RenderCategory({
                     />
                 );
             });
-    }, [index, activeSkinTone, onSelect]);
-    const categoryHeight = useMemo(() => calculateCategoryHeight(emojis.length, pickerWidth), [emojis, pickerWidth]);
-    useEffect(() => {
-        console.log("calculating category height change", categoryHeight);
-        onHeightChange(index, categoryHeight);
-    }, [categoryHeight, index, onHeightChange]);
+    }, [index, isInView, activeSkinTone, onSelect]);
 
     return (
         <EmojiCategory
@@ -363,7 +337,7 @@ function RenderCategory({
             {emojis}
         </EmojiCategory>
     );
-}
+};
 
 export const EmojiPicker = ({
     anchorEl,
@@ -399,28 +373,54 @@ export const EmojiPicker = ({
     const [activeSkinTone, setActiveSkinTone] = useState(SkinTone.Neutral);
     const [isSkinTonePickerOpen, setIsSkinTonePickerOpen] = useState(false);
 
-    // Logic for calculating each category's height. Needed for virtualized list.
-    const [pickerWidth, setPickerWidth] = useState(410);
-    const pickerRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        if (pickerRef.current) {
-            // setPickerWidth(pickerRef.current.clientWidth);
-        }
-    }, []);
-    useEffect(() => {
-        const handleResize = () => {
-            if (pickerRef.current) {
-                // setPickerWidth(pickerRef.current.clientWidth);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [visibleCategories, setVisibleCategories] = useState(new Set([0, 1, 2]));
+    // Find which category is the most in view, and set that and surrounding categories to visible
+    const onScroll = () => {
+        const scrollContainer = scrollRef.current;
+        if (!scrollContainer) return;
+
+        const scrollContainerRect = scrollContainer.getBoundingClientRect();
+        const scrollContainerTop = scrollContainerRect.top;
+        const scrollContainerBottom = scrollContainerRect.bottom;
+
+        const categoryDivs = Array.from(scrollContainer.querySelectorAll("li"));
+
+        let maxVisiblePercentage = 0;
+        let mostVisibleIndex = 0;
+
+        categoryDivs.forEach((div, index) => {
+            const divRect = div.getBoundingClientRect();
+            const visibleTop = Math.max(divRect.top, scrollContainerTop);
+            const visibleBottom = Math.min(divRect.bottom, scrollContainerBottom);
+            // Calculate visible height
+            const visibleHeight = Math.max(visibleBottom - visibleTop, 0);
+            // Calculate percentage visible
+            const visiblePercentage = (visibleHeight / divRect.height) * 100;
+            if (visiblePercentage > maxVisiblePercentage) {
+                maxVisiblePercentage = visiblePercentage;
+                mostVisibleIndex = index;
             }
-        };
-        window.addEventListener("resize", handleResize);
-        return () => { window.removeEventListener("resize", handleResize); };
-    }, []);
-    const categoryHeights = useRef<number[]>(new Array(categoryTabParams.length).fill(0));
-    const onCategoryHeightChange = useCallback((index: number, height: number) => {
-        console.log("height change", index, height);
-        categoryHeights.current[index] = height;
-    }, []);
+        });
+        // Determine surrounding categories. Move them into range if needed, making sure there are always 3 categories visible
+        let categoriesToShow = [
+            mostVisibleIndex - 1,
+            mostVisibleIndex,
+            mostVisibleIndex + 1,
+        ];
+        if (categoriesToShow[0] < 0) {
+            categoriesToShow = categoriesToShow.map((index) => index + Math.abs(categoriesToShow[0]));
+        }
+        if (categoriesToShow[2] >= categoryDivs.length) {
+            categoriesToShow = categoriesToShow.map((index) => index - (categoriesToShow[2] - categoryDivs.length + 1));
+        }
+        const newVisibleCategories = new Set(visibleCategories);
+        categoriesToShow.forEach((index) => {
+            newVisibleCategories.add(index);
+        });
+        setVisibleCategories(newVisibleCategories);
+        console.log("visible categories", newVisibleCategories);
+    };
 
     return (
         <Popover
@@ -439,7 +439,6 @@ export const EmojiPicker = ({
         >
             <Box
                 id="emoji-picker-main"
-                ref={pickerRef}
                 component="aside"
                 sx={{
                     position: "relative",
@@ -537,32 +536,22 @@ export const EmojiPicker = ({
                     />
                 </Box>
                 {/* Body */}
-                <Box id="emoji-picker-body" p={1} sx={{ overflow: "hidden" }}>
+                <Box
+                    id="emoji-picker-body"
+                    ref={scrollRef}
+                    p={1}
+                    onScroll={onScroll}
+                    sx={{ overflow: "scroll" }}
+                >
                     {/* Emoji list */}
-                    <VariableSizeList
-                        height={410}
-                        width={410}
-                        itemCount={categoryTabParams.length}
-                        itemSize={(index) => categoryHeights[index] ?? 0}
-                        overscanCount={2}
-                        style={{
-                            maxWidth: "100%",
-                            padding: 0,
-                            margin: 0,
-                        }}
-                    >
-                        {({ index }) => {
-                            const category = categoryTabParams[index];
+                    <ul style={{ padding: 0, margin: 0 }}>
+                        {categoryTabParams.map((category, index) => {
                             if (category.tabType === CategoryTabOption.Suggested) {
-                                return (
-                                    <Suggested
-                                        key={category.tabType}
-                                        category={category.tabType}
-                                        onHeightChange={onCategoryHeightChange}
-                                        onSelect={onSelect}
-                                        pickerWidth={pickerWidth}
-                                    />
-                                );
+                                return <Suggested
+                                    key={category.tabType}
+                                    category={category.tabType}
+                                    onSelect={onSelect}
+                                />;
                             }
                             return (
                                 <RenderCategory
@@ -570,13 +559,12 @@ export const EmojiPicker = ({
                                     index={index}
                                     activeSkinTone={activeSkinTone}
                                     category={category.tabType}
-                                    onHeightChange={onCategoryHeightChange}
+                                    isInView={visibleCategories.has(index)}
                                     onSelect={onSelect}
-                                    pickerWidth={pickerWidth}
                                 />
                             );
-                        }}
-                    </VariableSizeList>
+                        })}
+                    </ul>
                 </Box>
             </Box>
         </Popover>
