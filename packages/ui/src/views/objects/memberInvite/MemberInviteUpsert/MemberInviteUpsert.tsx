@@ -1,11 +1,12 @@
 import { DUMMY_ID, endpointGetMemberInvite, endpointPostMemberInvite, endpointPutMemberInvite, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, memberInviteValidation, Session } from "@local/shared";
+import { Checkbox, FormControlLabel, TextField } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
-import { Formik } from "formik";
+import { Field, Formik } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { MemberInviteFormProps } from "forms/types";
 import { useFormDialog } from "hooks/useFormDialog";
@@ -79,7 +80,23 @@ const MemberInviteForm = forwardRef<BaseFormRef | undefined, MemberInviteFormPro
                         isEditing={true}
                         objectType={"MemberInvite"}
                     />
-                    {/* TODO message, willBeAdmin, willHavePermissions */}
+                    <Field
+                        fullWidth
+                        name="message"
+                        label={t("MessageOptional")}
+                        as={TextField}
+                    />
+                    <FormControlLabel
+                        control={<Field
+                            name="willBeAdmin"
+                            type="checkbox"
+                            as={Checkbox}
+                            size="large"
+                            color="secondary"
+                        />}
+                        label="User will be an administrator"
+                    />
+                    {/* TODO willHavePermissions */}
                 </FormContainer>
             </BaseForm>
             <BottomActionsButtons
