@@ -1,29 +1,27 @@
-import { MemberInvite } from "@local/shared";
-import { Checkbox, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
+import { ChatInvite } from "@local/shared";
+import { IconButton, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { Field } from "formik";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
-import { MemberInviteUpsert } from "views/objects/memberInvite";
-import { MemberManageViewProps } from "../types";
+import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
+import { ChatInviteUpsert } from "views/objects/chatInvite";
+import { ParticipantManageViewProps } from "../types";
 
 /**
- * View members and invited members of an organization
+ * View participants and invited participants of an chat
  */
-export const MemberManageView = ({
+export const ParticipantManageView = ({
+    chat,
     onClose,
-    organization,
     isOpen,
-}: MemberManageViewProps) => {
-    console.log("in MemberManageView", organization);
+}: ParticipantManageViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
@@ -34,13 +32,13 @@ export const MemberManageView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<MemberManagePageTabOption>({ id: "member-manage-tabs", tabParams: memberTabParams, display });
+    } = useTabs<ParticipantManagePageTabOption>({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
 
     const [isInviteDialogOpen, setInviteDialogOpen] = useState(false);
     const onInviteStart = useCallback(() => {
         setInviteDialogOpen(true);
     }, []);
-    const onInviteCompleted = useCallback((invite: MemberInvite) => {
+    const onInviteCompleted = useCallback((invite: ChatInvite) => {
         setInviteDialogOpen(false);
         // TODO add or update list
     }, []);
@@ -49,14 +47,14 @@ export const MemberManageView = ({
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
     useEffect(() => {
         if (!showSearchFilters) return;
-        const searchInput = document.getElementById("search-bar-member-manage-list");
+        const searchInput = document.getElementById("search-bar-participant-manage-list");
         searchInput?.focus();
     }, [showSearchFilters]);
 
     return (
         <MaybeLargeDialog
             display={display}
-            id="member-manage-dialog"
+            id="participant-manage-dialog"
             isOpen={isOpen}
             onClose={onClose}
             sxs={{
@@ -66,13 +64,13 @@ export const MemberManageView = ({
                 },
             }}
         >
-            {/* Dialog for creating new member invite */}
-            <MemberInviteUpsert
+            {/* Dialog for creating new participant invite */}
+            <ChatInviteUpsert
                 isCreate={true}
                 isOpen={isInviteDialogOpen}
                 onCompleted={onInviteCompleted}
                 onCancel={() => setInviteDialogOpen(false)}
-                overrideObject={{ organization }}
+                overrideObject={{ chat }}
             />
             {/* Main dialog */}
             <TopBar
@@ -86,25 +84,13 @@ export const MemberManageView = ({
                     tabs={tabs}
                 />}
             />
-            <Stack direction="row" alignItems="center" justifyContent="flex-start" sx={{ padding: 2 }}>
-                <FormControlLabel
-                    control={<Field
-                        name="isOpenToNewMembers"
-                        type="checkbox"
-                        as={Checkbox}
-                        size="large"
-                        color="secondary"
-                    />}
-                    label="Can anyone ask to join?"
-                />
-            </Stack >
             {searchType && <SearchList
-                id="member-manage-list"
+                id="participant-manage-list"
                 display={display}
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                where={where(organization.id)}
+                where={where(chat.id)}
                 sxs={showSearchFilters ? {
                     search: { marginTop: 2 },
                     listContainer: { borderRadius: 0 },

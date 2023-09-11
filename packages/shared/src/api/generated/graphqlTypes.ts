@@ -1706,6 +1706,7 @@ export type Meeting = {
   __typename: 'Meeting';
   attendees: Array<User>;
   attendeesCount: Scalars['Int'];
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   invites: Array<MeetingInvite>;
   invitesCount: Scalars['Int'];
@@ -1718,6 +1719,7 @@ export type Meeting = {
   showOnOrganizationProfile: Scalars['Boolean'];
   translations: Array<MeetingTranslation>;
   translationsCount: Scalars['Int'];
+  updated_at: Scalars['Date'];
   you: MeetingYou;
 };
 
@@ -11839,6 +11841,7 @@ export type LabelYouResolvers<ContextType = any, ParentType extends ResolversPar
 export type MeetingResolvers<ContextType = any, ParentType extends ResolversParentTypes['Meeting'] = ResolversParentTypes['Meeting']> = {
   attendees?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   attendeesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   invites?: Resolver<Array<ResolversTypes['MeetingInvite']>, ParentType, ContextType>;
   invitesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11851,6 +11854,7 @@ export type MeetingResolvers<ContextType = any, ParentType extends ResolversPare
   showOnOrganizationProfile?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['MeetingTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['MeetingYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

@@ -1,5 +1,5 @@
 import { exists } from "@local/shared";
-import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Avatar, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { RelationshipItemOrganization } from "components/lists/types";
 import { useField } from "formik";
@@ -8,7 +8,8 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { highlightStyle } from "styles";
-import { getDisplay } from "utils/display/listTools";
+import { extractImageUrl } from "utils/display/imageTools";
+import { getDisplay, placeholderColor } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";
 import { OrganizationButtonProps } from "../types";
@@ -58,21 +59,15 @@ export function OrganizationButton({
         return [() => { }, () => { }];
     }, [isDialogOpen, handleSelect, closeDialog]);
 
-    const { Icon, tooltip } = useMemo(() => {
+    const tooltip = useMemo(() => {
         const relation = field?.value;
         // If no data, marked as unset
-        if (!relation) return {
-            Icon: AddIcon,
-            tooltip: t(`OrganizationNoneTogglePress${isEditing ? "Editable" : ""}`),
-        };
-        return {
-            Icon: OrganizationIcon,
-            tooltip: t(`OrganizationTogglePress${isEditing ? "Editable" : ""}`, { organization: getDisplay(relation).title ?? "" }),
-        };
+        if (!relation) return t(`OrganizationNoneTogglePress${isEditing ? "Editable" : ""}`);
+        return t(`OrganizationTogglePress${isEditing ? "Editable" : ""}`, { organization: getDisplay(relation).title ?? "" });
     }, [isEditing, field?.value, t]);
 
     // If not available, return null
-    if (!isAvailable || (!isEditing && !Icon)) return null;
+    if (!isAvailable || (!isEditing && !field?.value)) return null;
     return (
         <>
             {/* Popup for selecting relation */}
@@ -104,9 +99,22 @@ export function OrganizationButton({
                             ...highlightStyle(palette.primary.light, !isEditing),
                         }}
                     >
-                        <IconButton>
-                            <Icon width={"48px"} height={"48px"} fill="white" />
-                        </IconButton>
+                        {field?.value ? (
+                            <Avatar
+                                src={extractImageUrl(field.value.profileImage, field.value.updated_at, 50)}
+                                alt={`${getDisplay(field.value).title}'s profile picture`}
+                                sx={{
+                                    backgroundColor: placeholderColor()[0],
+                                    width: "48px",
+                                    height: "48px",
+                                    pointerEvents: "none",
+                                    marginLeft: 1,
+                                    marginRight: 1,
+                                }}
+                            >
+                                <OrganizationIcon width="75%" height="75%" fill="white" />
+                            </Avatar>
+                        ) : <AddIcon width={"48px"} height={"48px"} fill="white" />}
                         <Typography variant="body1" sx={{ color: "white" }}>
                             {field?.value ? getDisplay(field?.value).title : t("Organization")}
                         </Typography>

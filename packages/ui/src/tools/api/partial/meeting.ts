@@ -30,6 +30,8 @@ export const meeting: GqlPartial<Meeting> = {
     __typename: "Meeting",
     common: {
         id: true,
+        created_at: true,
+        updated_at: true,
         openToAnyoneWithInvite: true,
         showOnOrganizationProfile: true,
         organization: async () => rel((await import("./organization")).organization, "nav"),

@@ -707,6 +707,8 @@ export const notificationSubscription_update = {
         "name": true
       },
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "openToAnyoneWithInvite": true,
       "showOnOrganizationProfile": true,
       "organization": {

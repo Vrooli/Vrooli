@@ -12419,6 +12419,10 @@
             "title": "Meeting.attendeesCount",
             "type": "number"
           },
+          "created_at": {
+            "title": "Meeting.created_at",
+            "type": "string"
+          },
           "id": {
             "title": "Meeting.id",
             "type": "string"
@@ -12488,6 +12492,10 @@
             "title": "Meeting.translationsCount",
             "type": "number"
           },
+          "updated_at": {
+            "title": "Meeting.updated_at",
+            "type": "string"
+          },
           "you": {
             "$ref": "#/components/schemas/MeetingYou",
             "title": "Meeting.you"
@@ -12497,6 +12505,7 @@
           "__typename",
           "attendees",
           "attendeesCount",
+          "created_at",
           "id",
           "invites",
           "invitesCount",
@@ -12508,6 +12517,7 @@
           "showOnOrganizationProfile",
           "translations",
           "translationsCount",
+          "updated_at",
           "you"
         ],
         "additionalProperties": false,

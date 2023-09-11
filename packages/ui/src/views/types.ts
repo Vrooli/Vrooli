@@ -2,6 +2,7 @@ import { RoutineVersion } from "@local/shared";
 import { ReactNode } from "react";
 import { PartialWithType } from "types";
 import { ListObject } from "utils/display/listTools";
+import { NewChatInviteShape } from "./objects/chatInvite";
 import { NewMemberInviteShape } from "./objects/memberInvite";
 
 /**
@@ -35,6 +36,10 @@ export type HistorySearchViewProps = ViewProps
 
 export type MemberManageViewProps = ViewProps & {
     organization: NewMemberInviteShape["organization"];
+}
+
+export type ParticipantManageViewProps = ViewProps & {
+    chat: NewChatInviteShape["chat"];
 }
 
 export type PremiumViewProps = ViewProps

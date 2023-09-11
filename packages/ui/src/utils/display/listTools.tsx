@@ -1,4 +1,4 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, exists, GqlModelType, isOfType, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
+import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, exists, GqlModelType, isOfType, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
 import { Palette } from "@mui/material";
 import { BotIcon } from "icons";
 import { AutocompleteOption } from "types";
@@ -132,19 +132,27 @@ export const getYou = (
         if (rootField === true || rootField === false || typeof rootField === "boolean") return rootField;
         return false; // Default to false if no field found
     };
-    // Get canDelete permission before any relation checks. 
-    // We do this because we'll always use the current object's "you" property for canDelete.
-    // For example, we'll want to know if we can delete a Member, rather than the User it's associated with.
-    objectPermissions.canDelete = getPermission("canDelete");
-    const withDelete = (permissions: YouInflated) => ({ ...permissions, canDelete: objectPermissions.canDelete });
-    // If a bookmark, reaction, or view, use the "to" object
-    if (isOfType(object, "Bookmark", "Reaction", "View")) return withDelete(getYou((object as Partial<Bookmark | Reaction | View>).to));
-    // If a run routine, use the "routineVersion" object
-    if (isOfType(object, "RunRoutine")) return withDelete(getYou((object as Partial<RunRoutine>).routineVersion));
-    // If a run project, use the "projectVersion" object
-    if (isOfType(object, "RunProject")) return withDelete(getYou((object as Partial<RunProject>).projectVersion));
-    // If a member or chatParticipant, use the "user" object
-    if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return withDelete(getYou((object as Partial<Member | MemberInvite | ChatParticipant | ChatInvite>).user));
+    // Some permissions are based on a relation (e.g. bookmarking a View's "to" relation), 
+    // while others are always based on the current object (e.g. deleting a member instead of the user it's associated with).
+    // Keep this in mind when looking at the code below.
+    if (isOfType(object, "Bookmark", "Reaction", "View")) return {
+        ...getYou((object as Partial<Bookmark | Reaction | View>).to),
+        canDelete: getPermission("canDelete"),
+    };
+    if (isOfType(object, "RunRoutine")) return {
+        ...getYou((object as Partial<RunRoutine>).routineVersion),
+        canDelete: getPermission("canDelete"),
+    };
+    if (isOfType(object, "RunProject")) return {
+        ...getYou((object as Partial<RunProject>).projectVersion),
+        canDelete: getPermission("canDelete"),
+    };
+    if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return {
+        ...getYou((object as Partial<Member | MemberInvite | ChatParticipant | ChatInvite>).user),
+        canCopy: getPermission("canCopy"),
+        canDelete: getPermission("canDelete"),
+        canUpdate: getPermission("canUpdate"),
+    };
     // Loop through all permission fields
     for (const key in objectPermissions) {
         if (key === "canDelete") continue; // Skip canDelete, since we already set it
@@ -332,16 +340,18 @@ export const getDisplay = (
             adornments,
         };
     }
-    // If a chat, use the chat's title/subtitle, or default to descriptive text with participant or participant count
-    if (isOfType(object, "Chat")) {
-        const { participants, participantsCount, updated_at } = object as Partial<Chat>;
+    // If a chat or meeting, use it's title/subtitle, or default to descriptive text with participant or participant count
+    if (isOfType(object, "Chat", "Meeting")) {
+        const participants = (object as Partial<Meeting>).attendees ?? (object as Partial<Chat>).participants ?? [];
+        const participantsCount = (object as Partial<Meeting>).attendeesCount ?? (object as Partial<Chat>).participantsCount;
+        const updated_at = (object as Partial<Chat | Meeting>).updated_at;
         const { name, description } = getTranslation(object as Partial<Chat>, langs, true);
         const isGroup = Number.isInteger(participantsCount) && (participantsCount as number) > 2;
-        const firstParticipant = Array.isArray(participants) && participants.length > 0 ? participants[0] : null;
-        const title = firstString(name, isGroup ?
+        const firstUser = (participants as unknown as Meeting["attendees"])[0] ?? (participants as unknown as Chat["participants"])[0]?.user;
+        const title = firstString(name, isGroup ? //TODO internationalize this and support meeting
             `Group chat (${participantsCount})` :
-            firstParticipant ?
-                `Chat with ${getDisplay(firstParticipant).title}` :
+            firstUser ?
+                `Chat with ${getDisplay(firstUser).title}` :
                 "Chat",
         );
         const subtitle = firstString(description, displayDate(updated_at));

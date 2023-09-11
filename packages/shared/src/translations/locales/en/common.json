@@ -402,6 +402,7 @@
     "MemberInvite_other": "Member invites",
     "Message_one": "Message",
     "Message_other": "Messages",
+    "MessageOptional": "Message (optional)",
     "MessagesAsc": "Messages ↑",
     "MessagesDesc": "Messages ↓",
     "MessageSend": "Send message",

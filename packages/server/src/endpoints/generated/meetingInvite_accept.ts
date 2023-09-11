@@ -747,6 +747,8 @@ export const meetingInvite_accept = {
       "name": true
     },
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "openToAnyoneWithInvite": true,
     "showOnOrganizationProfile": true,
     "organization": {

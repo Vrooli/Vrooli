@@ -1,4 +1,4 @@
-import { Chat, isOfType, Member, ReactionFor, User, uuid } from "@local/shared";
+import { Chat, ChatInvite, ChatParticipant, isOfType, Meeting, Member, MemberInvite, ReactionFor, uuid } from "@local/shared";
 import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
@@ -121,9 +121,11 @@ export function ObjectListItemBase<T extends ListObject>({
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
-        // Show icons for organizations, users, and members
-        if (isOfType(object, "Organization", "User", "Member")) {
-            const isBot = (object as unknown as User).isBot || (object as unknown as Member).user?.isBot || (object as unknown as Chat).participants?.[0]?.user?.isBot;
+        // Show icons for organizations, users, and objects with display organizations/users
+        if (isOfType(object, "Organization", "User", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) {
+            type OrgOrUser = { __typename: "Organization" | "User", profileImage: string, updated_at: string, isBot?: boolean };
+            const orgOrUser: OrgOrUser = (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ? (object as unknown as (Member | MemberInvite | ChatParticipant | ChatInvite)).user : object) as unknown as OrgOrUser;
+            const isBot = orgOrUser.isBot;
             let Icon: SvgComponent;
             if (object.__typename === "Organization") {
                 Icon = OrganizationIcon;
@@ -134,8 +136,8 @@ export function ObjectListItemBase<T extends ListObject>({
             }
             return (
                 <Avatar
-                    src={extractImageUrl((object as unknown as { profileImage: string }).profileImage, (object as unknown as { updated_at: string }).updated_at, 50)}
-                    alt={`${object.name}'s profile picture`}
+                    src={extractImageUrl(orgOrUser.profileImage, orgOrUser.updated_at, 50)}
+                    alt={`${getDisplay(object).title}'s profile picture`}
                     sx={{
                         backgroundColor: profileColors[0],
                         width: isMobile ? "40px" : "50px",
@@ -149,31 +151,34 @@ export function ObjectListItemBase<T extends ListObject>({
                 </Avatar>
             );
         }
-        // Show multiple icons for chats
-        if (isOfType(object, "Chat")) {
+        // Show multiple icons for chats and meetings
+        if (isOfType(object, "Chat", "Meeting")) {
             // Filter yourself out of participants
-            const participants = (object as unknown as Chat).participants?.filter(p => p.user?.id !== getCurrentUser(session).id) ?? [];
+            const attendeesOrParticipants = ((object as unknown as Meeting).attendees ?? (object as unknown as Chat).participants)?.filter((p: Meeting["attendees"][0] | Chat["participants"][0]) => (p as Meeting["attendees"][0])?.id !== getCurrentUser(session)?.id && (p as Chat["participants"][0])?.user?.id !== getCurrentUser(session)?.id) ?? [];
             // If no participants, show nothing
-            if (participants.length === 0) return null;
+            if (attendeesOrParticipants.length === 0) return null;
             // If only one participant, show their profile picture instead of a group
-            if (participants.length === 1) {
+            if (attendeesOrParticipants.length === 1) {
+                const firstUser = (attendeesOrParticipants as unknown as Chat["participants"])[0]?.user ?? (attendeesOrParticipants as unknown as Meeting["attendees"])[0];
                 return (
                     <Avatar
-                        src={extractImageUrl((participants[0]?.user as unknown as { profileImage: string }).profileImage, (participants[0]?.user as unknown as { updated_at: string }).updated_at, 50)}
-                        alt={`${(participants[0]?.user as unknown as { name: string }).name}'s profile picture`}
+                        src={extractImageUrl(firstUser?.profileImage, firstUser?.updated_at, 50)}
+                        alt={`${getDisplay(firstUser).title}'s profile picture`}
                         sx={{
                             backgroundColor: profileColors[0],
                             width: isMobile ? "40px" : "50px",
                             height: isMobile ? "40px" : "50px",
                             pointerEvents: "none",
                             // Bots show up as squares, to distinguish them from users
-                            ...(participants[0]?.user?.isBot ? { borderRadius: "8px" } : {}),
+                            ...(firstUser?.isBot ? { borderRadius: "8px" } : {}),
                         }}
-                    />
+                    >
+                        {firstUser?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                    </Avatar>
                 );
             }
             // Otherwise, show a group
-            return <ProfileGroup users={participants.map(p => p.user)} />;
+            return <ProfileGroup users={attendeesOrParticipants.map((p: Meeting["attendees"][0] | Chat["participants"][0]) => (p as Chat["participants"][0])?.user ?? p as Meeting["attendees"][0])} />;
         }
         // Otherwise, only show on wide screens
         if (isMobile) return null;
@@ -260,7 +265,7 @@ export function ObjectListItemBase<T extends ListObject>({
         );
     }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
-    const titleId = `${LIST_PREFIX}title-stack-${id}`
+    const titleId = `${LIST_PREFIX}title-stack-${id}`;
     return (
         <>
             {/* List item */}

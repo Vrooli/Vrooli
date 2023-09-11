@@ -1,14 +1,15 @@
 import { exists } from "@local/shared";
-import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Avatar, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { RelationshipItemUser } from "components/lists/types";
 import { useField } from "formik";
-import { AddIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { highlightStyle } from "styles";
-import { getDisplay } from "utils/display/listTools";
+import { extractImageUrl } from "utils/display/imageTools";
+import { getDisplay, placeholderColor } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";
 import { UserButtonProps } from "../types";
@@ -23,7 +24,7 @@ export function UserButton({
 
     const [field, , helpers] = useField("user");
 
-    const isAvailable = useMemo(() => ["MemberInvite"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
+    const isAvailable = useMemo(() => ["ChatInvite", "MemberInvite"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
 
     // Select object dialog
     const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
@@ -58,21 +59,15 @@ export function UserButton({
         return [() => { }, () => { }];
     }, [isDialogOpen, handleSelect, closeDialog]);
 
-    const { Icon, tooltip } = useMemo(() => {
+    const tooltip = useMemo(() => {
         const relation = field?.value;
         // If no data, marked as unset
-        if (!relation) return {
-            Icon: AddIcon,
-            tooltip: t(`UserNoneTogglePress${isEditing ? "Editable" : ""}`),
-        };
-        return {
-            Icon: UserIcon,
-            tooltip: t(`UserTogglePress${isEditing ? "Editable" : ""}`, { user: getDisplay(relation).title ?? "" }),
-        };
+        if (!relation) return t(`UserNoneTogglePress${isEditing ? "Editable" : ""}`);
+        return t(`UserTogglePress${isEditing ? "Editable" : ""}`, { user: getDisplay(relation).title ?? "" });
     }, [isEditing, field?.value, t]);
 
     // If not available, return null
-    if (!isAvailable || (!isEditing && !Icon)) return null;
+    if (!isAvailable || (!isEditing && !field?.value)) return null;
     return (
         <>
             {/* Popup for selecting relation */}
@@ -104,9 +99,23 @@ export function UserButton({
                             ...highlightStyle(palette.primary.light, !isEditing),
                         }}
                     >
-                        <IconButton>
-                            <Icon width={"48px"} height={"48px"} fill="white" />
-                        </IconButton>
+                        {field?.value ? (
+                            <Avatar
+                                src={extractImageUrl(field.value.profileImage, field.value.updated_at, 50)}
+                                alt={`${getDisplay(field.value).title}'s profile picture`}
+                                sx={{
+                                    backgroundColor: placeholderColor()[0],
+                                    width: "48px",
+                                    height: "48px",
+                                    pointerEvents: "none",
+                                    marginLeft: field.value.isBot ? 1.5 : 1,
+                                    marginRight: 1,
+                                    ...(field.value.isBot ? { borderRadius: "8px" } : {}),
+                                }}
+                            >
+                                {field.value.isBot ? <BotIcon width="75%" height="75%" fill="white" /> : <UserIcon width="75%" height="75%" fill="white" />}
+                            </Avatar>
+                        ) : <AddIcon width={"48px"} height={"48px"} fill="white" />}
                         <Typography variant="body1" sx={{ color: "white" }}>
                             {field?.value ? getDisplay(field?.value).title : t("User")}
                         </Typography>

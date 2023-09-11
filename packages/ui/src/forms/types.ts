@@ -9,6 +9,7 @@ import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { BookmarkListShape } from "utils/shape/models/bookmarkList";
 import { BotShape } from "utils/shape/models/bot";
 import { ChatShape } from "utils/shape/models/chat";
+import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
 import { MeetingShape } from "utils/shape/models/meeting";
@@ -103,6 +104,7 @@ export type ChatFormProps = ImprovedFormProps<Chat, ChatShape> & {
     context?: string | null | undefined;
     task?: AssistantTask;
 }
+export type ChatInviteFormProps = BaseObjectFormProps<ChatInviteShape>
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
 export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };

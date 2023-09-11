@@ -1,4 +1,4 @@
-import { CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType } from "@local/shared";
+import { ChatInviteStatus, CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType } from "@local/shared";
 import { Palette } from "@mui/material";
 import { ApiIcon, CommentIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { YouInflated } from "utils/display/listTools";
@@ -172,6 +172,11 @@ export enum OrganizationPageTabOption {
     Resource = "Resource",
     Project = "Project",
     Member = "Member",
+}
+
+export enum ParticipantManagePageTabOption {
+    ChatParticipant = "ChatParticipant",
+    ChatInvite = "ChatInvite",
 }
 
 export enum SearchPageTabOption {
@@ -523,6 +528,18 @@ export const userTabParams = [{
     searchType: SearchType.Organization,
     tabType: UserPageTabOption.Organization,
     where: ({ userId }: UserTabWhereParams) => ({ memberUserIds: [userId], visibility: VisibilityType.All }),
+}];
+
+export const participantTabParams = [{
+    titleKey: "Participant" as CommonKey,
+    searchType: SearchType.ChatParticipant,
+    tabType: ParticipantManagePageTabOption.ChatParticipant,
+    where: (chatId: string) => ({ chatId }),
+}, {
+    titleKey: "Invite" as CommonKey,
+    searchType: SearchType.ChatInvite,
+    tabType: ParticipantManagePageTabOption.ChatInvite,
+    where: (chatId: string) => ({ chatId, statuses: [ChatInviteStatus.Pending, ChatInviteStatus.Declined] }),
 }];
 
 export const policyTabParams = [

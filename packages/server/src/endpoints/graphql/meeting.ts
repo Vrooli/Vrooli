@@ -42,6 +42,8 @@ export const typeDef = gql`
     }
     type Meeting {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         openToAnyoneWithInvite: Boolean!
         showOnOrganizationProfile: Boolean!
         organization: Organization!
