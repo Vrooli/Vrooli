@@ -3,7 +3,7 @@
 # required to get the project up and running.
 #
 # Arguments (all optional):
-# -f: Force install (y/N) - If set to "y", will delete all node_modules directories and reinstall
+# -m: Force install modules (y/N) - If set to "y", will delete all node_modules directories and reinstall
 # -r: Run on remote server (y/N) - If set to "y", will run additional commands to set up the remote server
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
@@ -15,7 +15,7 @@ ENVIRONMENT="dev"
 ENV_FILES_SET_UP=""
 for arg in "$@"; do
     case $arg in
-    -f | --force)
+    -m | --modules-reinstall)
         REINSTALL_MODULES="${2}"
         shift
         shift
@@ -37,7 +37,7 @@ for arg in "$@"; do
     -h | --help)
         echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE] [-p PROD] [-e ENV_SETUP]"
         echo "  -h --help: Show this help message"
-        echo "  -f --force: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
+        echo "  -m --modules-reinstall: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
         echo "  -r --remote: (Y/n) True if this script is being run on the remote server"
         echo "  -p --prod: If set, will skip steps that are only required for development"
         echo "  -e --env-setup: (Y/n) True if you want to create secret files for the environment variables. If not provided, will prompt."
@@ -153,14 +153,33 @@ fi
 # Less needs to be done for production environments
 if [ "${ENVIRONMENT}" = "dev" ]; then
     header "Installing global dependencies"
-    yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.14.0 vite
+    installedPackages=$(yarn global list)
+    check_and_add_to_install_list() {
+        package="$1"
+        version="$2"
+        fullPackageName="$package"
+        if [ ! -z "$version" ]; then
+            fullPackageName="$package@$version"
+        fi
+        # Check if package is installed globally
+        if ! echo "$installedPackages" | grep -E "info \"$package(@$version)?" >/dev/null; then
+            info "Installing $fullPackageName"
+            toInstall="$toInstall $fullPackageName"
+        fi
+    }
+    toInstall=""
+    check_and_add_to_install_list "apollo" "2.34.0"
+    check_and_add_to_install_list "typescript" ""
+    check_and_add_to_install_list "ts-node" ""
+    check_and_add_to_install_list "nodemon" ""
+    check_and_add_to_install_list "prisma" "4.14.0"
+    check_and_add_to_install_list "vite" ""
+    # Install all at once if there are packages to install
+    if [ ! -z "$toInstall" ]; then
+        yarn global add $toInstall
+    fi
 
     # If reinstalling modules, delete all node_modules directories before installing dependencies
-    if [ -z "${REINSTALL_MODULES}" ]; then
-        prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
-        read -n1 -r REINSTALL_MODULES
-        echo
-    fi
     if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
         header "Deleting all node_modules directories"
         find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
