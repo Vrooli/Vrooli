@@ -3,7 +3,7 @@ import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type MeetingInviteShape = Pick<MeetingInvite, "id" | "message"> & {
-    __typename?: "MeetingInvite";
+    __typename: "MeetingInvite";
     meeting: { id: string };
     user: { id: string };
 }

@@ -1,7 +1,9 @@
 import { Session } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
 import { FocusModeButton, IsCompleteButton, IsPrivateButton, MeetingButton, MembersButton, OwnerButton, ParentButton, ProjectButton, QuestionForButton, RunProjectButton, RunRoutineButton } from "components/buttons/relationships";
+import { OrganizationButton } from "components/buttons/relationships/OrganizationButton/OrganizationButton";
 import { ParticipantsButton } from "components/buttons/relationships/ParticipantsButton/ParticipantsButton";
+import { UserButton } from "components/buttons/relationships/UserButton/UserButton";
 import { noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { OwnerShape } from "utils/shape/models/types";
@@ -58,6 +60,8 @@ export function RelationshipList(props: RelationshipListProps) {
             <QuestionForButton {...props} />
             <MembersButton {...props} />
             <ParticipantsButton {...props} />
+            <OrganizationButton {...props} />
+            <UserButton {...props} />
         </Stack>
     );
 }

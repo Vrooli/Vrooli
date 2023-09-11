@@ -5,7 +5,6 @@ import { StandardVersionSelectSwitch } from "components/inputs/StandardVersionSe
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { routineVersionIOInitialValues, transformRoutineVersionIOValues, validateRoutineVersionIOValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
-import { standardInitialValues } from "forms/StandardForm/StandardForm";
 import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,6 +12,7 @@ import { linkColors } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
+import { standardInitialValues } from "views/objects/standard";
 import { InputOutputListItemProps } from "../types";
 
 //TODO handle language change somehow

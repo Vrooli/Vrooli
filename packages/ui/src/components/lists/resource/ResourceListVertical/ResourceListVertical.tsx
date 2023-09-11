@@ -3,13 +3,12 @@
 import { Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { updateArray } from "utils/shape/general";
-import { ResourceUpsert } from "views/objects/resource";
+import { NewResourceShape, resourceInitialValues, ResourceUpsert } from "views/objects/resource";
 import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceListVerticalProps } from "../types";

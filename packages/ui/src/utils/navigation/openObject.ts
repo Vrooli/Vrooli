@@ -12,9 +12,11 @@ import { uuidToBase36 } from "./urlTools";
 export type ObjectType = "Api" |
     "Bookmark" |
     "Chat" |
+    "ChatInvite" |
     "Comment" |
     "FocusMode" |
     "Meeting" |
+    "MemberInvite" |
     "Note" |
     "Organization" |
     "Project" |
@@ -36,7 +38,6 @@ export type ObjectType = "Api" |
  * @returns Search URL base for object type
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string => {
-    console.log('GETTING OBJECT URL BASE', object)
     // If object is a user, use 'Profile'
     if (isOfType(object, "User")) return LINKS.Profile;
     // If object is a star/vote/some other type that links to a main object, use the "to" property

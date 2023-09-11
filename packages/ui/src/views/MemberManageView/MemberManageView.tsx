@@ -1,4 +1,4 @@
-import { CommonKey } from "@local/shared";
+import { CommonKey, MemberInvite } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -8,11 +8,11 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { useField } from "formik";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, LockIcon, SearchIcon, UnlockIcon } from "icons";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { scrollIntoFocusedView } from "utils/display/scroll";
 import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
+import { MemberInviteUpsert } from "views/objects/memberInvite";
 import { MemberManageViewProps } from "../types";
 
 /**
@@ -20,9 +20,10 @@ import { MemberManageViewProps } from "../types";
  */
 export const MemberManageView = ({
     onClose,
-    organizationId,
+    organization,
     isOpen,
 }: MemberManageViewProps) => {
+    console.log("in MemberManageView", organization);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
@@ -41,8 +42,18 @@ export const MemberManageView = ({
     const onInviteStart = useCallback(() => {
         setInviteDialogOpen(true);
     }, []);
+    const onInviteCompleted = useCallback((invite: MemberInvite) => {
+        setInviteDialogOpen(false);
+        // TODO add or update list
+    }, []);
 
-    const focusSearch = () => { scrollIntoFocusedView("search-bar-member-manage-list"); };
+    const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
+    const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
+    useEffect(() => {
+        if (!showSearchFilters) return;
+        const searchInput = document.getElementById("search-bar-member-manage-list");
+        searchInput?.focus();
+    }, [showSearchFilters]);
 
     return (
         <MaybeLargeDialog
@@ -53,18 +64,18 @@ export const MemberManageView = ({
             sxs={{
                 paper: {
                     minHeight: "min(100vh - 64px, 600px)",
-                    maxWidth: "min(100%, 500px)",
+                    width: "min(100%, 500px)",
                 },
             }}
         >
-            {/* Dialog for creating new member invite TODO */}
-            {/* <MemberInviteUpsert
-                    display="dialog"
-                    isCreate={true}
-                    isOpen={isInviteDialogOpen}
-                    onCompleted={handleCreated}
-                    onCancel={handleCreateClose}
-                /> */}
+            {/* Dialog for creating new member invite */}
+            <MemberInviteUpsert
+                isCreate={true}
+                isOpen={isInviteDialogOpen}
+                onCompleted={onInviteCompleted}
+                onCancel={() => setInviteDialogOpen(false)}
+                overrideObject={{ organization }}
+            />
             {/* Main dialog */}
             <TopBar
                 display={display}
@@ -79,7 +90,7 @@ export const MemberManageView = ({
             />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{t(searchType as CommonKey, { count: 2, defaultValue: searchType })}</Typography>
-                <Tooltip title={t("Invite")} placement="top">
+                <Tooltip title={t("Invite", { count: 1 })} placement="top">
                     <IconButton
                         size="medium"
                         onClick={onInviteStart}
@@ -108,14 +119,18 @@ export const MemberManageView = ({
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                where={where(organizationId)}
-                sxs={{ search: { marginTop: 2 } }}
+                where={where(organization.id)}
+                sxs={showSearchFilters ? {
+                    search: { marginTop: 2 },
+                    listContainer: { borderRadius: 0 },
+                } : {
+                    search: { display: "none" },
+                    buttons: { display: "none" },
+                    listContainer: { borderRadius: 0 },
+                }}
             />}
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
-                <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
+            <SideActionsButtons display={display}>
+                <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>
                 <IconButton aria-label={t("CreateInvite")} onClick={onInviteStart} sx={{ background: palette.secondary.main }}>

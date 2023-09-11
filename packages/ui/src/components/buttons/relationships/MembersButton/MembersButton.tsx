@@ -2,12 +2,13 @@ import { User } from "@local/shared";
 import { Box, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
-import { useField } from "formik";
+import { useField, useFormikContext } from "formik";
 import { AddIcon, BotIcon, LockIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SvgComponent } from "types";
 import { MemberManageView } from "views/MemberManageView/MemberManageView";
+import { MemberManageViewProps } from "views/types";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { MembersButtonProps } from "../types";
 
@@ -28,7 +29,7 @@ export const MembersButton = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [idField] = useField("id");
+    const formikContext = useFormikContext();
     const [membersField, , membersFieldHelpers] = useField("members");
     const [isOpenToNewMembersField] = useField("isOpenToNewMembers");
 
@@ -75,7 +76,7 @@ export const MembersButton = ({
             <MemberManageView
                 isOpen={isDialogOpen}
                 onClose={closeDialog}
-                organizationId={idField.value ?? ""}
+                organization={formikContext.values as MemberManageViewProps["organization"]}
             />
             <Stack
                 direction="column"

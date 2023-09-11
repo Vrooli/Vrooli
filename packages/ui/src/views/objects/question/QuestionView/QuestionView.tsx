@@ -11,7 +11,6 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon } from "icons";
@@ -24,6 +23,7 @@ import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { TagShape } from "utils/shape/models/tag";
+import { questionInitialValues } from "../QuestionUpsert/QuestionUpsert";
 import { QuestionViewProps } from "../types";
 
 export const QuestionView = ({

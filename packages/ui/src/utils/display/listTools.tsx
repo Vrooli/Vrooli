@@ -1,4 +1,4 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatParticipant, CommentFor, DeleteType, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
+import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, exists, GqlModelType, isOfType, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
 import { Palette } from "@mui/material";
 import { BotIcon } from "icons";
 import { AutocompleteOption } from "types";
@@ -144,7 +144,7 @@ export const getYou = (
     // If a run project, use the "projectVersion" object
     if (isOfType(object, "RunProject")) return withDelete(getYou((object as Partial<RunProject>).projectVersion));
     // If a member or chatParticipant, use the "user" object
-    if (isOfType(object, "Member", "ChatParticipant")) return withDelete(getYou((object as Partial<Member | ChatParticipant>).user));
+    if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return withDelete(getYou((object as Partial<Member | MemberInvite | ChatParticipant | ChatInvite>).user));
     // Loop through all permission fields
     for (const key in objectPermissions) {
         if (key === "canDelete") continue; // Skip canDelete, since we already set it
@@ -152,10 +152,11 @@ export const getYou = (
     }
     // Now remove permissions is the action is not allowed on the object type (e.g. can't react to a user).
     const filterInvalidAction = (action: keyof YouInflated, enumType: Record<string, unknown>) => {
-        if (objectPermissions[action] && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(enumType[type]))) objectPermissions.canBookmark = false;
+        if (objectPermissions[action] && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(enumType[type]))) objectPermissions[action as any] = false;
     };
     filterInvalidAction("canBookmark", BookmarkFor);
     filterInvalidAction("canComment", CommentFor);
+    filterInvalidAction("canCopy", CopyType);
     filterInvalidAction("canDelete", DeleteType);
     filterInvalidAction("canReact", ReactionFor);
     filterInvalidAction("canReport", ReportFor);
@@ -347,7 +348,7 @@ export const getDisplay = (
         return { title, subtitle, adornments };
     }
     // If a member or chat participant, use the user's display
-    if (isOfType(object, "Member", "ChatParticipant")) return getDisplay({ __typename: "User", ...(object as Partial<ChatParticipant | Member>).user } as ListObject);
+    if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return getDisplay({ __typename: "User", ...(object as Partial<ChatParticipant | ChatInvite | Member | MemberInvite>).user } as ListObject);
     // For all other objects, fields may differ. 
     const { title, subtitle } = tryVersioned(object, langs);
     // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
@@ -386,7 +387,7 @@ export const getBookmarkFor = (
 ): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } => {
     if (!object || !object.id) return { bookmarkFor: null, starForId: null };
     // If object does not support bookmarking, return null
-    if (isOfType(object, "BookmarkList", "Member")) return { bookmarkFor: null, starForId: null }; //TODO add more types
+    if (isOfType(object, "BookmarkList", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return { bookmarkFor: null, starForId: null }; //TODO add more types
     // If a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getBookmarkFor((object as Partial<Bookmark | Reaction | View>).to);
     // If a run routine, use the routine version
@@ -426,8 +427,8 @@ export function listToAutocomplete(
         to: isOfType(o, "Bookmark", "Reaction", "View") ?
             (o as Partial<Bookmark | Reaction | View>).to :
             undefined,
-        user: isOfType(o, "Member") ?
-            (o as Partial<Member>).user :
+        user: isOfType(o, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ?
+            (o as Partial<Member | MemberInvite | ChatParticipant | ChatInvite>).user :
             undefined,
         versions: isOfType(o, "Api", "Note", "Project", "Routine", "SmartContract", "Standard") ?
             (o as Partial<Api | Note | Project | Routine | SmartContract | Standard>).versions :

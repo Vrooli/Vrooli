@@ -2,6 +2,7 @@ import { RoutineVersion } from "@local/shared";
 import { ReactNode } from "react";
 import { PartialWithType } from "types";
 import { ListObject } from "utils/display/listTools";
+import { NewMemberInviteShape } from "./objects/memberInvite";
 
 /**
  * Views can be displayed as full pages or as dialogs
@@ -33,7 +34,7 @@ export type CalendarViewProps = ViewProps
 export type HistorySearchViewProps = ViewProps
 
 export type MemberManageViewProps = ViewProps & {
-    organizationId: string;
+    organization: NewMemberInviteShape["organization"];
 }
 
 export type PremiumViewProps = ViewProps

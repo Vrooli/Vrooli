@@ -16,7 +16,6 @@ import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
-import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CloseIcon, OpenInNewIcon } from "icons";
@@ -29,6 +28,7 @@ import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "utils/shape/
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 import { TagShape } from "utils/shape/models/tag";
+import { routineInitialValues } from "views/objects/routine";
 
 export const subroutineInitialValues = (
     session: Session | undefined,

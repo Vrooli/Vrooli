@@ -5,7 +5,6 @@ import { Box, IconButton, Stack, styled, Tooltip, Typography, useTheme } from "@
 import { fetchLazyWrapper } from "api";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { SessionContext } from "contexts/SessionContext";
-import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
 import { useDebounce } from "hooks/useDebounce";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
@@ -22,7 +21,7 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { updateArray } from "utils/shape/general";
-import { ResourceUpsert } from "views/objects/resource";
+import { NewResourceShape, resourceInitialValues, ResourceUpsert } from "views/objects/resource";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceCardProps, ResourceListHorizontalProps } from "../types";
 

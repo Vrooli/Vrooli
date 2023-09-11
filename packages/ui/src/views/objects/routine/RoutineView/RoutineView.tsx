@@ -19,7 +19,6 @@ import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useFormik } from "formik";
-import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
@@ -41,6 +40,7 @@ import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
 import { BuildView } from "views/BuildView/BuildView";
+import { routineInitialValues } from "../RoutineUpsert/RoutineUpsert";
 import { RoutineViewProps } from "../types";
 
 const statsHelpText =

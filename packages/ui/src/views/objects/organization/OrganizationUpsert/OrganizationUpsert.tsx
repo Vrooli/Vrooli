@@ -1,19 +1,151 @@
-import { endpointGetOrganization, endpointPostOrganization, endpointPutOrganization, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@local/shared";
+import { DUMMY_ID, endpointGetOrganization, endpointPostOrganization, endpointPutOrganization, orDefault, Organization, OrganizationCreateInput, organizationTranslationValidation, OrganizationUpdateInput, organizationValidation, Session } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
+import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { OrganizationForm, organizationInitialValues, transformOrganizationValues, validateOrganizationValues } from "forms/OrganizationForm/OrganizationForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
+import { OrganizationFormProps } from "forms/types";
 import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useContext } from "react";
+import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer, FormSection } from "styles";
 import { toDisplay } from "utils/display/pageTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { OrganizationShape } from "utils/shape/models/organization";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { OrganizationShape, shapeOrganization } from "utils/shape/models/organization";
 import { OrganizationUpsertProps } from "../types";
+
+const organizationInitialValues = (
+    session: Session | undefined,
+    existing?: Partial<Organization> | null | undefined,
+): OrganizationShape => ({
+    __typename: "Organization" as const,
+    id: DUMMY_ID,
+    isOpenToNewMembers: false,
+    isPrivate: false,
+    tags: [],
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: "OrganizationTranslation" as const,
+        id: DUMMY_ID,
+        language: getUserLanguages(session)[0],
+        name: "",
+        bio: "",
+    }]),
+});
+
+const transformOrganizationValues = (values: OrganizationShape, existing: OrganizationShape, isCreate: boolean) =>
+    isCreate ? shapeOrganization.create(values) : shapeOrganization.update(existing, values);
+
+const validateOrganizationValues = async (values: OrganizationShape, existing: OrganizationShape, isCreate: boolean) => {
+    const transformedValues = transformOrganizationValues(values, existing, isCreate);
+    const validationSchema = organizationValidation[isCreate ? "create" : "update"]({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+};
+
+const OrganizationForm = forwardRef<BaseFormRef | undefined, OrganizationFormProps>(({
+    display,
+    dirty,
+    isCreate,
+    isLoading,
+    isOpen,
+    onCancel,
+    values,
+    ...props
+}, ref) => {
+    const session = useContext(SessionContext);
+    const { t } = useTranslation();
+
+    // Handle translations
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        setLanguage,
+        translationErrors,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
+        fields: ["bio", "name"],
+        validationSchema: organizationTranslationValidation[isCreate ? "create" : "update"]({}),
+    });
+
+    return (
+        <>
+            <BaseForm
+                dirty={dirty}
+                display={display}
+                isLoading={isLoading}
+                maxWidth={700}
+                ref={ref}
+            >
+                <FormContainer>
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={"Organization"}
+                    />
+                    <ProfilePictureInput
+                        onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
+                        onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                        name="profileImage"
+                        profile={{ ...values }}
+                    />
+                    <FormSection>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={t("Name")}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedRichInput
+                            language={language}
+                            maxChars={2048}
+                            minRows={4}
+                            name="bio"
+                            placeholder={t("Bio")}
+                        />
+                        <br />
+                        <TagSelector name="tags" />
+                    </FormSection>
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        parent={{ __typename: "Organization", id: values.id }}
+                    />
+                </FormContainer>
+            </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
+        </>
+    );
+});
 
 export const OrganizationUpsert = ({
     isCreate,

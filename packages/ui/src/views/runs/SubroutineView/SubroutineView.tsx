@@ -14,7 +14,6 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { useFormik } from "formik";
-import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
 import { useObjectActions } from "hooks/useObjectActions";
 import { SuccessIcon } from "icons";
@@ -30,6 +29,7 @@ import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
+import { routineInitialValues } from "views/objects/routine";
 import { SubroutineViewProps } from "../types";
 
 const containerProps = (palette: Palette) => ({

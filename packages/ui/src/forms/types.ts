@@ -12,6 +12,7 @@ import { ChatShape } from "utils/shape/models/chat";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
 import { MeetingShape } from "utils/shape/models/meeting";
+import { MemberInviteShape } from "utils/shape/models/memberInvite";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeEndShape } from "utils/shape/models/nodeEnd";
 import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
@@ -113,6 +114,7 @@ export interface NodeRoutineListFormProps extends BaseObjectFormProps<NodeWithRo
 }
 export type FocusModeFormProps = BaseObjectFormProps<FocusModeShape>
 export type MeetingFormProps = BaseObjectFormProps<MeetingShape>
+export type MemberInviteFormProps = BaseObjectFormProps<MemberInviteShape>
 export type NoteFormProps = ImprovedFormProps<NoteVersion, NoteVersionShape>
 export type OrganizationFormProps = BaseObjectFormProps<OrganizationShape>
 export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShape> {
