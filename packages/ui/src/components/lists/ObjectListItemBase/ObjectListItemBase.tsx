@@ -19,7 +19,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
-import { fontSizeToPixels } from "utils/display/textTools";
+import { fontSizeToPixels } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectEditUrl, getObjectUrl } from "utils/navigation/openObject";
 import { TagList } from "../TagList/TagList";

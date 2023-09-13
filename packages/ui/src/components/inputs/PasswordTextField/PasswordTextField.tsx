@@ -24,11 +24,6 @@ export const PasswordTextField = ({
         setShowPassword(!showPassword);
     }, [showPassword]);
 
-    const getPasswordStrength = useCallback((password) => {
-        const result = zxcvbn(password);
-        return result.score;  // score between 0 (worst) to 4 (best)
-    }, []);
-
     const getPasswordStrengthProps = useCallback((password) => {
         const result = zxcvbn(password);
         const score = result.score;

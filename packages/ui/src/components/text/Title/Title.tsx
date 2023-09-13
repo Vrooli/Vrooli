@@ -1,7 +1,7 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useWindowSize } from "hooks/useWindowSize";
-import { fontSizeToPixels } from "utils/display/textTools";
+import { fontSizeToPixels } from "utils/display/stringTools";
 import { TitleProps } from "../types";
 
 export const Title = ({

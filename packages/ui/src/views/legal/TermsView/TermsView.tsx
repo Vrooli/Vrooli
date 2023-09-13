@@ -29,21 +29,23 @@ export const TermsView = ({
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
 
-    return <>
-        <TopBar
-            display={display}
-            onClose={onClose}
-            title={t("Terms")}
-            below={<PageTabs
-                ariaLabel="privacy policy and terms tabs"
-                currTab={currTab}
-                fullWidth
-                onChange={handleTabChange}
-                tabs={tabs}
-            />}
-        />
-        <Box m={2}>
-            <MarkdownDisplay content={terms} />
-        </Box>
-    </>;
+    return (
+        <>
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t("Terms")}
+                below={<PageTabs
+                    ariaLabel="privacy policy and terms tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
+            <Box m={2}>
+                <MarkdownDisplay content={terms} />
+            </Box>
+        </>
+    );
 };

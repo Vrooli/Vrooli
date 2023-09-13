@@ -11,9 +11,7 @@ export const useSideMenu = (
     const [isOpen, setIsOpen] = useState<boolean>(isMobile ? false : defaultOpenState);
     useEffect(() => {
         const sideMenuSub = PubSub.get().subscribeSideMenu((data) => {
-            console.log("got side menu event", data, id);
             if (data.id !== id) return;
-            console.log('setting side menu state', data.id, data.isOpen)
             setIsOpen(data.isOpen);
             setSideMenuState(id, data.isOpen);
         });

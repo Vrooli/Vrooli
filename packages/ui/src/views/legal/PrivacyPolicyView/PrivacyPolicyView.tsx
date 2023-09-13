@@ -56,21 +56,23 @@ export const PrivacyPolicyView = ({
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
 
-    return <>
-        <TopBar
-            display={display}
-            onClose={onClose}
-            title={t("Privacy")}
-            below={<PageTabs
-                ariaLabel="privacy policy and terms tabs"
-                currTab={currTab}
-                fullWidth
-                onChange={handleTabChange}
-                tabs={tabs}
-            />}
-        />
-        <Box m={2}>
-            <MarkdownDisplay content={privacy} />
-        </Box>
-    </>;
+    return (
+        <>
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t("Privacy")}
+                below={<PageTabs
+                    ariaLabel="privacy policy and terms tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
+            <Box m={2}>
+                <MarkdownDisplay content={privacy} />
+            </Box>
+        </>
+    );
 };
