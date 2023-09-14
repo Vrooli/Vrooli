@@ -48,16 +48,6 @@ export async function cudHelper<
     createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
     // Group create and update data by action and type
-    console.time("cudInputsToMaps");
-    const { idsByAction, idsByType, inputsByType } = await cudInputsToMaps({
-        createMany,
-        updateMany,
-        deleteMany,
-        objectType,
-        prisma,
-        languages: userData.languages,
-    });
-    console.timeEnd("cudInputsToMaps");
     console.time("cudInputsToMaps2");
     const { idsByAction: idsByAction2, idsByType: idsByType2, rootNodesById } = await cudInputsToMaps2({
         createMany,
@@ -68,6 +58,16 @@ export async function cudHelper<
         languages: userData.languages,
     });
     console.timeEnd("cudInputsToMaps2");
+    console.time("cudInputsToMaps");
+    const { idsByAction, idsByType, inputsByType } = await cudInputsToMaps({
+        createMany,
+        updateMany,
+        deleteMany,
+        objectType,
+        prisma,
+        languages: userData.languages,
+    });
+    console.timeEnd("cudInputsToMaps");
     const preMap: { [x: string]: any } = {};
     // For each type, calculate pre-shape data (if applicable). 
     // This often also doubles as a way to perform custom input validation

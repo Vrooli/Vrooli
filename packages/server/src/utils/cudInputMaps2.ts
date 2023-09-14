@@ -9,13 +9,15 @@ import { IdsByAction, IdsByType, QueryAction } from "./types";
 class InputNode {
     __typename: string;
     id: string;
+    action: QueryAction;
     data: any;
     children: InputNode[];
     parent: InputNode | null;
 
-    constructor(__typename: string, id: string, data: any) {
+    constructor(__typename: string, id: string, action: QueryAction, data: any) {
         this.__typename = __typename;
         this.id = id;
+        this.action = action;
         this.data = data;
         this.children = [];
         this.parent = null;
@@ -23,6 +25,10 @@ class InputNode {
 
     getId(): string {
         return this.id;
+    }
+
+    getAction(): QueryAction {
+        return this.action;
     }
 
     addChild(childNode: InputNode): void {
@@ -64,141 +70,6 @@ function getActionFromFieldName(fieldName) {
     return null;
 }
 
-/**
- * Recursively builds a hierarchical representation (tree structure) from a mutation input 
- * to optimize the performance of various operations performed before and after creating, 
- * updating, deleting, connecting, and disconnecting objects.
- *
- * Moreover, the function simultaneously builds two maps, `idsByAction` and `idsByType`,
- * categorizing the IDs by their mutation action (like "Create", "Update", etc.) and by their
- * object type respectively. This aids in bulk database queries for validation, triggers, and other 
- * operations.
- *
- * NOTE: For operations like "Connect" or "Disconnect" on non-array relations (i.e. one-to-one or many-to-one), 
- * we may be implicitly connecting/disconnecting an object without knowing its ID. In this case, we generate
- * a placeholder ID that encodes all the information needed to query the database for the actual ID.
- *
- * @param actionType - The type of mutation action. Example: "Create" 
- * @param input - The GraphQL mutation input object
- * @param relMap - A map of relation fields to their object types. Example: { 'chat': 'Chat' }
- * @param languages - The languages to use for error messages
- * @param idField - The name of the ID field for the current object type. Defaults to "id".
- * @param idsByAction - An accumulating map that categorizes IDs by their mutation action.
- *                               Example: { 'Create': ['id1', 'id2'] }
- * @param idsByType - An accumulating map that categorizes IDs by their object type.
- *                             Example: { 'Chat': ['id1', 'id2'] }
- * @param closestWithId - Keeps track of the closest known object ID as we traverse the input. Useful 
- *                             for generating placeholders.
- *
- * @returns rootNode - The root of the hierarchical tree representation of the input.
- */
-const buildHierarchicalMap = <T extends object>(
-    actionType: QueryAction,
-    input: T,
-    relMap: GqlRelMap<T, object>,
-    languages: string[],
-    idField = "id",
-    closestWithId: { __typename: string, id: string, path: string } | null = { __typename: "", id: "", path: "" },
-): {
-    idsByAction: IdsByAction,
-    idsByType: IdsByType
-    rootNode: InputNode,
-} => {
-    // Initialize return objects
-    const idsByAction: IdsByAction = {};
-    const idsByType: IdsByType = {};
-    const rootNode = new InputNode(relMap.__typename, input[idField], input);
-
-    // Update the closestId when a new ID is found, for use in generating placeholders 
-    // The only exception is when a "Create" action is found, as we know that the object doesn't exist yet, 
-    // and can thus ignore any following "Connect" or "Disconnect" actions.
-    if (actionType === "Create") {
-        closestWithId = null; // Set to null to ignore any following "Connect" or "Disconnect" actions
-    } else if (closestWithId !== null) {
-        closestWithId = input[idField] ? { __typename: relMap.__typename, id: input[idField], path: "" } : closestWithId;
-    }
-
-    for (const field in input) {
-        const action = getActionFromFieldName(field);
-        if (!action) continue;  // if not one of the action suffixes, skip
-
-        const fieldName = field.substring(0, field.length - action.length);
-        const __typename = relMap[fieldName];
-        // Make sure that the relation is defined in the relMap
-        if (!__typename) {
-            if (field.startsWith("translations")) continue; // Translations are a special case, as they are handled internally by the object's shaping functions
-            throw new CustomError("0525", "InternalError", ["en"], { field });
-        }
-        const { format: childFormat, idField: childIdField } = getLogic(["format", "idField"], __typename, languages, "buildHierarchicalMap loop");
-
-        // Handle array relations
-        if (input[field] instanceof Array) {
-            idsByAction[action] = (idsByAction[action] || []).concat((input[field] as Array<string | object>).map(item => typeof item === "string" ? item : item[childIdField]));
-            idsByType[__typename] = (idsByType[__typename] || []).concat((input[field] as Array<string | object>).map(item => typeof item === "string" ? item : item[childIdField]));
-
-            // Recursively build child nodes for Create and Update actions
-            if (action === "Create" || action === "Update") {
-                for (const related of (input[field] as any)) {
-                    const childData = buildHierarchicalMap(
-                        action,
-                        related,
-                        childFormat.gqlRelMap,
-                        languages,
-                        childIdField,
-                        closestWithId === null ? null : { ...closestWithId, path: closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName },
-                    );
-                    childData.rootNode.parent = rootNode;
-                    rootNode.children.push(childData.rootNode);
-                    mergeArrayProperties(idsByAction, childData.idsByAction);
-                    mergeArrayProperties(idsByType, childData.idsByType);
-                }
-            }
-        }
-        // Handle non-array relations for Connect and Disconnect
-        else if (action === "Connect" || action === "Disconnect") {
-            // Connect should still be an ID, so we can add it to the idsByAction and idsByType maps
-            // Disconnect should be "true", so we can ignore it
-            if (action === "Connect") {
-                idsByAction[action] = (idsByAction[action] || []).concat(input[field] as string);
-                idsByType[__typename] = (idsByType[__typename] || []).concat(input[field] as string);
-            }
-            // If closestWithId is null, this means this action takes place within a create mutation. 
-            // When this is the case, there are no implicit connects/disconnects, so we can skip adding placeholders.
-            if (closestWithId === null) {
-                continue;
-            }
-            // If here, we're connecting or disconnecting a one-to-one or many-to-one relation within an update mutation. 
-            // This requires a placeholder, as we may be kicking-out an existing object without knowing its ID, and we need to query the database to find it.
-            const placeholder = `${closestWithId.__typename}|${closestWithId.id}.${closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName}`;
-            idsByAction[action] = (idsByAction[action] || []).concat(placeholder);
-            idsByType[__typename] = (idsByType[__typename] || []).concat(placeholder);
-        } else {
-            //Shouldn't be here
-            console.error("Shouldn't be here");
-        }
-    }
-
-    return {
-        rootNode,
-        idsByAction,
-        idsByType,
-    };
-};
-
-/**
- * Helper function to supports combining ID arrays when merging two objects. 
- * Makes sure not to add duplicate IDs
- */
-function mergeArrayProperties<T extends Record<string, string[]>>(target: T, source: T): T {
-    for (const key in source) {
-        if (source[key]) {
-            const newValues = source[key].filter(id => !target[key] || !target[key].includes(id));
-            target[key] = (target[key] ? target[key].concat(newValues) : newValues) as T[typeof key];
-        }
-    }
-    return target;
-}
-
 // TODO for morning:
 // 1. Check if this should be handling the updates shaped like ({ where: any, data: any}). The original does this.
 // 1.5. Need to handle union types (i.e. gqlRelMap value is an object instead of a string)
@@ -228,8 +99,8 @@ export const cudInputsToMaps2 = async ({
     idsByType: IdsByType,
     rootNodesById: RootNodesById,
 }> => {
-    let combinedIdsByType = {};
-    let combinedIdsByAction = {};
+    const idsByAction: IdsByAction = {};
+    const idsByType: IdsByType = {};
     const rootNodesById = {};
 
     const inputs = [
@@ -238,25 +109,125 @@ export const cudInputsToMaps2 = async ({
         ...((deleteMany ?? []).map(id => ({ actionType: "Delete", data: id }))),
     ];
 
+    /**
+     * Recursively builds a hierarchical representation (tree structure) from a mutation input 
+     * to optimize the performance of various operations performed before and after creating, 
+     * updating, deleting, connecting, and disconnecting objects.
+     *
+     * Moreover, the function simultaneously builds two maps, `idsByAction` and `idsByType`,
+     * categorizing the IDs by their mutation action (like "Create", "Update", etc.) and by their
+     * object type respectively. This aids in bulk database queries for validation, triggers, and other 
+     * operations.
+     *
+     * NOTE: For operations like "Connect" or "Disconnect" on non-array relations (i.e. one-to-one or many-to-one), 
+     * we may be implicitly connecting/disconnecting an object without knowing its ID. In this case, we generate
+     * a placeholder ID that encodes all the information needed to query the database for the actual ID.
+     *
+     * @param actionType - The type of mutation action. Example: "Create" 
+     * @param input - The GraphQL mutation input object
+     * @param relMap - A map of relation fields to their object types. Example: { 'chat': 'Chat' }
+     * @param languages - The languages to use for error messages
+     * @param idField - The name of the ID field for the current object type. Defaults to "id".
+     * @param closestWithId - Keeps track of the closest known object ID as we traverse the input. Useful 
+     *                             for generating placeholders.
+     * @returns rootNode - The root of the hierarchical tree representation of the input.
+     */
+    const buildTree = <T extends object>(
+        actionType: QueryAction,
+        input: T,
+        relMap: GqlRelMap<T, object>,
+        languages: string[],
+        idField = "id",
+        closestWithId: { __typename: string, id: string, path: string } | null = { __typename: "", id: "", path: "" },
+    ): InputNode => {
+        // Initialize tree
+        const rootNode = new InputNode(relMap.__typename, input[idField], actionType, input);
+
+        // Update the closestId when a new ID is found, for use in generating placeholders 
+        // The only exception is when a "Create" action is found, as we know that the object doesn't exist yet, 
+        // and can thus ignore any following "Connect" or "Disconnect" actions.
+        if (actionType === "Create") {
+            closestWithId = null; // Set to null to ignore any following "Connect" or "Disconnect" actions
+        } else if (closestWithId !== null) {
+            closestWithId = input[idField] ? { __typename: relMap.__typename, id: input[idField], path: "" } : closestWithId;
+        }
+
+        for (const field in input) {
+            const action = getActionFromFieldName(field);
+            if (!action) continue;  // if not one of the action suffixes, skip
+
+            const fieldName = field.substring(0, field.length - action.length);
+            const __typename = relMap[fieldName];
+            // Make sure that the relation is defined in the relMap
+            if (!__typename) {
+                if (field.startsWith("translations")) continue; // Translations are a special case, as they are handled internally by the object's shaping functions
+                throw new CustomError("0525", "InternalError", ["en"], { field });
+            }
+            const { format: childFormat, idField: childIdField } = getLogic(["format", "idField"], __typename, languages, "buildHierarchicalMap loop");
+
+            // Handle array relations
+            if (input[field] instanceof Array) {
+                idsByAction[action] = (idsByAction[action] || []).concat((input[field] as Array<string | object>).map(item => typeof item === "string" ? item : item[childIdField]));
+                idsByType[__typename] = (idsByType[__typename] || []).concat((input[field] as Array<string | object>).map(item => typeof item === "string" ? item : item[childIdField]));
+
+                // Recursively build child nodes for Create and Update actions
+                if (action === "Create" || action === "Update") {
+                    for (const related of (input[field] as any)) {
+                        const childNode = buildTree(
+                            action,
+                            related,
+                            childFormat.gqlRelMap,
+                            languages,
+                            childIdField,
+                            closestWithId === null ? null : { ...closestWithId, path: closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName },
+                        );
+                        childNode.parent = rootNode;
+                        rootNode.children.push(childNode);
+                    }
+                }
+            }
+            // Handle non-array relations for Connect and Disconnect
+            else if (action === "Connect" || action === "Disconnect") {
+                // Connect should still be an ID, so we can add it to the idsByAction and idsByType maps
+                // Disconnect should be "true", so we can ignore it
+                if (action === "Connect") {
+                    idsByAction[action] = (idsByAction[action] || []).concat(input[field] as string);
+                    idsByType[__typename] = (idsByType[__typename] || []).concat(input[field] as string);
+                }
+                // If closestWithId is null, this means this action takes place within a create mutation. 
+                // When this is the case, there are no implicit connects/disconnects, so we can skip adding placeholders.
+                if (closestWithId === null) {
+                    continue;
+                }
+                // If here, we're connecting or disconnecting a one-to-one or many-to-one relation within an update mutation. 
+                // This requires a placeholder, as we may be kicking-out an existing object without knowing its ID, and we need to query the database to find it.
+                const placeholder = `${closestWithId.__typename}|${closestWithId.id}.${closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName}`;
+                idsByAction[action] = (idsByAction[action] || []).concat(placeholder);
+                idsByType[__typename] = (idsByType[__typename] || []).concat(placeholder);
+            } else {
+                //Shouldn't be here
+                console.error("Shouldn't be here");
+            }
+        }
+
+        return rootNode;
+    };
+
     for (const input of inputs) {
+        // If input is a string (i.e. an ID instead of an object), add it to the idsByAction and idsByType maps without further processing
         if (typeof input.data === "string") {
-            combinedIdsByType = mergeArrayProperties(combinedIdsByType, { [objectType]: [input.data] });
-            combinedIdsByAction = mergeArrayProperties(combinedIdsByAction, { "Delete": [input.data] });
+            idsByType[objectType] = (idsByType[objectType] || []).concat(input.data);
+            idsByAction[input.actionType] = (idsByAction[input.actionType] || []).concat(input.data);
         } else {
             const { format, idField } = getLogic(["format", "idField"], objectType, languages, "getAuthenticatedIds");
-            const inputData = buildHierarchicalMap(input.actionType as QueryAction, input.data, format.gqlRelMap, languages, idField);
-
-            combinedIdsByType = mergeArrayProperties(combinedIdsByType, inputData.idsByType);
-            combinedIdsByAction = mergeArrayProperties(combinedIdsByAction, inputData.idsByAction);
-
-            // Assuming the root node has a unique ID field. Adjust if different.
-            rootNodesById[inputData.rootNode.getId()] = inputData.rootNode;
+            const inputRootNode = buildTree(input.actionType as QueryAction, input.data, format.gqlRelMap, languages, idField);
+            rootNodesById[inputRootNode.getId()] = inputRootNode;
         }
     }
 
     const withoutPlaceholders = await convertPlaceholders({
-        idsByAction: combinedIdsByAction,
-        idsByType: combinedIdsByType,
+        idsByAction,
+        idsByType,
         prisma,
         languages,
     });
