@@ -1,63 +1,38 @@
 import { GqlModelType } from "@local/shared";
+import { PrismaSelect, PrismaUpdate } from "../builders/types";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { GqlRelMap } from "../models/types";
 import { PrismaType } from "../types";
-import { convertPlaceholders } from "./convertPlaceholders";
 import { IdsByAction, IdsByType, QueryAction } from "./types";
 
 class InputNode {
     __typename: string;
     id: string;
     action: QueryAction;
-    data: any;
     children: InputNode[];
     parent: InputNode | null;
 
-    constructor(__typename: string, id: string, action: QueryAction, data: any) {
+    constructor(__typename: string, id: string, action: QueryAction) {
         this.__typename = __typename;
         this.id = id;
         this.action = action;
-        this.data = data;
         this.children = [];
         this.parent = null;
     }
-
-    getId(): string {
-        return this.id;
-    }
-
-    getAction(): QueryAction {
-        return this.action;
-    }
-
-    addChild(childNode: InputNode): void {
-        this.children.push(childNode);
-        childNode.parent = this;
-    }
-
-    setParent(parentNode: InputNode): void {
-        this.parent = parentNode;
-        parentNode.children.push(this);
-    }
-
-    removeChild(childNode: InputNode): void {
-        const index = this.children.indexOf(childNode);
-        if (index !== -1) {
-            this.children.splice(index, 1);
-            childNode.parent = null;
-        }
-    }
-
-    findChild(__typename: string, id: string): InputNode | null {
-        return this.children.find(child => child.__typename === __typename && child.id === id) || null;
-    }
-
-    hasChildren(): boolean {
-        return this.children.length > 0;
-    }
 }
-export type RootNodesById = { [key: string]: InputNode };
+
+type RootNodesById = { [key: string]: InputNode };
+type InputsByType = { [key in GqlModelType]?: {
+    Connect: { node: InputNode, input: string; }[];
+    Create: { node: InputNode, input: PrismaUpdate }[];
+    Delete: { node: InputNode, input: string; }[];
+    Disconnect: { node: InputNode, input: string; }[];
+    Read: { node: InputNode, input: PrismaSelect }[];
+    Update: { node: InputNode, input: PrismaUpdate }[];
+} };
+type IdsByPlaceholder = { [key: string]: string | null };
+
 
 // Helper function to derive the action from the field name
 function getActionFromFieldName(fieldName) {
@@ -69,6 +44,57 @@ function getActionFromFieldName(fieldName) {
     }
     return null;
 }
+
+/**
+ * Converts placeholder ids to actual IDs, or null if actual ID not found.
+ */
+const convertPlaceholders = async ({
+    idsByAction,
+    prisma,
+    languages,
+}: {
+    idsByAction: IdsByAction,
+    prisma: PrismaType,
+    languages: string[]
+}): Promise<IdsByPlaceholder> => {
+    const placeholderToIdMap: IdsByPlaceholder = {};
+
+    // Helper function to fetch and map placeholders
+    const fetchAndMapPlaceholder = async (placeholder: string): Promise<void> => {
+        if (placeholder in placeholderToIdMap) {
+            return;  // Already processed this placeholder
+        }
+
+        const [objectType, path] = placeholder.split("|", 2);
+        const [rootId, ...relations] = path.split(".");
+
+        const { delegate } = getLogic(["delegate"], objectType as GqlModelType, languages, "convertPlaceholders");
+        const queryResult = await delegate(prisma).findUnique({
+            where: { id: rootId },
+            select: relations.reduce((selectObj, relation) => {
+                return { [relation]: selectObj };
+            }, {}),
+        });
+
+        let currentObject = queryResult;
+        for (const relation of relations) {
+            currentObject = currentObject![relation];
+        }
+
+        placeholderToIdMap[placeholder] = currentObject && currentObject.id ? currentObject.id : null;
+    };
+
+    for (const actionType in idsByAction) {
+        const ids = idsByAction[actionType];
+        for (const id of ids) {
+            if (typeof id === "string" && id.includes("|")) {
+                await fetchAndMapPlaceholder(id);
+            }
+        }
+    }
+
+    return placeholderToIdMap;
+};
 
 // TODO for morning:
 // 1. Check if this should be handling the updates shaped like ({ where: any, data: any}). The original does this.
@@ -96,11 +122,14 @@ export const cudInputsToMaps2 = async ({
     languages: string[]
 }): Promise<{
     idsByAction: IdsByAction,
+    idsByPlaceholder: IdsByPlaceholder,
     idsByType: IdsByType,
+    inputsByType: InputsByType,
     rootNodesById: RootNodesById,
 }> => {
     const idsByAction: IdsByAction = {};
     const idsByType: IdsByType = {};
+    const inputsByType: InputsByType = {};
     const rootNodesById = {};
 
     const inputs = [
@@ -110,14 +139,9 @@ export const cudInputsToMaps2 = async ({
     ];
 
     /**
-     * Recursively builds a hierarchical representation (tree structure) from a mutation input 
+     * Recursively builds a tree from a mutation input 
      * to optimize the performance of various operations performed before and after creating, 
      * updating, deleting, connecting, and disconnecting objects.
-     *
-     * Moreover, the function simultaneously builds two maps, `idsByAction` and `idsByType`,
-     * categorizing the IDs by their mutation action (like "Create", "Update", etc.) and by their
-     * object type respectively. This aids in bulk database queries for validation, triggers, and other 
-     * operations.
      *
      * NOTE: For operations like "Connect" or "Disconnect" on non-array relations (i.e. one-to-one or many-to-one), 
      * we may be implicitly connecting/disconnecting an object without knowing its ID. In this case, we generate
@@ -141,7 +165,28 @@ export const cudInputsToMaps2 = async ({
         closestWithId: { __typename: string, id: string, path: string } | null = { __typename: "", id: "", path: "" },
     ): InputNode => {
         // Initialize tree
-        const rootNode = new InputNode(relMap.__typename, input[idField], actionType, input);
+        const rootNode = new InputNode(relMap.__typename, input[idField], actionType);
+        // Initialize maps
+        if (!idsByAction[actionType]) {
+            idsByAction[actionType] = [];
+        }
+        idsByAction[actionType]?.push(input[idField]);
+        if (!idsByType[relMap.__typename]) {
+            idsByType[relMap.__typename] = [];
+        }
+        idsByType[relMap.__typename]?.push(input[idField]);
+        if (!inputsByType[relMap.__typename]) {
+            inputsByType[relMap.__typename] = {
+                Connect: [],
+                Create: [],
+                Delete: [],
+                Disconnect: [],
+                Read: [],
+                Update: [],
+            };
+        }
+        // Initialize object that we'll push to inputsByType later
+        const inputInfo: { node: InputNode, input: any } = { node: rootNode, input: {} };
 
         // Update the closestId when a new ID is found, for use in generating placeholders 
         // The only exception is when a "Create" action is found, as we know that the object doesn't exist yet, 
@@ -154,7 +199,11 @@ export const cudInputsToMaps2 = async ({
 
         for (const field in input) {
             const action = getActionFromFieldName(field);
-            if (!action) continue;  // if not one of the action suffixes, skip
+            // if not one of the action suffixes, add to the inputInfo object and continue
+            if (!action) {
+                inputInfo.input[field] = input[field];
+                continue;
+            }
 
             const fieldName = field.substring(0, field.length - action.length);
             const __typename = relMap[fieldName];
@@ -165,50 +214,67 @@ export const cudInputsToMaps2 = async ({
             }
             const { format: childFormat, idField: childIdField } = getLogic(["format", "idField"], __typename, languages, "buildHierarchicalMap loop");
 
-            // Handle array relations
-            if (input[field] instanceof Array) {
-                idsByAction[action] = (idsByAction[action] || []).concat((input[field] as Array<string | object>).map(item => typeof item === "string" ? item : item[childIdField]));
-                idsByType[__typename] = (idsByType[__typename] || []).concat((input[field] as Array<string | object>).map(item => typeof item === "string" ? item : item[childIdField]));
-
+            const processObject = (childInput: object) => {
                 // Recursively build child nodes for Create and Update actions
                 if (action === "Create" || action === "Update") {
-                    for (const related of (input[field] as any)) {
-                        const childNode = buildTree(
-                            action,
-                            related,
-                            childFormat.gqlRelMap,
-                            languages,
-                            childIdField,
-                            closestWithId === null ? null : { ...closestWithId, path: closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName },
-                        );
-                        childNode.parent = rootNode;
-                        rootNode.children.push(childNode);
-                    }
+                    const childNode = buildTree(
+                        action,
+                        childInput,
+                        childFormat.gqlRelMap,
+                        languages,
+                        childIdField,
+                        closestWithId === null ? null : { ...closestWithId, path: closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName },
+                    );
+                    childNode.parent = rootNode;
+                    rootNode.children.push(childNode);
                 }
-            }
-            // Handle non-array relations for Connect and Disconnect
-            else if (action === "Connect" || action === "Disconnect") {
+            };
+
+            const processConnectOrDisconnect = (id: string) => {
+                if (!idsByAction[action]) {
+                    idsByAction[action] = [];
+                }
+                if (!idsByType[__typename]) {
+                    idsByType[__typename] = [];
+                }
                 // Connect should still be an ID, so we can add it to the idsByAction and idsByType maps
                 // Disconnect should be "true", so we can ignore it
                 if (action === "Connect") {
-                    idsByAction[action] = (idsByAction[action] || []).concat(input[field] as string);
-                    idsByType[__typename] = (idsByType[__typename] || []).concat(input[field] as string);
+                    idsByAction[action]?.push(id);
+                    idsByType[__typename]?.push(id);
                 }
                 // If closestWithId is null, this means this action takes place within a create mutation. 
                 // When this is the case, there are no implicit connects/disconnects, so we can skip adding placeholders.
                 if (closestWithId === null) {
-                    continue;
+                    return;
                 }
                 // If here, we're connecting or disconnecting a one-to-one or many-to-one relation within an update mutation. 
                 // This requires a placeholder, as we may be kicking-out an existing object without knowing its ID, and we need to query the database to find it.
                 const placeholder = `${closestWithId.__typename}|${closestWithId.id}.${closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName}`;
-                idsByAction[action] = (idsByAction[action] || []).concat(placeholder);
-                idsByType[__typename] = (idsByType[__typename] || []).concat(placeholder);
+                idsByAction[action]?.push(placeholder);
+                idsByType[__typename]?.push(placeholder);
+            };
+
+            const isArray = input[field] instanceof Array;
+            const isConnectOrDisconnect = action === "Connect" || action === "Disconnect";
+            if (isArray && !isConnectOrDisconnect) {
+                for (const child of input[field] as Array<object>) {
+                    processObject(child);
+                }
+            } else if (!isArray && !isConnectOrDisconnect) {
+                processObject(input[field] as object);
+            } else if (isArray && isConnectOrDisconnect) {
+                for (const child of input[field] as Array<string>) {
+                    processConnectOrDisconnect(child);
+                }
             } else {
-                //Shouldn't be here
-                console.error("Shouldn't be here");
+                processConnectOrDisconnect(input[field] as string);
             }
+
+            // Add ID or placeholder referencing the child object to the inputInfo object
+            //TODO
         }
+        // TODO do something with inputInfo
 
         return rootNode;
     };
@@ -221,20 +287,17 @@ export const cudInputsToMaps2 = async ({
         } else {
             const { format, idField } = getLogic(["format", "idField"], objectType, languages, "getAuthenticatedIds");
             const inputRootNode = buildTree(input.actionType as QueryAction, input.data, format.gqlRelMap, languages, idField);
-            rootNodesById[inputRootNode.getId()] = inputRootNode;
+            rootNodesById[inputRootNode.id] = inputRootNode;
         }
     }
 
-    const withoutPlaceholders = await convertPlaceholders({
-        idsByAction,
-        idsByType,
-        prisma,
-        languages,
-    });
+    const idsByPlaceholder = await convertPlaceholders({ idsByAction, prisma, languages });
 
     return {
-        idsByType: withoutPlaceholders.idsByType,
-        idsByAction: withoutPlaceholders.idsByAction,
+        idsByType,
+        idsByPlaceholder,
+        idsByAction,
+        inputsByType,
         rootNodesById,
     };
 };

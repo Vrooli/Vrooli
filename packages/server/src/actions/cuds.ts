@@ -49,7 +49,7 @@ export async function cudHelper<
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
     // Group create and update data by action and type
     console.time("cudInputsToMaps2");
-    const { idsByAction: idsByAction2, idsByType: idsByType2, rootNodesById } = await cudInputsToMaps2({
+    const { idsByAction: idsByAction2, idsByPlaceholder, idsByType: idsByType2, inputsByType: inputsByType2, rootNodesById } = await cudInputsToMaps2({
         createMany,
         updateMany,
         deleteMany,
