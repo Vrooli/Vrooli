@@ -1,4 +1,4 @@
-import { Chat, InputType, NoteVersion, Reminder } from "@local/shared";
+import { InputType, NoteVersion, Reminder } from "@local/shared";
 import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, ReactNode, SetStateAction } from "react";
@@ -100,7 +100,7 @@ export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
 }
 export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
 export type BotFormProps = BaseObjectFormProps<BotShape>
-export type ChatFormProps = ImprovedFormProps<Chat, ChatShape> & {
+export type ChatFormProps = ImprovedFormProps<ChatShape, ChatShape> & {
     context?: string | null | undefined;
     task?: AssistantTask;
 }

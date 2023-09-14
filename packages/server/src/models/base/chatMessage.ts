@@ -2,13 +2,13 @@ import { chatInviteValidation, ChatMessageCreateInput, ChatMessageSortBy, ChatMe
 import { shapeHelper } from "../../builders";
 import { Trigger } from "../../events";
 import { SERVER_URL } from "../../server";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
+import { bestTranslation, translationShapeHelper } from "../../utils";
+import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { ChatMessageFormat } from "../format/chatMessage";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
 import { ReactionModel } from "./reaction";
-import { ChatMessageModelLogic, ChatModelLogic } from "./types";
+import { ChatMessageModelLogic, ChatModelLogic, UserModelLogic } from "./types";
 import { UserModel } from "./user";
 
 /** Information for a message, collected in mutate.shape.pre */
@@ -74,7 +74,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         content: best?.text ?? "",
                         language: best?.language ?? userData.languages[0],
                         participantsCount: null,
-                        userId: userData.id,
+                        userId: (d as ChatMessageCreateInput).userConnect ?? userData.id,
                     };
                 }
                 for (const d of deleteList) {
@@ -329,14 +329,21 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data.chat as ChatModelLogic["PrismaModel"]).organization,
-            User: (data.chat as ChatModelLogic["PrismaModel"]).creator,
+            User: data.user,
         }),
-        permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
+        permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, isPublic, userId }) => {
+            const isChatAdmin = userId ? isOwnerAdminCheck(ChatModel.validate.owner(data.chat as ChatModelLogic["PrismaModel"], userId), userId) : false, ;
             const isParticipant = uuidValidate(userId) && (data.chat as ChatModelLogic["PrismaModel"]).participants?.some((p) => p.userId === userId);
+            const isPublicBot = (data.user as UserModelLogic["PrismaModel"]).isBot && (data.user as UserModelLogic["PrismaModel"]).isPrivate === false;
             return {
-                ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
-                canReply: () => isLoggedIn && !isDeleted && (isAdmin || isParticipant),
+                canConnect: () => isLoggedIn && !isDeleted && isParticipant,
+                canDelete: () => isLoggedIn && !isDeleted && (isMessageOwner || isChatAdmin),
+                canDisconnect: () => isLoggedIn,
+                canUpdate: () => isLoggedIn && !isDeleted && isMessageOwner,
+                canRead: () => !isDeleted && isParticipant,
+                canReply: () => isLoggedIn && !isDeleted && isParticipant,
+                canReport: () => isLoggedIn && !isDeleted && isParticipant,
+                canReact: () => isLoggedIn && !isDeleted && isParticipant,
             };
         },
         permissionsSelect: () => ({

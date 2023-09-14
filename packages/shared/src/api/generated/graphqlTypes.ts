@@ -692,6 +692,7 @@ export type ChatMessage = {
   chat: Chat;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  isFork: Scalars['Boolean'];
   reactionSummaries: Array<ReactionSummary>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
@@ -709,6 +710,7 @@ export type ChatMessageCreateInput = {
   id: Scalars['ID'];
   isFork: Scalars['Boolean'];
   translationsCreate?: InputMaybe<Array<ChatMessageTranslationCreateInput>>;
+  userConnect: Scalars['ID'];
 };
 
 export type ChatMessageEdge = {
@@ -11505,6 +11507,7 @@ export type ChatMessageResolvers<ContextType = any, ParentType extends Resolvers
   chat?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isFork?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   reactionSummaries?: Resolver<Array<ResolversTypes['ReactionSummary']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;

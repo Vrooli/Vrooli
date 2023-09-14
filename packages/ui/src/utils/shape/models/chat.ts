@@ -1,7 +1,7 @@
-import { Chat, ChatCreateInput, ChatMessage, ChatParticipant, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput } from "@local/shared";
+import { Chat, ChatCreateInput, ChatParticipant, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ChatInviteShape, shapeChatInvite } from "./chatInvite";
-import { shapeChatMessage } from "./chatMessage";
+import { ChatMessageShape, shapeChatMessage } from "./chatMessage";
 import { LabelShape, shapeLabel } from "./label";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
@@ -11,9 +11,9 @@ export type ChatTranslationShape = Pick<ChatTranslation, "id" | "language" | "de
 
 export type ChatShape = Pick<Chat, "id" | "openToAnyoneWithInvite"> & {
     __typename: "Chat";
-    invites?: ChatInviteShape[] | null;
+    invites: ChatInviteShape[];
     labels?: ({ id: string } | LabelShape)[];
-    messages: ChatMessage[];
+    messages: ChatMessageShape[];
     organization?: { id: string } | null;
     participants: ChatParticipant[]; // Ignored, but needed for ChatCrud
     participantsDelete?: { id: string }[] | null;

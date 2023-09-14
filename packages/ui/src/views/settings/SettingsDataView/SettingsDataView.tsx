@@ -12,8 +12,6 @@ import { pagePaddingBottom } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { SettingsDataFormProps, SettingsDataViewProps } from "../types";
 
-type RequestType = "Delete" | "Download" | "DownloadAndDelete";
-
 const DataOption = ({
     disabled,
     help,
@@ -207,8 +205,11 @@ const SettingsDataForm = ({
                         disabled={isLoading}
                         fullWidth
                         variant="contained"
-                        type="submit"
                         color="secondary"
+                        onClick={() => {
+                            props.setFieldValue("requestType", "Download");
+                            props.submitForm();
+                        }}
                     >{t("Download")}</Button>
                 </Grid>
                 <Grid item xs={12} md={4}>
@@ -216,7 +217,10 @@ const SettingsDataForm = ({
                         disabled={isLoading}
                         fullWidth
                         variant="outlined"
-                        type="submit"
+                        onClick={() => {
+                            props.setFieldValue("requestType", "DownloadAndDelete");
+                            props.submitForm();
+                        }}
                         sx={{
                             borderColor: "error.main",
                             color: "error.main",
@@ -228,7 +232,10 @@ const SettingsDataForm = ({
                         disabled={isLoading}
                         fullWidth
                         variant="outlined"
-                        type="submit"
+                        onClick={() => {
+                            props.setFieldValue("requestType", "Delete");
+                            props.submitForm();
+                        }}
                         sx={{
                             borderColor: "error.main",
                             color: "error.main",
@@ -257,7 +264,7 @@ export const SettingsDataView = ({
             />
             <Stack direction="row" mt={2} sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
-                <Box m="auto">
+                <Box m="auto" p={1}>
                     <Box
                         display="flex"
                         flexDirection="column"
@@ -305,6 +312,7 @@ export const SettingsDataView = ({
                             views: false,
                         }}
                         onSubmit={(values, helpers) => {
+                            console.log("onsubmit", values);
                             //TODO
                         }}
                     >

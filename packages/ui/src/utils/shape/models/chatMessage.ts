@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageTranslation, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput, ChatMessageUpdateInput } from "@local/shared";
+import { ChatMessage, ChatMessageCreateInput, ChatMessageTranslation, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput, ChatMessageUpdateInput, ChatMessageYou, ReactionSummary, User } from "@local/shared";
 import { ShapeModel } from "types";
 import { ChatShape } from "./chat";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
@@ -9,11 +9,16 @@ export type ChatMessageTranslationShape = Pick<ChatMessageTranslation, "id" | "l
 
 export type ChatMessageShape = Pick<ChatMessage, "id"> & {
     __typename?: "ChatMessage";
+    created_at: string; // Only used by the UI
+    updated_at: string; // Only used by the UI
     chat?: { id: string } | ChatShape;
     isFork: boolean;
+    isUnsent?: boolean; // Only used by the UI
     fork?: { id: string } | ChatMessageShape;
-    translations?: ChatMessageTranslationShape[] | null;
-    user?: { id: string };
+    reactionSummaries: ReactionSummary[]; // Only used by the UI
+    translations: ChatMessageTranslationShape[];
+    user?: Partial<User> & { id: string };
+    you?: ChatMessageYou; // Only used by the UI
 }
 
 export const shapeChatMessageTranslation: ShapeModel<ChatMessageTranslationShape, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput> = {

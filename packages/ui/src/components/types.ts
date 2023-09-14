@@ -1,13 +1,14 @@
-import { ChatMessage, User } from "@local/shared";
+import { User } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { SxType } from "types";
+import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 export interface ChatBubbleProps {
-    message: ChatMessage & { isUnsent?: boolean }
+    message: ChatMessageShape;
     index: number;
     isOwn: boolean;
-    onUpdated: (message: ChatMessage & { isUnsent?: boolean }) => unknown;
+    onUpdated: (message: ChatMessageShape) => unknown;
 }
 
 export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {

@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatInvite, ChatMessage, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Checkbox, IconButton, InputAdornment, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -40,6 +40,7 @@ import { PubSub } from "utils/pubsub";
 import { updateArray, validateAndGetYupErrors } from "utils/shape/general";
 import { ChatShape, shapeChat } from "utils/shape/models/chat";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
+import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { ViewDisplayType } from "views/types";
 import { ChatCrudProps } from "../types";
 
@@ -50,7 +51,7 @@ export const chatInitialValues = (
     language: string,
     existing?: Partial<Chat> | null | undefined,
 ): ChatShape => {
-    const messages = existing?.messages ?? [];
+    const messages: ChatMessageShape[] = existing?.messages ?? [];
     // If chatting with Valyxa, add start message so that the user 
     // sees something while the chat is loading
     if (exists(existing) && messages.length === 0 && existing.invites?.length === 1 && existing.invites?.some((invite: ChatInviteShape) => invite.user.id === VALYXA_ID)) {
@@ -62,8 +63,10 @@ export const chatInitialValues = (
             updated_at: new Date().toISOString(),
             chat: {
                 __typename: "Chat" as const,
-                id: existing.id,
-            } as any,
+                id: existing.id ?? DUMMY_ID,
+            },
+            isFork: true,
+            isUnsent: true,
             reactionSummaries: [],
             translations: [{
                 __typename: "ChatMessageTranslation" as const,
@@ -76,7 +79,7 @@ export const chatInitialValues = (
                 id: "4b038f3b-f1f7-1f9b-8f4b-cff4b8f9b20f",
                 isBot: true,
                 name: "Valyxa",
-            } as any,
+            },
             you: {
                 __typename: "ChatMessageYou" as const,
                 canDelete: false,
@@ -86,12 +89,12 @@ export const chatInitialValues = (
                 canReact: false,
                 reaction: null,
             },
-        } as any);
+        });
     }
     console.log("initializing chat values", messages);
     return {
         __typename: "Chat" as const,
-        id: uuid(),
+        id: DUMMY_ID,
         openToAnyoneWithInvite: false,
         organization: null,
         invites: [],
@@ -132,7 +135,7 @@ export const assistantChatInfo: ChatCrudProps["overrideObject"] = {
             isBot: true,
             name: "Valyxa",
         },
-    }] as ChatInvite[],
+    }] as unknown as ChatInviteShape[],
 };
 
 const NewMessageContainer = ({
@@ -227,8 +230,6 @@ const ChatForm = ({
     const {
         fetch,
         handleCancel,
-        handleCompleted,
-        handleDeleted,
         isCreateLoading,
         isUpdateLoading,
     } = useUpsertActions<Chat, ChatCreateInput, ChatUpdateInput>({
@@ -249,10 +250,15 @@ const ChatForm = ({
             PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
             return;
         }
-        // Filters out messages that aren't yours
+        console.log("onsubmittttt values", updatedChat ?? values);
+        console.log("onsubmittttt transformed", transformChatValues(updatedChat ?? values, existing, isCreate));
+        // Filters out messages that aren't yours, except for ones marked as "isUnsent". This 
+        // flag is used both to show messages you sent that haven't been fully sent yet, but also 
+        // initial messages when chatting with a bot (which also haven't been sent yet, as the 
+        // chat is not created until you send the first message)
         const withoutOtherMessages = (chat: ChatShape) => ({
             ...chat,
-            messages: chat.messages.filter(m => m.user.id === getCurrentUser(session).id),
+            messages: chat.messages.filter(m => m.user?.id === getCurrentUser(session).id || m.isUnsent),
         });
         fetchLazyWrapper<ChatCreateInput | ChatUpdateInput, Chat>({
             fetch,
@@ -288,9 +294,9 @@ const ChatForm = ({
                 messages: updateArray(
                     c.messages,
                     c.messages.findIndex(m => m.created_at > message.created_at),
-                    message,
+                    message as ChatMessageShape,
                 ),
-            } as Chat));
+            }));
         });
 
         // Leave the chat room when the component is unmounted
@@ -324,7 +330,7 @@ const ChatForm = ({
     });
 
     const addMessage = useCallback((text: string) => {
-        const newMessage: ChatMessage & { isUnsent?: boolean } = {
+        const newMessage: ChatMessageShape = {
             __typename: "ChatMessage" as const,
             id: uuid(),
             created_at: new Date().toISOString(),
@@ -432,8 +438,8 @@ const ChatForm = ({
                                 <BaseForm
                                     dirty={dirty}
                                     display="dialog"
+                                    maxWidth={600}
                                     style={{
-                                        width: "min(500px, 100vw)",
                                         paddingBottom: "16px",
                                     }}
                                 >
@@ -531,7 +537,7 @@ const ChatForm = ({
                     minHeight: "calc(100vh - 64px)",
                     minWidth: "min(500px, 100vw)",
                 }}>
-                    {existing.messages.map((message: ChatMessage, index) => {
+                    {existing.messages.map((message: ChatMessageShape, index) => {
                         const isOwn = message.user?.id === getCurrentUser(session).id;
                         return <ChatBubble
                             key={index}
@@ -590,7 +596,7 @@ export const ChatCrud = ({
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Chat, ChatShape>({
         ...endpointGetChat,
         objectType: "Chat",
-        overrideObject,
+        overrideObject: overrideObject as unknown as Chat,
         transform: (data) => chatInitialValues(session, task, t, getUserLanguages(session)[0], data),
     });
     const { canUpdate } = useMemo(() => getYou(existing), [existing]);

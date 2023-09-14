@@ -15,6 +15,7 @@ import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon, BotIcon, EditIcon, ErrorIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
@@ -118,6 +119,7 @@ const ChatBubbleReactions = ({
     handleReactionAdd,
     isBot,
     isOwn,
+    isUnsent,
     messageId,
     reactions,
 }: {
@@ -141,6 +143,7 @@ const ChatBubbleReactions = ({
         handleReactionAdd(emoji);
     };
 
+    if (isUnsent) return null;
     return (
         <Box
             display="flex"
@@ -223,7 +226,7 @@ export const ChatBubble = ({
 
     const shouldRetry = useRef(true);
     useEffect(() => {
-        if (message.isUnsent && shouldRetry.current) {
+        if (message.user?.id === getCurrentUser(session).id && message.isUnsent && shouldRetry.current) {
             shouldRetry.current = false;
             fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
                 fetch: createMessage,
@@ -237,7 +240,7 @@ export const ChatBubble = ({
                 },
             });
         }
-    }, [createMessage, message, message.isUnsent, onUpdated, shouldRetry]);
+    }, [createMessage, message, message.isUnsent, onUpdated, session, shouldRetry]);
 
     const [editingText, setEditingText] = useState<string | undefined>(undefined);
     const startEditing = () => {
@@ -409,6 +412,7 @@ export const ChatBubble = ({
                 handleReactionAdd={handleReactionAdd}
                 isBot={message.user?.isBot ?? false}
                 isOwn={isOwn}
+                isUnsent={message.isUnsent ?? false}
                 messageId={message.id}
                 reactions={message.reactionSummaries}
             />

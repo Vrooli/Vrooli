@@ -17,6 +17,7 @@ export const typeDef = gql`
         chatConnect: ID!
         isFork: Boolean!
         forkId: ID
+        userConnect: ID!
         translationsCreate: [ChatMessageTranslationCreateInput!]
     }
     input ChatMessageUpdateInput {
@@ -32,6 +33,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        isFork: Boolean!
         chat: Chat!
         user: User!
         reactionSummaries: [ReactionSummary!]!
