@@ -10,7 +10,6 @@ export * from "./defaultPermissions";
 export * from "./embeddings";
 export * from "./fileStorage";
 export * from "./getAuthenticatedData";
-export * from "./inputToMapWithPartials";
 export * from "./labelShapeHelper";
 export * from "./nodeEndNextShapeHelper";
 export * from "./objectTools";

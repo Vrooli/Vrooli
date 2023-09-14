@@ -8,7 +8,7 @@ import { ChatMessageFormat } from "../format/chatMessage";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
 import { ReactionModel } from "./reaction";
-import { ChatMessageModelLogic, ChatModelLogic, UserModelLogic } from "./types";
+import { ChatMessageModelLogic, ChatModelLogic } from "./types";
 import { UserModel } from "./user";
 
 /** Information for a message, collected in mutate.shape.pre */
@@ -60,6 +60,9 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
     format: ChatMessageFormat,
     mutate: {
         shape: {
+            //TODO when creating messages and chat at the same time, this doesn't provide the chat data.
+            // Also, needs to check if you can assign that user to the message (i.e. your id or a bot in the 
+            // existing chat or new invites)
             pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
                 // Collect bot information for bots to respond to messages.
                 // Collect chatIds and userIds to send notifications and trigger web socket events.
@@ -331,10 +334,9 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
         owner: (data) => ({
             User: data.user,
         }),
-        permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, isPublic, userId }) => {
-            const isChatAdmin = userId ? isOwnerAdminCheck(ChatModel.validate.owner(data.chat as ChatModelLogic["PrismaModel"], userId), userId) : false, ;
+        permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, userId }) => {
+            const isChatAdmin = userId ? isOwnerAdminCheck(ChatModel.validate.owner(data.chat as ChatModelLogic["PrismaModel"], userId), userId) : false;
             const isParticipant = uuidValidate(userId) && (data.chat as ChatModelLogic["PrismaModel"]).participants?.some((p) => p.userId === userId);
-            const isPublicBot = (data.user as UserModelLogic["PrismaModel"]).isBot && (data.user as UserModelLogic["PrismaModel"]).isPrivate === false;
             return {
                 canConnect: () => isLoggedIn && !isDeleted && isParticipant,
                 canDelete: () => isLoggedIn && !isDeleted && (isMessageOwner || isChatAdmin),
