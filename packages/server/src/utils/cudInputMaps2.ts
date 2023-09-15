@@ -35,15 +35,15 @@ type IdsByPlaceholder = { [key: string]: string | null };
 
 
 // Helper function to derive the action from the field name
-function getActionFromFieldName(fieldName) {
-    const actions = ["Connect", "Create", "Delete", "Disconnect", "Update"];
+const getActionFromFieldName = (fieldName: string): QueryAction | null => {
+    const actions: QueryAction[] = ["Connect", "Create", "Delete", "Disconnect", "Update"];
     for (const action of actions) {
         if (fieldName.endsWith(action)) {
             return action;
         }
     }
     return null;
-}
+};
 
 /**
  * Converts placeholder ids to actual IDs, or null if actual ID not found.
@@ -100,9 +100,7 @@ const convertPlaceholders = async ({
 // 1. Check if this should be handling the updates shaped like ({ where: any, data: any}). The original does this.
 // 1.5. Need to handle union types (i.e. gqlRelMap value is an object instead of a string)
 // 2. Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
-// 3. Test performance of using this approach vs. old by using console.time() and console.timeEnd() around the original function call, and this new one which we can add in cudHelper.
-// 4. Test memory usage of using this approach vs. old by using process.memoryUsage() before and after the original function call, and this new one which we can add in cudHelper.
-// 5. Improve type safety of this file
+// 3. Try rewriting this to that the createMany, updateMany, and deleteMany don't have to be of the same object type. Would be nice to be able to use this function directly when importing data.
 export const cudInputsToMaps2 = async ({
     createMany,
     updateMany,
@@ -138,6 +136,27 @@ export const cudInputsToMaps2 = async ({
         ...((deleteMany ?? []).map(id => ({ actionType: "Delete", data: id }))),
     ];
 
+    const initByAction = (actionType: QueryAction) => {
+        if (!idsByAction[actionType]) {
+            idsByAction[actionType] = [];
+        }
+    };
+    const initByType = (objectType: `${GqlModelType}`) => {
+        if (!idsByType[objectType]) {
+            idsByType[objectType] = [];
+        }
+        if (!inputsByType[objectType]) {
+            inputsByType[objectType] = {
+                Connect: [],
+                Create: [],
+                Delete: [],
+                Disconnect: [],
+                Read: [],
+                Update: [],
+            };
+        }
+    };
+
     /**
      * Recursively builds a tree from a mutation input 
      * to optimize the performance of various operations performed before and after creating, 
@@ -167,24 +186,10 @@ export const cudInputsToMaps2 = async ({
         // Initialize tree
         const rootNode = new InputNode(relMap.__typename, input[idField], actionType);
         // Initialize maps
-        if (!idsByAction[actionType]) {
-            idsByAction[actionType] = [];
-        }
+        initByAction(actionType);
+        initByType(relMap.__typename);
         idsByAction[actionType]?.push(input[idField]);
-        if (!idsByType[relMap.__typename]) {
-            idsByType[relMap.__typename] = [];
-        }
         idsByType[relMap.__typename]?.push(input[idField]);
-        if (!inputsByType[relMap.__typename]) {
-            inputsByType[relMap.__typename] = {
-                Connect: [],
-                Create: [],
-                Delete: [],
-                Disconnect: [],
-                Read: [],
-                Update: [],
-            };
-        }
         // Initialize object that we'll push to inputsByType later
         const inputInfo: { node: InputNode, input: any } = { node: rootNode, input: {} };
 
@@ -231,12 +236,8 @@ export const cudInputsToMaps2 = async ({
             };
 
             const processConnectOrDisconnect = (id: string) => {
-                if (!idsByAction[action]) {
-                    idsByAction[action] = [];
-                }
-                if (!idsByType[__typename]) {
-                    idsByType[__typename] = [];
-                }
+                initByAction(action);
+                initByType(__typename);
                 // Connect should still be an ID, so we can add it to the idsByAction and idsByType maps
                 // Disconnect should be "true", so we can ignore it
                 if (action === "Connect") {
@@ -258,24 +259,28 @@ export const cudInputsToMaps2 = async ({
             const isArray = input[field] instanceof Array;
             const isConnectOrDisconnect = action === "Connect" || action === "Disconnect";
             if (isArray && !isConnectOrDisconnect) {
+                inputInfo.input[field] = [];
                 for (const child of input[field] as Array<object>) {
                     processObject(child);
+                    inputInfo.input[field].push(child[childIdField]);
                 }
             } else if (!isArray && !isConnectOrDisconnect) {
                 processObject(input[field] as object);
+                inputInfo.input[field] = (input[field] as object)[childIdField];
             } else if (isArray && isConnectOrDisconnect) {
+                inputInfo.input[field] = input[field];
                 for (const child of input[field] as Array<string>) {
                     processConnectOrDisconnect(child);
                 }
             } else {
+                inputInfo.input[field] = input[field];
                 processConnectOrDisconnect(input[field] as string);
             }
 
-            // Add ID or placeholder referencing the child object to the inputInfo object
-            //TODO
         }
-        // TODO do something with inputInfo
-
+        // Add inputInfo to inputsByType
+        inputsByType[relMap.__typename]?.[actionType]?.push(inputInfo);
+        // Return the root node
         return rootNode;
     };
 
