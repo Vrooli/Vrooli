@@ -33,13 +33,13 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
     format: ChatFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, prisma, userData }) => {
+            pre: async ({ Create, Update, prisma }) => {
                 // Find invited users. Any that are bots are automatically accepted.
-                const invitedUsers = createList.reduce((acc, c) => [...acc, ...(c.invitesCreate?.map((i) => i.userConnect) ?? []) as string[]], [] as string[]);
+                const invitedUsers = Create.reduce((acc, c) => [...acc, ...(c.input.invitesCreate?.map((i) => i.userConnect) ?? []) as string[]], [] as string[]);
                 // Find all bots
                 const bots = await prisma.user.findMany({ where: { id: { in: invitedUsers }, isBot: true } });
                 // Find translations that need text embeddings
-                const embeddingMaps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                const embeddingMaps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...embeddingMaps, bots };
             },
             create: async ({ data, ...rest }) => ({

@@ -44,16 +44,50 @@ const originalDataSelect = {
  * @returns maps for version, trigger, and transfer data
  */
 export const preShapeRoot = async ({
-    createList,
-    updateList,
-    deleteList,
+    Create,
+    Update,
+    Delete,
     objectType,
     prisma,
     userData,
 }: {
-    createList: { [x: string]: any }[],
-    updateList: { [x: string]: any }[],
-    deleteList: string[],
+    Create: {
+        input: {
+            id: string,
+            isPrivate?: boolean | null | undefined,
+            ownedByUserConnect?: string | null | undefined,
+            ownedByOrganizationConnect?: string | null | undefined,
+            parentConnect?: string | null | undefined,
+            versionsCreate?: {
+                id: string,
+                isComplete?: boolean | null | undefined,
+                isPrivate?: boolean | null | undefined,
+            }[] | null | undefined,
+        }
+    }[],
+    Update: {
+        input: {
+            id: string,
+            isPrivate?: boolean | null | undefined,
+            ownedByUserConnect?: string | null | undefined,
+            ownedByOrganizationConnect?: string | null | undefined,
+            parentConnect?: string | null | undefined,
+            versionsCreate?: {
+                id: string,
+                isComplete?: boolean | null | undefined,
+                isPrivate?: boolean | null | undefined,
+            }[] | null | undefined,
+            versionsUpdate?: {
+                id: string,
+                isComplete?: boolean | null | undefined,
+                isPrivate?: boolean | null | undefined,
+            }[] | null | undefined,
+            versionsDelete?: string[] | null | undefined,
+        }
+    }[],
+    Delete: {
+        input: string;
+    }[],
     objectType: GqlModelType | `${GqlModelType}`,
     prisma: PrismaType,
     userData: SessionUserToken,
@@ -69,41 +103,41 @@ export const preShapeRoot = async ({
     const triggerMap: Record<string, ObjectTriggerData> = {};
     const transferMap: Record<string, boolean> = {};
     // For createList (very simple)
-    for (const create of createList) {
-        const hasCompleteVersion = create.versionsCreate?.some(v => v.isComplete) ?? false;
-        versionMap[create.id] = {
+    for (const { input } of Create) {
+        const hasCompleteVersion = input.versionsCreate?.some(v => v.isComplete) ?? false;
+        versionMap[input.id] = {
             hasCompleteVersion,
             completedAt: hasCompleteVersion ? new Date() : null,
         };
-        triggerMap[create.id] = {
+        triggerMap[input.id] = {
             wasCompleteAndPublic: true, // Doesn't matter
-            hasCompleteAndPublic: !create.isPrivate && (create.versionsCreate?.some(v => v.isComplete && !v.isPrivate) ?? false),
+            hasCompleteAndPublic: !input.isPrivate && (input.versionsCreate?.some(v => v.isComplete && !v.isPrivate) ?? false),
             hasBeenTransferred: false, // Doesn't matter
-            hasParent: typeof create.parentConnect === "string",
+            hasParent: typeof input.parentConnect === "string",
             owner: {
-                id: create.ownedByUser ?? create.ownedByOrganization,
-                __typename: create.ownedByUser ? "User" : "Organization",
+                id: (input.ownedByUserConnect ?? input.ownedByOrganizationConnect) as string,
+                __typename: input.ownedByUserConnect ? "User" : "Organization",
             },
         };
     }
     // For updateList (much more complicated)
-    if (updateList.length > 0) {
+    if (Update.length > 0) {
         // Find original data
         const originalData = await delegate(prisma).findMany({
-            where: { id: { in: updateList.map(u => u.id) } },
+            where: { id: { in: Update.map(u => u.input.id) } },
             select: originalDataSelect,
         });
         // Loop through updates
-        for (const update of updateList) {
+        for (const { input } of Update) {
             // Find original
-            const original = originalData.find(r => r.id === update.id);
-            if (!original) throw new CustomError("0412", "InternalError", userData.languages, { id: update?.id });
-            const isRootPrivate = update.isPrivate ?? original.isPrivate;
+            const original = originalData.find(r => r.id === input.id);
+            if (!original) throw new CustomError("0412", "InternalError", userData.languages, { id: input?.id });
+            const isRootPrivate = input.isPrivate ?? original.isPrivate;
             // Convert original versions to map for easy lookup
             const updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, any>);
             // Combine updated versions with original versions
-            if (update.versionsUpdate) {
-                for (const v of update.versionsUpdate) {
+            if (Array.isArray(input.versionsUpdate)) {
+                for (const v of input.versionsUpdate) {
                     updatedWithOriginal[v.id] = {
                         ...updatedWithOriginal[v.id],
                         ...v,
@@ -111,17 +145,17 @@ export const preShapeRoot = async ({
                 }
             }
             // Combine new, updated, and original versions. Then remove deleting versions
-            const allVersions = Object.values(updatedWithOriginal).concat(update.versionsCreate ?? []);
-            const versions = allVersions.filter(v => !update.versionsDelete?.includes((v as any).id));
+            const allVersions: any[] = Object.values(updatedWithOriginal).concat(input.versionsCreate ?? []);
+            const versions = allVersions.filter(v => !input.versionsDelete?.includes(v.id));
             // Calculate flags
-            const hasCompleteVersion = versions.some(v => (v as any).isComplete);
-            versionMap[update.id] = {
+            const hasCompleteVersion = versions.some(v => v.isComplete);
+            versionMap[input.id] = {
                 hasCompleteVersion,
                 completedAt: hasCompleteVersion ? new Date() : null,
             };
-            triggerMap[update.id] = {
-                wasCompleteAndPublic: !original.isPrivate && original.versions.some((v: any) => v.isComplete && !v.isPrivate),
-                hasCompleteAndPublic: !isRootPrivate && versions.some((v: any) => v.isComplete && !v.isPrivate),
+            triggerMap[input.id] = {
+                wasCompleteAndPublic: !original.isPrivate && original.versions.some(v => v.isComplete && !v.isPrivate),
+                hasCompleteAndPublic: !isRootPrivate && versions.some(v => v.isComplete && !v.isPrivate),
                 hasBeenTransferred: original.hasBeenTransferred,
                 hasParent: exists(original.parent),
                 // TODO owner might be changed here depending on how triggers are implemented.
@@ -134,19 +168,19 @@ export const preShapeRoot = async ({
         }
     }
     // For deleteList (fairly simple)
-    if (deleteList.length > 0) {
+    if (Delete.length > 0) {
         // Find original data
         const originalData = await delegate(prisma).findMany({
-            where: { id: { in: deleteList } },
+            where: { id: { in: Delete.map(d => d.input) } },
             select: originalDataSelect,
         });
         // Loop through deletes
-        for (const id of deleteList) {
+        for (const { input: id } of Delete) {
             // Find original
             const original = originalData.find(r => r.id === id);
             if (!original) throw new CustomError("0413", "InternalError", userData.languages, { id });
             triggerMap[id] = {
-                wasCompleteAndPublic: !original.isPrivate && original.versions.some((v: any) => v.isComplete && !v.isPrivate),
+                wasCompleteAndPublic: !original.isPrivate && original.versions.some(v => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: true, // Doesn't matter
                 hasBeenTransferred: original.hasBeenTransferred,
                 hasParent: exists(original.parent),
@@ -162,7 +196,7 @@ export const preShapeRoot = async ({
     // Finally determine which creates/updates require a transfer request
     // Get create and update owners from triggerMap and map them to object IDs. Make sure to filter out deleteList owners
     const ownersEntries = Object.entries(triggerMap)
-        .filter(([id]) => !deleteList.includes(id))
+        .filter(([id]) => !Delete.some(d => d.input === id))
         .map(([id, data]) => [id, data.owner]);
     const ownersMap = Object.fromEntries(ownersEntries);
     const requireTransfers = await transfer(prisma).checkTransferRequests(Object.values(ownersMap), userData);

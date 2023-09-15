@@ -22,13 +22,13 @@ export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
     format: NodeFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, deleteList, prisma, userData }) => {
+            pre: async ({ Create, Delete, prisma, userData }) => {
                 // Don't allow more than 100 nodes in a routine
-                if (createList.length) {
-                    const deltaAdding = createList.length - deleteList.length;
+                if (Create.length) {
+                    const deltaAdding = Create.length - Delete.length;
                     if (deltaAdding < 0) return;
                     const existingCount = await prisma.routine_version.findUnique({
-                        where: { id: createList[0].routineVersionConnect },
+                        where: { id: Create[0].input.routineVersionConnect },
                         include: { _count: { select: { nodes: true } } },
                     });
                     const totalCount = (existingCount?._count.nodes ?? 0) + deltaAdding;

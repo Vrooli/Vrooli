@@ -36,8 +36,8 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
     format: QuizFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({

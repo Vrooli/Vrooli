@@ -32,8 +32,8 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
     format: MeetingFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
@@ -108,7 +108,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
         supplemental: {
             dbFields: ["organizationId"],
             graphqlFields: suppFields,
-            toGraphQL: async ({ ids, objects, prisma, userData }) => {
+            toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),

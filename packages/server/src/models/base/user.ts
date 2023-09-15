@@ -76,9 +76,9 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
     format: UserFormat,
     mutate: {
         shape: {
-            pre: async ({ updateList, prisma, userData }) => {
-                await handlesCheck(prisma, "User", [], updateList, userData.languages);
-                const maps = preShapeEmbeddableTranslatable({ createList: [], updateList, objectType: __typename });
+            pre: async ({ Update, prisma, userData }) => {
+                await handlesCheck(prisma, __typename, [], Update, userData.languages);
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create: [], Update, objectType: __typename });
                 return { ...maps };
             },
             /** Create only applies for bots */

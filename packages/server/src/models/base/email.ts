@@ -19,21 +19,21 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
     format: EmailFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, deleteList, prisma, userData }) => {
+            pre: async ({ Create, Delete, prisma, userData }) => {
                 // Prevent creating emails if at least one is already in use
-                if (createList.length) {
+                if (Create.length) {
                     const existingEmails = await prisma.email.findMany({
-                        where: { emailAddress: { in: createList.map(x => x.emailAddress) } },
+                        where: { emailAddress: { in: Create.map(x => x.input.emailAddress) } },
                     });
                     if (existingEmails.length > 0) throw new CustomError("0044", "EmailInUse", userData.languages);
                 }
                 // Prevent deleting emails if it will leave you with less than one verified authentication method
-                if (deleteList.length) {
+                if (Delete.length) {
                     const allEmails = await prisma.email.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
-                    const remainingVerifiedEmailsCount = allEmails.filter(x => !deleteList.includes(x.id) && x.verified).length;
+                    const remainingVerifiedEmailsCount = allEmails.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
                     const verifiedWalletsCount = await prisma.wallet.count({
                         where: { user: { id: userData.id }, verified: true },
                     });

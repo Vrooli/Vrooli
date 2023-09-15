@@ -38,17 +38,17 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
     mutate: {
         shape: {
             pre: async (params) => {
-                const { createList, updateList, deleteList, prisma, userData } = params;
+                const { Create, Update, Delete, prisma, userData } = params;
                 await versionsCheck({
-                    createList,
-                    deleteList,
+                    Create,
+                    Delete,
                     objectType: __typename,
                     prisma,
-                    updateList,
+                    Update,
                     userData,
                 });
-                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
-                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {

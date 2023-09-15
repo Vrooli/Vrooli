@@ -2,8 +2,8 @@ import { Count, DUMMY_ID, GqlModelType, reqArr } from "@local/shared";
 import { modelToGql, selectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { cudInputsToMaps, getAuthenticatedData } from "../utils";
-import { cudInputsToMaps2 } from "../utils/cudInputMaps2";
+import { getAuthenticatedData } from "../utils";
+import { cudInputsToMaps2 } from "../utils/cudInputsToMaps";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";
 
@@ -49,7 +49,7 @@ export async function cudHelper<
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
     // Group create and update data by action and type
     console.time("cudInputsToMaps2");
-    const { idsByAction: idsByAction2, idsByPlaceholder, idsByType: idsByType2, inputsByType: inputsByType2, rootNodesById } = await cudInputsToMaps2({
+    const { idsByAction, idsByPlaceholder, idsByType, inputsByType } = await cudInputsToMaps2({
         createMany,
         updateMany,
         deleteMany,
@@ -58,16 +58,6 @@ export async function cudHelper<
         languages: userData.languages,
     });
     console.timeEnd("cudInputsToMaps2");
-    console.time("cudInputsToMaps");
-    const { idsByAction, idsByType, inputsByType } = await cudInputsToMaps({
-        createMany,
-        updateMany,
-        deleteMany,
-        objectType,
-        prisma,
-        languages: userData.languages,
-    });
-    console.timeEnd("cudInputsToMaps");
     const preMap: { [x: string]: any } = {};
     // For each type, calculate pre-shape data (if applicable). 
     // This often also doubles as a way to perform custom input validation
@@ -76,8 +66,7 @@ export async function cudHelper<
         preMap[type] = {};
         const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "preshape type");
         if (mutate.shape.pre) {
-            const { Create: createList, Update: updateList, Delete: deleteList } = inputs;
-            const preResult = await mutate.shape.pre({ createList, updateList: updateList as any, deleteList, prisma, userData });
+            const preResult = await mutate.shape.pre({ ...inputs, prisma, userData });
             preMap[type] = preResult;
         }
     }

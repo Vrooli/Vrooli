@@ -92,7 +92,7 @@ import { WalletModel } from "./wallet";
 /**
  * Maps model types to their respective business logic implementations.
  */
-export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
+export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any, any> } = {
     Api: ApiModel,
     ApiKey: ApiKeyModel,
     ApiVersion: ApiVersionModel,

@@ -21,14 +21,14 @@ export const WalletModel: ModelLogic<WalletModelLogic, typeof suppFields> = ({
     format: WalletFormat,
     mutate: {
         shape: {
-            pre: async ({ deleteList, prisma, userData }) => {
+            pre: async ({ Delete, prisma, userData }) => {
                 // Prevent deleting wallets if it will leave you with less than one verified authentication method
-                if (deleteList.length) {
+                if (Delete.length) {
                     const allWallets = await prisma.wallet.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
-                    const remainingVerifiedWalletsCount = allWallets.filter(x => !deleteList.includes(x.id) && x.verified).length;
+                    const remainingVerifiedWalletsCount = allWallets.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
                     const verifiedEmailsCount = await prisma.email.count({
                         where: { user: { id: userData.id }, verified: true },
                     });

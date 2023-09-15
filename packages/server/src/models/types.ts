@@ -4,7 +4,7 @@ import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../buil
 import { PrismaType, PromiseOrValue, RecursivePartial, SessionUserToken } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
-import { QueryAction } from "../utils/types";
+import { InputNode, QueryAction } from "../utils/types";
 
 /** Types and flags for an object's business layer */
 export type ModelLogicType = {
@@ -42,7 +42,8 @@ export type ModelLogicType = {
 */
 export type ModelLogic<
     Model extends ModelLogicType,
-    SuppFields extends readonly DotNotation<Model["GqlModel"]>[]
+    SuppFields extends readonly DotNotation<Model["GqlModel"]>[],
+    IdField extends keyof Model["GqlModel"] = "id",
 > = {
     __typename: `${GqlModelType}`;
     /** The prisma delegate for this object (e.g. prisma.user) */
@@ -59,7 +60,7 @@ export type ModelLogic<
      * NOTE: If using this for more than tags, you might want to update the logic in `cudHelper` 
      * to avoid id collisions between different object types.
      * */
-    idField?: keyof Model["GqlModel"];
+    idField?: IdField;
     /** Functions and data for searching the object */
     search: Model["GqlSearch"] extends undefined ? undefined :
     Model["GqlSort"] extends undefined ? undefined :
@@ -429,10 +430,10 @@ export type Mutater<Model extends {
          * data that can change depending on what else is being mutated. This is useful for 
          * things like routine complexity, where the calculation depends on the complexity of subroutines.
          */
-        pre?: ({ createList, updateList, deleteList, prisma, userData }: {
-            createList: Model["GqlCreate"][],
-            updateList: (Model["GqlUpdate"] & { id: string })[],
-            deleteList: string[],
+        pre?: ({ Create, Update, Delete, prisma, userData }: {
+            Create: { node: InputNode, input: Model["GqlCreate"] }[],
+            Update: { node: InputNode, input: (Model["GqlUpdate"] & { id: string }) }[],
+            Delete: { node: InputNode, input: string }[],
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<object>,

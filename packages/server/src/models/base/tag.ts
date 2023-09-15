@@ -9,7 +9,8 @@ import { TagModelLogic } from "./types";
 
 const __typename = "Tag" as const;
 const suppFields = ["you"] as const;
-export const TagModel: ModelLogic<TagModelLogic, typeof suppFields> = ({
+const idField = "tag";
+export const TagModel: ModelLogic<TagModelLogic, typeof suppFields, typeof idField> = ({
     __typename,
     delegate: (prisma) => prisma.tag,
     display: {
@@ -28,12 +29,12 @@ export const TagModel: ModelLogic<TagModelLogic, typeof suppFields> = ({
             },
         },
     },
-    idField: "tag",
+    idField,
     format: TagFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<typeof idField>({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({

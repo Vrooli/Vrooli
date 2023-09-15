@@ -1,4 +1,5 @@
 import { GqlModelType } from "@local/shared";
+import { WithIdField } from "../types";
 import { preShapeEmbeddableTranslatable } from "./preShapeEmbeddableTranslatable";
 
 /**
@@ -6,17 +7,27 @@ import { preShapeEmbeddableTranslatable } from "./preShapeEmbeddableTranslatable
  * 1. Calculate embeddingNeedsUpdate flag for translations relationship
  * @returns object with embeddingNeedsUpdate flag
  */
-export const preShapeVersion = ({
-    createList,
-    updateList,
+export const preShapeVersion = <IdField extends string = "id">({
+    Create,
+    Update,
     objectType,
 }: {
-    createList: { [x: string]: any }[],
-    updateList: { [x: string]: any }[],
+    Create: {
+        input: WithIdField<IdField> & {
+            translationsCreate?: { language: string }[] | null | undefined,
+        }
+    }[],
+    Update: {
+        input: WithIdField<IdField> & {
+            translationsCreate?: { language: string }[] | null | undefined,
+            translationsUpdate?: { language: string }[] | null | undefined,
+            translationsDelete?: string[] | null | undefined,
+        }
+    }[],
     objectType: GqlModelType | `${GqlModelType}`,
 }): {
     embeddingNeedsUpdateMap: Record<string, { [language in string]: boolean }>,
 } => {
-    const { embeddingNeedsUpdateMap } = preShapeEmbeddableTranslatable({ createList, updateList, objectType });
+    const { embeddingNeedsUpdateMap } = preShapeEmbeddableTranslatable<IdField>({ Create, Update, objectType });
     return { embeddingNeedsUpdateMap };
 };

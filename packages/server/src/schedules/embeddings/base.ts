@@ -28,7 +28,7 @@ const API_BATCH_SIZE = 100; // Size set in the API to limit the number of embedd
 /**
  * Helper function to extract sentences from translated embeddable objects
  */
-const extractTranslatedSentences = <T extends { id: string, translations: { language: string }[] }>(batch: T[], model: ModelLogic<any, any>) => {
+const extractTranslatedSentences = <T extends { translations: { language: string }[] }>(batch: T[], model: ModelLogic<any, any>) => {
     // Initialize array to store sentences
     const sentences: string[] = [];
     // Loop through each object in the batch
@@ -72,7 +72,7 @@ const updateEmbedding = async (
  * @param tableName - The name of the table where the embeddings should be updated. e.g. "api_version_translation"
  */
 const processTranslatedBatchHelper = async (
-    batch: { id: string, translations: { id: string, embeddingNeedsUpdate: boolean, language: string }[] }[],
+    batch: { translations: { id: string, embeddingNeedsUpdate: boolean, language: string }[] }[],
     prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
 ): Promise<void> => {

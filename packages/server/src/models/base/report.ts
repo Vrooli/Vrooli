@@ -79,15 +79,15 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
     format: ReportFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, prisma, userData }) => {
+            pre: async ({ Create, prisma, userData }) => {
                 // Make sure user does not have any open reports on these objects
-                if (createList.length) {
+                if (Create.length) {
                     const existing = await prisma.report.findMany({
                         where: {
                             status: "Open",
                             user: { id: userData.id },
-                            OR: createList.map((x) => ({
-                                [forMapper[x.createdFor]]: { id: x.createdForConnect },
+                            OR: Create.map((x) => ({
+                                [forMapper[x.input.createdFor]]: { id: x.input.createdForConnect },
                             })),
                         },
                     });

@@ -1,14 +1,31 @@
 import { GqlModelType } from "@local/shared";
-import { PrismaUpdate } from "../builders/types";
+import { PrismaSelect, PrismaUpdate } from "../builders/types";
+
+export class InputNode {
+    __typename: string;
+    id: string;
+    action: QueryAction;
+    children: InputNode[];
+    parent: InputNode | null;
+
+    constructor(__typename: string, id: string, action: QueryAction) {
+        this.__typename = __typename;
+        this.id = id;
+        this.action = action;
+        this.children = [];
+        this.parent = null;
+    }
+}
 
 export type QueryAction = "Connect" | "Create" | "Delete" | "Disconnect" | "Read" | "Update";
 export type IdsByAction = { [x in QueryAction]?: string[] };
 export type IdsByType = { [key in GqlModelType]?: string[] };
 export type InputsByType = { [key in GqlModelType]?: {
-    // Connect: string[];
-    Create: PrismaUpdate[];
-    Delete: string[];
-    // Disconnect: string[];
-    // Read: PrismaSelect[];
-    Update: PrismaUpdate[];
+    Connect: { node: InputNode, input: string; }[];
+    Create: { node: InputNode, input: PrismaUpdate }[];
+    Delete: { node: InputNode, input: string; }[];
+    Disconnect: { node: InputNode, input: string; }[];
+    Read: { node: InputNode, input: PrismaSelect }[];
+    Update: { node: InputNode, input: PrismaUpdate }[];
 } };
+export type IdsByPlaceholder = { [key: string]: string | null };

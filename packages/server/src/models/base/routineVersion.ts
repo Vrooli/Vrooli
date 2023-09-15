@@ -61,18 +61,18 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
     mutate: {
         shape: {
             pre: async (params) => {
-                const { createList, updateList, deleteList, prisma, userData } = params;
+                const { Create, Update, Delete, prisma, userData } = params;
                 await versionsCheck({
-                    createList,
-                    deleteList,
+                    Create,
+                    Delete,
                     objectType: __typename,
                     prisma,
-                    updateList,
+                    Update,
                     userData,
                 });
-                const combined = [...createList, ...updateList];
-                combined.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
-                await Promise.all(combined.map(async (input) => { await validateNodePositions(prisma, input, userData.languages); }));
+                const combinedInputs = [...Create, ...Update].map(d => d.input);
+                combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                await Promise.all(combinedInputs.map(async (input) => { await validateNodePositions(prisma, input, userData.languages); }));
                 // Calculate simplicity and complexity of all versions. Since these calculations 
                 // can depend on other versions, we need to do them all at once. 
                 // We exclude deleting versions to ensure that they don't affect the calculations. 
@@ -80,15 +80,15 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
                 const { dataWeights } = await calculateWeightData(
                     prisma,
                     userData.languages,
-                    combined,
-                    deleteList,
+                    combinedInputs,
+                    Delete.map(d => d.input),
                 );
                 // Convert dataWeights to a map for easy lookup
                 const dataWeightMap = dataWeights.reduce((acc, curr) => {
                     acc[curr.id] = curr;
                     return acc;
                 }, {});
-                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps, dataWeightMap };
             },
             create: async ({ data, ...rest }) => {

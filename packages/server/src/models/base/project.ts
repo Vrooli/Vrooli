@@ -23,9 +23,9 @@ export const ProjectModel: ModelLogic<ProjectModelLogic, typeof suppFields> = ({
     format: ProjectFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
-                await handlesCheck(prisma, "Project", createList, updateList, userData.languages);
-                const maps = await preShapeRoot({ createList, updateList, deleteList, prisma, userData, objectType: __typename });
+            pre: async ({ Create, Update, Delete, prisma, userData }) => {
+                await handlesCheck(prisma, __typename, Create, Update, userData.languages);
+                const maps = await preShapeRoot({ Create, Update, Delete, prisma, userData, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({

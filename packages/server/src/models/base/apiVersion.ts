@@ -46,17 +46,17 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
     mutate: {
         shape: {
             pre: async (params) => {
-                const { createList, updateList, deleteList, prisma, userData } = params;
+                const { Create, Update, Delete, prisma, userData } = params;
                 await versionsCheck({
-                    createList,
-                    deleteList,
+                    Create,
+                    Delete,
                     objectType: __typename,
                     prisma,
-                    updateList,
+                    Update,
                     userData,
                 });
-                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
-                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                [...Create, ...Update].forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({

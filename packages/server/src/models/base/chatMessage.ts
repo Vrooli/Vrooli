@@ -63,25 +63,25 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             //TODO when creating messages and chat at the same time, this doesn't provide the chat data.
             // Also, needs to check if you can assign that user to the message (i.e. your id or a bot in the 
             // existing chat or new invites)
-            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+            pre: async ({ Create, Update, Delete, prisma, userData }) => {
                 // Collect bot information for bots to respond to messages.
                 // Collect chatIds and userIds to send notifications and trigger web socket events.
                 const botData: Record<string, string> = {};
                 const messageData: Record<string, MessageData> = {};
                 // Find known information. We'll query for the rest later.
-                for (const d of [...createList, ...updateList]) {
-                    const best = bestTranslation([...((d as ChatMessageCreateInput).translationsCreate ?? []), ...((d as ChatMessageUpdateInput).translationsUpdate ?? [])], userData.languages);
-                    messageData[d.id] = {
+                for (const { input } of [...Create, ...Update]) {
+                    const best = bestTranslation([...((input as ChatMessageCreateInput).translationsCreate ?? []), ...((input as ChatMessageUpdateInput).translationsUpdate ?? [])], userData.languages);
+                    messageData[input.id] = {
                         botIds: [],
-                        chatId: (d as ChatMessageCreateInput).chatConnect ?? null,
+                        chatId: (input as ChatMessageCreateInput).chatConnect ?? null,
                         content: best?.text ?? "",
                         language: best?.language ?? userData.languages[0],
                         participantsCount: null,
-                        userId: (d as ChatMessageCreateInput).userConnect ?? userData.id,
+                        userId: (input as ChatMessageCreateInput).userConnect ?? userData.id,
                     };
                 }
-                for (const d of deleteList) {
-                    messageData[d] = {
+                for (const { input: id } of Delete) {
+                    messageData[id] = {
                         botIds: [],
                         chatId: null,
                         content: "",
@@ -91,7 +91,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     };
                 }
                 // Query chat information of new messages
-                const chatIdsForNewMessages = createList.map(c => c.chatConnect);
+                const chatIdsForNewMessages = Create.map(c => c.input.chatConnect);
                 const chatInfoForNewMessages = await prisma.chat.findMany({
                     where: { id: { in: chatIdsForNewMessages } },
                     select: {
@@ -119,7 +119,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 });
                 // Add chat information to message data
                 chatInfoForNewMessages.forEach(chat => {
-                    const message = createList.find(m => m.chatConnect === chat.id);
+                    const message = Create.find(m => m.input.chatConnect === chat.id)?.input;
                     if (message) {
                         messageData[message.id] = {
                             ...messageData[message.id],
@@ -135,7 +135,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 });
                 // Query message and chat information for updated and deleted messages
                 const queriedData = await prisma.chat_message.findMany({
-                    where: { id: { in: [...updateList.map(u => u.id), ...deleteList] } },
+                    where: { id: { in: [...Update.map(u => u.input.id), ...Delete.map(d => d.input)] } },
                     select: {
                         id: true,
                         chat: {

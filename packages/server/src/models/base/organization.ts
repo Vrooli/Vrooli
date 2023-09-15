@@ -36,11 +36,11 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
     format: OrganizationFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, prisma, userData }) => {
-                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
-                await handlesCheck(prisma, "Organization", createList, updateList, userData.languages);
+            pre: async ({ Create, Update, prisma, userData }) => {
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
+                await handlesCheck(prisma, __typename, Create, Update, userData.languages);
                 // Find translations that need text embeddings
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
