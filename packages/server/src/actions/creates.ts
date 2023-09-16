@@ -23,10 +23,18 @@ export async function createHelper<GraphQLModel>({
     // Partially convert info type
     const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
     // Create objects. cudHelper will check permissions
-    const cudResult = await cudHelper({ createMany: [input], objectType, partialInfo, prisma, userData });
-    const { created } = cudResult;
-    if (created && created.length > 0) {
-        return (await addSupplementalFields(prisma, userData, created, partialInfo))[0] as any;
+    const created = (await cudHelper({
+        inputData: [{
+            actionType: "Create",
+            input,
+            objectType,
+        }],
+        partialInfo,
+        prisma,
+        userData,
+    }))[0];
+    if (typeof created !== "boolean") {
+        return (await addSupplementalFields(prisma, userData, [created], partialInfo))[0] as any;
     }
     throw new CustomError("0028", "ErrorUnknown", userData.languages);
 }

@@ -463,12 +463,11 @@ export type Mutater<Model extends {
         }) => PromiseOrValue<Model["PrismaCreate"]> : never : never,
         /** Shapes data for update mutations */
         update?: Model["GqlUpdate"] extends Record<string, any> ?
-        Model["PrismaUpdate"] extends Record<string, any> ? ({ data, preMap, prisma, userData, where }: {
+        Model["PrismaUpdate"] extends Record<string, any> ? ({ data, preMap, prisma, userData }: {
             data: Model["GqlUpdate"],
             preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
-            where: { id: string },
         }) => PromiseOrValue<Model["PrismaUpdate"]> : never : never
     }
     /**
@@ -484,31 +483,27 @@ export type Mutater<Model extends {
          * over handling each mutation individually, especially if you need to do something
          * that benefits from having all the data at once.
          */
-        onCommon?: ({ createAuthData, created, deleted, prisma, updateAuthData, updated, updateInput, userData }: {
-            createAuthData: { [id: string]: { [x: string]: any } },
+        onCommon?: ({ created, deleted, prisma, updated, updateInputs, userData }: {
             created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
             deleted: Count,
             deletedIds: string[],
-            updateAuthData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            updateInput: Model["GqlUpdate"][],
+            updateInputs: Model["GqlUpdate"][],
             preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void>,
         /** A trigger for create mutations */
         onCreated?: Model["GqlCreate"] extends Record<string, any> ? ({ created, prisma, userData }: {
-            authData: { [id: string]: { [x: string]: any } },
             created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
             preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void> : never,
         /** A trigger for update mutations */
-        onUpdated?: Model["GqlUpdate"] extends Record<string, any> ? ({ updated, updateInput, prisma, userData }: {
-            authData: { [id: string]: { [x: string]: any } },
+        onUpdated?: Model["GqlUpdate"] extends Record<string, any> ? ({ updated, updateInputs, prisma, userData }: {
             updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            updateInput: Model["GqlUpdate"][],
+            updateInputs: Model["GqlUpdate"][],
             preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
@@ -525,9 +520,8 @@ export type Mutater<Model extends {
         /**
          * A trigger for delete mutations
          */
-        onDeleted?: ({ beforeDeletedData, deleted, deletedIds, prisma, userData }: {
+        onDeleted?: ({ beforeDeletedData, deletedIds, prisma, userData }: {
             beforeDeletedData: object,
-            deleted: Count,
             deletedIds: string[],
             preMap: PreMap,
             prisma: PrismaType,

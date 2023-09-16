@@ -3,7 +3,7 @@ import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { GqlRelMap } from "../models/types";
 import { PrismaType } from "../types";
-import { IdsByAction, IdsByPlaceholder, IdsByType, InputNode, InputsById, InputsByType, QueryAction } from "./types";
+import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, InputNode, InputsById, InputsByType, QueryAction } from "./types";
 
 // Helper function to derive the action from the field name
 const getActionFromFieldName = (fieldName: string): QueryAction | null => {
@@ -72,7 +72,7 @@ const convertPlaceholders = async ({
             idsByType[type] = ids.map(id => id === placeholder ? existingId : id);
             // Find action and index in action array
             // type IdsByAction = { [action in QueryAction]?: string[] };
-            const action = Object.entries(idsByAction).find(([action, ids]) => ids.includes(placeholder));
+            const action = Object.entries(idsByAction).find(([, ids]) => ids.includes(placeholder));
             if (!action) continue;
             const [actionType, actionIds] = action;
             const index = actionIds.indexOf(placeholder);
@@ -86,22 +86,13 @@ const convertPlaceholders = async ({
 // 1. Check if this should be handling the updates shaped like ({ where: any, data: any}). The original does this.
 // 1.5. Need to handle union types (i.e. gqlRelMap value is an object instead of a string)
 // 2. Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
-// 3. Try rewriting this to that the createMany, updateMany, and deleteMany don't have to be of the same object type. Would be nice to be able to use this function directly when importing data.
+// 3. Test performance of getLogic and improve if needed
 export const cudInputsToMaps = async ({
-    createMany,
-    updateMany,
-    deleteMany,
-    objectType,
+    inputData,
     prisma,
     languages,
 }: {
-    createMany: { [x: string]: any }[] | null | undefined,
-    deleteMany: string[] | null | undefined,
-    updateMany: {
-        where: { [x: string]: any },
-        data: { [x: string]: any },
-    }[] | null | undefined,
-    objectType: `${GqlModelType}`,
+    inputData: CudInputData[],
     prisma: PrismaType,
     languages: string[]
 }): Promise<{
@@ -114,12 +105,6 @@ export const cudInputsToMaps = async ({
     const idsByType: IdsByType = {};
     const inputsById: InputsById = {};
     const inputsByType: InputsByType = {};
-
-    const inputs = [
-        ...((createMany ?? []).map(data => ({ actionType: "Create", data }))),
-        ...((updateMany ?? []).map(({ data }) => ({ actionType: "Update", data }))),
-        ...((deleteMany ?? []).map(id => ({ actionType: "Delete", data: id }))),
-    ];
 
     const initByAction = (actionType: QueryAction) => {
         if (!idsByAction[actionType]) {
@@ -270,14 +255,17 @@ export const cudInputsToMaps = async ({
         return rootNode;
     };
 
-    for (const input of inputs) {
+    for (const { actionType, input, objectType } of inputData) {
         // If input is a string (i.e. an ID instead of an object), add it to the idsByAction and idsByType maps without further processing
-        if (typeof input.data === "string") {
-            idsByType[objectType] = (idsByType[objectType] || []).concat(input.data);
-            idsByAction[input.actionType] = (idsByAction[input.actionType] || []).concat(input.data);
-        } else {
+        // TODO this is fine for "Delete", but "Connect" and "Disconnect" should also do placeholder stuff
+        if (typeof input === "string") {
+            idsByType[objectType] = (idsByType[objectType] || []).concat(input);
+            idsByAction[actionType] = (idsByAction[actionType] || []).concat(input);
+        }
+        // Otherwise, recursively build the tree and other maps 
+        else {
             const { format, idField } = getLogic(["format", "idField"], objectType, languages, "getAuthenticatedIds");
-            buildTree(input.actionType as QueryAction, input.data, format.gqlRelMap, languages, idField);
+            buildTree(actionType as QueryAction, input, format.gqlRelMap, languages, idField);
         }
     }
 

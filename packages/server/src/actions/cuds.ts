@@ -1,11 +1,13 @@
-import { Count, DUMMY_ID, GqlModelType, reqArr } from "@local/shared";
+import { Count, DUMMY_ID, GqlModelType } from "@local/shared";
 import { modelToGql, selectHelper } from "../builders";
+import { PartialGraphQLInfo, PrismaCreate, PrismaUpdate } from "../builders/types";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
+import { PrismaType, SessionUserToken } from "../types";
 import { getAuthenticatedData } from "../utils";
 import { cudInputsToMaps } from "../utils/cudInputsToMaps";
+import { CudInputData } from "../utils/types";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
-import { CUDHelperInput, CUDResult } from "./types";
 
 /**
  * Performs create, update, and delete operations. 
@@ -21,39 +23,39 @@ import { CUDHelperInput, CUDResult } from "./types";
  * Then, it shapes create and update data to be inserted into the database. 
  * Sometimes, creates are converted to connects, and updates are converted to disconnects and connects.
  * 
- * Finally, it performs the operations in the database, and returns the results in shape of GraphQL objects
+ * Finally, it performs the operations in the database, and returns the results in shape of GraphQL objects. 
+ * Results are in the same order as the input data.
  */
 export async function cudHelper<
     GqlModel extends ({ id: string } & { [x: string]: any })
 >({
-    createMany,
-    deleteMany,
-    objectType,
+    inputData,
     partialInfo,
     prisma,
-    updateMany,
     userData,
-}: CUDHelperInput): Promise<CUDResult<GqlModel>> {
-    // Get functions for manipulating model logic
-    const { delegate, mutate } = getLogic(["delegate", "mutate", "validate"], objectType, userData.languages, "cudHelper");
+}: {
+    inputData: CudInputData[],
+    partialInfo: PartialGraphQLInfo,
+    prisma: PrismaType,
+    userData: SessionUserToken,
+}): Promise<Array<boolean | Record<string, any>>> {
     // Initialize results
-    const created: GqlModel[] = [], updated: GqlModel[] = [];
-    let deleted: Count = { __typename: "Count" as const, count: 0 };
-    // Initialize auth data by type
-    let createAuthData: { [x: string]: any } = {}, updateAuthData: { [x: string]: any } = {};
-    // Validate yup
-    createMany && mutate.yup.create && reqArr(mutate.yup.create({})).validateSync(createMany, { abortEarly: false });
-    updateMany && mutate.yup.update && reqArr(mutate.yup.update({})).validateSync(updateMany.map(u => u.data), { abortEarly: false });
-    // Profanity check
-    createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
-    updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
-    // Group create and update data by action and type
+    const result: Array<boolean | Record<string, any>> = new Array(inputData.length).fill(false);
+    // Validate create and update data
+    for (const { actionType, input, objectType } of inputData) {
+        if (actionType === "Create") {
+            const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper create");
+            mutate.yup.create && mutate.yup.create({}).validateSync(input);
+        } else if (actionType === "Update") {
+            const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper update");
+            mutate.yup.update && mutate.yup.update({}).validateSync(input);
+        }
+    }
+    // Group all data, including relations, relations' relations, etc. into various maps. 
+    // These are useful for validation and pre-shaping data
     console.time("cudInputsToMaps");
     const { idsByAction, idsByType, inputsById, inputsByType } = await cudInputsToMaps({
-        createMany,
-        updateMany,
-        deleteMany,
-        objectType,
+        inputData,
         prisma,
         languages: userData.languages,
     });
@@ -70,132 +72,150 @@ export async function cudHelper<
             preMap[type] = preResult;
         }
     }
-    // Shape create and update data. This must be done before other validations, as shaping may convert creates to connects
-    const shapedCreate: { [x: string]: any }[] = [];
-    const shapedUpdate: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
-    // Shape create
-    if (createMany && mutate.shape.create) {
-        for (const create of createMany) { shapedCreate.push(await mutate.shape.create({ data: create, preMap, prisma, userData })); }
-    }
-    // Shape update
-    if (updateMany && mutate.shape.update) {
-        for (const update of updateMany) {
-            const shaped = await mutate.shape.update({ data: update.data, preMap, prisma, userData, where: update.where as any });
-            shapedUpdate.push({ where: update.where, data: shaped });
-        }
-    }
     // Query for all authentication data
     const authDataById = await getAuthenticatedData(idsByType, prisma, userData);
     // Validate permissions
     await permissionsCheck(authDataById, idsByAction, userData);
+    // Perform profanity checks TODO should only be on public data
+    createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
+    updateMany && profanityCheck(updateMany, partialInfo.__typename, userData.languages);
     // Max objects check
     await maxObjectsCheck(authDataById, idsByAction, prisma, userData);
-    if (shapedCreate.length > 0) {
-        for (const data of shapedCreate) {
-            // Make sure no objects with placeholder ids are created. These could potentially bypass permissions/api checks, 
-            // since they're typically used to satisfy validation for relationships that aren't needed for the create 
-            // (e.g. `listConnect` on a resource item that's already being created in a list)
-            if (data?.id === DUMMY_ID) {
-                throw new CustomError("0501", "InternalError", userData.languages, { data, objectType });
-            }
-            // Create
-            let createResult: any = {};
-            let select: { [key: string]: any } | undefined;
-            try {
-                select = selectHelper(partialInfo)?.select;
-                createResult = await delegate(prisma).create({
-                    data,
-                    select,
-                });
-            } catch (error) {
-                throw new CustomError("0415", "InternalError", userData.languages, { error, data, select, objectType });
-            }
-            // Convert
-            const converted = modelToGql<GqlModel>(createResult, partialInfo);
-            created.push(converted as any);
+    // Group top-level (i.e. can't use inputsByType, idsByAction, etc. because those include relations) data by type
+    const topInputsByType: { [key in GqlModelType]?: {
+        Create: { index: number, input: PrismaCreate }[],
+        Update: { index: number, input: PrismaUpdate }[],
+        Delete: { index: number, input: string }[],
+    } } = {};
+    for (const [index, { actionType, input, objectType }] of inputData.entries()) {
+        if (!topInputsByType[objectType]) {
+            topInputsByType[objectType] = { Create: [], Update: [], Delete: [] };
         }
-        // Filter authDataById to only include objects which were created
-        createAuthData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => created.map(c => c.id).includes(id)));
-        // Call onCreated
-        mutate.trigger?.onCreated && await mutate.trigger.onCreated({
-            authData: createAuthData,
-            created,
-            preMap,
-            prisma,
-            userData,
-        });
+        topInputsByType[objectType]![actionType].push({ index, input: input as any });
     }
-    if (shapedUpdate.length > 0 && updateMany) {
-        for (const update of shapedUpdate) {
-            // Update
-            let updateResult: object = {};
-            let select: object | undefined;
-            try {
-                select = selectHelper(partialInfo)?.select;
-                updateResult = await delegate(prisma).update({
-                    where: update.where,
-                    data: update.data,
-                    select,
-                });
-            } catch (error) {
-                throw new CustomError("0416", "InternalError", userData.languages, { error, update, select, objectType });
+    // Loop through each type
+    for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
+        const { delegate, idField, mutate } = getLogic(["delegate", "idField", "mutate"], objectType as GqlModelType, userData.languages, "cudHelper.createOne");
+        const created: any[] = [];
+        const updateInputs: PrismaUpdate[] = [];
+        const updated: any[] = [];
+        const deletingIds = Delete.map(({ input }) => input);
+        let deleted: Count = { __typename: "Count" as const, count: 0 };
+        // Create
+        if (Create.length > 0) {
+            for (const { index } of Create) {
+                const { input, objectType } = inputData[index] as { input: PrismaCreate, objectType: GqlModelType | `${GqlModelType}` };
+                // Make sure no objects with placeholder ids are created. These could potentially bypass permissions/api checks, 
+                // since they're typically used to satisfy validation for relationships that aren't needed for the create 
+                // (e.g. `listConnect` on a resource item that's already being created in a list)
+                if (input?.id === DUMMY_ID) {
+                    throw new CustomError("0501", "InternalError", userData.languages, { input, objectType });
+                }
+                const data = mutate.shape.create ? await mutate.shape.create({ data: input, preMap, prisma, userData }) : input;
+                // Create
+                let createResult: object = {};
+                let select: object | undefined;
+                try {
+                    select = selectHelper(partialInfo)?.select;
+                    createResult = await delegate(prisma).create({
+                        data,
+                        select,
+                    });
+                } catch (error) {
+                    throw new CustomError("0415", "InternalError", userData.languages, { error, data, select, objectType });
+                }
+                // Convert
+                const converted = modelToGql<GqlModel>(createResult, partialInfo);
+                result[index] = converted;
+                created.push(converted);
             }
-            // Convert
-            const converted = modelToGql<GqlModel>(updateResult, partialInfo);
-            updated.push(converted as GqlModel);
+            // Call create trigger
+            mutate.trigger?.onCreated && await mutate.trigger.onCreated({
+                created,
+                preMap,
+                prisma,
+                userData,
+            });
         }
-        // Filter authDataById to only include objects which were updated
-        updateAuthData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => updated.map(u => u.id).includes(id)));
-        // Call onUpdated
-        mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({
-            authData: updateAuthData,
-            preMap,
-            prisma,
-            updated,
-            updateInput: updateMany.map(u => u.data), userData,
-        });
-    }
-    if (deleteMany && deleteMany.length > 0) {
-        // Call beforeDeleted
-        let beforeDeletedData: object = [];
-        if (mutate.trigger?.beforeDeleted) {
-            beforeDeletedData = await mutate.trigger.beforeDeleted({ deletingIds: deleteMany, prisma, userData });
+        // Update
+        if (Update.length > 0) {
+            for (const { index } of Update) {
+                const { input, objectType } = inputData[index] as { input: PrismaUpdate, objectType: GqlModelType | `${GqlModelType}` };
+                updateInputs.push(input);
+                const data = mutate.shape.update ? await mutate.shape.update({ data: input, preMap, prisma, userData }) : input;
+                // Update
+                let updateResult: object = {};
+                let select: object | undefined;
+                try {
+                    select = selectHelper(partialInfo)?.select;
+                    updateResult = await delegate(prisma).update({
+                        where: { [idField]: input[idField] },
+                        data,
+                        select,
+                    });
+                } catch (error) {
+                    throw new CustomError("0416", "InternalError", userData.languages, { error, data, select, objectType });
+                }
+                // Convert
+                const converted = modelToGql<GqlModel>(updateResult, partialInfo);
+                result[index] = converted;
+                updated.push(converted);
+            }
+            // Call update trigger
+            mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({
+                preMap,
+                prisma,
+                updated,
+                updateInputs,
+                userData,
+            });
         }
         // Delete
-        const where = { id: { in: deleteMany } };
-        try {
-            deleted = await delegate(prisma).deleteMany({
-                where,
-            }).then(({ count }) => ({ __typename: "Count" as const, count }));
-        } catch (error) {
-            throw new CustomError("0417", "InternalError", userData.languages, { error, where, objectType });
+        if (Delete.length > 0) {
+            // Call beforeDeleted
+            let beforeDeletedData: object = [];
+            if (mutate.trigger?.beforeDeleted) {
+                beforeDeletedData = await mutate.trigger.beforeDeleted({ deletingIds, prisma, userData });
+            }
+            // Delete
+            const where = { id: { in: deletingIds } };
+            try {
+                deleted = await delegate(prisma).deleteMany({
+                    where,
+                }).then(({ count }) => ({ __typename: "Count" as const, count }));
+                // Update result indexes to true
+                for (const { index } of Delete) {
+                    result[index] = true;
+                }
+            } catch (error) {
+                throw new CustomError("0417", "InternalError", userData.languages, { error, where, objectType });
+            }
+            // Call onDeleted
+            mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({
+                beforeDeletedData,
+                deletedIds: deletingIds,
+                preMap,
+                prisma,
+                userData,
+            });
         }
-        // Call onDeleted
-        mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({
-            beforeDeletedData,
-            deleted,
-            deletedIds: deleteMany,
-            preMap,
-            prisma,
-            userData,
-        });
+        // Perform custom triggers for mutate.trigger.onCommon
+        // NOTE: This is only for top-level objects, not relations
+        if (Create.length > 0 || Update.length > 0 || Delete.length > 0) {
+            mutate.trigger?.onCommon && await mutate.trigger.onCommon({
+                created,
+                deleted,
+                deletedIds: deletingIds,
+                preMap,
+                prisma,
+                updated,
+                updateInputs,
+                userData,
+            });
+        }
     }
-    // Perform custom triggers for mutate.trigger.onCommon
-    if (shapedCreate.length > 0 || shapedUpdate.length > 0 || (deleteMany && deleteMany.length > 0)) {
-        mutate.trigger?.onCommon && await mutate.trigger.onCommon({
-            createAuthData,
-            created,
-            deleted,
-            deletedIds: deleteMany ?? [],
-            preMap,
-            prisma,
-            updateAuthData,
-            updated,
-            updateInput: updateMany?.map(u => u.data) ?? [],
-            userData,
-        });
-    }
-    // For each type, calculate post-shape data (if applicable)
+    // For each type (including relations), calculate post-shape data (e.g. updating indexes)
+    // TODO need to somehow get created, updated, and deleted info of relations
     for (const type in inputsByType) {
         const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "postshape type");
         if (mutate.shape.post) {
@@ -209,9 +229,5 @@ export async function cudHelper<
             });
         }
     }
-    return {
-        created: createMany ? created : undefined,
-        updated: updateMany ? updated : undefined,
-        deleted: deleteMany ? deleted : undefined,
-    };
+    return result;
 }

@@ -105,21 +105,21 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
                     }
                 }
             },
-            onUpdated: ({ prisma, updated, updateInput, userData }) => {
+            onUpdated: ({ prisma, updated, updateInputs, userData }) => {
                 for (let i = 0; i < updated.length; i++) {
                     // Handle run start trigger for every run with status InProgress, 
                     // that previously had a status of Scheduled
-                    if (updated[i].status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
+                    if (updated[i].status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
                         Trigger(prisma, userData.languages).runRoutineStart(updated[i].id, userData.id, false);
                     }
                     // Handle run complete trigger for every run with status Completed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
+                    if (updated[i].status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
                         Trigger(prisma, userData.languages).runRoutineComplete(updated[i].id, userData.id, false);
                     }
                     // Handle run fail trigger for every run with status Failed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
+                    if (updated[i].status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
                         Trigger(prisma, userData.languages).runRoutineFail(updated[i].id, userData.id, false);
                     }
                 }

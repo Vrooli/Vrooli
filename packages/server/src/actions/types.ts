@@ -1,7 +1,7 @@
-import { CopyInput, Count, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from "@local/shared";
+import { CopyInput, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from "@local/shared";
 import { Request } from "express";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-import { PrismaType, RecursivePartial, SessionData, SessionUserToken } from "../types";
+import { PrismaType, SessionData, SessionUserToken } from "../types";
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
@@ -18,25 +18,6 @@ export type CreateHelperProps = {
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: { session: SessionData };
-}
-
-export interface CUDHelperInput {
-    createMany?: { [x: string]: any }[] | null | undefined;
-    deleteMany?: string[] | null | undefined,
-    objectType: `${GqlModelType}`,
-    partialInfo: PartialGraphQLInfo,
-    prisma: PrismaType,
-    updateMany?: {
-        where: { [x: string]: any },
-        data: { [x: string]: any },
-    }[] | null | undefined,
-    userData: SessionUserToken,
-}
-
-export interface CUDResult<GraphQLObject extends { [x: string]: any }> {
-    created?: RecursivePartial<GraphQLObject>[],
-    updated?: RecursivePartial<GraphQLObject>[],
-    deleted?: Count,
 }
 
 export type DeleteManyHelperProps = {
@@ -114,7 +95,7 @@ export type RelBuilderHelperProps<
 export type UpdateHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
-    objectType: `${GqlModelType}`;
+    objectType: GqlModelType | `${GqlModelType}`;
     prisma: PrismaType;
     req: Request;
 }

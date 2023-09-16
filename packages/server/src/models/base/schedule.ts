@@ -73,7 +73,7 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
             onCreated: ({ created, prisma, userData }) => {
                 // TODO should check if schedule is starting soon (i.e. before cron job runs), and handle accordingly
             },
-            onUpdated: ({ prisma, updated, updateInput, userData }) => {
+            onUpdated: ({ prisma, updated, updateInputs, userData }) => {
                 // TODO should check if schedule is starting soon (i.e. before cron job runs), and handle accordingly
             },
         },
