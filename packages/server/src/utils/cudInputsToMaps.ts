@@ -3,7 +3,7 @@ import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { GqlRelMap } from "../models/types";
 import { PrismaType } from "../types";
-import { IdsByAction, IdsByPlaceholder, IdsByType, InputNode, InputsByType, QueryAction } from "./types";
+import { IdsByAction, IdsByPlaceholder, IdsByType, InputNode, InputsById, InputsByType, QueryAction } from "./types";
 
 // Helper function to derive the action from the field name
 const getActionFromFieldName = (fieldName: string): QueryAction | null => {
@@ -17,23 +17,28 @@ const getActionFromFieldName = (fieldName: string): QueryAction | null => {
 };
 
 /**
- * Converts placeholder ids to actual IDs, or null if actual ID not found.
+ * Converts placeholder ids to actual IDs, or null if actual ID not found. 
+ * This is only needed for idsByAction and idsByType, as you can see later 
+ * in the code by looking for what the `placeholder` variable is added to.
  */
 const convertPlaceholders = async ({
     idsByAction,
+    idsByType,
     prisma,
     languages,
 }: {
     idsByAction: IdsByAction,
+    idsByType: IdsByType,
     prisma: PrismaType,
     languages: string[]
-}): Promise<IdsByPlaceholder> => {
+}): Promise<void> => {
+    // Store processed placeholders in a map to avoid duplicate queries
     const placeholderToIdMap: IdsByPlaceholder = {};
 
     // Helper function to fetch and map placeholders
-    const fetchAndMapPlaceholder = async (placeholder: string): Promise<void> => {
+    const fetchAndMapPlaceholder = async (placeholder: string): Promise<string | null> => {
         if (placeholder in placeholderToIdMap) {
-            return;  // Already processed this placeholder
+            return placeholderToIdMap[placeholder];  // Already processed this placeholder
         }
 
         const [objectType, path] = placeholder.split("|", 2);
@@ -52,19 +57,29 @@ const convertPlaceholders = async ({
             currentObject = currentObject![relation];
         }
 
-        placeholderToIdMap[placeholder] = currentObject && currentObject.id ? currentObject.id : null;
+        const resultId = currentObject && currentObject.id ? currentObject.id : null;
+        placeholderToIdMap[placeholder] = resultId;
+        return resultId;
     };
 
-    for (const actionType in idsByAction) {
-        const ids = idsByAction[actionType];
-        for (const id of ids) {
-            if (typeof id === "string" && id.includes("|")) {
-                await fetchAndMapPlaceholder(id);
-            }
+    // Placeholders should be in both objects, so we only need to iterate through one of them
+    for (const [type, ids] of Object.entries(idsByType)) {
+        const placeholders = ids.filter(id => typeof id === "string" && id.includes("|"));
+        if (placeholders.length === 0) continue;
+        for (const placeholder of placeholders) {
+            const existingId = await fetchAndMapPlaceholder(placeholder);
+            // Replace in idsByType
+            idsByType[type] = ids.map(id => id === placeholder ? existingId : id);
+            // Find action and index in action array
+            // type IdsByAction = { [action in QueryAction]?: string[] };
+            const action = Object.entries(idsByAction).find(([action, ids]) => ids.includes(placeholder));
+            if (!action) continue;
+            const [actionType, actionIds] = action;
+            const index = actionIds.indexOf(placeholder);
+            // Replace in idsByAction
+            idsByAction[actionType] = actionIds.map((id, i) => i === index ? existingId : id);
         }
     }
-
-    return placeholderToIdMap;
 };
 
 // TODO for morning:
@@ -72,7 +87,7 @@ const convertPlaceholders = async ({
 // 1.5. Need to handle union types (i.e. gqlRelMap value is an object instead of a string)
 // 2. Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
 // 3. Try rewriting this to that the createMany, updateMany, and deleteMany don't have to be of the same object type. Would be nice to be able to use this function directly when importing data.
-export const cudInputsToMaps2 = async ({
+export const cudInputsToMaps = async ({
     createMany,
     updateMany,
     deleteMany,
@@ -91,12 +106,13 @@ export const cudInputsToMaps2 = async ({
     languages: string[]
 }): Promise<{
     idsByAction: IdsByAction,
-    idsByPlaceholder: IdsByPlaceholder,
     idsByType: IdsByType,
+    inputsById: InputsById,
     inputsByType: InputsByType,
 }> => {
     const idsByAction: IdsByAction = {};
     const idsByType: IdsByType = {};
+    const inputsById: InputsById = {};
     const inputsByType: InputsByType = {};
 
     const inputs = [
@@ -247,7 +263,8 @@ export const cudInputsToMaps2 = async ({
             }
 
         }
-        // Add inputInfo to inputsByType
+        // Add inputInfo to inputsById and inputsByType
+        inputsById[input[idField]] = inputInfo;
         inputsByType[relMap.__typename]?.[actionType]?.push(inputInfo);
         // Return the root node
         return rootNode;
@@ -264,12 +281,12 @@ export const cudInputsToMaps2 = async ({
         }
     }
 
-    const idsByPlaceholder = await convertPlaceholders({ idsByAction, prisma, languages });
+    await convertPlaceholders({ idsByAction, idsByType, prisma, languages });
 
     return {
         idsByType,
-        idsByPlaceholder,
         idsByAction,
+        inputsById,
         inputsByType,
     };
 };

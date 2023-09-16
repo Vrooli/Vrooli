@@ -18,9 +18,10 @@ export class InputNode {
 }
 
 export type QueryAction = "Connect" | "Create" | "Delete" | "Disconnect" | "Read" | "Update";
-export type IdsByAction = { [x in QueryAction]?: string[] };
-export type IdsByType = { [key in GqlModelType]?: string[] };
-export type InputsByType = { [key in GqlModelType]?: {
+export type IdsByAction = { [action in QueryAction]?: string[] };
+export type IdsByType = { [objectType in GqlModelType]?: string[] };
+export type InputsById = { [id: string]: { node: InputNode, input: unknown } };
+export type InputsByType = { [objectType in GqlModelType]?: {
     Connect: { node: InputNode, input: string; }[];
     Create: { node: InputNode, input: PrismaUpdate }[];
     Delete: { node: InputNode, input: string; }[];
@@ -28,4 +29,4 @@ export type InputsByType = { [key in GqlModelType]?: {
     Read: { node: InputNode, input: PrismaSelect }[];
     Update: { node: InputNode, input: PrismaUpdate }[];
 } };
-export type IdsByPlaceholder = { [key: string]: string | null };
+export type IdsByPlaceholder = { [placeholder: string]: string | null };

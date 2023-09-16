@@ -3,7 +3,7 @@ import { modelToGql, selectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { getAuthenticatedData } from "../utils";
-import { cudInputsToMaps2 } from "../utils/cudInputsToMaps";
+import { cudInputsToMaps } from "../utils/cudInputsToMaps";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";
 
@@ -48,8 +48,8 @@ export async function cudHelper<
     createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
     // Group create and update data by action and type
-    console.time("cudInputsToMaps2");
-    const { idsByAction, idsByPlaceholder, idsByType, inputsByType } = await cudInputsToMaps2({
+    console.time("cudInputsToMaps");
+    const { idsByAction, idsByType, inputsById, inputsByType } = await cudInputsToMaps({
         createMany,
         updateMany,
         deleteMany,
@@ -57,7 +57,7 @@ export async function cudHelper<
         prisma,
         languages: userData.languages,
     });
-    console.timeEnd("cudInputsToMaps2");
+    console.timeEnd("cudInputsToMaps");
     const preMap: { [x: string]: any } = {};
     // For each type, calculate pre-shape data (if applicable). 
     // This often also doubles as a way to perform custom input validation
@@ -66,7 +66,7 @@ export async function cudHelper<
         preMap[type] = {};
         const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "preshape type");
         if (mutate.shape.pre) {
-            const preResult = await mutate.shape.pre({ ...inputs, prisma, userData });
+            const preResult = await mutate.shape.pre({ ...inputs, prisma, userData, inputsById });
             preMap[type] = preResult;
         }
     }

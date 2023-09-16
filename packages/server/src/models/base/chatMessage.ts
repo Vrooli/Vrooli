@@ -91,8 +91,8 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     let chatId = (input as ChatMessageCreateInput).chatConnect ?? null;
                     // If chat is being created or updated, we may not need to query for it later
                     if (node.parent && node.parent.__typename === "Chat" && ["Create", "Update"].includes(node.parent.action)) {
-                        const chatUpsertInfo = inputsById[node.parent.id] as ChatCreateInput | ChatUpdateInput;
-                        if (chatUpsertInfo.id) {
+                        const chatUpsertInfo = inputsById[node.parent.id]?.input as ChatCreateInput | ChatUpdateInput | undefined;
+                        if (chatUpsertInfo?.id) {
                             chatId = chatUpsertInfo.id;
                             // Store all invite information. Later we'll check if any of these are bots (which are automatically accepted, 
                             // and can potentially be used for AI responses)
@@ -117,8 +117,8 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     // Collect chat information
                     let chatId: string | null = null;
                     if (node.parent && node.parent.__typename === "Chat" && node.parent.action === "Update") {
-                        const chatUpdateInfo = inputsById[node.parent.id] as ChatUpdateInput;
-                        if (chatUpdateInfo.id) {
+                        const chatUpdateInfo = inputsById[node.parent.id]?.input as ChatUpdateInput | undefined;
+                        if (chatUpdateInfo?.id) {
                             chatId = chatUpdateInfo.id;
                             chatData[chatId] = {
                                 isNew: false,
@@ -270,7 +270,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         // Remove from botData
                         if (botData[participant.user.id]) delete botData[participant.user.id];
                         // Remove from chatData.botParticipants
-                        Object.entries(chatData).forEach(([id, chat]) => {
+                        Object.values(chatData).forEach((chat) => {
                             if (chat.botParticipants?.includes(participant.user.id)) {
                                 chat.botParticipants = chat.botParticipants.filter(id => id !== participant.user.id);
                             }
@@ -363,12 +363,12 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         let botsToRespond: string[] = [];
                         // If one of the links is "@Everyone", all bots should respond
                         if (links.some(l => l.label === "@Everyone")) {
-                            botsToRespond = botIds;
+                            botsToRespond = chat.botParticipants ?? [];
                         }
                         // Otherwise, find the bots that were mentioned by name (e.g. "@BotName")
                         else {
                             botsToRespond = links.map(l => {
-                                const botId = Object.keys(botIds).find(id => botIds[id].name === l.label.slice(1));
+                                const botId = bots.find(b => b.name === l.label.slice(1))?.id;
                                 if (!botId) return null;
                                 return botId;
                             }).filter(id => id !== null) as string[];

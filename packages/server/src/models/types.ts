@@ -4,7 +4,7 @@ import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../buil
 import { PrismaType, PromiseOrValue, RecursivePartial, SessionUserToken } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
-import { InputNode, QueryAction } from "../utils/types";
+import { InputNode, InputsById, QueryAction } from "../utils/types";
 
 /** Types and flags for an object's business layer */
 export type ModelLogicType = {
@@ -436,6 +436,7 @@ export type Mutater<Model extends {
             Delete: { node: InputNode, input: string }[],
             prisma: PrismaType,
             userData: SessionUserToken,
+            inputsById: InputsById,
         }) => PromiseOrValue<object>,
         /**
          * Performs additional shaping after the main mutation has been performed, 
