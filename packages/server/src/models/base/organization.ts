@@ -85,9 +85,16 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
         trigger: {
             onCreated: async ({ created, prisma, userData }) => {
                 for (const { id: organizationId } of created) {
-                    // Add 'Admin' role to organization
-                    await prisma.role.create({
-                        data: {
+                    // Upsert "Admin" role (in case they already included it in the request). 
+                    // Trying to connect you as a member again shouldn't throw an error (hopefully)
+                    await prisma.role.upsert({
+                        where: {
+                            role_organizationId_name_unique: {
+                                name: "Admin",
+                                organizationId,
+                            },
+                        },
+                        create: {
                             id: uuid(),
                             name: "Admin",
                             permissions: JSON.stringify({}), //TODO
@@ -100,6 +107,17 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
                                 },
                             },
                             organizationId,
+                        },
+                        update: {
+                            permissions: JSON.stringify({}), //TODO
+                            members: {
+                                connect: {
+                                    member_organizationid_userid_unique: {
+                                        userId: userData.id,
+                                        organizationId,
+                                    },
+                                },
+                            },
                         },
                     });
                     // Handle trigger

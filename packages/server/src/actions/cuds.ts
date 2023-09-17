@@ -76,9 +76,8 @@ export async function cudHelper<
     const authDataById = await getAuthenticatedData(idsByType, prisma, userData);
     // Validate permissions
     await permissionsCheck(authDataById, idsByAction, userData);
-    // Perform profanity checks TODO should only be on public data
-    createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
-    updateMany && profanityCheck(updateMany, partialInfo.__typename, userData.languages);
+    // Perform profanity checks
+    profanityCheck(inputData, authDataById, userData.languages);
     // Max objects check
     await maxObjectsCheck(authDataById, idsByAction, prisma, userData);
     // Group top-level (i.e. can't use inputsByType, idsByAction, etc. because those include relations) data by type
@@ -180,13 +179,8 @@ export async function cudHelper<
             // Delete
             const where = { id: { in: deletingIds } };
             try {
-                deleted = await delegate(prisma).deleteMany({
-                    where,
-                }).then(({ count }) => ({ __typename: "Count" as const, count }));
-                // Update result indexes to true
-                for (const { index } of Delete) {
-                    result[index] = true;
-                }
+                deleted = await delegate(prisma).deleteMany({ where }).then(({ count }) => ({ __typename: "Count" as const, count }));
+                for (const { index } of Delete) { result[index] = true; }
             } catch (error) {
                 throw new CustomError("0417", "InternalError", userData.languages, { error, where, objectType });
             }
@@ -216,6 +210,10 @@ export async function cudHelper<
     }
     // For each type (including relations), calculate post-shape data (e.g. updating indexes)
     // TODO need to somehow get created, updated, and deleted info of relations
+    // TODO for when I start looking at this again: Should get rid of triggers altogether, in favor of pre and post. 
+    // If there are any situations that specifically required a trigger before (e.g. if role creation could also create an organization 
+    // instead of connecting), then we can use the tree node to check if parent is "Admin" role before creating the "Admin" role. But 
+    // notice how this even isn't a real example. I'm not sure if triggering something only on the top-level object is even useful anymore.
     for (const type in inputsByType) {
         const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "postshape type");
         if (mutate.shape.post) {

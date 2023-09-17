@@ -1,6 +1,3 @@
-/**
- * Prompts user to select which link the new node should be added on
- */
 import { exists } from "@local/shared";
 import { Box, Button, CircularProgress, Grid, useTheme } from "@mui/material";
 import { useErrorPopover } from "hooks/useErrorPopover";

@@ -5,6 +5,8 @@ import { CustomError, logger } from "../events";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
 
+export type AuthDataById = { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } };
+
 /**
  * Given the primary keys of every object which needs to be authenticated, 
  * queries for all data required to perform authentication.
@@ -13,9 +15,9 @@ export const getAuthenticatedData = async (
     idsByType: { [key in GqlModelType]?: string[] },
     prisma: PrismaType,
     userData: SessionUserToken | null,
-): Promise<{ [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } }> => {
+): Promise<AuthDataById> => {
     // Initialize the return object
-    const authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } } = {};
+    const authDataById: AuthDataById = {};
     // For every type of object which needs to be authenticated, query for all data required to perform authentication
     for (const type of Object.keys(idsByType) as GqlModelType[]) {
         // Find validator and prisma delegate for this object type
