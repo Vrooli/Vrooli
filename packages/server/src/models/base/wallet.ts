@@ -2,7 +2,7 @@ import { MaxObjects, walletValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { CustomError } from "../../events";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { WalletFormat } from "../format/wallet";
+import { WalletFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { WalletModelLogic } from "./types";

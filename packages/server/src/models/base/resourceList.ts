@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { findFirstRel, shapeHelper } from "../../builders";
 import { getLogic } from "../../getters";
 import { bestTranslation, defaultPermissions, oneIsPublic, translationShapeHelper } from "../../utils";
-import { ResourceListFormat } from "../format/resourceList";
+import { ResourceListFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { FocusModeModel } from "./focusMode";

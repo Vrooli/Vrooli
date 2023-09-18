@@ -6,7 +6,7 @@ import { PrismaType } from "../../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, tagShapeHelper, translationShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
-import { OrganizationFormat } from "../format/organization";
+import { OrganizationFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModelLogic } from "./types";

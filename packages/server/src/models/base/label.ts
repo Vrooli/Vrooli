@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, oneIsPublic, translationShapeHelper } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { LabelFormat } from "../format/label";
+import { LabelFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { LabelModelLogic } from "./types";

@@ -1,7 +1,7 @@
 import { MaxObjects, phoneValidation } from "@local/shared";
 import { Trigger } from "../../events";
 import { defaultPermissions } from "../../utils";
-import { PhoneFormat } from "../format/phone";
+import { PhoneFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { PhoneModelLogic } from "./types";

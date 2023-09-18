@@ -1,7 +1,7 @@
 import { MaxObjects, reminderItemValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { ReminderItemFormat } from "../format/reminderItem";
+import { ReminderItemFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ReminderModel } from "./reminder";
 import { ReminderItemModelLogic, ReminderModelLogic } from "./types";

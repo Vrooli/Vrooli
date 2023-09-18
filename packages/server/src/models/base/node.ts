@@ -2,7 +2,7 @@ import { MaxObjects, nodeValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { CustomError } from "../../events";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
-import { NodeFormat } from "../format/node";
+import { NodeFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RoutineVersionModel } from "./routineVersion";
 import { NodeModelLogic, RoutineVersionModelLogic } from "./types";

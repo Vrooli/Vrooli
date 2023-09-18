@@ -1,7 +1,7 @@
 import { MaxObjects, MemberSortBy } from "@local/shared";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { MemberFormat } from "../format/member";
+import { MemberFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { RoleModel } from "./role";

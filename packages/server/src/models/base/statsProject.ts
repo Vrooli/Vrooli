@@ -2,7 +2,7 @@ import { StatsProjectSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsProjectFormat } from "../format/statsProject";
+import { StatsProjectFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ProjectModel } from "./project";
 import { ProjectModelLogic, StatsProjectModelLogic } from "./types";

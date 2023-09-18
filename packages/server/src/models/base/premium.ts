@@ -1,7 +1,7 @@
 import { MaxObjects } from "@local/shared";
 import i18next from "i18next";
 import { defaultPermissions } from "../../utils";
-import { PremiumFormat } from "../format/premium";
+import { PremiumFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { PremiumModelLogic } from "./types";

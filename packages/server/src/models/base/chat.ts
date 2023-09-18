@@ -5,7 +5,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, translationShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../../validators";
-import { ChatFormat } from "../format/chat";
+import { ChatFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ChatModelLogic } from "./types";
 

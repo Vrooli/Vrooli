@@ -3,7 +3,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { getSingleTypePermissions } from "../../validators";
-import { NoteFormat } from "../format/note";
+import { NoteFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { NoteVersionModel } from "./noteVersion";

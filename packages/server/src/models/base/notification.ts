@@ -1,6 +1,6 @@
 import { MaxObjects, NotificationSortBy } from "@local/shared";
 import { defaultPermissions } from "../../utils";
-import { NotificationFormat } from "../format/notification";
+import { NotificationFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NotificationModelLogic } from "./types";
 

@@ -2,7 +2,7 @@ import { StatsUserSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsUserFormat } from "../format/statsUser";
+import { StatsUserFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { StatsUserModelLogic, UserModelLogic } from "./types";
 import { UserModel } from "./user";

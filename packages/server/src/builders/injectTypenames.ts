@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { FormatMap } from "../models/format";
+import { FormatMap } from "../models/formats";
 import { GqlRelMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { PartialGraphQLInfo } from "./types";
@@ -13,9 +13,9 @@ import { PartialGraphQLInfo } from "./types";
  */
 export const injectTypenames = <
     Typename extends `${GqlModelType}`,
-    GQLObject extends { [x: string]: any },
+    GqlObject extends { [x: string]: any },
     PrismaObject extends { [x: string]: any }
->(select: { [x: string]: any }, parentRelationshipMap: GqlRelMap<Typename, GQLObject, PrismaObject>): PartialGraphQLInfo => {
+>(select: { [x: string]: any }, parentRelationshipMap: GqlRelMap<Typename, GqlObject, PrismaObject>): PartialGraphQLInfo => {
     // Create result object
     const result: any = {};
     // Iterate over select object

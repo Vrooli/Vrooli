@@ -1,7 +1,7 @@
 import { MaxObjects, nodeRoutineListValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { NodeRoutineListFormat } from "../format/nodeRoutineList";
+import { NodeRoutineListFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
 import { NodeModelLogic, NodeRoutineListModelLogic } from "./types";

@@ -1,7 +1,7 @@
 import { MaxObjects, nodeLinkWhenValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, translationShapeHelper } from "../../utils";
-import { NodeLinkWhenFormat } from "../format/nodeLinkWhen";
+import { NodeLinkWhenFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NodeLinkModel } from "./nodeLink";
 import { NodeLinkModelLogic, NodeLinkWhenModelLogic } from "./types";

@@ -2,7 +2,7 @@ import { QuizAttemptSortBy, quizAttemptValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { QuizAttemptFormat } from "../format/quizAttempt";
+import { QuizAttemptFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { QuizModel } from "./quiz";
 import { QuizAttemptModelLogic, QuizModelLogic } from "./types";

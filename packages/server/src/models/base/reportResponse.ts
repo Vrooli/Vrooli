@@ -5,7 +5,7 @@ import i18next from "i18next";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { ReportResponseFormat } from "../format/reportResponse";
+import { ReportResponseFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ReportModel } from "./report";
 import { ReportModelLogic, ReportResponseModelLogic } from "./types";

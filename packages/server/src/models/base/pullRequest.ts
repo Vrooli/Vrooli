@@ -4,7 +4,7 @@ import { findFirstRel, noNull } from "../../builders";
 import { getLogic } from "../../getters";
 import { translationShapeHelper } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { PullRequestFormat } from "../format/pullRequest";
+import { PullRequestFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { ApiVersionModel } from "./apiVersion";

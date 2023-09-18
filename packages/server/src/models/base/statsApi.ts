@@ -2,7 +2,7 @@ import { StatsApiSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsApiFormat } from "../format/statsApi";
+import { StatsApiFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { ApiModelLogic, StatsApiModelLogic } from "./types";

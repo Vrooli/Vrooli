@@ -3,7 +3,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
 import { preShapeVersion } from "../../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { SmartContractVersionFormat } from "../format/smartContractVersion";
+import { SmartContractVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { SmartContractModel } from "./smartContract";
 import { SmartContractModelLogic, SmartContractVersionModelLogic } from "./types";

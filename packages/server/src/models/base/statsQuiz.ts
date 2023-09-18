@@ -2,7 +2,7 @@ import { StatsQuizSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsQuizFormat } from "../format/statsQuiz";
+import { StatsQuizFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { QuizModel } from "./quiz";
 import { QuizModelLogic, StatsQuizModelLogic } from "./types";

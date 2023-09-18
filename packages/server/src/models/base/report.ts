@@ -2,7 +2,7 @@ import { MaxObjects, ReportFor, ReportSortBy, reportValidation } from "@local/sh
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError } from "../../events";
 import { getSingleTypePermissions } from "../../validators";
-import { ReportFormat } from "../format/report";
+import { ReportFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiVersionModel } from "./apiVersion";
 import { ChatMessageModel } from "./chatMessage";

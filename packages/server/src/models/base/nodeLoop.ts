@@ -1,7 +1,7 @@
 import { MaxObjects, nodeLoopValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { NodeLoopFormat } from "../format/nodeLoop";
+import { NodeLoopFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
 import { NodeLoopModelLogic, NodeModelLogic } from "./types";

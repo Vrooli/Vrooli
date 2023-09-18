@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { RunProjectFormat } from "../format/runProject";
+import { RunProjectFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { ProjectVersionModel } from "./projectVersion";

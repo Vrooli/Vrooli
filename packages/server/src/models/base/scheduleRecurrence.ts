@@ -1,7 +1,7 @@
 import { scheduleRecurrenceValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { ScheduleRecurrenceFormat } from "../format/scheduleRecurrence";
+import { ScheduleRecurrenceFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ScheduleModel } from "./schedule";
 import { ScheduleModelLogic, ScheduleRecurrenceModelLogic } from "./types";

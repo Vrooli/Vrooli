@@ -2,7 +2,7 @@ import { MaxObjects, TagSortBy, tagValidation } from "@local/shared";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
-import { TagFormat } from "../format/tag";
+import { TagFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { TagModelLogic } from "./types";

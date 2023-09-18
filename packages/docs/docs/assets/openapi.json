@@ -7316,6 +7316,10 @@
             "title": "ChatMessage.id",
             "type": "string"
           },
+          "isFork": {
+            "title": "ChatMessage.isFork",
+            "type": "boolean"
+          },
           "reactionSummaries": {
             "items": {
               "$ref": "#/components/schemas/ReactionSummary"
@@ -7367,6 +7371,7 @@
           "chat",
           "created_at",
           "id",
+          "isFork",
           "reactionSummaries",
           "reports",
           "reportsCount",
@@ -7415,12 +7420,17 @@
               }
             ],
             "title": "ChatMessageCreateInput.translationsCreate"
+          },
+          "userConnect": {
+            "title": "ChatMessageCreateInput.userConnect",
+            "type": "string"
           }
         },
         "required": [
           "chatConnect",
           "id",
-          "isFork"
+          "isFork",
+          "userConnect"
         ],
         "additionalProperties": false,
         "title": "ChatMessageCreateInput",

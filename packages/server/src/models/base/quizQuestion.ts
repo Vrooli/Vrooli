@@ -2,7 +2,7 @@ import { MaxObjects, QuizQuestionSortBy, quizQuestionValidation } from "@local/s
 import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { QuizQuestionFormat } from "../format/quizQuestion";
+import { QuizQuestionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { QuizModel } from "./quiz";
 import { QuizModelLogic, QuizQuestionModelLogic } from "./types";

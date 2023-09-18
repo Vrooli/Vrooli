@@ -1,7 +1,7 @@
 import { AwardKey, awardNames, AwardSortBy, MaxObjects } from "@local/shared";
 import i18next from "i18next";
 import { defaultPermissions } from "../../utils";
-import { AwardFormat } from "../format/award";
+import { AwardFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { AwardModelLogic } from "./types";
 

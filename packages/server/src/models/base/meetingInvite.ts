@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { MeetingInviteFormat } from "../format/meetingInvite";
+import { MeetingInviteFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { MeetingModel } from "./meeting";
 import { MeetingInviteModelLogic, MeetingModelLogic } from "./types";

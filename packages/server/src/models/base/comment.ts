@@ -9,7 +9,7 @@ import { PrismaType, SessionUserToken } from "../../types";
 import { bestTranslation, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../../utils";
 import { SortMap } from "../../utils/sortMap";
 import { getSingleTypePermissions } from "../../validators";
-import { CommentFormat } from "../format/comment";
+import { CommentFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";

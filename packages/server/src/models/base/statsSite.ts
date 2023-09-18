@@ -1,7 +1,7 @@
 import { StatsSiteSortBy } from "@local/shared";
 import i18next from "i18next";
 import { defaultPermissions } from "../../utils";
-import { StatsSiteFormat } from "../format/statsSite";
+import { StatsSiteFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { StatsSiteModelLogic } from "./types";
 

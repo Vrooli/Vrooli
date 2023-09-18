@@ -1,6 +1,6 @@
 import { ChatParticipantSortBy, chatParticipantValidation, MaxObjects } from "@local/shared";
 import { defaultPermissions } from "../../utils";
-import { ChatParticipantFormat } from "../format/chatParticipant";
+import { ChatParticipantFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
 import { ChatModelLogic, ChatParticipantModelLogic, UserModelLogic } from "./types";

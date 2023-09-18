@@ -1,6 +1,6 @@
 import { MaxObjects, PaymentSortBy } from "@local/shared";
 import { defaultPermissions } from "../../utils";
-import { PaymentFormat } from "../format/payment";
+import { PaymentFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { PaymentModelLogic } from "./types";

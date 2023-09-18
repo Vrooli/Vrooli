@@ -3,7 +3,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { getSingleTypePermissions } from "../../validators";
-import { ApiFormat } from "../format/api";
+import { ApiFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiVersionModel } from "./apiVersion";
 import { BookmarkModel } from "./bookmark";

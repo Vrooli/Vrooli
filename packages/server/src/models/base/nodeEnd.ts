@@ -1,7 +1,7 @@
 import { MaxObjects, nodeEndValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, nodeEndNextShapeHelper } from "../../utils";
-import { NodeEndFormat } from "../format/nodeEnd";
+import { NodeEndFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
 import { NodeEndModelLogic, NodeModelLogic } from "./types";

@@ -1,6 +1,6 @@
 import { MaxObjects, runRoutineStepValidation } from "@local/shared";
 import { defaultPermissions } from "../../utils";
-import { RunRoutineStepFormat } from "../format/runRoutineStep";
+import { RunRoutineStepFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RunRoutineModel } from "./runRoutine";
 import { RunRoutineModelLogic, RunRoutineStepModelLogic } from "./types";

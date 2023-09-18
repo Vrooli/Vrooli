@@ -1,7 +1,7 @@
 import { FocusModeSortBy, focusModeValidation, MaxObjects } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, labelShapeHelper } from "../../utils";
-import { FocusModeFormat } from "../format/focusMode";
+import { FocusModeFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { FocusModeModelLogic } from "./types";
 

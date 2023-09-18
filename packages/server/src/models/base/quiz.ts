@@ -4,7 +4,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, oneIsPublic, translationShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../../validators";
-import { QuizFormat } from "../format/quiz";
+import { QuizFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ProjectModel } from "./project";

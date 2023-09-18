@@ -4,7 +4,7 @@ import { noNull } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../../validators";
-import { QuestionFormat } from "../format/question";
+import { QuestionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";

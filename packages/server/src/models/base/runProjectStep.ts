@@ -1,6 +1,6 @@
 import { runProjectStepValidation } from "@local/shared";
 import { defaultPermissions } from "../../utils";
-import { RunProjectStepFormat } from "../format/runProjectStep";
+import { RunProjectStepFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RunProjectModel } from "./runProject";
 import { RunProjectModelLogic, RunProjectStepModelLogic } from "./types";

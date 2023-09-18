@@ -1,7 +1,7 @@
 import { scheduleExceptionValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { ScheduleExceptionFormat } from "../format/scheduleException";
+import { ScheduleExceptionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ScheduleModel } from "./schedule";
 import { ScheduleExceptionModelLogic, ScheduleModelLogic } from "./types";

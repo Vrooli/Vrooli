@@ -2,7 +2,7 @@ import { StatsOrganizationSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsOrganizationFormat } from "../format/statsOrganization";
+import { StatsOrganizationFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { OrganizationModelLogic, StatsOrganizationModelLogic } from "./types";

@@ -1,5 +1,5 @@
 import { defaultPermissions } from "../../utils";
-import { ReactionSummaryFormat } from "../format/reactionSummary";
+import { ReactionSummaryFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ReactionSummaryModelLogic } from "./types";
 

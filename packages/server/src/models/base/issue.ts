@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, oneIsPublic, translationShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../../validators";
-import { IssueFormat } from "../format/issue";
+import { IssueFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";

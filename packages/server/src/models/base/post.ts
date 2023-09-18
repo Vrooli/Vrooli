@@ -2,7 +2,7 @@ import { MaxObjects, PostSortBy, postValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
-import { PostFormat } from "../format/post";
+import { PostFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { PostModelLogic } from "./types";

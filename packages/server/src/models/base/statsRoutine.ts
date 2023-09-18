@@ -2,7 +2,7 @@ import { StatsRoutineSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsRoutineFormat } from "../format/statsRoutine";
+import { StatsRoutineFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
 import { RoutineModelLogic, StatsRoutineModelLogic } from "./types";

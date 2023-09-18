@@ -2,7 +2,7 @@ import { ChatInviteSortBy, chatInviteValidation, MaxObjects, uuidValidate } from
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { ChatInviteFormat } from "../format/chatInvite";
+import { ChatInviteFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
 import { ChatInviteModelLogic, ChatModelLogic, UserModelLogic } from "./types";

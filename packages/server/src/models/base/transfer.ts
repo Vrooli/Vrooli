@@ -9,7 +9,7 @@ import { getLogic } from "../../getters";
 import { Notify } from "../../notify";
 import { PrismaType, SessionUserToken } from "../../types";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
-import { TransferFormat } from "../format/transfer";
+import { TransferFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModelLogic, NoteModelLogic, ProjectModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TransferModelLogic } from "./types";
 

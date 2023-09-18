@@ -5,7 +5,7 @@ import { getLabels } from "../../getters";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
-import { ProjectFormat } from "../format/project";
+import { ProjectFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";

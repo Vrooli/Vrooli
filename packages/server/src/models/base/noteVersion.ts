@@ -3,7 +3,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
 import { preShapeVersion } from "../../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { NoteVersionFormat } from "../format/noteVersion";
+import { NoteVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NoteModel } from "./note";
 import { NoteModelLogic, NoteVersionModelLogic } from "./types";

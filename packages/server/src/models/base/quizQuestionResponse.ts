@@ -3,7 +3,7 @@ import i18next from "i18next";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { QuizQuestionResponseFormat } from "../format/quizQuestionResponse";
+import { QuizQuestionResponseFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { QuizAttemptModel } from "./quizAttempt";
 import { QuizQuestionModel } from "./quizQuestion";

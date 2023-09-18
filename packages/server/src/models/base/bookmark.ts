@@ -6,7 +6,7 @@ import { Trigger } from "../../events";
 import { getLogic } from "../../getters";
 import { PrismaType } from "../../types";
 import { defaultPermissions } from "../../utils";
-import { BookmarkFormat } from "../format/bookmark";
+import { BookmarkFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { CommentModel } from "./comment";
 import { NoteModel } from "./note";

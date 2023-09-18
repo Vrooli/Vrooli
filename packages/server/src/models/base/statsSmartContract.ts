@@ -2,7 +2,7 @@ import { StatsSmartContractSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsSmartContractFormat } from "../format/statsSmartContract";
+import { StatsSmartContractFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { SmartContractModel } from "./smartContract";
 import { SmartContractModelLogic, StatsSmartContractModelLogic } from "./types";

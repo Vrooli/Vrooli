@@ -3,7 +3,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../../validators";
-import { MeetingFormat } from "../format/meeting";
+import { MeetingFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { MeetingModelLogic } from "./types";

@@ -1,7 +1,7 @@
 import { focusModeFilterValidation, MaxObjects } from "@local/shared";
 import { shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { FocusModeFilterFormat } from "../format/focusModeFilter";
+import { FocusModeFilterFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
 import { TagModel } from "./tag";

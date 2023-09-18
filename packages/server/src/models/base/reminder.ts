@@ -1,7 +1,7 @@
 import { MaxObjects, ReminderSortBy, reminderValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { ReminderFormat } from "../format/reminder";
+import { ReminderFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ReminderListModel } from "./reminderList";
 import { ReminderListModelLogic, ReminderModelLogic } from "./types";

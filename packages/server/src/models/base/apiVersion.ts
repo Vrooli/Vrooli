@@ -3,7 +3,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
 import { preShapeVersion } from "../../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { ApiVersionFormat } from "../format/apiVersion";
+import { ApiVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { ApiModelLogic, ApiVersionModelLogic } from "./types";

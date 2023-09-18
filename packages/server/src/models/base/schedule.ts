@@ -4,7 +4,7 @@ import i18next from "i18next";
 import { findFirstRel, noNull, shapeHelper } from "../../builders";
 import { getLogic } from "../../getters";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { ScheduleFormat } from "../format/schedule";
+import { ScheduleFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
 import { MeetingModel } from "./meeting";

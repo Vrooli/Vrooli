@@ -3,7 +3,7 @@ import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, translationShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
-import { UserFormat } from "../format/user";
+import { UserFormat } from "../formats";
 import { ModelLogic, Mutater } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { UserModelLogic } from "./types";

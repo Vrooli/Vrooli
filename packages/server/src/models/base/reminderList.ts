@@ -1,7 +1,7 @@
 import { MaxObjects, reminderListValidation } from "@local/shared";
 import { shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { ReminderListFormat } from "../format/reminderList";
+import { ReminderListFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
 import { FocusModeModelLogic, ReminderListModelLogic } from "./types";

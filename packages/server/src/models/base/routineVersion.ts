@@ -5,7 +5,7 @@ import { PrismaType } from "../../types";
 import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
 import { preShapeVersion } from "../../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { RoutineVersionFormat } from "../format/routineVersion";
+import { RoutineVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
 import { RunRoutineModel } from "./runRoutine";

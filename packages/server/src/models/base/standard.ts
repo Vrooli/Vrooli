@@ -6,7 +6,7 @@ import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { getSingleTypePermissions } from "../../validators";
-import { StandardFormat } from "../format/standard";
+import { StandardFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";

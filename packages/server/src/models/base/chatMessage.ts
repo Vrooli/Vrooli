@@ -4,7 +4,7 @@ import { CustomError, Trigger } from "../../events";
 import { SERVER_URL } from "../../server";
 import { bestTranslation, translationShapeHelper } from "../../utils";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
-import { ChatMessageFormat } from "../format/chatMessage";
+import { ChatMessageFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
 import { ReactionModel } from "./reaction";

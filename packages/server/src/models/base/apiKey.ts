@@ -2,7 +2,7 @@ import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
 import { randomString } from "../../auth";
 import { noNull } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { ApiKeyFormat } from "../format/apiKey";
+import { ApiKeyFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { ApiKeyModelLogic } from "./types";

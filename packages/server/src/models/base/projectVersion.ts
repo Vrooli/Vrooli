@@ -4,7 +4,7 @@ import { PartialGraphQLInfo } from "../../builders/types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
 import { preShapeVersion } from "../../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { ProjectVersionFormat } from "../format/projectVersion";
+import { ProjectVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ProjectModel } from "./project";
 import { RunProjectModel } from "./runProject";

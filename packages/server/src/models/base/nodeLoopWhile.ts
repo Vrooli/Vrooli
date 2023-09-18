@@ -1,7 +1,7 @@
 import { MaxObjects, nodeLoopWhileValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, translationShapeHelper } from "../../utils";
-import { NodeLoopWhileFormat } from "../format/nodeLoopWhile";
+import { NodeLoopWhileFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NodeLoopModel } from "./nodeLoop";
 import { NodeLoopModelLogic, NodeLoopWhileModelLogic } from "./types";

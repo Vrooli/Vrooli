@@ -6,7 +6,7 @@ import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVers
 import { sortify } from "../../utils/objectTools";
 import { preShapeVersion } from "../../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { StandardVersionFormat } from "../format/standardVersion";
+import { StandardVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { StandardModel } from "./standard";
 import { StandardModelLogic, StandardVersionModelLogic } from "./types";

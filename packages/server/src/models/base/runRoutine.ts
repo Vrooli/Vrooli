@@ -6,7 +6,7 @@ import { CustomError, Trigger } from "../../events";
 import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { RunRoutineFormat } from "../format/runRoutine";
+import { RunRoutineFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { RoutineVersionModel } from "./routineVersion";
