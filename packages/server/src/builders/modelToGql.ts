@@ -1,11 +1,11 @@
 import { isObject } from "@local/shared";
 import { ObjectMap } from "../models/base";
-import { constructUnions } from "./constructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeCountFields } from "./removeCountFields";
 import { removeHiddenFields } from "./removeHiddenFields";
 import { removeJoinTables } from "./removeJoinTables";
 import { PartialGraphQLInfo } from "./types";
+import { constructUnions } from "./unions";
 
 /**
  * Converts shapes 4 of the GraphQL to Prisma conversion to shape 1. Used to format the result of a query.

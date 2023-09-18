@@ -1,10 +1,9 @@
 import { PostModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Post" as const;
 export const PostFormat: Formatter<PostModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Post",
         comments: "Comment",
         owner: {
             user: "User",
@@ -18,7 +17,7 @@ export const PostFormat: Formatter<PostModelLogic> = {
         tags: "Tag",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Post",
         organization: "Organization",
         user: "User",
         repostedFrom: "Post",

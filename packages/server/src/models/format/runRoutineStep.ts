@@ -1,16 +1,15 @@
 import { RunRoutineStepModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "RunRoutineStep" as const;
 export const RunRoutineStepFormat: Formatter<RunRoutineStepModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "RunRoutineStep",
         run: "RunRoutine",
         node: "Node",
         subroutine: "Routine",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "RunRoutineStep",
         node: "Node",
         runRoutine: "RunRoutine",
         subroutine: "RoutineVersion",

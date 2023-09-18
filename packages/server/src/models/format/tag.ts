@@ -1,10 +1,9 @@
 import { TagModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Tag" as const;
 export const TagFormat: Formatter<TagModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Tag",
         apis: "Api",
         notes: "Note",
         organizations: "Organization",
@@ -17,7 +16,7 @@ export const TagFormat: Formatter<TagModelLogic> = {
         bookmarkedBy: "User",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Tag",
         createdBy: "User",
         apis: "Api",
         notes: "Note",

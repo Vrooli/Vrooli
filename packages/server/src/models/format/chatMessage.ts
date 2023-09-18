@@ -1,17 +1,16 @@
 import { ChatMessageModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "ChatMessage" as const;
 export const ChatMessageFormat: Formatter<ChatMessageModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "ChatMessage",
         chat: "Chat",
         user: "User",
         reactionSummaries: "ReactionSummary",
         reports: "Report",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "ChatMessage",
         chat: "Chat",
         fork: "ChatMessage",
         children: "ChatMessage",

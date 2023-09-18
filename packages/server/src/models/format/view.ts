@@ -1,10 +1,9 @@
 import { ViewModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "View" as const;
 export const ViewFormat: Formatter<ViewModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "View",
         by: "User",
         to: {
             api: "Api",
@@ -21,7 +20,7 @@ export const ViewFormat: Formatter<ViewModelLogic> = {
         },
     },
     prismaRelMap: {
-        __typename,
+        __typename: "View",
         by: "User",
         api: "Api",
         issue: "Issue",

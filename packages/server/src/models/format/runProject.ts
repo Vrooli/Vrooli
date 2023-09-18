@@ -1,10 +1,9 @@
 import { RunProjectModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "RunProject" as const;
 export const RunProjectFormat: Formatter<RunProjectModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "RunProject",
         projectVersion: "ProjectVersion",
         schedule: "Schedule",
         steps: "RunProjectStep",
@@ -12,7 +11,7 @@ export const RunProjectFormat: Formatter<RunProjectModelLogic> = {
         organization: "Organization",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "RunProject",
         projectVersion: "ProjectVersion",
         schedule: "Schedule",
         steps: "RunProjectStep",

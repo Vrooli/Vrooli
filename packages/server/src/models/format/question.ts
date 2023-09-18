@@ -1,10 +1,9 @@
 import { QuestionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Question" as const;
 export const QuestionFormat: Formatter<QuestionModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Question",
         createdBy: "User",
         answers: "QuestionAnswer",
         comments: "Comment",
@@ -22,7 +21,7 @@ export const QuestionFormat: Formatter<QuestionModelLogic> = {
         tags: "Tag",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Question",
         createdBy: "User",
         api: "Api",
         note: "Note",

@@ -1,10 +1,9 @@
 import { ResourceListModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "ResourceList" as const;
 export const ResourceListFormat: Formatter<ResourceListModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "ResourceList",
         resources: "Resource",
         apiVersion: "ApiVersion",
         organization: "Organization",
@@ -16,7 +15,7 @@ export const ResourceListFormat: Formatter<ResourceListModelLogic> = {
         focusMode: "FocusMode",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "ResourceList",
         resources: "Resource",
         apiVersion: "ApiVersion",
         organization: "Organization",

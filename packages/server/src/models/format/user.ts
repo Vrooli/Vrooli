@@ -1,10 +1,9 @@
 import { UserModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "User" as const;
 export const UserFormat: Formatter<UserModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "User",
         comments: "Comment",
         emails: "Email",
         focusModes: "FocusMode",
@@ -18,7 +17,7 @@ export const UserFormat: Formatter<UserModelLogic> = {
         routines: "Routine",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "User",
         apis: "Api",
         apiKeys: "ApiKey",
         comments: "Comment",

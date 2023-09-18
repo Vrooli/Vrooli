@@ -1,17 +1,16 @@
 import { FocusModeModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "FocusMode" as const;
 export const FocusModeFormat: Formatter<FocusModeModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "FocusMode",
         filters: "FocusModeFilter",
         labels: "Label",
         reminderList: "ReminderList",
         schedule: "Schedule",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "FocusMode",
         reminderList: "ReminderList",
         resourceList: "ResourceList",
         user: "User",

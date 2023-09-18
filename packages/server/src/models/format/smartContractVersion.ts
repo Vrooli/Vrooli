@@ -1,10 +1,9 @@
 import { SmartContractVersionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "SmartContractVersion" as const;
 export const SmartContractVersionFormat: Formatter<SmartContractVersionModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "SmartContractVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
         forks: "SmartContractVersion",
@@ -13,7 +12,7 @@ export const SmartContractVersionFormat: Formatter<SmartContractVersionModelLogi
         root: "SmartContract",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "SmartContractVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
         forks: "SmartContractVersion",

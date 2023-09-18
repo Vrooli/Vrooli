@@ -1,14 +1,13 @@
 import { ScheduleExceptionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "ScheduleException" as const;
 export const ScheduleExceptionFormat: Formatter<ScheduleExceptionModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "ScheduleException",
         schedule: "Schedule",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "ScheduleException",
         schedule: "Schedule",
     },
     countFields: {},

@@ -1,10 +1,9 @@
 import { ReactionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Reaction" as const;
 export const ReactionFormat: Formatter<ReactionModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Reaction",
         by: "User",
         to: {
             api: "Api",
@@ -23,7 +22,7 @@ export const ReactionFormat: Formatter<ReactionModelLogic> = {
         },
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Reaction",
         by: "User",
         api: "Api",
         chatMessage: "ChatMessage",

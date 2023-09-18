@@ -1,15 +1,14 @@
 import { RunRoutineInputModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "RunRoutineInput" as const;
 export const RunRoutineInputFormat: Formatter<RunRoutineInputModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "RunRoutineInput",
         input: "RoutineVersionInput",
         runRoutine: "RunRoutine",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "RunRoutineInput",
         input: "RunRoutineInput",
         runRoutine: "RunRoutine",
     },

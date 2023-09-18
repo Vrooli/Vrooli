@@ -1,10 +1,9 @@
 import { ProjectVersionDirectoryModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "ProjectVersionDirectory" as const;
 export const ProjectVersionDirectoryFormat: Formatter<ProjectVersionDirectoryModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "ProjectVersionDirectory",
         parentDirectory: "ProjectVersionDirectory",
         projectVersion: "ProjectVersion",
         children: "ProjectVersionDirectory",
@@ -18,7 +17,7 @@ export const ProjectVersionDirectoryFormat: Formatter<ProjectVersionDirectoryMod
         runProjectSteps: "RunProjectStep",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "ProjectVersionDirectory",
         parentDirectory: "ProjectVersionDirectory",
         projectVersion: "ProjectVersion",
         children: "ProjectVersionDirectory",

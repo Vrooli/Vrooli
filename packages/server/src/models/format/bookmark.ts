@@ -1,10 +1,9 @@
 import { BookmarkModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Bookmark" as const;
 export const BookmarkFormat: Formatter<BookmarkModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Bookmark",
         by: "User",
         list: "BookmarkList",
         to: {
@@ -26,7 +25,7 @@ export const BookmarkFormat: Formatter<BookmarkModelLogic> = {
         },
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Bookmark",
         api: "Api",
         comment: "Comment",
         issue: "Issue",

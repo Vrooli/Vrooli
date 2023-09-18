@@ -1,10 +1,9 @@
 import { OrganizationModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Organization" as const;
 export const OrganizationFormat: Formatter<OrganizationModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Organization",
         apis: "Api",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
@@ -33,7 +32,7 @@ export const OrganizationFormat: Formatter<OrganizationModelLogic> = {
         wallets: "Wallet",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Organization",
         createdBy: "User",
         directoryListings: "ProjectVersionDirectory",
         issues: "Issue",

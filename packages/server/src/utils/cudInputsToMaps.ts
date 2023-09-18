@@ -1,7 +1,7 @@
 import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { GqlRelMap } from "../models/types";
+import { Formatter } from "../models/types";
 import { PrismaType } from "../types";
 import { getActionFromFieldName } from "./getActionFromFieldName";
 import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, InputNode, InputsById, InputsByType, QueryAction } from "./types";
@@ -73,7 +73,6 @@ const convertPlaceholders = async ({
 };
 
 // TODO for morning:
-// 1. Check if this should be handling the updates shaped like ({ where: any, data: any}). The original does this.
 // 1.5. Need to handle union types (i.e. gqlRelMap value is an object instead of a string)
 // 2. Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
 // 3. Test performance of getLogic and improve if needed
@@ -128,28 +127,28 @@ export const cudInputsToMaps = async ({
      *
      * @param actionType - The type of mutation action. Example: "Create" 
      * @param input - The GraphQL mutation input object
-     * @param relMap - A map of relation fields to their object types. Example: { 'chat': 'Chat' }
+     * @param format - ModelLogic property which contains formatting information for the current object type
      * @param languages - The languages to use for error messages
      * @param idField - The name of the ID field for the current object type. Defaults to "id".
      * @param closestWithId - Keeps track of the closest known object ID as we traverse the input. Useful 
      *                             for generating placeholders.
      * @returns rootNode - The root of the hierarchical tree representation of the input.
      */
-    const buildTree = <T extends object>(
+    const buildTree = <Typename extends `${GqlModelType}`, T extends object>(
         actionType: QueryAction,
         input: T,
-        relMap: GqlRelMap<T, object>,
+        format: Formatter<{ __typename: Typename, GqlModel: T }>,
         languages: string[],
         idField = "id",
         closestWithId: { __typename: string, id: string, path: string } | null = { __typename: "", id: "", path: "" },
     ): InputNode => {
         // Initialize tree
-        const rootNode = new InputNode(relMap.__typename, input[idField], actionType);
+        const rootNode = new InputNode(format.gqlRelMap.__typename, input[idField], actionType);
         // Initialize maps
         initByAction(actionType);
-        initByType(relMap.__typename);
+        initByType(format.gqlRelMap.__typename);
         idsByAction[actionType]?.push(input[idField]);
-        idsByType[relMap.__typename]?.push(input[idField]);
+        idsByType[format.gqlRelMap.__typename]?.push(input[idField]);
         // Initialize object that we'll push to inputsByType later
         const inputInfo: { node: InputNode, input: any } = { node: rootNode, input: {} };
 
@@ -159,7 +158,7 @@ export const cudInputsToMaps = async ({
         if (actionType === "Create") {
             closestWithId = null; // Set to null to ignore any following "Connect" or "Disconnect" actions
         } else if (closestWithId !== null) {
-            closestWithId = input[idField] ? { __typename: relMap.__typename, id: input[idField], path: "" } : closestWithId;
+            closestWithId = input[idField] ? { __typename: format.gqlRelMap.__typename, id: input[idField], path: "" } : closestWithId;
         }
 
         for (const field in input) {
@@ -171,10 +170,16 @@ export const cudInputsToMaps = async ({
             }
 
             const fieldName = field.substring(0, field.length - action.length);
-            const __typename = relMap[fieldName];
+            const __typename = format.gqlRelMap[fieldName];
             // Make sure that the relation is defined in the relMap
             if (!__typename) {
-                if (field.startsWith("translations")) continue; // Translations are a special case, as they are handled internally by the object's shaping functions
+                // Translations are a special case, as they are handled internally by the object's shaping functions
+                if (fieldName === "translations") continue;
+                // It might not be an error yet, as the field might be a union
+                if (format.unionFields) {
+                    //TODO
+                }
+                // Now it's an error
                 throw new CustomError("0525", "InternalError", ["en"], { field });
             }
             const { format: childFormat, idField: childIdField } = getLogic(["format", "idField"], __typename, languages, "buildHierarchicalMap loop");
@@ -185,7 +190,7 @@ export const cudInputsToMaps = async ({
                     const childNode = buildTree(
                         action,
                         childInput,
-                        childFormat.gqlRelMap,
+                        childFormat,
                         languages,
                         childIdField,
                         closestWithId === null ? null : { ...closestWithId, path: closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName },
@@ -240,7 +245,7 @@ export const cudInputsToMaps = async ({
         }
         // Add inputInfo to inputsById and inputsByType
         inputsById[input[idField]] = inputInfo;
-        inputsByType[relMap.__typename]?.[actionType]?.push(inputInfo);
+        inputsByType[format.gqlRelMap.__typename]?.[actionType]?.push(inputInfo);
         // Return the root node
         return rootNode;
     };
@@ -255,7 +260,7 @@ export const cudInputsToMaps = async ({
         // Otherwise, recursively build the tree and other maps 
         else {
             const { format, idField } = getLogic(["format", "idField"], objectType, languages, "getAuthenticatedIds");
-            buildTree(actionType as QueryAction, input, format.gqlRelMap, languages, idField);
+            buildTree(actionType as QueryAction, input, format, languages, idField);
         }
     }
 

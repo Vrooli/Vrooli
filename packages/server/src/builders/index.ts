@@ -6,8 +6,6 @@ export * from "./addSupplementalFieldsMultiTypes";
 export * from "./combineQueries";
 export * from "./combineSupplements";
 export * from "./connectOwner";
-export * from "./constructUnions";
-export * from "./deconstructUnions";
 export * from "./existsArray";
 export * from "./filterFields";
 export * from "./findFirstRel";
@@ -33,5 +31,6 @@ export * from "./shapeRelationshipData";
 export * from "./timeFrameToPrisma";
 export * from "./toPartialGqlInfo";
 export * from "./toPartialPrismaSelect";
+export * from "./unions";
 export * from "./visibilityBuilder";
 

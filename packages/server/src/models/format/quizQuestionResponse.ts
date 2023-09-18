@@ -1,15 +1,14 @@
 import { QuizQuestionResponseModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "QuizQuestionResponse" as const;
 export const QuizQuestionResponseFormat: Formatter<QuizQuestionResponseModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "QuizQuestionResponse",
         quizAttempt: "QuizAttempt",
         quizQuestion: "QuizQuestion",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "QuizQuestionResponse",
         quizAttempt: "QuizAttempt",
         quizQuestion: "QuizQuestion",
     },

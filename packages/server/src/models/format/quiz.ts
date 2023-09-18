@@ -1,10 +1,9 @@
 import { QuizModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Quiz" as const;
 export const QuizFormat: Formatter<QuizModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Quiz",
         attempts: "QuizAttempt",
         createdBy: "User",
         project: "Project",
@@ -13,7 +12,7 @@ export const QuizFormat: Formatter<QuizModelLogic> = {
         bookmarkedBy: "User",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Quiz",
         attempts: "QuizAttempt",
         createdBy: "User",
         project: "Project",

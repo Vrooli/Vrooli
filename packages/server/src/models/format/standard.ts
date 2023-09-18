@@ -1,10 +1,9 @@
 import { StandardModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Standard" as const;
 export const StandardFormat: Formatter<StandardModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Standard",
         createdBy: "User",
         issues: "Issue",
         labels: "Label",
@@ -21,7 +20,7 @@ export const StandardFormat: Formatter<StandardModelLogic> = {
         versions: "StandardVersion",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Standard",
         createdBy: "User",
         ownedByOrganization: "Organization",
         ownedByUser: "User",

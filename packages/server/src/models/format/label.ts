@@ -1,10 +1,9 @@
 import { LabelModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Label" as const;
 export const LabelFormat: Formatter<LabelModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Label",
         apis: "Api",
         focusModes: "FocusMode",
         issues: "Issue",
@@ -19,7 +18,7 @@ export const LabelFormat: Formatter<LabelModelLogic> = {
         schedules: "Schedule",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Label",
         apis: "Api",
         focusModes: "FocusMode",
         issues: "Issue",

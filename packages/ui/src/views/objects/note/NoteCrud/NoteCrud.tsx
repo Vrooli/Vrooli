@@ -208,7 +208,7 @@ const NoteForm = ({
                                 dirty={dirty}
                                 display="dialog"
                                 style={{
-                                    width: "min(500px, 100vw)",
+                                    width: "min(700px, 100vw)",
                                     paddingBottom: "16px",
                                 }}
                             >

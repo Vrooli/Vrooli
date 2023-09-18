@@ -1,10 +1,9 @@
 import { ApiVersionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "ApiVersion" as const;
 export const ApiVersionFormat: Formatter<ApiVersionModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "ApiVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
         forks: "ApiVersion",
@@ -14,7 +13,7 @@ export const ApiVersionFormat: Formatter<ApiVersionModelLogic> = {
         root: "Api",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "ApiVersion",
         calledByRoutineVersions: "RoutineVersion",
         comments: "Comment",
         reports: "Report",

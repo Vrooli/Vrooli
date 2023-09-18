@@ -1,10 +1,9 @@
 import { CommentModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Comment" as const;
 export const CommentFormat: Formatter<CommentModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Comment",
         owner: {
             ownedByUser: "User",
             ownedByOrganization: "Organization",

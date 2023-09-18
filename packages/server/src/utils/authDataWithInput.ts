@@ -18,14 +18,14 @@ export const authDataWithInput = (input: object, existingData: object, inputsByI
     // Loop through fields to handle relationships
     for (const field in combined) {
         // If a relationship, find the action and process accordingly
-        const fieldType = getActionFromFieldName(field);
-        if (!fieldType) continue;
+        const action = getActionFromFieldName(field);
+        if (!action) continue;
         const inputValue = combined[field];
-        const fieldName = field.replace(fieldType, "");
+        const fieldName = field.substring(0, field.length - action.length);
         const existingValue = combined[fieldName];
         delete combined[field];
 
-        switch (fieldType) {
+        switch (action) {
             case "Connect": {
                 if (Array.isArray(inputValue)) {
                     const connectedDataArray = inputValue.map(id => authDataById[id] ?? {});

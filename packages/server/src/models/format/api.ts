@@ -2,10 +2,9 @@
 import { ApiModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Api" as const;
 export const ApiFormat: Formatter<ApiModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Api",
         createdBy: "User",
         owner: {
             ownedByUser: "User",
@@ -22,8 +21,11 @@ export const ApiFormat: Formatter<ApiModelLogic> = {
         stats: "StatsApi",
         transfers: "Transfer",
     },
+    unionFields: {
+        owner: {},
+    },
     prismaRelMap: {
-        __typename,
+        __typename: "Api",
         createdBy: "User",
         ownedByUser: "User",
         ownedByOrganization: "Organization",

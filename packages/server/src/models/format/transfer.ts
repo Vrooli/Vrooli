@@ -1,10 +1,9 @@
 import { TransferModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Transfer" as const;
 export const TransferFormat: Formatter<TransferModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Transfer",
         fromOwner: {
             fromUser: "User",
             fromOrganization: "Organization",
@@ -23,7 +22,7 @@ export const TransferFormat: Formatter<TransferModelLogic> = {
         },
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Transfer",
         fromUser: "User",
         fromOrganization: "Organization",
         toUser: "User",

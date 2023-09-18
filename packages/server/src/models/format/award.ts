@@ -1,13 +1,12 @@
 import { AwardModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Award" as const;
 export const AwardFormat: Formatter<AwardModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Award",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Award",
         user: "User",
     },
     countFields: {},

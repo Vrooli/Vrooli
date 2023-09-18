@@ -1,10 +1,9 @@
 import { StandardVersionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "StandardVersion" as const;
 export const StandardVersionFormat: Formatter<StandardVersionModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "StandardVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
         forks: "StandardVersion",
@@ -13,7 +12,7 @@ export const StandardVersionFormat: Formatter<StandardVersionModelLogic> = {
         root: "Standard",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "StandardVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
         forks: "StandardVersion",

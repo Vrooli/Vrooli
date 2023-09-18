@@ -1,14 +1,13 @@
 import { NodeLinkModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "NodeLink" as const;
 export const NodeLinkFormat: Formatter<NodeLinkModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "NodeLink",
         whens: "NodeLinkWhen",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "NodeLink",
         from: "Node",
         to: "Node",
         routineVersion: "RoutineVersion",

@@ -1,14 +1,13 @@
 import { NodeEndModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "NodeEnd" as const;
 export const NodeEndFormat: Formatter<NodeEndModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "NodeEnd",
         suggestedNextRoutineVersions: "RoutineVersion",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "NodeEnd",
         suggestedNextRoutineVersions: "RoutineVersion",
         node: "Node",
     },

@@ -1,10 +1,9 @@
 import { PullRequestModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "PullRequest" as const;
 export const PullRequestFormat: Formatter<PullRequestModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "PullRequest",
         createdBy: "User",
         comments: "Comment",
         from: {
@@ -25,7 +24,7 @@ export const PullRequestFormat: Formatter<PullRequestModelLogic> = {
         },
     },
     prismaRelMap: {
-        __typename,
+        __typename: "PullRequest",
         fromApiVersion: "ApiVersion",
         fromNoteVersion: "NoteVersion",
         fromProjectVersion: "ProjectVersion",

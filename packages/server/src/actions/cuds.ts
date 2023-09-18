@@ -3,6 +3,7 @@ import { modelToGql, selectHelper } from "../builders";
 import { PartialGraphQLInfo, PrismaCreate, PrismaUpdate } from "../builders/types";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
+import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
 import { getAuthenticatedData } from "../utils";
 import { cudInputsToMaps } from "../utils/cudInputsToMaps";
@@ -58,7 +59,7 @@ export async function cudHelper({
         languages: userData.languages,
     });
     console.timeEnd("cudInputsToMaps");
-    const preMap: { [x: string]: any } = {};
+    const preMap: PreMap = {};
     // For each type, calculate pre-shape data (if applicable). 
     // This often also doubles as a way to perform custom input validation
     for (const [type, inputs] of Object.entries(inputsByType)) {

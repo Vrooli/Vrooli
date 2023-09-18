@@ -8,6 +8,7 @@ import { InputNode, InputsById, QueryAction } from "../utils/types";
 
 /** Types and flags for an object's business layer */
 export type ModelLogicType = {
+    __typename: `${GqlModelType}`;
     /** GraphQL input for creating the object */
     GqlCreate: Record<string, any> | undefined,
     /** GraphQL input for updating the object */
@@ -45,7 +46,7 @@ export type ModelLogic<
     SuppFields extends readonly DotNotation<Model["GqlModel"]>[],
     IdField extends keyof Model["GqlModel"] = "id",
 > = {
-    __typename: `${GqlModelType}`;
+    __typename: Model["__typename"];
     /** The prisma delegate for this object (e.g. prisma.user) */
     delegate: (prisma: PrismaType) => PrismaDelegate;
     /** Functions for representing the object in different formats */
@@ -93,23 +94,24 @@ export type ModelLogic<
 } & { [x: string]: any };
 
 /**
- * An object which can maps GraphQL fields to GqlModelTypes. Normal fields 
+ * An object which maps GraphQL fields to GqlModelTypes. Normal fields 
  * are a single GqlModelType, while unions are handled with an object. 
  * A union object maps Prisma relation fields to GqlModelTypes.
  */
 export type GqlRelMap<
+    Typename extends `${GqlModelType}`,
     GqlModel extends ModelLogicType["GqlModel"],
     PrismaModel extends ModelLogicType["PrismaModel"],
 > = {
     [K in keyof GqlModel]?: `${GqlModelType}` | ({ [K2 in keyof PrismaModel]?: `${GqlModelType}` })
-} & { __typename: `${GqlModelType}` };
+} & { __typename: Typename };
 
 /**
  * Allows Prisma select fields to map to GqlModelTypes
  */
-export type PrismaRelMap<T> = {
+export type PrismaRelMap<Typename extends `${GqlModelType}`, T> = {
     [K in keyof T]?: `${GqlModelType}`
-} & { __typename: `${GqlModelType}` };
+} & { __typename: Typename };
 
 /**
  * Helper functions for adding and removing supplemental fields. These are fields 
@@ -151,6 +153,7 @@ type StringArrayMap<T extends readonly string[]> = {
  */
 export interface Formatter<
     Model extends {
+        __typename: ModelLogicType["__typename"],
         GqlModel: ModelLogicType["GqlModel"],
         PrismaModel?: ModelLogicType["PrismaModel"],
     }
@@ -158,14 +161,15 @@ export interface Formatter<
     /**
      * Maps GraphQL types to GqlModelType, with special handling for unions
      */
-    // gqlRelMap: GqlRelMap<Model["GqlModel"], Model["PrismaModel"]>;
     gqlRelMap: Model extends { PrismaModel: infer P }
     ? P extends undefined
-    ? GqlRelMap<Model["GqlModel"], any>
-    : GqlRelMap<Model["GqlModel"], NonNullable<P>>
-    : GqlRelMap<Model["GqlModel"], any>;
+    ? GqlRelMap<Model["__typename"], Model["GqlModel"], any>
+    : GqlRelMap<Model["__typename"], Model["GqlModel"], NonNullable<P>>
+    : GqlRelMap<Model["__typename"], Model["GqlModel"], any>;
+    /** Defines additional information for parsing union types, used for things like building mutation input trees */
+    unionFields?: { [key in keyof Model["GqlModel"]]?: { typeField?: keyof Model["GqlModel"] } };
     /** Maps Prisma types to GqlModelType */
-    prismaRelMap: PrismaRelMap<Model["PrismaModel"]>;
+    prismaRelMap: PrismaRelMap<Model["__typename"], Model["PrismaModel"]>;
     /**
      * Map used to add/remove join tables from the query. 
      * Each key is a GraphQL field, and each value is the join table's relation name
@@ -408,7 +412,7 @@ export type Duplicator<
  * 
  * This means you can reference pre function results by using `preMap[__typename]`.
  **/
-type PreMap = { [key in GqlModelType]?: any };
+export type PreMap = { [key in GqlModelType]?: any };
 
 /**
  * Describes shape of component that can be mutated

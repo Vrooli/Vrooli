@@ -1,14 +1,13 @@
 import { NodeRoutineListItemModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "NodeRoutineListItem" as const;
 export const NodeRoutineListItemFormat: Formatter<NodeRoutineListItemModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "NodeRoutineListItem",
         routineVersion: "RoutineVersion",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "NodeRoutineListItem",
         list: "NodeRoutineList",
         routineVersion: "RoutineVersion",
     },

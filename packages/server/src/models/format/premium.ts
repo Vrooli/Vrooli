@@ -1,13 +1,12 @@
 import { PremiumModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Premium" as const;
 export const PremiumFormat: Formatter<PremiumModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Premium",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Premium",
         organization: "Organization",
         user: "User",
     },

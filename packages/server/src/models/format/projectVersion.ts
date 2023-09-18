@@ -1,10 +1,9 @@
 import { ProjectVersionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "ProjectVersion" as const;
 export const ProjectVersionFormat: Formatter<ProjectVersionModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "ProjectVersion",
         comments: "Comment",
         directories: "ProjectVersionDirectory",
         directoryListings: "ProjectVersionDirectory",
@@ -15,7 +14,7 @@ export const ProjectVersionFormat: Formatter<ProjectVersionModelLogic> = {
         // 'runs.project': 'RunProject', //TODO
     },
     prismaRelMap: {
-        __typename,
+        __typename: "ProjectVersion",
         comments: "Comment",
         directories: "ProjectVersionDirectory",
         directoryListings: "ProjectVersionDirectory",

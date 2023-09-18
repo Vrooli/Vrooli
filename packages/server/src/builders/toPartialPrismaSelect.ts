@@ -1,10 +1,10 @@
 import { ObjectMap } from "../models/base";
 import { addCountFields } from "./addCountFields";
 import { addJoinTables } from "./addJoinTables";
-import { deconstructUnions } from "./deconstructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeSupplementalFields } from "./removeSupplementalFields";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
+import { deconstructUnions } from "./unions";
 
 /**
  * Converts shapes 2 and 3 of a GraphQL to Prisma conversion to shape 3. 

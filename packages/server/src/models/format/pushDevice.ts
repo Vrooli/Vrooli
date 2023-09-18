@@ -1,13 +1,12 @@
 import { PushDeviceModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "PushDevice" as const;
 export const PushDeviceFormat: Formatter<PushDeviceModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "PushDevice",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "PushDevice",
         user: "User",
     },
     countFields: {},

@@ -1,14 +1,13 @@
 import { ReportResponseModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "ReportResponse" as const;
 export const ReportResponseFormat: Formatter<ReportResponseModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "ReportResponse",
         report: "Report",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "ReportResponse",
         report: "Report",
     },
     hiddenFields: ["createdById"], // Always hide report creator

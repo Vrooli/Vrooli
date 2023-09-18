@@ -1,10 +1,9 @@
 import { MeetingModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Meeting" as const;
 export const MeetingFormat: Formatter<MeetingModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Meeting",
         attendees: "User",
         invites: "MeetingInvite",
         labels: "Label",
@@ -13,7 +12,7 @@ export const MeetingFormat: Formatter<MeetingModelLogic> = {
         schedule: "Schedule",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Meeting",
         organization: "Organization",
         restrictedToRoles: "Role",
         attendees: "User",

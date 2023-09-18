@@ -1,10 +1,9 @@
 import { NotificationSubscriptionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "NotificationSubscription" as const;
 export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "NotificationSubscription",
         object: {
             api: "Api",
             comment: "Comment",
@@ -24,7 +23,7 @@ export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionM
         },
     },
     prismaRelMap: {
-        __typename,
+        __typename: "NotificationSubscription",
         api: "Api",
         comment: "Comment",
         issue: "Issue",

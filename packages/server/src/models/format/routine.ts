@@ -1,10 +1,9 @@
 import { RoutineModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Routine" as const;
 export const RoutineFormat: Formatter<RoutineModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Routine",
         createdBy: "User",
         owner: {
             ownedByUser: "User",
@@ -19,7 +18,7 @@ export const RoutineFormat: Formatter<RoutineModelLogic> = {
         versions: "RoutineVersion",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Routine",
         createdBy: "User",
         ownedByUser: "User",
         ownedByOrganization: "Organization",

@@ -1,14 +1,13 @@
 import { ScheduleRecurrenceModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "ScheduleRecurrence" as const;
 export const ScheduleRecurrenceFormat: Formatter<ScheduleRecurrenceModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "ScheduleRecurrence",
         schedule: "Schedule",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "ScheduleRecurrence",
         schedule: "Schedule",
     },
     countFields: {},

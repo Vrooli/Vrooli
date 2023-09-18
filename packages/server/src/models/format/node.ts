@@ -1,17 +1,16 @@
 import { NodeModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Node" as const;
 export const NodeFormat: Formatter<NodeModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Node",
         end: "NodeEnd",
         loop: "NodeLoop",
         routineList: "NodeRoutineList",
         routineVersion: "RoutineVersion",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Node",
         end: "NodeEnd",
         loop: "NodeLoop",
         next: "NodeLink",

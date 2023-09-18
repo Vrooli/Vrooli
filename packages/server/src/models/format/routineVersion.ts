@@ -1,10 +1,9 @@
 import { RoutineVersionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "RoutineVersion" as const;
 export const RoutineVersionFormat: Formatter<RoutineVersionModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "RoutineVersion",
         apiVersion: "ApiVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
@@ -21,7 +20,7 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelLogic> = {
         // you.runs: 'RunRoutine', //TODO
     },
     prismaRelMap: {
-        __typename,
+        __typename: "RoutineVersion",
         apiVersion: "ApiVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",

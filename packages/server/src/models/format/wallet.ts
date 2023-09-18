@@ -1,15 +1,14 @@
 import { WalletModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Wallet" as const;
 export const WalletFormat: Formatter<WalletModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Wallet",
         user: "User",
         organization: "Organization",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Wallet",
         user: "User",
         organization: "Organization",
     },

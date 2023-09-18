@@ -1,10 +1,9 @@
 import { ProjectModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Project" as const;
 export const ProjectFormat: Formatter<ProjectModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Project",
         createdBy: "User",
         issues: "Issue",
         labels: "Label",
@@ -22,7 +21,7 @@ export const ProjectFormat: Formatter<ProjectModelLogic> = {
         versions: "ProjectVersion",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Project",
         createdBy: "User",
         ownedByOrganization: "Organization",
         ownedByUser: "User",

@@ -1,10 +1,9 @@
 import { NoteModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Note" as const;
 export const NoteFormat: Formatter<NoteModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Note",
         createdBy: "User",
         issues: "Issue",
         labels: "Label",
@@ -21,7 +20,7 @@ export const NoteFormat: Formatter<NoteModelLogic> = {
         versions: "NoteVersion",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Note",
         parent: "NoteVersion",
         createdBy: "User",
         ownedByUser: "User",

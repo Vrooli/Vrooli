@@ -1,10 +1,9 @@
 import { IssueModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "Issue" as const;
 export const IssueFormat: Formatter<IssueModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "Issue",
         closedBy: "User",
         comments: "Comment",
         createdBy: "User",
@@ -22,7 +21,7 @@ export const IssueFormat: Formatter<IssueModelLogic> = {
         },
     },
     prismaRelMap: {
-        __typename,
+        __typename: "Issue",
         api: "Api",
         organization: "Organization",
         note: "Note",

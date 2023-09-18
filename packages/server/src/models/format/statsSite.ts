@@ -1,13 +1,12 @@
 import { StatsSiteModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
-const __typename = "StatsSite" as const;
 export const StatsSiteFormat: Formatter<StatsSiteModelLogic> = {
     gqlRelMap: {
-        __typename,
+        __typename: "StatsSite",
     },
     prismaRelMap: {
-        __typename,
+        __typename: "StatsSite",
     },
     countFields: {},
 };
