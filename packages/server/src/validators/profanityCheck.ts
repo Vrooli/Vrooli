@@ -4,8 +4,9 @@ import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { ObjectMap } from "../models/base";
 import { AuthDataById } from "../utils";
+import { authDataWithInput } from "../utils/authDataWithInput";
 import { hasProfanity } from "../utils/censor";
-import { CudInputData } from "../utils/types";
+import { CudInputData, InputsById } from "../utils/types";
 
 type ProfanityFieldsToCheck = {
     tagsConnect?: string[],
@@ -102,7 +103,7 @@ const collectProfanities = (
  * Additionally, finds the validator for the object's type and checks if any additional fields - besides 
  * those found in translation objects - should be checked for censored words (e.g. username, email).
  */
-export const profanityCheck = (inputData: CudInputData[], authDataById: AuthDataById, languages: string[]): void => {
+export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById, authDataById: AuthDataById, languages: string[]): void => {
     // Find all fields which must be checked for profanity
     const fieldsToCheck: { [x: string]: string[] } = {};
     for (const item of inputData) {
@@ -112,7 +113,10 @@ export const profanityCheck = (inputData: CudInputData[], authDataById: AuthData
         // NOTE: This means that a user could create a private object with profanity in it, and then change it to public. 
         // We'll have to rely on the reporting and reputation system to handle this.
         const { idField, validate } = getLogic(["idField", "validate"], item.objectType, languages, "profanityCheck");
-        const isPublic = validate?.isPublic(authDataById[item.input[idField]], languages);
+        const existingData = authDataById[item.input[idField]];
+        const input = item.input as object;
+        const combinedData = authDataWithInput(input, existingData ?? {}, inputsById, authDataById);
+        const isPublic = validate?.isPublic(combinedData, languages);
         if (isPublic === false) continue;
         const newFields = collectProfanities(item.input as ProfanityFieldsToCheck, item.objectType);
         for (const field in newFields) {

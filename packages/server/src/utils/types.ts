@@ -2,13 +2,13 @@ import { GqlModelType } from "@local/shared";
 import { PrismaCreate, PrismaSelect, PrismaUpdate } from "../builders/types";
 
 export class InputNode {
-    __typename: string;
+    __typename: `${GqlModelType}`;
     id: string;
     action: QueryAction;
     children: InputNode[];
     parent: InputNode | null;
 
-    constructor(__typename: string, id: string, action: QueryAction) {
+    constructor(__typename: `${GqlModelType}`, id: string, action: QueryAction) {
         this.__typename = __typename;
         this.id = id;
         this.action = action;

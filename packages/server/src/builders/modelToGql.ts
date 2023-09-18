@@ -13,12 +13,10 @@ import { PartialGraphQLInfo } from "./types";
  * @param partialInfo PartialGraphQLInfo object
  * @returns Valid GraphQL object
  */
-export function modelToGql<
-    GraphQLModel extends Record<string, any>
->(
+export function modelToGql<GqlModel extends Record<string, any>>(
     data: { [x: string]: any },
     partialInfo: PartialGraphQLInfo,
-): GraphQLModel {
+): GqlModel {
     // Convert data to usable shape
     const type = partialInfo?.__typename;
     const format = typeof type === "string" ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
@@ -46,5 +44,5 @@ export function modelToGql<
             data[key] = modelToGql(value, (partialInfo as any)[key]);
         }
     }
-    return data as any;
+    return data as GqlModel;
 }

@@ -318,6 +318,8 @@ export async function permissionsCheck(
     const permissionsById = await getMultiTypePermissions(authDataById, userData);
     // Loop through each action and validate permissions
     for (const action of Object.keys(idsByAction)) {
+        // Skip "Create" action
+        if (action === "Create") continue;
         // Get IDs for this action
         const ids = idsByAction[action];
         // Loop through each ID and validate permissions
@@ -326,12 +328,9 @@ export async function permissionsCheck(
             if (id === DUMMY_ID) continue;
             // Get permissions for this ID
             const permissions = permissionsById[id];
-            // Make sure permissions exists. If not, and not create, something went wrong.
+            // If permissions doesn't exist, something went wrong.
             if (!permissions) {
-                if (action !== "Create") {
-                    throw new CustomError("0390", "InternalError", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
-                }
-                continue;
+                throw new CustomError("0390", "InternalError", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
             }
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {

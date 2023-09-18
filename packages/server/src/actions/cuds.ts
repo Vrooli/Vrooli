@@ -26,9 +26,7 @@ import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators
  * Finally, it performs the operations in the database, and returns the results in shape of GraphQL objects. 
  * Results are in the same order as the input data.
  */
-export async function cudHelper<
-    GqlModel extends ({ id: string } & { [x: string]: any })
->({
+export async function cudHelper({
     inputData,
     partialInfo,
     prisma,
@@ -77,9 +75,9 @@ export async function cudHelper<
     // Validate permissions
     await permissionsCheck(authDataById, idsByAction, userData);
     // Perform profanity checks
-    profanityCheck(inputData, authDataById, userData.languages);
+    profanityCheck(inputData, inputsById, authDataById, userData.languages);
     // Max objects check
-    await maxObjectsCheck(authDataById, idsByAction, prisma, userData);
+    await maxObjectsCheck(inputsById, authDataById, idsByAction, prisma, userData);
     // Group top-level (i.e. can't use inputsByType, idsByAction, etc. because those include relations) data by type
     const topInputsByType: { [key in GqlModelType]?: {
         Create: { index: number, input: PrismaCreate }[],
@@ -124,7 +122,7 @@ export async function cudHelper<
                     throw new CustomError("0415", "InternalError", userData.languages, { error, data, select, objectType });
                 }
                 // Convert
-                const converted = modelToGql<GqlModel>(createResult, partialInfo);
+                const converted = modelToGql<object>(createResult, partialInfo);
                 result[index] = converted;
                 created.push(converted);
             }
@@ -156,7 +154,7 @@ export async function cudHelper<
                     throw new CustomError("0416", "InternalError", userData.languages, { error, data, select, objectType });
                 }
                 // Convert
-                const converted = modelToGql<GqlModel>(updateResult, partialInfo);
+                const converted = modelToGql<object>(updateResult, partialInfo);
                 result[index] = converted;
                 updated.push(converted);
             }
@@ -214,18 +212,18 @@ export async function cudHelper<
     // If there are any situations that specifically required a trigger before (e.g. if role creation could also create an organization 
     // instead of connecting), then we can use the tree node to check if parent is "Admin" role before creating the "Admin" role. But 
     // notice how this even isn't a real example. I'm not sure if triggering something only on the top-level object is even useful anymore.
-    for (const type in inputsByType) {
-        const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "postshape type");
-        if (mutate.shape.post) {
-            await mutate.shape.post({
-                created,
-                deletedIds: deleteMany ?? [],
-                preMap,
-                prisma,
-                updated,
-                userData,
-            });
-        }
-    }
+    // for (const type in inputsByType) {
+    //     const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "postshape type");
+    //     if (mutate.shape.post) {
+    //         await mutate.shape.post({
+    //             created,
+    //             deletedIds: deleteMany ?? [],
+    //             preMap,
+    //             prisma,
+    //             updated,
+    //             userData,
+    //         });
+    //     }
+    // }
     return result;
 }

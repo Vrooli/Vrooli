@@ -3,18 +3,8 @@ import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { GqlRelMap } from "../models/types";
 import { PrismaType } from "../types";
+import { getActionFromFieldName } from "./getActionFromFieldName";
 import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, InputNode, InputsById, InputsByType, QueryAction } from "./types";
-
-// Helper function to derive the action from the field name
-const getActionFromFieldName = (fieldName: string): QueryAction | null => {
-    const actions: QueryAction[] = ["Connect", "Create", "Delete", "Disconnect", "Update"];
-    for (const action of actions) {
-        if (fieldName.endsWith(action)) {
-            return action;
-        }
-    }
-    return null;
-};
 
 /**
  * Converts placeholder ids to actual IDs, or null if actual ID not found. 
