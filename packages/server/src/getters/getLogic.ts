@@ -1,21 +1,23 @@
 import { GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../builders/types";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models/base";
-import { ModelLogic } from "../models/types";
+import { Displayer, Duplicator, Formatter, Mutater, Searcher, Validator } from "../models/types";
+import { PrismaType } from "../types";
 
 type LogicProps = "delegate" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
 
 type GetLogicReturn<
     Logic extends LogicProps,
 > = {
-    delegate: "delegate" extends Logic ? Required<ModelLogic<any, any>>["delegate"] : ModelLogic<any, any>["delegate"],
-    display: "display" extends Logic ? Required<ModelLogic<any, any>>["display"] : ModelLogic<any, any>["display"],
-    duplicate: "duplicate" extends Logic ? Required<ModelLogic<any, any>>["duplicate"] : ModelLogic<any, any>["duplicate"],
-    format: "format" extends Logic ? Required<ModelLogic<any, any>>["format"] : ModelLogic<any, any>["format"],
+    delegate: "delegate" extends Logic ? ((prisma: PrismaType) => PrismaDelegate) : never,
+    display: "display" extends Logic ? Displayer<any> : never,
+    duplicate: "duplicate" extends Logic ? Duplicator<any, any> : never,
+    format: "format" extends Logic ? Formatter<any> : never,
     idField: string,
-    mutate: "mutate" extends Logic ? Required<ModelLogic<any, any>>["mutate"] : ModelLogic<any, any>["mutate"],
-    search: "search" extends Logic ? NonNullable<Required<ModelLogic<any, any>>["search"]> : ModelLogic<any, any>["search"],
-    validate: "validate" extends Logic ? Required<ModelLogic<any, any>>["validate"] : ModelLogic<any, any>["validate"],
+    mutate: "mutate" extends Logic ? Mutater<any> : never,
+    search: "search" extends Logic ? Searcher<any, any> : never,
+    validate: "validate" extends Logic ? Validator<any> : never,
 }
 
 type Undefinable<T> = {
@@ -37,29 +39,19 @@ export function getLogic<
 ): ThrowError extends true ? GetLogicReturn<Logic[number]> : Undefinable<GetLogicReturn<Logic[number]>> {
     // Make sure object exists in map
     const object = ObjectMap[objectType];
-    if (!object) {
-        if (throwErrorIfNotFound) throw new CustomError("0280", "InvalidArgs", languages, { errorTrace, objectType });
-        const result: any = props.reduce((acc, cur) => {
-            acc[cur] = undefined;
-            return acc;
-        }, {} as Undefinable<GetLogicReturn<Logic[number]>>);
-        return result as GetLogicReturn<Logic[number]>;
-    }
-    // If no props are requested, return the entire object
-    if (!props.length) return object as GetLogicReturn<Logic[number]>;
     // Loop through requested types to validate that all requested types exist
     for (const field of props) {
         // Get logic function
-        let logic = object[field as any];
+        let logic = object[field];
         // If this is for "idField" and it doesn't exist, default to "id"
         if (field === "idField" && !logic) {
             logic = "id";
-            object[field as any] = logic;
+            object[field] = logic;
         }
         // Make sure logic function exists
         if (!logic && throwErrorIfNotFound) {
             throw new CustomError("0367", "InvalidArgs", languages, { errorTrace, objectType, field });
         }
     }
-    return object as GetLogicReturn<Logic[number]>;
+    return object as unknown as GetLogicReturn<Logic[number]>;
 }

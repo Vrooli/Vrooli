@@ -74,7 +74,6 @@ const convertPlaceholders = async ({
 
 // TODO for morning:
 // 2. Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
-// 3. Test performance of getLogic and improve if needed
 export const cudInputsToMaps = async ({
     inputData,
     prisma,
