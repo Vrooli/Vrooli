@@ -1,5 +1,5 @@
 import { exists, GqlModelType, isObject } from "@local/shared";
-import { GqlRelMap } from "../models/types";
+import { GqlRelMap, ModelLogicType } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 
 /**
@@ -12,12 +12,12 @@ import { isRelationshipObject } from "./isRelationshipObject";
  */
 export const constructUnions = <
     Typename extends `${GqlModelType}`,
-    GQLObject extends { [x: string]: any },
-    PrismaObject extends { [x: string]: any }
+    GQLModel extends ModelLogicType["GqlModel"],
+    PrismaModel extends ModelLogicType["PrismaModel"],
 >(
     data: { [x: string]: any },
     partialInfo: { [x: string]: any },
-    gqlRelMap: GqlRelMap<Typename, GQLObject, PrismaObject>,
+    gqlRelMap: GqlRelMap<Typename, GQLModel, PrismaModel>,
 ): { data: { [x: string]: any }, partialInfo: { [x: string]: any } } => {
     // Create result objects
     const resultData: { [x: string]: any } = data;
@@ -58,9 +58,9 @@ export const constructUnions = <
  */
 export const deconstructUnions = <
     Typename extends `${GqlModelType}`,
-    GQLObject extends { [x: string]: any },
-    PrismaObject extends { [x: string]: any }
->(data: { [x: string]: any }, gqlRelMap: GqlRelMap<Typename, GQLObject, PrismaObject>): { [x: string]: any } => {
+    GQLModel extends ModelLogicType["GqlModel"],
+    PrismaModel extends ModelLogicType["PrismaModel"],
+>(data: { [x: string]: any }, gqlRelMap: GqlRelMap<Typename, GQLModel, PrismaModel>): { [x: string]: any } => {
     // Create result object
     const result: { [x: string]: any } = data;
     // Any value in the gqlRelMap which is an object is a union. 

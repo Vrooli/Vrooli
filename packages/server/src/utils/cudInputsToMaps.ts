@@ -1,7 +1,7 @@
 import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { Formatter } from "../models/types";
+import { Formatter, ModelLogicType } from "../models/types";
 import { PrismaType } from "../types";
 import { getActionFromFieldName } from "./getActionFromFieldName";
 import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, InputNode, InputsById, InputsByType, QueryAction } from "./types";
@@ -73,7 +73,6 @@ const convertPlaceholders = async ({
 };
 
 // TODO for morning:
-// 1.5. Need to handle union types (i.e. gqlRelMap value is an object instead of a string)
 // 2. Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
 // 3. Test performance of getLogic and improve if needed
 export const cudInputsToMaps = async ({
@@ -134,10 +133,15 @@ export const cudInputsToMaps = async ({
      *                             for generating placeholders.
      * @returns rootNode - The root of the hierarchical tree representation of the input.
      */
-    const buildTree = <Typename extends `${GqlModelType}`, T extends object>(
+    const buildTree = <
+        Typename extends `${GqlModelType}`,
+        GqlCreate extends ModelLogicType["GqlCreate"],
+        GqlModel extends ModelLogicType["GqlModel"],
+        PrismaModel extends ModelLogicType["PrismaModel"],
+    >(
         actionType: QueryAction,
-        input: T,
-        format: Formatter<{ __typename: Typename, GqlModel: T }>,
+        input: GqlModel,
+        format: Formatter<{ __typename: Typename, GqlCreate: GqlCreate, GqlModel: GqlModel, PrismaModel: PrismaModel }>,
         languages: string[],
         idField = "id",
         closestWithId: { __typename: string, id: string, path: string } | null = { __typename: "", id: "", path: "" },
@@ -170,17 +174,61 @@ export const cudInputsToMaps = async ({
             }
 
             const fieldName = field.substring(0, field.length - action.length);
-            const __typename = format.gqlRelMap[fieldName];
+            let __typename: `${GqlModelType}` = format.gqlRelMap[fieldName] as `${GqlModelType}`;
             // Make sure that the relation is defined in the relMap
             if (!__typename) {
                 // Translations are a special case, as they are handled internally by the object's shaping functions
-                if (fieldName === "translations") continue;
-                // It might not be an error yet, as the field might be a union
-                if (format.unionFields) {
-                    //TODO
+                if (fieldName === "translations") {
+                    // Add to input and continue
+                    inputInfo.input[field] = input[field];
+                    continue;
                 }
-                // Now it's an error
-                throw new CustomError("0525", "InternalError", ["en"], { field });
+                // It might not be an error yet, as the field might be a union
+                let handled = false;
+                if (format.unionFields) {
+                    // Loop through union fields
+                    for (const [unionField, unionFieldValue] of Object.entries(format.unionFields)) {
+                        if (!unionFieldValue) continue;
+                        // The union field should always exist in gqlRelMap. If not, the format is configured incorrectly.
+                        const unionMap = format.gqlRelMap[unionField];
+                        if (!unionMap) {
+                            throw new CustomError("0527", "InternalError", ["en"], { field });
+                        }
+                        // There are two possible formats for the unionField data:
+                        // 1. An empty object - This means that everything we need is in the unionMap
+                        // 2. An object with `connectField` and `relField` properties - This means that the input uses two fields to represent every union connection. 
+                        // For example, a Bookmark could have the input fields `forConnect` and `bookmarkFor`, instead of listing a relation connection field for 
+                        // every relation type (which would be a lot of fields).
+                        const isSimpleUnion = Object.keys(unionFieldValue).length === 0;
+                        // Handle simple union
+                        if (isSimpleUnion) {
+                            // Check if the unionMap contains the field we're looking for
+                            if (unionMap[fieldName]) {
+                                // If so, we found the union type
+                                __typename = unionMap[fieldName] as `${GqlModelType}`;
+                                handled = true;
+                            }
+                        }
+                        // Handle complex union
+                        else {
+                            // Check if the connectField is the field we're looking for
+                            if (unionFieldValue.connectField === (field as string)) {
+                                // Make sure that typeField is also in the input. If not, something is wrong with the input.
+                                if (!input[unionFieldValue.typeField as string]) {
+                                    throw new CustomError("0528", "InternalError", ["en"], { field });
+                                }
+                                // If so, we found the union type
+                                __typename = input[unionFieldValue.typeField as string] as `${GqlModelType}`;
+                                handled = true;
+                            }
+                        }
+                        if (handled) break;
+                    }
+                }
+                // If we didn't handle the missing __typename, throw an error
+                if (!handled) {
+                    throw new CustomError("0525", "InternalError", ["en"], { field });
+                }
             }
             const { format: childFormat, idField: childIdField } = getLogic(["format", "idField"], __typename, languages, "buildHierarchicalMap loop");
 
@@ -221,7 +269,7 @@ export const cudInputsToMaps = async ({
                 idsByType[__typename]?.push(placeholder);
             };
 
-            const isArray = input[field] instanceof Array;
+            const isArray = (input[field] as unknown) instanceof Array;
             const isConnectOrDisconnect = action === "Connect" || action === "Disconnect";
             if (isArray && !isConnectOrDisconnect) {
                 inputInfo.input[field] = [];

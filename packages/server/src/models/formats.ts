@@ -126,6 +126,9 @@ export const BookmarkFormat: Formatter<BookmarkModelLogic> = {
             user: "User",
         },
     },
+    unionFields: {
+        to: { connectField: "forConnect", typeField: "bookmarkFor" },
+    },
     prismaRelMap: {
         __typename: "Bookmark",
         api: "Api",
@@ -268,6 +271,10 @@ export const CommentFormat: Formatter<CommentModelLogic> = {
         reports: "Report",
         bookmarkedBy: "User",
     },
+    unionFields: {
+        commentedOn: { connectField: "forConnect", typeField: "createdFor" },
+        owner: {},
+    },
     prismaRelMap: {
         __typename: "Comment",
         ownedByUser: "User",
@@ -361,6 +368,9 @@ export const IssueFormat: Formatter<IssueModelLogic> = {
             standard: "Standard",
         },
     },
+    unionFields: {
+        to: { connectField: "forConnect", typeField: "issueFor" },
+    },
     prismaRelMap: {
         __typename: "Issue",
         api: "Api",
@@ -402,6 +412,9 @@ export const LabelFormat: Formatter<LabelModelLogic> = {
         projects: "Project",
         routines: "Routine",
         schedules: "Schedule",
+    },
+    unionFields: {
+        owner: {},
     },
     prismaRelMap: {
         __typename: "Label",
@@ -646,6 +659,9 @@ export const NoteFormat: Formatter<NoteModelLogic> = {
         transfers: "Transfer",
         versions: "NoteVersion",
     },
+    unionFields: {
+        owner: {},
+    },
     prismaRelMap: {
         __typename: "Note",
         parent: "NoteVersion",
@@ -728,6 +744,9 @@ export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionM
             smartContract: "SmartContract",
             standard: "Standard",
         },
+    },
+    unionFields: {
+        object: { connectField: "objectConnect", typeField: "objectType" },
     },
     prismaRelMap: {
         __typename: "NotificationSubscription",
@@ -872,6 +891,9 @@ export const PostFormat: Formatter<PostModelLogic> = {
         bookmarkedBy: "User",
         tags: "Tag",
     },
+    unionFields: {
+        owner: {},
+    },
     prismaRelMap: {
         __typename: "Post",
         organization: "Organization",
@@ -922,6 +944,9 @@ export const ProjectFormat: Formatter<ProjectModelLogic> = {
         tags: "Tag",
         transfers: "Transfer",
         versions: "ProjectVersion",
+    },
+    unionFields: {
+        owner: {},
     },
     prismaRelMap: {
         __typename: "Project",
@@ -1045,6 +1070,10 @@ export const PullRequestFormat: Formatter<PullRequestModelLogic> = {
             toStandard: "Standard",
         },
     },
+    unionFields: {
+        from: { connectField: "fromConnect", typeField: "fromObjectType" },
+        to: { connectField: "toConnect", typeField: "toObjectType" },
+    },
     prismaRelMap: {
         __typename: "PullRequest",
         fromApiVersion: "ApiVersion",
@@ -1097,6 +1126,9 @@ export const QuestionFormat: Formatter<QuestionModelLogic> = {
         reports: "Report",
         bookmarkedBy: "User",
         tags: "Tag",
+    },
+    unionFields: {
+        forObject: { connectField: "forObjectConnect", typeField: "forObjectType" },
     },
     prismaRelMap: {
         __typename: "Question",
@@ -1242,6 +1274,9 @@ export const ReactionFormat: Formatter<ReactionModelLogic> = {
             smartContract: "SmartContract",
             standard: "Standard",
         },
+    },
+    unionFields: {
+        to: { connectField: "forConnect", typeField: "reactionFor" },
     },
     prismaRelMap: {
         __typename: "Reaction",
@@ -1415,6 +1450,9 @@ export const RoutineFormat: Formatter<RoutineModelLogic> = {
         bookmarkedBy: "User",
         tags: "Tag",
         versions: "RoutineVersion",
+    },
+    unionFields: {
+        owner: {},
     },
     prismaRelMap: {
         __typename: "Routine",
@@ -1689,6 +1727,9 @@ export const SmartContractFormat: Formatter<SmartContractModelLogic> = {
         transfers: "Transfer",
         versions: "NoteVersion",
     },
+    unionFields: {
+        owner: {},
+    },
     prismaRelMap: {
         __typename: "SmartContract",
         createdBy: "User",
@@ -1759,6 +1800,9 @@ export const StandardFormat: Formatter<StandardModelLogic> = {
         tags: "Tag",
         transfers: "Transfer",
         versions: "StandardVersion",
+    },
+    unionFields: {
+        owner: {},
     },
     prismaRelMap: {
         __typename: "Standard",
@@ -1977,6 +2021,11 @@ export const TransferFormat: Formatter<TransferModelLogic> = {
             toOrganization: "Organization",
         },
     },
+    unionFields: {
+        // fromOwner is yourself, so it's not included in the Create input - and thus not needed here (for now)
+        object: { connectField: "objectConnect", typeField: "objectType" },
+        toOwner: {},
+    },
     prismaRelMap: {
         __typename: "Transfer",
         fromUser: "User",
@@ -2090,6 +2139,7 @@ export const ViewFormat: Formatter<ViewModelLogic> = {
             user: "User",
         },
     },
+    // View is never called directly, so we don't need to worry about the unionFields - at least for now
     prismaRelMap: {
         __typename: "View",
         by: "User",

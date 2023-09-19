@@ -1,6 +1,6 @@
 import { GqlModelType, resolveGQLInfo } from "@local/shared";
 import { CustomError } from "../events";
-import { GqlRelMap } from "../models/types";
+import { GqlRelMap, ModelLogicType } from "../models/types";
 import { injectTypenames } from "./injectTypenames";
 import { GraphQLInfo, PartialGraphQLInfo } from "./types";
 
@@ -14,12 +14,12 @@ import { GraphQLInfo, PartialGraphQLInfo } from "./types";
  */
 export const toPartialGqlInfo = <
     Typename extends `${GqlModelType}`,
-    GQLObject extends { [x: string]: any },
-    PrismaObject extends { [x: string]: any },
+    GqlModel extends ModelLogicType["GqlModel"],
+    PrismaModel extends ModelLogicType["PrismaModel"],
     ThrowErrorIfNotPartial extends boolean
 >(
     info: GraphQLInfo | PartialGraphQLInfo,
-    gqlRelMap: GqlRelMap<Typename, GQLObject, PrismaObject>,
+    gqlRelMap: GqlRelMap<Typename, GqlModel, PrismaModel>,
     languages: string[],
     throwIfNotPartial: ThrowErrorIfNotPartial = false as ThrowErrorIfNotPartial,
 ): ThrowErrorIfNotPartial extends true ? PartialGraphQLInfo : (PartialGraphQLInfo | undefined) => {

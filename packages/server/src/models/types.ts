@@ -153,9 +153,10 @@ type StringArrayMap<T extends readonly string[]> = {
  */
 export interface Formatter<
     Model extends {
-        __typename: ModelLogicType["__typename"],
+        __typename: `${GqlModelType}`,
+        GqlCreate: ModelLogicType["GqlCreate"],
         GqlModel: ModelLogicType["GqlModel"],
-        PrismaModel?: ModelLogicType["PrismaModel"],
+        PrismaModel: ModelLogicType["PrismaModel"],
     }
 > {
     /**
@@ -163,11 +164,11 @@ export interface Formatter<
      */
     gqlRelMap: Model extends { PrismaModel: infer P }
     ? P extends undefined
-    ? GqlRelMap<Model["__typename"], Model["GqlModel"], any>
+    ? GqlRelMap<Model["__typename"], Model["GqlModel"], Model["PrismaModel"]>
     : GqlRelMap<Model["__typename"], Model["GqlModel"], NonNullable<P>>
-    : GqlRelMap<Model["__typename"], Model["GqlModel"], any>;
+    : GqlRelMap<Model["__typename"], Model["GqlModel"], Model["PrismaModel"]>;
     /** Defines additional information for parsing union types, used for things like building mutation input trees */
-    unionFields?: { [key in keyof Model["GqlModel"]]?: { typeField?: keyof Model["GqlModel"] } };
+    unionFields?: { [key in keyof Model["GqlModel"]]?: Record<string, never> | { connectField: keyof Model["GqlCreate"], typeField: keyof Model["GqlCreate"] } };
     /** Maps Prisma types to GqlModelType */
     prismaRelMap: PrismaRelMap<Model["__typename"], Model["PrismaModel"]>;
     /**
