@@ -1,13 +1,13 @@
 import { GqlModelType } from "@local/shared";
-import { Trigger } from "../events";
-import { getLogic } from "../getters";
-import { PrismaType, SessionUserToken } from "../types";
+import { Trigger } from "../../events";
+import { getLogic } from "../../getters";
+import { PrismaType, SessionUserToken } from "../../types";
 
 /**
- * Used in mutate.trigger.onCommon of non-root and non-version objects. 
+ * Used in mutate.trigger.afterMutations of non-root and non-version objects. 
  * Calculate data for and calls objectCreated/Updated/Deleted triggers
  */
-export const onCommonPlain = async ({
+export const afterMutationsPlain = async ({
     created,
     deletedIds,
     objectType,
@@ -29,7 +29,7 @@ export const onCommonPlain = async ({
     // Find owners of created and updated items
     const ownerMap: { [key: string]: { id: string, __typename: "User" | "Organization" } } = {};
     const createAndUpdateIds = [...created.map(c => c.id), ...updated.map(u => u.id)];
-    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "onCommonPlain");
+    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "afterMutationsPlain");
     // Create select object depending on whether ownerOrganizationField and ownerUserField are defined
     const select = { id: true };
     if (ownerOrganizationField) {

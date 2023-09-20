@@ -1,6 +1,7 @@
 import { MaxObjects, QuestionAnswerSortBy, questionAnswerValidation } from "@local/shared";
 import { shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { QuestionAnswerFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { QuestionAnswerModelLogic } from "./types";

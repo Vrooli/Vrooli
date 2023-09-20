@@ -2,7 +2,8 @@ import { MaxObjects, ResourceListFor, ResourceListSortBy, resourceListValidation
 import { Prisma } from "@prisma/client";
 import { findFirstRel, shapeHelper } from "../../builders";
 import { getLogic } from "../../getters";
-import { bestTranslation, defaultPermissions, oneIsPublic, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceListFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";

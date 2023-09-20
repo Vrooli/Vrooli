@@ -2,7 +2,7 @@ import { PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRe
 import { Prisma } from "@prisma/client";
 import { findFirstRel, noNull } from "../../builders";
 import { getLogic } from "../../getters";
-import { translationShapeHelper } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { PullRequestFormat } from "../formats";
 import { ModelLogic } from "../types";

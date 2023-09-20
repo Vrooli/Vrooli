@@ -1,6 +1,7 @@
 import { routineVersionInputValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions, translationShapeHelper } from "../../utils";
+import { defaultPermissions } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { RoutineVersionInputFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RoutineVersionModel } from "./routineVersion";

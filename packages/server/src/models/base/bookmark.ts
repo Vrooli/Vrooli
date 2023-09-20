@@ -94,20 +94,6 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    // Find type and id of bookmarked object
-                    const [objectRel, objectId] = findFirstRel(c, ["apiId", "commentId", "issueId", "noteId", "organizationId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "smartContractId", "standardId", "tagId", "userId"]);
-                    if (!objectRel || !objectId) return;
-                    // Object type is objectRel with "Id" removed and first letter capitalized
-                    const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
-                    // Update "bookmarks" count for bookmarked object
-                    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "bookmark onCreated");
-                    await delegate(prisma).update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
-                    // Trigger bookmarkCreated event
-                    Trigger(prisma, userData.languages).objectBookmark(true, objectType, objectId, userData.id);
-                }
-            },
             beforeDeleted: async ({ deletingIds, prisma }) => {
                 // Grab bookmarked object id and type
                 const deleting = await prisma.bookmark.findMany({
@@ -130,7 +116,19 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
                 }, {});
                 return grouped;
             },
-            onDeleted: async ({ beforeDeletedData, prisma, userData }) => {
+            afterMutations: async ({ beforeDeletedData, created, prisma, userData }) => {
+                for (const c of created) {
+                    // Find type and id of bookmarked object
+                    const [objectRel, objectId] = findFirstRel(c, ["apiId", "commentId", "issueId", "noteId", "organizationId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "smartContractId", "standardId", "tagId", "userId"]);
+                    if (!objectRel || !objectId) return;
+                    // Object type is objectRel with "Id" removed and first letter capitalized
+                    const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
+                    // Update "bookmarks" count for bookmarked object
+                    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "bookmark onCreated");
+                    await delegate(prisma).update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
+                    // Trigger bookmarkCreated event
+                    Trigger(prisma, userData.languages).objectBookmark(true, objectType, objectId, userData.id);
+                }
                 // For each bookmarked object type, decrement the bookmark count
                 for (const [objectType, objectIds] of Object.entries(beforeDeletedData)) {
                     const { delegate } = getLogic(["delegate"], objectType as GqlModelType, userData.languages, "bookmark onDeleted");

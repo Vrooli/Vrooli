@@ -1,8 +1,8 @@
 import { MaxObjects, ProjectVersionSortBy, projectVersionValidation } from "@local/shared";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
-import { preShapeVersion } from "../../utils/preShapeVersion";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ProjectVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -73,8 +73,10 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
                 // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
-            post: async (params) => {
-                await postShapeVersion({ ...params, objectType: __typename });
+        },
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
         yup: projectVersionValidation,

@@ -6,8 +6,10 @@ import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPart
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
 import { getSearchStringQuery } from "../../getters";
 import { PrismaType, SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { SortMap } from "../../utils/sortMap";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { CommentFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -40,8 +42,8 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerOrganizationField: "ownedByOrganization",

@@ -1,7 +1,8 @@
 import { LabelSortBy, labelValidation, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions, oneIsPublic, translationShapeHelper } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { LabelFormat } from "../formats";
 import { ModelLogic } from "../types";

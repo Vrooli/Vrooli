@@ -2,7 +2,8 @@ import { ChatCreateInput, chatInviteValidation, ChatMessageCreateInput, ChatMess
 import { shapeHelper } from "../../builders";
 import { CustomError, Trigger } from "../../events";
 import { SERVER_URL } from "../../server";
-import { bestTranslation, translationShapeHelper } from "../../utils";
+import { bestTranslation } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { ChatMessageFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -298,7 +299,9 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             update: async ({ data, ...rest }) => ({
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
-            post: async ({ created, deletedIds, updated, preMap, prisma, userData }) => {
+        },
+        trigger: {
+            afterMutations: async ({ created, deletedIds, updated, preMap, prisma, userData }) => {
                 const messageData = preMap[__typename].messageData;
                 const botData = preMap[__typename].botData;
                 const chatData = preMap[__typename].chatData;

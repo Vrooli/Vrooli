@@ -2,8 +2,10 @@ import { MaxObjects, SmartContractSortBy, smartContractValidation } from "@local
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { getLabels } from "../../getters";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { SmartContractFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -50,8 +52,8 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonRoot({ ...params, objectType: __typename });
+            afterMutations: async (params) => {
+                await afterMutationsRoot({ ...params, objectType: __typename });
             },
         },
         yup: smartContractValidation,

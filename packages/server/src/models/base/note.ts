@@ -1,7 +1,9 @@
 import { MaxObjects, NoteSortBy, noteValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { defaultPermissions } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { NoteFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -48,8 +50,8 @@ export const NoteModel: ModelLogic<NoteModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonRoot({ ...params, objectType: __typename });
+            afterMutations: async (params) => {
+                await afterMutationsRoot({ ...params, objectType: __typename });
             },
         },
         yup: noteValidation,

@@ -1,7 +1,7 @@
 import { MaxObjects, NoteVersionSortBy, noteVersionValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
-import { preShapeVersion } from "../../utils/preShapeVersion";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { NoteVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -105,8 +105,10 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                     ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
                 };
             },
-            post: async (params) => {
-                await postShapeVersion({ ...params, objectType: __typename });
+        },
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
         yup: noteVersionValidation,

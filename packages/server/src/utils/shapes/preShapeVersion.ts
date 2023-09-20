@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { WithIdField } from "../types";
+import { WithIdField } from "../../types";
 import { preShapeEmbeddableTranslatable } from "./preShapeEmbeddableTranslatable";
 
 /**

@@ -1,7 +1,8 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError, Trigger } from "../events";
-import { TransferModel } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { CustomError, Trigger } from "../../events";
+import { TransferModel } from "../../models/base";
+import { PreMap } from "../../models/types";
+import { PrismaType, SessionUserToken } from "../../types";
 
 /**
  * Used in mutate.trigger.onCommon of version objects. Has two purposes:
@@ -9,11 +10,11 @@ import { PrismaType, SessionUserToken } from "../types";
  * because we might need to update additional versions not specified in the mutation
  * 2. Calculate data for and calls objectCreated/Updated/Deleted triggers
  */
-export const onCommonRoot = async ({ created, deletedIds, objectType, preMap, prisma, updated, userData }: {
+export const afterMutationsRoot = async ({ created, deletedIds, objectType, preMap, prisma, updated, userData }: {
     created: { id: string }[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
-    preMap: { [key in GqlModelType]?: any },
+    preMap: PreMap,
     prisma: PrismaType,
     updated: { id: string }[]
     userData: SessionUserToken,

@@ -2,8 +2,8 @@ import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVer
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { PrismaType } from "../../types";
-import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
-import { preShapeVersion } from "../../utils/preShapeVersion";
+import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString } from "../../utils";
+import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { RoutineVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -138,8 +138,10 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
                 // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
-            post: async (params) => {
-                await postShapeVersion({ ...params, objectType: __typename });
+        },
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
         yup: routineVersionValidation,

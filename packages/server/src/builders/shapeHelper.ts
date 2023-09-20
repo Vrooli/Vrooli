@@ -1,6 +1,7 @@
 import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models/base";
+import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
 import { RelationshipType, RelConnect, RelCreate, RelDelete, RelDisconnect, RelUpdate } from "./types";
@@ -133,7 +134,7 @@ export type ShapeHelperProps<
     /**
      * A map of pre-shape data for all objects in the mutation, keyed by object type. 
      */
-    preMap: { [x in `${GqlModelType}`]?: any },
+    preMap: PreMap,
     /** The name of the primaryKey key field. Defaults to "id" */
     primaryKey?: PrimaryKey,
     /** The Prisma client */

@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
-import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../builders";
-import { RelationshipType } from "../builders/types";
+import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders";
+import { RelationshipType } from "../../builders/types";
 
 type NodeEndNextShapeHelperProps<
     Input extends ShapeHelperInput<false, false, Types[number], "suggestedNextRoutineVersions">,

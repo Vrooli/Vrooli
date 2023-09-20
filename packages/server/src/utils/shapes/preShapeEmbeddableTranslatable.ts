@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
-import { getLogic } from "../getters";
-import { WithIdField } from "../types";
+import { getLogic } from "../../getters";
+import { WithIdField } from "../../types";
 
 /**
  * Used in mutate.shape.pre of non-versioned objects which have translations

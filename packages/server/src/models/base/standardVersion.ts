@@ -2,9 +2,9 @@ import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVe
 import { randomString } from "../../auth/wallet";
 import { noNull, shapeHelper } from "../../builders";
 import { PrismaType, SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { sortify } from "../../utils/objectTools";
-import { preShapeVersion } from "../../utils/preShapeVersion";
+import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { StandardVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -192,8 +192,10 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                     translations,
                 };
             },
-            post: async (params) => {
-                await postShapeVersion({ ...params, objectType: __typename });
+        },
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
         yup: standardVersionValidation,

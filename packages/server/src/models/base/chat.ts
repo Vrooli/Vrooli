@@ -2,8 +2,8 @@ import { ChatSortBy, chatValidation, MaxObjects, User, uuid, uuidValidate } from
 import { ChatInviteStatus } from "@prisma/client";
 import i18next from "i18next";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { ChatFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -125,7 +125,7 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
+            afterMutations: async ({ created, prisma, userData }) => {
                 //TODO If starting a chat with a bot (not Valyxa, since we create an initial message in the 
                 // UI for speed), allow the bot to send a message to the chat
             },

@@ -127,13 +127,13 @@ export async function cudHelper({
                 result[index] = converted;
                 created.push(converted);
             }
-            // Call create trigger
-            mutate.trigger?.onCreated && await mutate.trigger.onCreated({
-                created,
-                preMap,
-                prisma,
-                userData,
-            });
+            // // Call create trigger TODO
+            // mutate.trigger?.onCreated && await mutate.trigger.onCreated({
+            //     created,
+            //     preMap,
+            //     prisma,
+            //     userData,
+            // });
         }
         // Update
         if (Update.length > 0) {
@@ -159,14 +159,14 @@ export async function cudHelper({
                 result[index] = converted;
                 updated.push(converted);
             }
-            // Call update trigger
-            mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({
-                preMap,
-                prisma,
-                updated,
-                updateInputs,
-                userData,
-            });
+            // // Call update trigger //TODO
+            // mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({
+            //     preMap,
+            //     prisma,
+            //     updated,
+            //     updateInputs,
+            //     userData,
+            // });
         }
         // Delete
         if (Delete.length > 0) {
@@ -183,29 +183,29 @@ export async function cudHelper({
             } catch (error) {
                 throw new CustomError("0417", "InternalError", userData.languages, { error, where, objectType });
             }
-            // Call onDeleted
-            mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({
-                beforeDeletedData,
-                deletedIds: deletingIds,
-                preMap,
-                prisma,
-                userData,
-            });
+            // // Call onDeleted TODO
+            // mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({
+            //     beforeDeletedData,
+            //     deletedIds: deletingIds,
+            //     preMap,
+            //     prisma,
+            //     userData,
+            // });
         }
-        // Perform custom triggers for mutate.trigger.onCommon
-        // NOTE: This is only for top-level objects, not relations
-        if (Create.length > 0 || Update.length > 0 || Delete.length > 0) {
-            mutate.trigger?.onCommon && await mutate.trigger.onCommon({
-                created,
-                deleted,
-                deletedIds: deletingIds,
-                preMap,
-                prisma,
-                updated,
-                updateInputs,
-                userData,
-            });
-        }
+        // // Perform custom triggers for mutate.trigger.onCommon TODO
+        // // NOTE: This is only for top-level objects, not relations
+        // if (Create.length > 0 || Update.length > 0 || Delete.length > 0) {
+        //     mutate.trigger?.onCommon && await mutate.trigger.onCommon({
+        //         created,
+        //         deleted,
+        //         deletedIds: deletingIds,
+        //         preMap,
+        //         prisma,
+        //         updated,
+        //         updateInputs,
+        //         userData,
+        //     });
+        // }
     }
     // For each type (including relations), calculate post-shape data (e.g. updating indexes)
     // TODO need to somehow get created, updated, and deleted info of relations

@@ -1,8 +1,9 @@
 import { MaxObjects, QuestionForType, QuestionSortBy, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuestionFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -70,8 +71,8 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerUserField: "createdBy",

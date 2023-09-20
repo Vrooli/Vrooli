@@ -1,6 +1,7 @@
 import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
-import { shapeHelper, ShapeHelperOutput } from "../builders";
-import { PrismaType, SessionUserToken } from "../types";
+import { shapeHelper, ShapeHelperOutput } from "../../builders";
+import { PreMap } from "../../models/types";
+import { PrismaType, SessionUserToken } from "../../types";
 
 type OwnerShapeHelperProps<
     FieldName extends "ownedBy",
@@ -9,7 +10,7 @@ type OwnerShapeHelperProps<
     isCreate: boolean;
     objectType: GqlModelType | `${GqlModelType}`;
     parentRelationshipName: string;
-    preMap: { [x in `${GqlModelType}`]?: any };
+    preMap: PreMap;
     prisma: PrismaType;
     relation: FieldName;
     relTypes: readonly ("Connect" | "Disconnect")[];

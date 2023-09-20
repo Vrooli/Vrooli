@@ -31,7 +31,7 @@ export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
+            afterMutations: async ({ created, prisma, userData }) => {
                 for (const object of created) {
                     await Trigger(prisma, userData.languages).objectCreated({
                         createdById: userData.id,

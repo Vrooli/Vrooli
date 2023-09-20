@@ -443,21 +443,6 @@ export type Mutater<Model extends {
             userData: SessionUserToken,
             inputsById: InputsById,
         }) => PromiseOrValue<object>,
-        /**
-         * Performs additional shaping after the main mutation has been performed, 
-         * AND after all triggers functions have been called. This is useful 
-         * for things like updating a version label, where all versions tied to that root object 
-         * might need their version indexes updated. Since these versions don't appear in the 
-         * create/update/delete lists, they can't be updated in the pre function.
-         */
-        post?: ({ created, deletedIds, updated, preMap, prisma, userData }: {
-            created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            deletedIds: string[],
-            updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            preMap: PreMap,
-            prisma: PrismaType,
-            userData: SessionUserToken,
-        }) => PromiseOrValue<void>,
         /** Shapes data for create mutations */
         create?: Model["GqlCreate"] extends Record<string, any> ?
         Model["PrismaCreate"] extends Record<string, any> ? ({ data, preMap, prisma, userData }: {
@@ -484,36 +469,6 @@ export type Mutater<Model extends {
      */
     trigger?: {
         /**
-         * A trigger that includes create, update, and delete mutations. This is sometimes useful 
-         * over handling each mutation individually, especially if you need to do something
-         * that benefits from having all the data at once.
-         */
-        onCommon?: ({ created, deleted, prisma, updated, updateInputs, userData }: {
-            created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            deleted: Count,
-            deletedIds: string[],
-            updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            updateInputs: Model["GqlUpdate"][],
-            preMap: PreMap,
-            prisma: PrismaType,
-            userData: SessionUserToken,
-        }) => PromiseOrValue<void>,
-        /** A trigger for create mutations */
-        onCreated?: Model["GqlCreate"] extends Record<string, any> ? ({ created, prisma, userData }: {
-            created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            preMap: PreMap,
-            prisma: PrismaType,
-            userData: SessionUserToken,
-        }) => PromiseOrValue<void> : never,
-        /** A trigger for update mutations */
-        onUpdated?: Model["GqlUpdate"] extends Record<string, any> ? ({ updated, updateInputs, prisma, userData }: {
-            updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            updateInputs: Model["GqlUpdate"][],
-            preMap: PreMap,
-            prisma: PrismaType,
-            userData: SessionUserToken,
-        }) => PromiseOrValue<void> : never,
-        /**
          * Triggered before an object is deleted. This is useful if you need to find data about 
          * the deleting objects' relationships, which may be cascaded on delete
          */
@@ -523,11 +478,18 @@ export type Mutater<Model extends {
             userData: SessionUserToken,
         }) => PromiseOrValue<any>,
         /**
-         * A trigger for delete mutations
+         * A trigger that includes create, update, and delete mutations. This can be used to 
+         * send notifications, track awards, update reputation, etc. Try not to mutate objects here, 
+         * unless you have to (e.g. adding a new version inbetween others will trigger index updates 
+         * on versions not specified in the mutation)
          */
-        onDeleted?: ({ beforeDeletedData, deletedIds, prisma, userData }: {
+        afterMutations?: ({ created, deleted, prisma, updated, updateInputs, userData }: {
             beforeDeletedData: object,
+            created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
+            deleted: Count,
             deletedIds: string[],
+            updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
+            updateInputs: Model["GqlUpdate"][],
             preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,

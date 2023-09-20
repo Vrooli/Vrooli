@@ -1,6 +1,7 @@
 import { MaxObjects, projectVersionDirectoryValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { ProjectVersionDirectoryFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ProjectVersionModel } from "./projectVersion";

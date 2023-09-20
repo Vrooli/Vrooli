@@ -1,7 +1,8 @@
 import { MaxObjects, PostSortBy, postValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { preShapeEmbeddableTranslatable, tagShapeHelper } from "../../utils/shapes";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { PostFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
@@ -55,8 +56,8 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerOrganizationField: "organization",

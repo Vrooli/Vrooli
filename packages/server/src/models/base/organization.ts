@@ -3,8 +3,8 @@ import { role } from "@prisma/client";
 import { noNull, onlyValidIds, shapeHelper } from "../../builders";
 import { getLabels } from "../../getters";
 import { PrismaType } from "../../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, tagShapeHelper, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
 import { OrganizationFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -83,7 +83,7 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
+            afterMutations: async ({ created, prisma, userData }) => {
                 for (const { id: organizationId } of created) {
                     // Upsert "Admin" role (in case they already included it in the request). 
                     // Trying to connect you as a member again shouldn't throw an error (hopefully)

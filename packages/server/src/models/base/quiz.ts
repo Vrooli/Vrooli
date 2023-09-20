@@ -1,8 +1,9 @@
 import { MaxObjects, QuizSortBy, quizValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, oneIsPublic, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -69,8 +70,8 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerUserField: "createdBy",

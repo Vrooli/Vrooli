@@ -36,7 +36,7 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
+            afterMutations: async ({ created, prisma, userData }) => {
                 //TODO Create invite notifications
             },
         },

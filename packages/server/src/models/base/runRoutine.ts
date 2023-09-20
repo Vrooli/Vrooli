@@ -97,15 +97,13 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             },
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
+            afterMutations: ({ created, updated, updateInputs, prisma, userData }) => {
                 // Handle run start trigger for every run with status InProgress
                 for (const c of created) {
                     if (c.status === RunStatus.InProgress) {
                         Trigger(prisma, userData.languages).runRoutineStart(c.id, userData.id, false);
                     }
                 }
-            },
-            onUpdated: ({ prisma, updated, updateInputs, userData }) => {
                 for (let i = 0; i < updated.length; i++) {
                     // Handle run start trigger for every run with status InProgress, 
                     // that previously had a status of Scheduled

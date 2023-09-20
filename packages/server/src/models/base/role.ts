@@ -1,6 +1,7 @@
 import { MaxObjects, RoleSortBy, roleValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { RoleFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";

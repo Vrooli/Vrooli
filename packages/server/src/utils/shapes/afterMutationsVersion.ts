@@ -1,13 +1,13 @@
 import { calculateVersionsFromString, GqlModelType } from "@local/shared";
-import { getLogic } from "../getters";
-import { PrismaType, SessionUserToken } from "../types";
+import { getLogic } from "../../getters";
+import { PrismaType, SessionUserToken } from "../../types";
 
 /**
  * Used in mutate.shape.post of version objects. Updates  
  * versionIndex and isLatest flags. Cannot be done in pre 
  * because we might need to update additional versions not specified in the mutation
  */
-export const postShapeVersion = async ({ created, deletedIds, objectType, prisma, updated, userData }: {
+export const afterMutationsVersion = async ({ created, deletedIds, objectType, prisma, updated, userData }: {
     created: { id: string }[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
@@ -20,7 +20,7 @@ export const postShapeVersion = async ({ created, deletedIds, objectType, prisma
         ["delegate"],
         objectType.replace("Version", "") as GqlModelType,
         userData.languages,
-        "onCommonVersion",
+        "afterMutationsVersion",
     );
     // Get ids from created, updated, and deletedIds
     const versionIds = [

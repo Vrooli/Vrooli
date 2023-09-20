@@ -70,11 +70,8 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
             },
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                // TODO should check if schedule is starting soon (i.e. before cron job runs), and handle accordingly
-            },
-            onUpdated: ({ prisma, updated, updateInputs, userData }) => {
-                // TODO should check if schedule is starting soon (i.e. before cron job runs), and handle accordingly
+            afterMutations: ({ created, updated, prisma, userData }) => {
+                // TODO should check both creates and updates if schedule is starting soon (i.e. before cron job runs), and handle accordingly
             },
         },
         yup: scheduleValidation,

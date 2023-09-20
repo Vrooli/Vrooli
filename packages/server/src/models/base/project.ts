@@ -2,8 +2,10 @@ import { MaxObjects, ProjectSortBy, projectValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { getLabels } from "../../getters";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { ProjectFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -53,8 +55,8 @@ export const ProjectModel: ModelLogic<ProjectModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonRoot({ ...params, objectType: __typename });
+            afterMutations: async (params) => {
+                await afterMutationsRoot({ ...params, objectType: __typename });
             },
         },
         yup: projectValidation,

@@ -1,7 +1,7 @@
 import { MaxObjects, SmartContractVersionSortBy, smartContractVersionValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
-import { preShapeVersion } from "../../utils/preShapeVersion";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { SmartContractVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -78,8 +78,10 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
                 ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: true, objectType: "SmartContract", parentRelationshipName: "versions", data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
-            post: async (params) => {
-                await postShapeVersion({ ...params, objectType: __typename });
+        },
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
         yup: smartContractVersionValidation,

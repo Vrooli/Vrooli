@@ -1,5 +1,5 @@
-import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../builders";
-import { RelationshipType } from "../builders/types";
+import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders";
+import { RelationshipType } from "../../builders/types";
 
 // Types of objects which have tags
 type TaggedObjectType = "Api" | "Note" | "Organization" | "Post" | "Project" | "Question" | "Routine" | "SmartContract" | "Standard";
