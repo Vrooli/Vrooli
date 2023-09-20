@@ -114,9 +114,11 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             },
         },
         trigger: {
-            afterMutations: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    // Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
+            afterMutations: async ({ createdIds, prisma, userData }) => {
+                for (const objectId of createdIds) {
+                    // await Trigger(prisma, userData.languages).reportActivity({
+                    //     objectId,
+                    // });
                 }
             },
         },

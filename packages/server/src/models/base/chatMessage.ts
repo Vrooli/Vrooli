@@ -1,5 +1,7 @@
-import { ChatCreateInput, chatInviteValidation, ChatMessageCreateInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate } from "@local/shared";
+import { readManyHelper } from "../../actions";
 import { shapeHelper } from "../../builders";
+import { chatMessage_findMany } from "../../endpoints";
 import { CustomError, Trigger } from "../../events";
 import { SERVER_URL } from "../../server";
 import { bestTranslation } from "../../utils";
@@ -13,7 +15,7 @@ import { ChatMessageModelLogic, ChatModelLogic } from "./types";
 import { UserModel } from "./user";
 
 /** Information for a message, collected in mutate.shape.pre */
-type MessageData = {
+export type PreMapMessageData = {
     /** ID of the chat this message belongs to */
     chatId: string | null;
     /** Content in user's preferred (or closest to preferred) language */
@@ -25,7 +27,7 @@ type MessageData = {
     userId: string;
 }
 
-type ChatData = {
+type PreMapChatData = {
     botParticipants?: string[],
     potentialBotIds?: string[],
     participantsDelete?: string[],
@@ -49,7 +51,7 @@ type ChatData = {
  * Taken by combining parsed bot settings wiht other information 
  * from the user object.
  * */
-type BotData = {
+type PreMapBotData = {
     botSettings: string,
     name: string;
 } & { [key: string]: string };
@@ -81,9 +83,9 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
              */
             pre: async ({ Create, Update, Delete, prisma, userData, inputsById }) => {
                 // Initialize objects to store bot, message, and chat information
-                const botData: Record<string, BotData> = {};
-                const chatData: Record<string, ChatData> = {};
-                const messageData: Record<string, MessageData> = {};
+                const botData: Record<string, PreMapBotData> = {};
+                const chatData: Record<string, PreMapChatData> = {};
+                const messageData: Record<string, PreMapMessageData> = {};
                 // Find known create/update information. We'll query for the rest later.
                 for (const { node, input } of [...Create, ...Update]) {
                     // While messages can technically be created in multiple languages, we'll only worry about one
@@ -301,23 +303,36 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             }),
         },
         trigger: {
-            afterMutations: async ({ created, deletedIds, updated, preMap, prisma, userData }) => {
+            afterMutations: async ({ createdIds, deletedIds, updatedIds, preMap, prisma, userData }) => {
                 const messageData = preMap[__typename].messageData;
                 const botData = preMap[__typename].botData;
                 const chatData = preMap[__typename].chatData;
+                let messages: ChatMessage[] = [];
+                if (createdIds.length > 0 || updatedIds.length > 0) {
+                    const paginatedMessages = await readManyHelper({
+                        info: chatMessage_findMany,
+                        input: { ids: [...createdIds, ...updatedIds], take: createdIds.length + updatedIds.length },
+                        objectType: __typename,
+                        prisma,
+                        req: { session: { languages: userData.languages, users: [userData] } },
+                    });
+                    messages = paginatedMessages.edges.map(e => e.node);
+                }
                 // Call triggers
-                for (const c of created) {
+                for (const objectId of createdIds) {
                     // Common trigger logic
                     await Trigger(prisma, userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A
                         owner: { id: userData.id, __typename: "User" },
-                        object: {
-                            ...c,
-                            ...preMap[__typename].messageData[c.id],
-                        },
+                        objectId,
                         objectType: __typename,
+                    });
+                    await Trigger(prisma, userData.languages).chatMessageCreated({
+                        createdById: userData.id,
+                        data: messageData[objectId],
+                        message: messages.find(m => m.id === objectId) as ChatMessage,
                     });
                     // Determine which bots should respond, if any.
                     // Here are the conditions:
@@ -327,9 +342,9 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     // 4. If there is one bot in the chat and two participants (i.e. just you and the bot), the bot should respond.
                     // 5. Otherwise, we must check the message to see if any bots were mentioned
                     // Get message and bot data
-                    const message: MessageData = messageData[c.id];
-                    const chat: ChatData | undefined = message.chatId ? chatData[message.chatId] : undefined;
-                    const bots: BotData[] = chat?.botParticipants?.map(id => botData[id]).filter(b => b) ?? [];
+                    const message: PreMapMessageData = messageData[objectId];
+                    const chat: PreMapChatData | undefined = message.chatId ? chatData[message.chatId] : undefined;
+                    const bots: PreMapBotData[] = chat?.botParticipants?.map(id => botData[id]).filter(b => b) ?? [];
                     if (!chat) continue;
                     // Check condition 1
                     if (message.content.trim() === "") continue;
@@ -384,31 +399,33 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         }
                     }
                 }
-                for (const u of updated) {
+                for (const objectId of updatedIds) {
                     await Trigger(prisma, userData.languages).objectUpdated({
                         updatedById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A
                         owner: { id: userData.id, __typename: "User" },
-                        object: {
-                            ...u,
-                            ...preMap[__typename].messageData[u.id],
-                        },
+                        objectId,
                         objectType: __typename,
                         wasCompleteAndPublic: true, // N/A
                     });
+                    await Trigger(prisma, userData.languages).chatMessageUpdated({
+                        data: messageData[objectId],
+                        message: messages.find(m => m.id === objectId) as ChatMessage,
+                    });
                 }
-                for (const d of deletedIds) {
+                for (const objectId of deletedIds) {
                     await Trigger(prisma, userData.languages).objectDeleted({
                         deletedById: userData.id,
                         hasBeenTransferred: false, // N/A
                         hasParent: true, // N/A
-                        object: {
-                            id: d,
-                            ...preMap[__typename].messageData[d],
-                        },
+                        objectId,
                         objectType: __typename,
                         wasCompleteAndPublic: true, // N/A
+                    });
+                    await Trigger(prisma, userData.languages).chatMessageDeleted({
+                        data: messageData[objectId],
+                        messageId: objectId,
                     });
                 }
             },

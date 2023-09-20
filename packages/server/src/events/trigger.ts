@@ -1,7 +1,8 @@
-import { AwardCategory, BookmarkFor, CopyType, GqlModelType, ReactionFor, SubscribableObject } from "@local/shared";
+import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, ReactionFor, SubscribableObject } from "@local/shared";
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
 import { setupVerificationCode } from "../auth";
 import { io } from "../io";
+import { PreMapMessageData } from "../models/base";
 import { isObjectSubscribable, Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award, objectAwardCategory } from "./awards";
@@ -43,6 +44,48 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         if (emailAddress) await setupVerificationCode(emailAddress, prisma, languages);
         // Give the user an award
         Award(prisma, userId, languages).update("AccountNew", 1);
+    },
+    chatMessageCreated: async ({
+        createdById,
+        data,
+        message,
+    }: {
+        createdById: string,
+        data: PreMapMessageData,
+        message: ChatMessage,
+    }) => {
+        if (message.id && data.chatId) {
+            Notify(prisma, languages).pushMessageReceived(message.id, data.userId).toChatParticipants(data.chatId, createdById);
+            io.to(data.chatId).emit("message", message);
+        } else {
+            logger.error("Could not send notification or socket event for ChatMessage", { trace: "0494", message, data });
+        }
+    },
+    chatMessageUpdated: async ({
+        data,
+        message,
+    }: {
+        data: PreMapMessageData,
+        message: ChatMessage,
+    }) => {
+        if (data.chatId) {
+            io.to(data.chatId).emit("message", message);
+        } else {
+            logger.error("Could not send socket event for ChatMessage", { trace: "0496", message, data });
+        }
+    },
+    chatMessageDeleted: async ({
+        data,
+        messageId,
+    }: {
+        data: PreMapMessageData,
+        messageId: string,
+    }) => {
+        if (data.chatId) {
+            io.to(data.chatId).emit("deleteMessage", messageId);
+        } else {
+            logger.error("Could not send socket event for ChatMessage}", { trace: "0497", messageId, data });
+        }
     },
     issueActivity: async ({
         issueCreatedById,
@@ -110,7 +153,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         hasCompleteAndPublic,
         hasParent,
         owner,
-        object,
+        objectId,
         objectType,
         projectId,
     }: {
@@ -118,7 +161,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         hasCompleteAndPublic: boolean,
         hasParent: boolean,
         owner: Owner,
-        object: { id: string } & { [key: string]: any },
+        objectId: string,
         objectType: `${GqlModelType}`,
         projectId?: string,
     }) => {
@@ -131,14 +174,14 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If the object is public and complete, increase reputation score
         const reputationEvent = objectReputationEvent(objectType);
         if (!hasParent && reputationEvent && hasCompleteAndPublic) {
-            await Reputation().update(reputationEvent as any, prisma, createdById, object.id);
+            await Reputation().update(reputationEvent as any, prisma, createdById, objectId);
         }
         // Step 3
         // Determine if the object is subscribable
         const isSubscribable = isObjectSubscribable(objectType);
         // If the object was added to an organization, send notification to organization members
         if (isSubscribable && owner.__typename === "Organization") {
-            const notification = Notify(prisma, languages).pushNewObjectInOrganization(objectType, object.id, owner.id);
+            const notification = Notify(prisma, languages).pushNewObjectInOrganization(objectType, objectId, owner.id);
             // Send notification to admins, except the user who added it
             notification.toOrganization(owner.id, createdById);
             // Send notification to subscribers of the organization
@@ -147,7 +190,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Step 4
         // If the object was added to a project, send notification to project members
         if (isSubscribable && projectId) {
-            const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, object.id, projectId);
+            const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, objectId, projectId);
             // Send notification to object owner
             notification.toOwner(owner, createdById);
             // Send notification to subscribers of the project
@@ -158,19 +201,6 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         if (["Email", "Phone", "Wallet"].includes(objectType)) {
             // Send notification to user warning them that a new sign in method was added
             Notify(prisma, languages).pushNewDeviceSignIn().toUser(createdById);
-        }
-        // If object is a message, send notification and socket event to chat participants
-        if (["ChatMessage"].includes(objectType)) {
-            if (object.user?.id && object.chat?.id) {
-                Notify(prisma, languages).pushMessageReceived(object.id, object.user.id).toChatParticipants(object.chat.id, createdById);
-            } else {
-                logger.error(`Could not send notification for ChatMessage ${object.id}`, { trace: "0494" });
-            }
-            if (object.chat?.id) {
-                io.to(object.chat.id).emit("message", object);
-            } else {
-                logger.error(`Could not send socket event for ChatMessage ${object.id}`, { trace: "0495" });
-            }
         }
     },
     /**
@@ -190,7 +220,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         hasCompleteAndPublic,
         hasParent,
         owner,
-        object,
+        objectId,
         objectType,
         originalProjectId,
         projectId,
@@ -200,7 +230,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         hasCompleteAndPublic: boolean,
         hasParent: boolean,
         owner: Owner,
-        object: { id: string } & { [key: string]: any },
+        objectId: string,
         objectType: `${GqlModelType}`,
         originalProjectId?: string,
         projectId?: string,
@@ -212,7 +242,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             // If the object is trackable for reputation, increase reputation score
             const reputationEvent = objectReputationEvent(objectType);
             if (reputationEvent) {
-                await Reputation().update(reputationEvent as any, prisma, updatedById, object.id);
+                await Reputation().update(reputationEvent as any, prisma, updatedById, objectId);
             }
         }
         // Step 2
@@ -221,20 +251,11 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             // If the object is subscribable, send notification to project members
             const isSubscribable = isObjectSubscribable(objectType);
             if (isSubscribable) {
-                const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, object.id, projectId);
+                const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, objectId, projectId);
                 // Send notification to object owner
                 notification.toOwner(owner, updatedById);
                 // Send notification to subscribers of the project
                 notification.toSubscribers("Project", projectId, updatedById);
-            }
-        }
-        // Step 3
-        // If object is a message, send socket event to chat participants
-        if (["ChatMessage"].includes(objectType)) {
-            if (object.chat?.id) {
-                io.to(object.chat.id).emit("message", object);
-            } else {
-                logger.error(`Could not send socket event for ChatMessage ${object.id}`, { trace: "0496" });
             }
         }
     },
@@ -252,14 +273,14 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         deletedById,
         hasBeenTransferred,
         hasParent,
-        object,
+        objectId,
         objectType,
         wasCompleteAndPublic,
     }: {
         deletedById: string,
         hasBeenTransferred: boolean,
         hasParent: boolean,
-        object: { id: string } & { [key: string]: any },
+        objectId: string,
         objectType: `${GqlModelType}`,
         wasCompleteAndPublic: boolean,
     }) => {
@@ -269,16 +290,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             // If the object is trackable for reputation, decrease reputation score
             const reputationEvent = objectReputationEvent(objectType);
             if (reputationEvent) {
-                await Reputation().unCreateObject(prisma, object.id, deletedById);
-            }
-        }
-        // Step 2
-        // If object is a message, send socket event to chat participants
-        if (["ChatMessage"].includes(objectType)) {
-            if (object.chat?.id) {
-                io.to(object.chat.id).emit("deleteMessage", object);
-            } else {
-                logger.error(`Could not send socket event for ChatMessage ${object.id}`, { trace: "0497" });
+                await Reputation().unCreateObject(prisma, objectId, deletedById);
             }
         }
     },

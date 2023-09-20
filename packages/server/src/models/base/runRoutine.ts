@@ -97,28 +97,30 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             },
         },
         trigger: {
-            afterMutations: ({ created, updated, updateInputs, prisma, userData }) => {
+            afterMutations: ({ createInputs, createdIds, updatedIds, updateInputs, prisma, userData }) => {
                 // Handle run start trigger for every run with status InProgress
-                for (const c of created) {
-                    if (c.status === RunStatus.InProgress) {
-                        Trigger(prisma, userData.languages).runRoutineStart(c.id, userData.id, false);
+                for (const { id, status } of createInputs) {
+                    if (status === RunStatus.InProgress) {
+                        Trigger(prisma, userData.languages).runRoutineStart(id, userData.id, false);
                     }
                 }
-                for (let i = 0; i < updated.length; i++) {
+                for (let i = 0; i < updatedIds.length; i++) {
+                    const { id, status } = updateInputs[i];
+                    if (!status) continue;
                     // Handle run start trigger for every run with status InProgress, 
                     // that previously had a status of Scheduled
-                    if (updated[i].status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineStart(updated[i].id, userData.id, false);
+                    if (status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
+                        Trigger(prisma, userData.languages).runRoutineStart(id, userData.id, false);
                     }
                     // Handle run complete trigger for every run with status Completed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineComplete(updated[i].id, userData.id, false);
+                    if (status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
+                        Trigger(prisma, userData.languages).runRoutineComplete(id, userData.id, false);
                     }
                     // Handle run fail trigger for every run with status Failed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineFail(updated[i].id, userData.id, false);
+                    if (status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
+                        Trigger(prisma, userData.languages).runRoutineFail(id, userData.id, false);
                     }
                 }
             },

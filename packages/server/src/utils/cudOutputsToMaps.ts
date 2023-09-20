@@ -1,72 +1,77 @@
-import { Count, GqlModelType } from "@local/shared";
+import { GqlModelType } from "@local/shared";
+import { CustomError } from "../events";
 import { ModelLogicType } from "../models/types";
-import { RecursivePartial } from "../types";
-import { IdsByAction, IdsByType, InputsById } from "./types";
+import { IdsByAction, InputsById } from "./types";
 
 type CudOutputData<Model extends {
+    GqlCreate: ModelLogicType["GqlCreate"],
     GqlUpdate: ModelLogicType["GqlUpdate"],
     GqlModel: ModelLogicType["GqlModel"],
 }> = {
-    created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-    updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-    deleted: Count,
-    deletedIds: string[],
+    createdIds: string[],
+    createInputs: Model["GqlCreate"][],
+    updatedIds: string[],
     updateInputs: Model["GqlUpdate"][],
 }
 
 export const cudOutputsToMaps = async <Model extends {
+    GqlCreate: ModelLogicType["GqlCreate"],
     GqlUpdate: ModelLogicType["GqlUpdate"],
     GqlModel: ModelLogicType["GqlModel"],
 }>({
     idsByAction,
-    idsByType,
     inputsById,
-    topLevelResults,
 }: {
     idsByAction: IdsByAction,
-    idsByType: IdsByType,
     inputsById: InputsById,
-    topLevelResults: { __typename: `${GqlModelType}`, action: "Create" | "Update", result: object }[],
 }): Promise<{ [key in `${GqlModelType}`]?: CudOutputData<Model> }> => {
     const result: { [key in `${GqlModelType}`]?: CudOutputData<Model> } = {};
     // Helper function to initialize the result object for a given type
     const initResult = (type: `${GqlModelType}`) => {
         if (!result[type]) {
             result[type] = {
-                created: [],
-                updated: [],
-                deleted: { __typename: "Count" as const, count: 0 },
-                deletedIds: [],
+                createdIds: [],
+                createInputs: [],
+                updatedIds: [],
                 updateInputs: [],
             };
         }
     };
-    // If there are update actions, generate the update inputs TODO make sure that each input has a node. Not sure if this is always the case, but it should be
+    // Generate createInputs
+    if (idsByAction.Create) {
+        for (const createdId of idsByAction.Create) {
+            const node = inputsById[createdId].node;
+            if (node.action !== "Create") {
+                // If this error is thrown, there is a bug in cudInputsToMaps
+                throw new CustomError("0529", "InternalError", ["en"], { node, createdId });
+            }
+            const type = node.__typename;
+            initResult(type as GqlModelType);
+            result[type]!.createInputs.push(inputsById[createdId].input as Model["GqlCreate"]);
+        }
+    }
+    // Generate updateInputs
     if (idsByAction.Update) {
         for (const updatedId of idsByAction.Update) {
             const node = inputsById[updatedId].node;
-            // Check if the action is "Update" (although this might be redundant if we trust idsByAction)
-            if (node.action === "Update") {
-                const type = node.__typename;
-                initResult(type as GqlModelType);
-                // Populate the update input for the ID
-                result[type]!.updateInputs.push(inputsById[updatedId].input as Model["GqlUpdate"]);
+            if (node.action !== "Update") {
+                // If this error is thrown, there is a bug in cudInputsToMaps
+                throw new CustomError("0530", "InternalError", ["en"], { node, updatedId });
             }
+            const type = node.__typename;
+            initResult(type as GqlModelType);
+            // Populate the update input for the ID
+            result[type]!.updateInputs.push(inputsById[updatedId].input as Model["GqlUpdate"]);
         }
     }
-    // Loop through the top level results
-    for (const { __typename, action, result } of topLevelResults) {
-        initResult(__typename);
-        // If the action is "Create", add the output to the created array
-        if (action === "Create") {
-            result[__typename]!.created.push(result);
+    // Generate createdIds and updatedIds
+    for (const type of Object.keys(result) as GqlModelType[]) {
+        for (const createInput of result[type]!.createInputs) {
+            result[type]!.createdIds.push(createInput!.id);
         }
-        // If the action is "Update", add the output to the updated array
-        if (action === "Update") {
-            result[__typename]!.updated.push(result);
+        for (const updateInput of result[type]!.updateInputs) {
+            result[type]!.updatedIds.push(updateInput!.id);
         }
-        // TODO recurse
     }
-    // TODO populate created, updated, deleted, and deletedIds
     return result;
 };

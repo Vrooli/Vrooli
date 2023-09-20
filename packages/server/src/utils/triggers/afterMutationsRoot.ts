@@ -10,18 +10,18 @@ import { PrismaType, SessionUserToken } from "../../types";
  * because we might need to update additional versions not specified in the mutation
  * 2. Calculate data for and calls objectCreated/Updated/Deleted triggers
  */
-export const afterMutationsRoot = async ({ created, deletedIds, objectType, preMap, prisma, updated, userData }: {
-    created: { id: string }[],
+export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, preMap, prisma, updatedIds, userData }: {
+    createdIds: string[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
     preMap: PreMap,
     prisma: PrismaType,
-    updated: { id: string }[]
+    updatedIds: string[]
     userData: SessionUserToken,
 }) => {
     // Loop through created items
-    for (let i = 0; i < created.length; i++) {
-        const objectId = created[i].id;
+    for (let i = 0; i < createdIds.length; i++) {
+        const objectId = createdIds[i];
         // Get trigger info
         const {
             hasCompleteAndPublic,
@@ -34,7 +34,7 @@ export const afterMutationsRoot = async ({ created, deletedIds, objectType, preM
             hasCompleteAndPublic,
             hasParent,
             owner,
-            object: created[i],
+            objectId,
             objectType,
             // Projects are attached to versions, not root objects
             projectId: undefined,
@@ -52,8 +52,8 @@ export const afterMutationsRoot = async ({ created, deletedIds, objectType, preM
         }
     }
     // Loop through updated items
-    for (let i = 0; i < updated.length; i++) {
-        const objectId = updated[i].id;
+    for (let i = 0; i < updatedIds.length; i++) {
+        const objectId = updatedIds[i];
         // Get trigger info
         const {
             hasCompleteAndPublic,
@@ -67,7 +67,7 @@ export const afterMutationsRoot = async ({ created, deletedIds, objectType, preM
             hasCompleteAndPublic,
             hasParent,
             owner,
-            object: updated[i],
+            objectId,
             objectType,
             // Projects are attached to versions, not root objects
             originalProjectId: undefined,
@@ -100,7 +100,7 @@ export const afterMutationsRoot = async ({ created, deletedIds, objectType, preM
             deletedById: userData.id,
             hasBeenTransferred,
             hasParent,
-            object: { id: objectId },
+            objectId,
             objectType,
             wasCompleteAndPublic,
         });

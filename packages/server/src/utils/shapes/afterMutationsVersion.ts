@@ -7,12 +7,12 @@ import { PrismaType, SessionUserToken } from "../../types";
  * versionIndex and isLatest flags. Cannot be done in pre 
  * because we might need to update additional versions not specified in the mutation
  */
-export const afterMutationsVersion = async ({ created, deletedIds, objectType, prisma, updated, userData }: {
-    created: { id: string }[],
+export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType, prisma, updatedIds, userData }: {
+    createdIds: string[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
     prisma: PrismaType,
-    updated: { id: string }[]
+    updatedIds: string[]
     userData: SessionUserToken,
 }) => {
     // Get prisma delegate for root object
@@ -24,8 +24,8 @@ export const afterMutationsVersion = async ({ created, deletedIds, objectType, p
     );
     // Get ids from created, updated, and deletedIds
     const versionIds = [
-        ...created.map(({ id }) => id),
-        ...updated.map(({ id }) => id),
+        ...createdIds,
+        ...updatedIds,
         ...deletedIds,
     ];
     // Use version ids to query root objects

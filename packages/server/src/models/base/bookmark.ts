@@ -118,8 +118,8 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
                 if (beforeDeletedData[__typename]) beforeDeletedData[__typename] = { ...beforeDeletedData[__typename], ...grouped };
                 else beforeDeletedData[__typename] = grouped;
             },
-            afterMutations: async ({ beforeDeletedData, created, prisma, userData }) => {
-                for (const c of created) {
+            afterMutations: async ({ beforeDeletedData, createInputs, prisma, userData }) => {
+                for (const c of createInputs) {
                     // Find type and id of bookmarked object
                     const [objectRel, objectId] = findFirstRel(c, ["apiId", "commentId", "issueId", "noteId", "organizationId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "smartContractId", "standardId", "tagId", "userId"]);
                     if (!objectRel || !objectId) return;

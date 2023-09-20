@@ -70,7 +70,7 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
             },
         },
         trigger: {
-            afterMutations: ({ created, updated, prisma, userData }) => {
+            afterMutations: ({ createdIds, updatedIds, prisma, userData }) => {
                 // TODO should check both creates and updates if schedule is starting soon (i.e. before cron job runs), and handle accordingly
             },
         },

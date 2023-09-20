@@ -48,14 +48,14 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            afterMutations: async ({ created, prisma, userData }) => {
-                for (const object of created) {
+            afterMutations: async ({ createdIds, prisma, userData }) => {
+                for (const objectId of createdIds) {
                     await Trigger(prisma, userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A
                         owner: { id: userData.id, __typename: "User" },
-                        object,
+                        objectId,
                         objectType: __typename,
                     });
                 }

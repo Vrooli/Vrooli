@@ -1,7 +1,7 @@
-import { Count, DotNotation, GqlModelType, ObjectLimit } from "@local/shared";
+import { DotNotation, GqlModelType, ObjectLimit } from "@local/shared";
 import { ObjectSchema } from "yup";
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
-import { PrismaType, PromiseOrValue, RecursivePartial, SessionUserToken } from "../types";
+import { PrismaType, PromiseOrValue, SessionUserToken } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { InputNode, InputsById, QueryAction } from "../utils/types";
@@ -484,12 +484,12 @@ export type Mutater<Model extends {
          * unless you have to (e.g. adding a new version inbetween others will trigger index updates 
          * on versions not specified in the mutation)
          */
-        afterMutations?: ({ created, deleted, prisma, updated, updateInputs, userData }: {
+        afterMutations?: ({ createdIds, deletedIds, prisma, updatedIds, updateInputs, userData }: {
             beforeDeletedData: { [key in `${GqlModelType}`]?: object },
-            created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            deleted: Count,
+            createdIds: string[],
+            createInputs: Model["GqlCreate"][],
             deletedIds: string[],
-            updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
+            updatedIds: string[],
             updateInputs: Model["GqlUpdate"][],
             preMap: PreMap,
             prisma: PrismaType,

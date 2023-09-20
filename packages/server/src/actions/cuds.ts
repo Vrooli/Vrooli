@@ -1,4 +1,4 @@
-import { Count, DUMMY_ID, GqlModelType } from "@local/shared";
+import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { modelToGql, selectHelper } from "../builders";
 import { PartialGraphQLInfo, PrismaCreate, PrismaUpdate } from "../builders/types";
 import { CustomError } from "../events";
@@ -53,13 +53,11 @@ export async function cudHelper({
     }
     // Group all data, including relations, relations' relations, etc. into various maps. 
     // These are useful for validation and pre-shaping data
-    console.time("cudInputsToMaps");
     const { idsByAction, idsByType, inputsById, inputsByType } = await cudInputsToMaps({
         inputData,
         prisma,
         languages: userData.languages,
     });
-    console.timeEnd("cudInputsToMaps");
     const preMap: PreMap = {};
     // For each type, calculate pre-shape data (if applicable). 
     // This often also doubles as a way to perform custom input validation
@@ -94,7 +92,7 @@ export async function cudHelper({
     }
     // Initialize data for afterMutations trigger
     const topLevelResults: { __typename: `${GqlModelType}`, action: "Create" | "Update", result: object }[] = [];
-    const deletedCounts: { [key in GqlModelType]?: Count } = {};
+    const deletedIds: { [key in GqlModelType]?: string[] } = {};
     const beforeDeletedData: { [key in GqlModelType]?: object } = {};
     // Loop through each type
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
@@ -163,30 +161,36 @@ export async function cudHelper({
             // Delete
             const where = { id: { in: deletingIds } };
             try {
-                const deleted = await delegate(prisma).deleteMany({ where }).then(({ count }) => ({ __typename: "Count" as const, count }));
-                deletedCounts[objectType] = deleted;
-                for (const { index } of Delete) { result[index] = true; }
+                // Before deleting, check which ids exist
+                const existingIds: string[] = await delegate(prisma).findMany({ where, select: { id: true } }).then(x => x.map(({ id }) => id));
+                // Perform delete
+                await delegate(prisma).deleteMany({ where }).then(({ count }) => ({ __typename: "Count" as const, count }));
+                // Update deletedIds
+                deletedIds[objectType] = existingIds;
+                // Set every deleted id to true in main result
+                for (const id of existingIds) {
+                    const index = inputData.findIndex(({ input }) => input === id);
+                    if (index >= 0) result[index] = true;
+                }
             } catch (error) {
                 throw new CustomError("0417", "InternalError", userData.languages, { error, where, objectType });
             }
         }
     }
     // Similar to how we grouped inputs, now we need to group outputs
-    console.time("cudOutputsToMaps");
-    const outputsByType = cudOutputsToMaps({ idsByAction, idsByType, inputsById, topLevelResults });
-    console.timeEnd("cudOutputsToMaps");
+    const outputsByType = cudOutputsToMaps({ idsByAction, inputsById });
     // Call afterMutations function for each type
-    for (const [type, { created, deleted, deletedIds, updated, updateInputs }] of Object.entries(outputsByType)) {
+    for (const [type, { createInputs, createdIds, updatedIds, updateInputs }] of Object.entries(outputsByType)) {
         const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "afterMutations type");
         if (!mutate.trigger?.afterMutations) continue;
         await mutate.trigger.afterMutations({
             beforeDeletedData,
-            created,
-            deleted,
-            deletedIds,
+            createdIds,
+            createInputs,
+            deletedIds: deletedIds[type as GqlModelType] || [],
             preMap,
             prisma,
-            updated,
+            updatedIds,
             updateInputs,
             userData,
         });

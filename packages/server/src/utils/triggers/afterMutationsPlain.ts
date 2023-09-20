@@ -8,27 +8,27 @@ import { PrismaType, SessionUserToken } from "../../types";
  * Calculate data for and calls objectCreated/Updated/Deleted triggers
  */
 export const afterMutationsPlain = async ({
-    created,
+    createdIds,
     deletedIds,
     objectType,
     ownerOrganizationField,
     ownerUserField,
     prisma,
-    updated,
+    updatedIds,
     userData,
 }: {
-    created: { id: string }[],
+    createdIds: string[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
     ownerOrganizationField?: string,
     ownerUserField?: string,
     prisma: PrismaType,
-    updated: { id: string }[]
+    updatedIds: string[]
     userData: SessionUserToken,
 }) => {
     // Find owners of created and updated items
     const ownerMap: { [key: string]: { id: string, __typename: "User" | "Organization" } } = {};
-    const createAndUpdateIds = [...created.map(c => c.id), ...updated.map(u => u.id)];
+    const createAndUpdateIds = [...createdIds, ...updatedIds];
     const { delegate } = getLogic(["delegate"], objectType, userData.languages, "afterMutationsPlain");
     // Create select object depending on whether ownerOrganizationField and ownerUserField are defined
     const select = { id: true };
@@ -57,36 +57,36 @@ export const afterMutationsPlain = async ({
         }
     }
     // Loop through created items
-    for (const c of created) {
+    for (const objectId of createdIds) {
         Trigger(prisma, userData.languages).objectCreated({
             createdById: userData.id,
             hasCompleteAndPublic: true, // N/A
             hasParent: false, // N/A
-            owner: ownerMap[c.id],
-            object: c,
+            owner: ownerMap[objectId],
+            objectId,
             objectType,
         });
     }
     // Loop through updated items
-    for (const u of updated) {
+    for (const objectId of updatedIds) {
         Trigger(prisma, userData.languages).objectUpdated({
             updatedById: userData.id,
             hasCompleteAndPublic: true, // Not applicable
             hasParent: false, // Not applicable
-            owner: ownerMap[u.id],
-            object: u,
+            owner: ownerMap[objectId],
+            objectId,
             objectType,
             wasCompleteAndPublic: true, // Not applicable
         });
     }
     // Loop through deleted items
-    for (const d of deletedIds) {
+    for (const objectId of deletedIds) {
         Trigger(prisma, userData.languages).objectDeleted({
             deletedById: userData.id,
             wasCompleteAndPublic: true, // Not applicable
             hasBeenTransferred: true, // Not applicable
             hasParent: false, // Not applicable
-            object: { id: d },
+            objectId,
             objectType,
         });
     }

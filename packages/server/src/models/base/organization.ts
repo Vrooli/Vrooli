@@ -83,8 +83,8 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
             }),
         },
         trigger: {
-            afterMutations: async ({ created, prisma, userData }) => {
-                for (const { id: organizationId } of created) {
+            afterMutations: async ({ createdIds, prisma, userData }) => {
+                for (const organizationId of createdIds) {
                     // Upsert "Admin" role (in case they already included it in the request). 
                     // Trying to connect you as a member again shouldn't throw an error (hopefully)
                     await prisma.role.upsert({

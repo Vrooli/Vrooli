@@ -125,7 +125,7 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            afterMutations: async ({ created, prisma, userData }) => {
+            afterMutations: async ({ createdIds, prisma, userData }) => {
                 //TODO If starting a chat with a bot (not Valyxa, since we create an initial message in the 
                 // UI for speed), allow the bot to send a message to the chat
             },
