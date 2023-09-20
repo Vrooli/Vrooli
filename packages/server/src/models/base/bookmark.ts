@@ -94,7 +94,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
             }),
         },
         trigger: {
-            beforeDeleted: async ({ deletingIds, prisma }) => {
+            beforeDeleted: async ({ beforeDeletedData, deletingIds, prisma }) => {
                 // Grab bookmarked object id and type
                 const deleting = await prisma.bookmark.findMany({
                     where: { id: { in: deletingIds } },
@@ -114,7 +114,9 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
                     acc[objectType].push(objectId);
                     return acc;
                 }, {});
-                return grouped;
+                // Add result to beforeDeletedData
+                if (beforeDeletedData[__typename]) beforeDeletedData[__typename] = { ...beforeDeletedData[__typename], ...grouped };
+                else beforeDeletedData[__typename] = grouped;
             },
             afterMutations: async ({ beforeDeletedData, created, prisma, userData }) => {
                 for (const c of created) {
@@ -130,7 +132,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
                     Trigger(prisma, userData.languages).objectBookmark(true, objectType, objectId, userData.id);
                 }
                 // For each bookmarked object type, decrement the bookmark count
-                for (const [objectType, objectIds] of Object.entries(beforeDeletedData)) {
+                for (const [objectType, objectIds] of Object.entries((beforeDeletedData[__typename] ?? {}) as { [key in BookmarkFor]?: string[] })) {
                     const { delegate } = getLogic(["delegate"], objectType as GqlModelType, userData.languages, "bookmark onDeleted");
                     await (delegate(prisma) as any).updateMany({ where: { id: { in: objectIds } }, data: { bookmarks: { decrement: 1 } } });
                     // For each bookmarked object, trigger bookmarkDeleted event

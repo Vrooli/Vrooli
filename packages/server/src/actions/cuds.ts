@@ -7,6 +7,7 @@ import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
 import { getAuthenticatedData } from "../utils";
 import { cudInputsToMaps } from "../utils/cudInputsToMaps";
+import { cudOutputsToMaps } from "../utils/cudOutputsToMaps";
 import { CudInputData } from "../utils/types";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 
@@ -91,14 +92,14 @@ export async function cudHelper({
         }
         topInputsByType[objectType]![actionType].push({ index, input: input as any });
     }
+    // Initialize data for afterMutations trigger
+    const topLevelResults: { __typename: `${GqlModelType}`, action: "Create" | "Update", result: object }[] = [];
+    const deletedCounts: { [key in GqlModelType]?: Count } = {};
+    const beforeDeletedData: { [key in GqlModelType]?: object } = {};
     // Loop through each type
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
         const { delegate, idField, mutate } = getLogic(["delegate", "idField", "mutate"], objectType as GqlModelType, userData.languages, "cudHelper.createOne");
-        const created: any[] = [];
-        const updateInputs: PrismaUpdate[] = [];
-        const updated: any[] = [];
         const deletingIds = Delete.map(({ input }) => input);
-        let deleted: Count = { __typename: "Count" as const, count: 0 };
         // Create
         if (Create.length > 0) {
             for (const { index } of Create) {
@@ -125,21 +126,13 @@ export async function cudHelper({
                 // Convert
                 const converted = modelToGql<object>(createResult, partialInfo);
                 result[index] = converted;
-                created.push(converted);
+                topLevelResults.push({ __typename: objectType, action: "Create", result: converted });
             }
-            // // Call create trigger TODO
-            // mutate.trigger?.onCreated && await mutate.trigger.onCreated({
-            //     created,
-            //     preMap,
-            //     prisma,
-            //     userData,
-            // });
         }
         // Update
         if (Update.length > 0) {
             for (const { index } of Update) {
                 const { input, objectType } = inputData[index] as { input: PrismaUpdate, objectType: GqlModelType | `${GqlModelType}` };
-                updateInputs.push(input);
                 const data = mutate.shape.update ? await mutate.shape.update({ data: input, preMap, prisma, userData }) : input;
                 // Update
                 let updateResult: object = {};
@@ -157,74 +150,46 @@ export async function cudHelper({
                 // Convert
                 const converted = modelToGql<object>(updateResult, partialInfo);
                 result[index] = converted;
-                updated.push(converted);
+                topLevelResults.push({ __typename: objectType, action: "Update", result: converted });
             }
-            // // Call update trigger //TODO
-            // mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({
-            //     preMap,
-            //     prisma,
-            //     updated,
-            //     updateInputs,
-            //     userData,
-            // });
         }
         // Delete
         if (Delete.length > 0) {
             // Call beforeDeleted
-            let beforeDeletedData: object = [];
+            const beforeDeletedData: object = [];
             if (mutate.trigger?.beforeDeleted) {
-                beforeDeletedData = await mutate.trigger.beforeDeleted({ deletingIds, prisma, userData });
+                await mutate.trigger.beforeDeleted({ beforeDeletedData, deletingIds, prisma, userData });
             }
             // Delete
             const where = { id: { in: deletingIds } };
             try {
-                deleted = await delegate(prisma).deleteMany({ where }).then(({ count }) => ({ __typename: "Count" as const, count }));
+                const deleted = await delegate(prisma).deleteMany({ where }).then(({ count }) => ({ __typename: "Count" as const, count }));
+                deletedCounts[objectType] = deleted;
                 for (const { index } of Delete) { result[index] = true; }
             } catch (error) {
                 throw new CustomError("0417", "InternalError", userData.languages, { error, where, objectType });
             }
-            // // Call onDeleted TODO
-            // mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({
-            //     beforeDeletedData,
-            //     deletedIds: deletingIds,
-            //     preMap,
-            //     prisma,
-            //     userData,
-            // });
         }
-        // // Perform custom triggers for mutate.trigger.onCommon TODO
-        // // NOTE: This is only for top-level objects, not relations
-        // if (Create.length > 0 || Update.length > 0 || Delete.length > 0) {
-        //     mutate.trigger?.onCommon && await mutate.trigger.onCommon({
-        //         created,
-        //         deleted,
-        //         deletedIds: deletingIds,
-        //         preMap,
-        //         prisma,
-        //         updated,
-        //         updateInputs,
-        //         userData,
-        //     });
-        // }
     }
-    // For each type (including relations), calculate post-shape data (e.g. updating indexes)
-    // TODO need to somehow get created, updated, and deleted info of relations
-    // TODO for when I start looking at this again: Should get rid of triggers altogether, in favor of pre and post. 
-    // If there are any situations that specifically required a trigger before (e.g. if role creation could also create an organization 
-    // instead of connecting), then we can use the tree node to check if parent is "Admin" role before creating the "Admin" role. But 
-    // notice how this even isn't a real example. I'm not sure if triggering something only on the top-level object is even useful anymore.
-    // for (const type in inputsByType) {
-    //     const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "postshape type");
-    //     if (mutate.shape.post) {
-    //         await mutate.shape.post({
-    //             created,
-    //             deletedIds: deleteMany ?? [],
-    //             preMap,
-    //             prisma,
-    //             updated,
-    //             userData,
-    //         });
-    //     }
-    // }
+    // Similar to how we grouped inputs, now we need to group outputs
+    console.time("cudOutputsToMaps");
+    const outputsByType = cudOutputsToMaps({ idsByAction, idsByType, inputsById, topLevelResults });
+    console.timeEnd("cudOutputsToMaps");
+    // Call afterMutations function for each type
+    for (const [type, { created, deleted, deletedIds, updated, updateInputs }] of Object.entries(outputsByType)) {
+        const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "afterMutations type");
+        if (!mutate.trigger?.afterMutations) continue;
+        await mutate.trigger.afterMutations({
+            beforeDeletedData,
+            created,
+            deleted,
+            deletedIds,
+            preMap,
+            prisma,
+            updated,
+            updateInputs,
+            userData,
+        });
+    }
     return result;
 }

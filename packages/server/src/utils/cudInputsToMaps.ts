@@ -72,8 +72,7 @@ const convertPlaceholders = async ({
     }
 };
 
-// TODO for morning:
-// 2. Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
+// TODO Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
 export const cudInputsToMaps = async ({
     inputData,
     prisma,

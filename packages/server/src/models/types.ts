@@ -463,20 +463,21 @@ export type Mutater<Model extends {
     /**
      * Triggers after (or before if specified) a mutation is performed on the object. Useful for sending notifications,
      * tracking awards, and updating reputation.
-     * 
-     * NOTE: This is only called for top-level objects, not relationships. If you need to update 
-     * data like indexes, hasCompleteVersion, etc., or initiate triggers, you should do it in the shape.pre or shape.post functions
      */
     trigger?: {
         /**
          * Triggered before an object is deleted. This is useful if you need to find data about 
-         * the deleting objects' relationships, which may be cascaded on delete
+         * the deleting objects' relationships, which may be cascaded on delete. 
+         * 
+         * NOTE: This is only called for top-level objects, not relationships. Handle accordingly.
          */
-        beforeDeleted?: ({ deletingIds, prisma, userData }: {
+        beforeDeleted?: ({ beforeDeletedData, deletingIds, prisma, userData }: {
+            /** Result is added to this object */
+            beforeDeletedData: { [key in `${GqlModelType}`]?: object },
             deletingIds: string[],
             prisma: PrismaType,
             userData: SessionUserToken,
-        }) => PromiseOrValue<any>,
+        }) => PromiseOrValue<void>,
         /**
          * A trigger that includes create, update, and delete mutations. This can be used to 
          * send notifications, track awards, update reputation, etc. Try not to mutate objects here, 
@@ -484,7 +485,7 @@ export type Mutater<Model extends {
          * on versions not specified in the mutation)
          */
         afterMutations?: ({ created, deleted, prisma, updated, updateInputs, userData }: {
-            beforeDeletedData: object,
+            beforeDeletedData: { [key in `${GqlModelType}`]?: object },
             created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
             deleted: Count,
             deletedIds: string[],
