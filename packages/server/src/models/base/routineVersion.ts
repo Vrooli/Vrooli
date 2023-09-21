@@ -98,7 +98,7 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
                     complexity: rest.preMap[__typename][data.id]?.complexity ?? 0,
                     apiCallData: noNull(data.apiCallData),
                     isAutomatable: noNull(data.isAutomatable),
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
                     smartContractCallData: noNull(data.smartContractCallData),
                     versionLabel: data.versionLabel,

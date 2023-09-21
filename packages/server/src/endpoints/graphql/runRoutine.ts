@@ -20,7 +20,7 @@ export const typeDef = gql`
 
     input RunRoutineCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         completedComplexity: Int
         contextSwitches: Int
         name: String!

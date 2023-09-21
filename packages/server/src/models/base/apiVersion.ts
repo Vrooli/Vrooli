@@ -63,7 +63,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                 id: data.id,
                 callLink: data.callLink,
                 documentationLink: noNull(data.documentationLink),
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),

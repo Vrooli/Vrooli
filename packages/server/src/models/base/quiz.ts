@@ -43,7 +43,7 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 maxAttempts: noNull(data.maxAttempts),
                 randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
                 revealCorrectAnswers: noNull(data.revealCorrectAnswers),

@@ -51,6 +51,7 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
+                isPrivate: data.isPrivate,
                 referencing: noNull(data.referencing),
                 createdBy: { connect: { id: rest.userData.id } },
                 ...((data.forObjectConnect && data.forObjectType) ? ({ [forMapper[data.forObjectType]]: { connect: { id: data.forObjectConnect } } }) : {}),
@@ -58,6 +59,7 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
                 ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
+                isPrivate: noNull(data.isPrivate),
                 ...(data.acceptedAnswerConnect ? {
                     answers: {
                         update: {

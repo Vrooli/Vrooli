@@ -26,7 +26,7 @@ export const typeDef = gql`
 
     input ApiCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         permissions: String
         ownedByUserConnect: ID
         ownedByOrganizationConnect: ID

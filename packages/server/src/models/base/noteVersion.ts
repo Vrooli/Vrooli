@@ -61,7 +61,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                 const translationCreates = await Promise.all(translationCreatesPromises ?? []);
                 return {
                     id: data.id,
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
                     translations: {

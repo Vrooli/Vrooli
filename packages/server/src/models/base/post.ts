@@ -39,7 +39,7 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isPinned: noNull(data.isPinned),
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
                 user: !data.organizationConnect ? { connect: { id: rest.userData.id } } : undefined,
                 ...(await shapeHelper({ relation: "repostedFrom", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Post", parentRelationshipName: "reposts", data, ...rest })),

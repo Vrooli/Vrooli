@@ -34,7 +34,7 @@ export const typeDef = gql`
 
     input QuestionCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         referencing: String
         forObjectType: QuestionForType
         forObjectConnect: ID

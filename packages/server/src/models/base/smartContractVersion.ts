@@ -56,7 +56,7 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
                 content: data.content,
                 contractType: data.contractType,
                 default: noNull(data.default),
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),

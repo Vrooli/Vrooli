@@ -144,7 +144,7 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                 return {
                     id: data.id,
                     default: noNull(data.default),
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
                     props: sortify(data.props, rest.userData.languages),

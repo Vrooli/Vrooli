@@ -31,7 +31,7 @@ export const typeDef = gql`
     input RoutineCreateInput {
         id: ID!
         isInternal: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         permissions: String
         parentConnect: ID
         ownedByUserConnect: ID

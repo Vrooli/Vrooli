@@ -88,7 +88,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
                 botSettings: data.botSettings,
                 handle: data.handle ?? null,
                 isBot: true,
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 name: data.name,
                 profileImage: noNull(data.profileImage),
                 invitedByUser: { connect: { id: rest.userData.id } },

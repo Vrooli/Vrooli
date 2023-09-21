@@ -24,7 +24,7 @@ export const typeDef = gql`
         id: ID!
         default: String
         isComplete: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         isFile: Boolean
         props: String!
         standardType: String!

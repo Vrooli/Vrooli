@@ -66,7 +66,7 @@ export type Api = {
 
 export type ApiCreateInput = {
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -223,7 +223,7 @@ export type ApiVersionCreateInput = {
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<ApiCreateInput>;
@@ -558,7 +558,7 @@ export type BotCreateInput = {
   botSettings: Scalars['String'];
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   profileImage?: InputMaybe<Scalars['Upload']>;
   translationsCreate?: InputMaybe<Array<UserTranslationCreateInput>>;
@@ -3285,7 +3285,7 @@ export type Note = {
 
 export type NoteCreateInput = {
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -3414,7 +3414,7 @@ export type NoteVersion = {
 export type NoteVersionCreateInput = {
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<NoteCreateInput>;
   translationsCreate?: InputMaybe<Array<NoteVersionTranslationCreateInput>>;
@@ -3729,7 +3729,7 @@ export type OrganizationCreateInput = {
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
   permissions?: InputMaybe<Scalars['String']>;
   profileImage?: InputMaybe<Scalars['Upload']>;
@@ -4018,7 +4018,7 @@ export type Post = {
 export type PostCreateInput = {
   id: Scalars['ID'];
   isPinned?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   organizationConnect?: InputMaybe<Scalars['ID']>;
   repostedFromConnect?: InputMaybe<Scalars['ID']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
@@ -4205,7 +4205,7 @@ export type Project = {
 export type ProjectCreateInput = {
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -4510,7 +4510,7 @@ export type ProjectVersionCreateInput = {
   directoriesCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<ProjectCreateInput>;
   suggestedNextByProjectConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -5803,7 +5803,7 @@ export type QuestionCreateInput = {
   forObjectConnect?: InputMaybe<Scalars['ID']>;
   forObjectType?: InputMaybe<QuestionForType>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   referencing?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
@@ -6032,7 +6032,7 @@ export type QuizAttemptYou = {
 
 export type QuizCreateInput = {
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   maxAttempts?: InputMaybe<Scalars['Int']>;
   pointsToPass?: InputMaybe<Scalars['Int']>;
   projectConnect?: InputMaybe<Scalars['ID']>;
@@ -7067,7 +7067,7 @@ export type Routine = {
 export type RoutineCreateInput = {
   id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -7219,7 +7219,7 @@ export type RoutineVersionCreateInput = {
   inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
   outputsCreate?: InputMaybe<Array<RoutineVersionOutputCreateInput>>;
@@ -7547,7 +7547,7 @@ export type RunProjectCreateInput = {
   completedComplexity?: InputMaybe<Scalars['Int']>;
   contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   organizationConnect?: InputMaybe<Scalars['ID']>;
   projectVersionConnect: Scalars['ID'];
@@ -7769,7 +7769,7 @@ export type RunRoutineCreateInput = {
   contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
   inputsCreate?: InputMaybe<Array<RunRoutineInputCreateInput>>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   organizationConnect?: InputMaybe<Scalars['ID']>;
   routineVersionConnect: Scalars['ID'];
@@ -8273,7 +8273,7 @@ export type SmartContract = {
 
 export type SmartContractCreateInput = {
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -8404,7 +8404,7 @@ export type SmartContractVersionCreateInput = {
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect: Scalars['ID'];
   rootCreate?: InputMaybe<SmartContractCreateInput>;
@@ -8568,7 +8568,7 @@ export type Standard = {
 export type StandardCreateInput = {
   id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -8702,7 +8702,7 @@ export type StandardVersionCreateInput = {
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isFile?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   props: Scalars['String'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect: Scalars['ID'];

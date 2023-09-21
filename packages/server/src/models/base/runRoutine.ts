@@ -67,7 +67,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches: noNull(data.contextSwitches),
                     embeddingNeedsUpdate: true,
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
                     ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),

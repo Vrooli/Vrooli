@@ -49,7 +49,7 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
                     bannerImage: data.bannerImage,
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     permissions: JSON.stringify({}), //TODO
                     profileImage: data.profileImage,
                     createdBy: { connect: { id: rest.userData.id } },

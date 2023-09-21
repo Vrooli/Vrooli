@@ -17,7 +17,7 @@ export const typeDef = gql`
         bannerImage: Upload
         handle: String
         isOpenToNewMembers: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         permissions: String
         profileImage: Upload
         memberInvitesCreate: [MemberInviteCreateInput!]

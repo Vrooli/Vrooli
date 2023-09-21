@@ -145,8 +145,12 @@ export async function maxObjectsCheck(
             // Find owner and object type
             const owners = validate.owner(combinedData, userData.id);
             // Increment count for owner
-            const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
-            if (!ownerId) throw new CustomError("0310", "InternalError", userData.languages);
+            let ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
+            if (!ownerId) {
+                // Special case: If creating a bot, the bot is owned by the user who created it
+                if (typename === "User" && Object.prototype.hasOwnProperty.call(combinedData, "botSettings")) ownerId = userData.id;
+                else throw new CustomError("0310", "InternalError", userData.languages);
+            }
             // Initialize shape of counts for this owner
             counts[typename] = counts[typename] || {};
             counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };
