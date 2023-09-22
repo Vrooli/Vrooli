@@ -1,5 +1,6 @@
 import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
+import { getLogic } from "../getters";
 import { ModelLogicType } from "../models/types";
 import { IdsByAction, InputsById } from "./types";
 
@@ -14,7 +15,7 @@ type CudOutputData<Model extends {
     updateInputs: Model["GqlUpdate"][],
 }
 
-export const cudOutputsToMaps = async <Model extends {
+export const cudOutputsToMaps = <Model extends {
     GqlCreate: ModelLogicType["GqlCreate"],
     GqlUpdate: ModelLogicType["GqlUpdate"],
     GqlModel: ModelLogicType["GqlModel"],
@@ -24,7 +25,7 @@ export const cudOutputsToMaps = async <Model extends {
 }: {
     idsByAction: IdsByAction,
     inputsById: InputsById,
-}): Promise<{ [key in `${GqlModelType}`]?: CudOutputData<Model> }> => {
+}): { [key in `${GqlModelType}`]?: CudOutputData<Model> } => {
     const result: { [key in `${GqlModelType}`]?: CudOutputData<Model> } = {};
     // Helper function to initialize the result object for a given type
     const initResult = (type: `${GqlModelType}`) => {
@@ -66,11 +67,12 @@ export const cudOutputsToMaps = async <Model extends {
     }
     // Generate createdIds and updatedIds
     for (const type of Object.keys(result) as GqlModelType[]) {
+        const { idField } = getLogic(["idField"], type, ["en"], "cudOutputsToMaps");
         for (const createInput of result[type]!.createInputs) {
-            result[type]!.createdIds.push(createInput!.id);
+            result[type]!.createdIds.push((createInput as { [key in typeof idField]: string })[idField]);
         }
         for (const updateInput of result[type]!.updateInputs) {
-            result[type]!.updatedIds.push(updateInput!.id);
+            result[type]!.updatedIds.push((updateInput as { [key in typeof idField]: string })[idField]);
         }
     }
     return result;

@@ -17,6 +17,8 @@ import { AddIcon, BotIcon, EditIcon, ErrorIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
+import { getDisplay } from "utils/display/listTools";
+import { fontSizeToPixels } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
 
@@ -126,6 +128,7 @@ const ChatBubbleReactions = ({
     handleReactionAdd: (emoji: string) => unknown,
     isBot: boolean,
     isOwn: boolean,
+    isUnsent: boolean,
     messageId: string,
     reactions: ReactionSummary[],
 }) => {
@@ -160,7 +163,7 @@ const ChatBubbleReactions = ({
                 sx={{
                     background: palette.background.paper,
                     color: palette.background.textPrimary,
-                    borderRadius: 1,
+                    borderRadius: "0 0 8px 8px",
                     overflow: "overlay",
                 }}
             >
@@ -194,7 +197,7 @@ const ChatBubbleReactions = ({
                     onSelect={onReactionAdd}
                 />
             </Stack>
-            {isBot && <Stack direction="row" spacing={1}>
+            {isBot && <Stack direction="row">
                 <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
             </Stack>}
         </Box>
@@ -308,30 +311,62 @@ export const ChatBubble = ({
         });
     };
 
+    const { name, handle, adornments } = useMemo(() => {
+        const { title, adornments } = getDisplay(message.user);
+        return {
+            name: title,
+            handle: message.user?.handle,
+            adornments,
+        };
+    }, [message.user]);
+
     return (
-        <Stack
+        <Box
             key={index}
-            direction="column"
-            spacing={1}
-            p={2}
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                padding: "8px",
+            }}
         >
             {/* User name display if it's not your message */}
-            {!isOwn && (
+            {/* {!isOwn && (
                 <Typography variant="body2">
                     {message.user?.name ?? message.user?.handle}
                 </Typography>
+            )} */}
+            {!isOwn && (
+                <Stack direction="row" alignItems="center" spacing={0.5} mb={0.5}>
+                    <Typography variant="body2">
+                        {name}
+                    </Typography>
+                    {adornments.length > 0 && adornments.map((Adornment, index) => (
+                        <Box key={index} sx={{
+                            width: fontSizeToPixels("0.85rem") * Number("1.5"),
+                            height: fontSizeToPixels("0.85rem") * Number("1.5"),
+                        }}>
+                            {Adornment}
+                        </Box>
+                    ))}
+                    {handle && (
+                        <Typography variant="body2" color="textSecondary">
+                            @{handle}
+                        </Typography>
+                    )}
+                </Stack>
             )}
             {/* Avatar, chat bubble, and status indicator */}
-            <Stack direction="row" spacing={1} justifyContent={isOwn ? "flex-end" : "flex-start"}>
+            <Stack direction="row" justifyContent={isOwn ? "flex-end" : "flex-start"}>
                 {!isOwn && (
                     <Avatar
                         src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, 50)}
-                        alt={message.user?.name ?? message.user?.handle}
+                        alt={message.user?.name ?? message.user?.handle ?? message?.user?.isBot ? "Bot" : "User"}
                         // onClick handlers...
                         sx={{
                             bgcolor: message.user?.isBot ? "grey" : undefined,
                             boxShadow: 2,
                             cursor: "pointer",
+                            marginRight: 1,
                             // Bots show up as squares, to distinguish them from users
                             ...(message.user?.isBot ? { borderRadius: "8px" } : {}),
                         }}
@@ -350,7 +385,7 @@ export const ChatBubble = ({
                             palette.mode === "light" ? "#88d17e" : "#1a5413" :
                             palette.background.paper,
                         color: palette.background.textPrimary,
-                        borderRadius: "8px",
+                        borderRadius: isOwn ? "8px 8px 0 8px" : "8px 8px 8px 0",
                         boxShadow: 2,
                         width: editingText !== undefined ? "100%" : "unset",
                     }}
@@ -416,6 +451,6 @@ export const ChatBubble = ({
                 messageId={message.id}
                 reactions={message.reactionSummaries}
             />
-        </Stack>
+        </Box>
     );
 };

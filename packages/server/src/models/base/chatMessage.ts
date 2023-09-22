@@ -1,4 +1,4 @@
-import { ChatCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatCreateInput, ChatInviteCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate } from "@local/shared";
 import { readManyHelper } from "../../actions";
 import { shapeHelper } from "../../builders";
 import { chatMessage_findMany } from "../../endpoints";
@@ -100,7 +100,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                             // Store all invite information. Later we'll check if any of these are bots (which are automatically accepted, 
                             // and can potentially be used for AI responses)
                             chatData[chatId] = {
-                                potentialBotIds: chatUpsertInfo.invitesCreate?.map(i => i.userConnect) ?? [],
+                                potentialBotIds: chatUpsertInfo.invitesCreate?.map(i => typeof i === "string" ? (inputsById[i]?.input as ChatInviteCreateInput)?.userConnect : i.userConnect) ?? [],
                                 participantsDelete: ((chatUpsertInfo as ChatUpdateInput).participantsDelete ?? []),
                                 isNew: node.parent.action === "Create",
                             };

@@ -5,8 +5,8 @@ import { PrismaType } from "../types";
 export const DEFAULT_BATCH_SIZE = 100;
 
 export type FindManyArgs = {
-    select?: any,
-    where?: any,
+    select?: unknown,
+    where?: unknown,
 }
 
 export interface BatchCollectProps<T extends FindManyArgs> {
@@ -30,7 +30,7 @@ export const batchCollect = async <T extends FindManyArgs>({
     select,
     where,
 }: BatchCollectProps<T>) => {
-    const delegate = ObjectMap[objectType]!.delegate(prisma);
+    const delegate = ObjectMap[objectType].delegate(prisma);
     let skip = 0;
     let currentBatchSize = 0;
 

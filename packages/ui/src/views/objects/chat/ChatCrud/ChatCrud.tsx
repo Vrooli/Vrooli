@@ -31,7 +31,7 @@ import { useLocation } from "route";
 import { FormContainer, FormSection, pagePaddingBottom } from "styles";
 import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, getYou } from "utils/display/listTools";
+import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { uuidToBase36 } from "utils/navigation/urlTools";
@@ -286,6 +286,7 @@ const ChatForm = ({
 
         // Define chat-specific event handlers
         socket.on("message", (message: ChatMessage) => {
+            console.log("GOT MESSAGE", message);
             // Add message to chat if it's not already there. 
             // Make sure it is inserted in the correct order, using the created_at field.
             // Find index to insert message at
@@ -393,8 +394,7 @@ const ChatForm = ({
         handleDelete,
         DeleteDialogComponent,
     } = useDeleter({
-        objectId: existing?.id,
-        objectName: getDisplay(existing).title,
+        object: existing,
         objectType: "Chat",
         onActionComplete: actionData.onActionComplete,
     });
@@ -600,6 +600,9 @@ export const ChatCrud = ({
         transform: (data) => chatInitialValues(session, task, t, getUserLanguages(session)[0], data),
     });
     const { canUpdate } = useMemo(() => getYou(existing), [existing]);
+    useEffect(() => {
+        console.log("EXISTIGN CHAT", existing);
+    }, [existing]);
 
     return (
         <Formik

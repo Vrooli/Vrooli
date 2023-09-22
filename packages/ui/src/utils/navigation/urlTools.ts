@@ -47,6 +47,13 @@ export const base36ToUuid = (base36: string, showError = true): string => {
     }
 };
 
+export type UrlInfo = {
+    handleRoot?: string,
+    handle?: string,
+    idRoot?: string,
+    id?: string,
+}
+
 /**
  * Finds information in the URL to query for a specific item. 
  * There are multiple ways to specify an item in the URL. 
@@ -66,12 +73,7 @@ export const parseSingleItemUrl = ({
     url?: string,
 }) => {
     // Initialize the return object
-    const returnObject: {
-        handleRoot?: string,
-        handle?: string,
-        idRoot?: string,
-        id?: string,
-    } = {};
+    const returnObject: UrlInfo = {};
     // Helper for checking if a string is a handle
     const isHandle = (text: string) => {
         if (text.startsWith("@")) text = text.slice(1);

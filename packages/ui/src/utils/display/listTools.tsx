@@ -155,7 +155,6 @@ export const getYou = (
     };
     // Loop through all permission fields
     for (const key in objectPermissions) {
-        if (key === "canDelete") continue; // Skip canDelete, since we already set it
         objectPermissions[key] = getPermission(key as keyof YouInflated);
     }
     // Now remove permissions is the action is not allowed on the object type (e.g. can't react to a user).

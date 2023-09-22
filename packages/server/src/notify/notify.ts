@@ -345,7 +345,7 @@ const NotifyResult = ({
     toSubscribers: async (objectType, objectId, excludeUserId) => {
         await batch<Prisma.notification_subscriptionFindManyArgs>({
             objectType: "NotificationSubscription",
-            processBatch: async (batch, prisma) => {
+            processBatch: async (batch: { subscriberId: string, silent: boolean }[], prisma) => {
                 // Shape and translate the notification for each subscriber
                 const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ subscriberId, silent }) => ({
                     languages,
@@ -371,24 +371,21 @@ const NotifyResult = ({
      * @param excludeUserId The user to exclude from the notification
      */
     toChatParticipants: async (chatId, excludeUserId) => {
-        await batch<Prisma.userFindManyArgs>({
-            objectType: "User",
-            processBatch: async (batch, prisma) => {
+        await batch<Prisma.chat_participantsFindManyArgs>({
+            objectType: "ChatParticipant",
+            processBatch: async (batch: { user: { id: string } }[], prisma) => {
                 // Shape and translate the notification for each participant
-                const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ participantId }) => ({
-                    languages,
-                    userId: participantId,
+                const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ user }) => ({
+                    languages: ["en"], //TODO need to store user languages in db , then can update this
+                    userId: user.id,
                 })));
                 // Send the notification to each participant
                 await push({ bodyKey, category, link, prisma, titleKey, users });
             },
-            select: { id: true },
+            select: { user: { select: { id: true } } },
             trace: "0498",
             where: {
-                AND: [
-                    { chats: { some: { chat: { id: chatId } } } },
-                    { id: { not: excludeUserId ?? undefined } },
-                ],
+                ...(excludeUserId ? { AND: [{ chatId }, { userId: { not: excludeUserId } }] } : { chatId }),
             },
         });
     },
