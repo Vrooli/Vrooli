@@ -17,14 +17,17 @@ export type FocusModeShape = Pick<FocusMode, "id" | "name" | "description"> & {
 }
 
 export const shapeFocusMode: ShapeModel<FocusModeShape, FocusModeCreateInput, FocusModeUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "name", "description"),
-        ...createRel(d, "reminderList", ["Create", "Connect"], "one", shapeReminderList),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "FocusMode" } })),
-        ...createRel(d, "labels", ["Create", "Connect"], "many", shapeLabel),
-        ...createRel(d, "filters", ["Create"], "many", shapeFocusModeFilter),
-        ...createRel(d, "schedule", ["Create"], "one", shapeSchedule),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "name", "description");
+        return {
+            ...prims,
+            ...createRel(d, "reminderList", ["Create", "Connect"], "one", shapeReminderList),
+            ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: prims.id, __typename: "FocusMode" } })),
+            ...createRel(d, "labels", ["Create", "Connect"], "many", shapeLabel),
+            ...createRel(d, "filters", ["Create"], "many", shapeFocusModeFilter),
+            ...createRel(d, "schedule", ["Create"], "one", shapeSchedule),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "name", "description"),
         ...updateRel(o, u, "reminderList", ["Create", "Connect", "Disconnect", "Update"], "one", shapeReminderList),

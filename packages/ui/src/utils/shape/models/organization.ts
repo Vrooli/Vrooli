@@ -28,14 +28,17 @@ export const shapeOrganizationTranslation: ShapeModel<OrganizationTranslationSha
 };
 
 export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreateInput, OrganizationUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage"),
-        ...createRel(d, "memberInvites", ["Create"], "many", shapeMemberInvite),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "Organization" } })),
-        ...createRel(d, "roles", ["Create"], "many", shapeRole),
-        ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
-        ...createRel(d, "translations", ["Create"], "many", shapeOrganizationTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage");
+        return {
+            ...prims,
+            ...createRel(d, "memberInvites", ["Create"], "many", shapeMemberInvite),
+            ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: prims.id, __typename: "Organization" } })),
+            ...createRel(d, "roles", ["Create"], "many", shapeRole),
+            ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
+            ...createRel(d, "translations", ["Create"], "many", shapeOrganizationTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage"),
         ...updateRel(o, u, "memberInvites", ["Create", "Delete"], "many", shapeMemberInvite),

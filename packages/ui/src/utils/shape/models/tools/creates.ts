@@ -76,8 +76,12 @@ export const createVersion = <
  * shape. Essentially, adds every field that's defined, and converts nulls to 
  * undefined
  * 
- * NOTE: Due to TypeScript limitations, return type assumes that every field 
- * will be defined, even if it's undefined
+ * NOTE 1: Due to TypeScript limitations, return type assumes that every field 
+ * will be defined, even if it's undefined.
+ * 
+ * NOTE 2: If you need to reference the object's ID (which may be converted from a dummy ID 
+ * to a real ID) in preShape functions, you should use the results from createPrims instead 
+ * of relying in the original object.
  */
 export const createPrims = <T, K extends keyof T>(
     object: T,

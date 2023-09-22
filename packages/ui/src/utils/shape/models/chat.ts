@@ -26,19 +26,25 @@ export const shapeChatTranslation: ShapeModel<ChatTranslationShape, ChatTranslat
 };
 
 export const shapeChat: ShapeModel<ChatShape, ChatCreateInput, ChatUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "openToAnyoneWithInvite"),
-        ...createRel(d, "invites", ["Create"], "many", shapeChatInvite, (m) => ({ chat: { id: d.id }, ...m })),
-        ...createRel(d, "labels", ["Connect", "Create"], "many", shapeLabel),
-        ...createRel(d, "messages", ["Create"], "many", shapeChatMessage, (m) => ({ chat: { id: d.id }, ...m })),
-        ...createRel(d, "translations", ["Create"], "many", shapeChatTranslation),
-        ...(d.organization ? { organizationConnect: d.organization.id } : {}),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "openToAnyoneWithInvite");
+        return {
+            ...prims,
+            ...createRel(d, "invites", ["Create"], "many", shapeChatInvite, (m) => ({ ...m, chat: { id: prims.id } })),
+            ...createRel(d, "labels", ["Connect", "Create"], "many", shapeLabel),
+            ...createRel(d, "messages", ["Create"], "many", shapeChatMessage, (m) => {
+                console.log("preshaping chat message", m, prims);
+                return { ...m, chat: { id: prims.id } };
+            }),
+            ...createRel(d, "translations", ["Create"], "many", shapeChatTranslation),
+            ...(d.organization ? { organizationConnect: d.organization.id } : {}),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "openToAnyoneWithInvite"),
-        ...updateRel(o, u, "invites", ["Create", "Update", "Delete"], "many", shapeChatInvite, (m, i) => ({ chat: { id: i.id }, ...m })),
+        ...updateRel(o, u, "invites", ["Create", "Update", "Delete"], "many", shapeChatInvite, (m, i) => ({ ...m, chat: { id: i.id } })),
         ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
-        ...updateRel(o, u, "messages", ["Create", "Update", "Delete"], "many", shapeChatMessage, (m, i) => ({ chat: { id: i.id }, ...m })),
+        ...updateRel(o, u, "messages", ["Create", "Update", "Delete"], "many", shapeChatMessage, (m, i) => ({ ...m, chat: { id: i.id } })),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeChatTranslation),
         ...(u.participantsDelete?.length ? { participantsDelete: u.participantsDelete.map(m => m.id) } : {}),
     }, a),
