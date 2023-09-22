@@ -36,7 +36,7 @@ export const RunProjectStepModel: ModelLogic<RunProjectStepModelLogic, typeof su
         isPublic: (data, languages) => RunProjectModel.validate.isPublic(data.runProject as RunProjectModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => RunProjectModel.validate.owner(data.runProject as RunProjectModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => RunProjectModel.validate.owner(data?.runProject as RunProjectModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, runProject: "RunProject" }),
         visibility: {

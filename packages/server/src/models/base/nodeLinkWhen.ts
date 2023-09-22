@@ -42,7 +42,7 @@ export const NodeLinkWhenModel: ModelLogic<NodeLinkWhenModelLogic, typeof suppFi
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, link: "NodeLink" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeLinkModel.validate.owner(data.link as NodeLinkModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => NodeLinkModel.validate.owner(data?.link as NodeLinkModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => NodeLinkModel.validate.isDeleted(data.link as NodeLinkModelLogic["PrismaModel"], languages),
         isPublic: (data, languages) => NodeLinkModel.validate.isPublic(data.link as NodeLinkModelLogic["PrismaModel"], languages),
         visibility: {

@@ -50,7 +50,7 @@ export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic,
         isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         visibility: {

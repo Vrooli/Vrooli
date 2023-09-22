@@ -39,7 +39,7 @@ export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFi
             routine: "Routine",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineModel.validate.owner(data.routine as RoutineModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => RoutineModel.validate.owner(data?.routine as RoutineModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_routineSelect>(data, [
             ["routine", "Routine"],

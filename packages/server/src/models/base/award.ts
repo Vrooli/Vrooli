@@ -61,7 +61,7 @@ export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionsSelect: () => ({
             id: true,

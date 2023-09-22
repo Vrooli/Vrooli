@@ -1,4 +1,4 @@
-import { MaxObjects, ResourceListFor, ResourceListSortBy, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
+import { GqlModelType, MaxObjects, ResourceListFor, ResourceListSortBy, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { findFirstRel, shapeHelper } from "../../builders";
 import { getLogic } from "../../getters";
@@ -93,6 +93,7 @@ export const ResourceListModel: ModelLogic<ResourceListModelLogic, typeof suppFi
         }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => {
+            if (!data) return {};
             const [resourceOnType, resourceOnData] = findFirstRel(data, [
                 "apiVersion",
                 "focusMode",
@@ -103,7 +104,8 @@ export const ResourceListModel: ModelLogic<ResourceListModelLogic, typeof suppFi
                 "smartContractVersion",
                 "standardVersion",
             ]);
-            const { validate } = getLogic(["validate"], uppercaseFirstLetter(resourceOnType!) as any, ["en"], "ResourceListModel.validate.owner");
+            if (!resourceOnType || !resourceOnData) return {};
+            const { validate } = getLogic(["validate"], uppercaseFirstLetter(resourceOnType) as GqlModelType, ["en"], "ResourceListModel.validate.owner");
             return validate.owner(resourceOnData, userId);
         },
         isDeleted: () => false,

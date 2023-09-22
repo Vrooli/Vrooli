@@ -289,8 +289,8 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             canReply: () => isLoggedIn && (isAdmin || isPublic),
         }),
         owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+            Organization: data?.ownedByOrganization,
+            User: data?.ownedByUser,
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [

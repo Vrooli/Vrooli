@@ -307,8 +307,8 @@ export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+            Organization: data?.ownedByOrganization,
+            User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

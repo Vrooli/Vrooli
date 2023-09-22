@@ -1,4 +1,4 @@
-import { MaxObjects, ScheduleSortBy, scheduleValidation } from "@local/shared";
+import { GqlModelType, MaxObjects, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { findFirstRel, noNull, shapeHelper } from "../../builders";
@@ -106,6 +106,7 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => {
+            if (!data) return {};
             // Find owner from the object that has the pull request
             const [onField, onData] = findFirstRel(data, [
                 "focusModes",
@@ -113,7 +114,9 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
                 "runProjects",
                 "runRoutines",
             ]);
-            const { validate } = getLogic(["validate"], onField as any, ["en"], "ScheduleModel.validate.owner");
+            if (!onField || !onData) return {};
+            const onType = uppercaseFirstLetter(onField.slice(0, -1)) as GqlModelType;
+            const { validate } = getLogic(["validate"], onType, ["en"], "ScheduleModel.validate.owner");
             return Array.isArray(onData) && onData.length > 0 ?
                 validate.owner(onData[0], userId)
                 : {};

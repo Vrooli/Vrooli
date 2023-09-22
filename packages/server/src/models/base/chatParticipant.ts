@@ -47,8 +47,8 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data.chat as ChatModelLogic["PrismaModel"]).organization,
-            User: (data.chat as ChatModelLogic["PrismaModel"]).creator,
+            Organization: (data?.chat as ChatModelLogic["PrismaModel"])?.organization,
+            User: (data?.chat as ChatModelLogic["PrismaModel"])?.creator,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

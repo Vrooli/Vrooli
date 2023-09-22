@@ -68,7 +68,7 @@ export const FocusModeModel: ModelLogic<FocusModeModelLogic, typeof suppFields> 
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

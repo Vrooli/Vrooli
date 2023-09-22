@@ -142,7 +142,7 @@ export const NotificationSubscriptionModel: ModelLogic<NotificationSubscriptionM
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.subscriber,
+            User: data?.subscriber,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

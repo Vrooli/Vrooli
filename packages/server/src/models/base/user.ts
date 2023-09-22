@@ -148,7 +148,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
             languages: { select: { language: true } },
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => ({ User: data.isBot ? data.invitedByUser : data }),
+        owner: (data) => ({ User: data?.isBot ? data.invitedByUser : data }),
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,
         profanityFields: ["name", "handle"],

@@ -135,7 +135,7 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
             SmartContractModel.validate.isPublic(data.root as SmartContractModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => SmartContractModel.validate.owner(data.root as SmartContractModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => SmartContractModel.validate.owner(data?.root as SmartContractModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

@@ -256,7 +256,7 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
             StandardModel.validate.isPublic(data.root as StandardModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => StandardModel.validate.owner(data.root as StandardModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => StandardModel.validate.owner(data?.root as StandardModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

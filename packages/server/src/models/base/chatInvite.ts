@@ -76,8 +76,8 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data.chat as ChatModelLogic["PrismaModel"]).organization,
-            User: (data.chat as ChatModelLogic["PrismaModel"]).creator,
+            Organization: (data?.chat as ChatModelLogic["PrismaModel"])?.organization,
+            User: (data?.chat as ChatModelLogic["PrismaModel"])?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isYourInvite = uuidValidate(userId) && data.userId === userId;

@@ -42,7 +42,7 @@ export const NodeLoopWhileModel: ModelLogic<NodeLoopWhileModelLogic, typeof supp
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, loop: "NodeLoop" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeLoopModel.validate.owner(data.loop as NodeLoopModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => NodeLoopModel.validate.owner(data?.loop as NodeLoopModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => NodeLoopModel.validate.isDeleted(data.loop as NodeLoopModelLogic["PrismaModel"], languages),
         isPublic: (data, languages) => NodeLoopModel.validate.isPublic(data.loop as NodeLoopModelLogic["PrismaModel"], languages),
         visibility: {

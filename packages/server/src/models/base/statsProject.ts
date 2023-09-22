@@ -39,7 +39,7 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
             project: "Project",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ProjectModel.validate.owner(data.project as ProjectModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ProjectModel.validate.owner(data?.project as ProjectModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_projectSelect>(data, [
             ["project", "Project"],

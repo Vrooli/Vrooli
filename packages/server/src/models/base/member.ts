@@ -55,7 +55,7 @@ export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, organization: "Organization" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as OrganizationModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => OrganizationModel.validate.owner(data?.organization as OrganizationModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as OrganizationModelLogic["PrismaModel"], languages),
         isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as OrganizationModelLogic["PrismaModel"], languages),
         visibility: {

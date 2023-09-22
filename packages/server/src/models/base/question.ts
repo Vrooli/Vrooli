@@ -130,7 +130,7 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.createdBy,
+            User: data?.createdBy,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

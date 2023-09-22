@@ -44,7 +44,7 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
         isPublic: (data, languages) => ReminderModel.validate.isPublic(data.reminder as ReminderModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderModel.validate.owner(data.reminder as ReminderModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ReminderModel.validate.owner(data?.reminder as ReminderModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

@@ -1,4 +1,5 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
+import { PrismaPromise } from "@prisma/client";
 import { modelToGql, selectHelper } from "../builders";
 import { PartialGraphQLInfo, PrismaCreate, PrismaUpdate } from "../builders/types";
 import { CustomError } from "../events";
@@ -91,10 +92,11 @@ export async function cudHelper({
         topInputsByType[objectType]![actionType].push({ index, input: input as any });
     }
     // Initialize data for afterMutations trigger
-    const topLevelResults: { __typename: `${GqlModelType}`, action: "Create" | "Update", result: object }[] = [];
     const deletedIds: { [key in GqlModelType]?: string[] } = {};
     const beforeDeletedData: { [key in GqlModelType]?: object } = {};
-    // Loop through each type
+    // Create array to store operations for transaction
+    const operations: PrismaPromise<any>[] = [];
+    // Loop through each type to populate operations array
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
         const { delegate, idField, mutate } = getLogic(["delegate", "idField", "mutate"], objectType as GqlModelType, userData.languages, "cudHelper.createOne");
         const deletingIds = Delete.map(({ input }) => input);
@@ -109,46 +111,28 @@ export async function cudHelper({
                     throw new CustomError("0501", "InternalError", userData.languages, { input, objectType });
                 }
                 const data = mutate.shape.create ? await mutate.shape.create({ data: input, preMap, prisma, userData }) : input;
-                // Create
-                let createResult: object = {};
-                let select: object | undefined;
-                try {
-                    select = selectHelper(partialInfo)?.select;
-                    createResult = await delegate(prisma).create({
-                        data,
-                        select,
-                    });
-                } catch (error) {
-                    throw new CustomError("0415", "InternalError", userData.languages, { error, data, select, objectType });
-                }
-                // Convert
-                const converted = modelToGql<object>(createResult, partialInfo);
-                result[index] = converted;
-                topLevelResults.push({ __typename: objectType, action: "Create", result: converted });
+                const select = selectHelper(partialInfo)?.select;
+                // Add to operations
+                const createOperation = delegate(prisma).create({
+                    data,
+                    select,
+                });
+                operations.push(createOperation as any);
             }
         }
         // Update
         if (Update.length > 0) {
             for (const { index } of Update) {
-                const { input, objectType } = inputData[index] as { input: PrismaUpdate, objectType: GqlModelType | `${GqlModelType}` };
+                const { input } = inputData[index] as { input: PrismaUpdate, objectType: GqlModelType | `${GqlModelType}` };
                 const data = mutate.shape.update ? await mutate.shape.update({ data: input, preMap, prisma, userData }) : input;
-                // Update
-                let updateResult: object = {};
-                let select: object | undefined;
-                try {
-                    select = selectHelper(partialInfo)?.select;
-                    updateResult = await delegate(prisma).update({
-                        where: { [idField]: input[idField] },
-                        data,
-                        select,
-                    });
-                } catch (error) {
-                    throw new CustomError("0416", "InternalError", userData.languages, { error, data, select, objectType });
-                }
-                // Convert
-                const converted = modelToGql<object>(updateResult, partialInfo);
-                result[index] = converted;
-                topLevelResults.push({ __typename: objectType, action: "Update", result: converted });
+                const select = selectHelper(partialInfo)?.select;
+                // Add to operations
+                const updateOperation = delegate(prisma).update({
+                    where: { [idField]: input[idField] },
+                    data,
+                    select,
+                });
+                operations.push(updateOperation as any);
             }
         }
         // Delete
@@ -159,22 +143,48 @@ export async function cudHelper({
                 await mutate.trigger.beforeDeleted({ beforeDeletedData, deletingIds, prisma, userData });
             }
             // Delete
-            const where = { id: { in: deletingIds } };
             try {
                 // Before deleting, check which ids exist
-                const existingIds: string[] = await delegate(prisma).findMany({ where, select: { id: true } }).then(x => x.map(({ id }) => id));
-                // Perform delete
-                await delegate(prisma).deleteMany({ where }).then(({ count }) => ({ __typename: "Count" as const, count }));
+                const existingIds: string[] = await delegate(prisma).findMany({
+                    where: { [idField]: { in: deletingIds } },
+                    select: { id: true },
+                }).then(x => x.map(({ id }) => id));
                 // Update deletedIds
                 deletedIds[objectType] = existingIds;
-                // Set every deleted id to true in main result
-                for (const id of existingIds) {
-                    const index = inputData.findIndex(({ input }) => input === id);
-                    if (index >= 0) result[index] = true;
-                }
+                // Add to operations
+                const deleteOperation = delegate(prisma).deleteMany({
+                    where: { [idField]: { in: existingIds } },
+                });
+                operations.push(deleteOperation as any);
             } catch (error) {
-                throw new CustomError("0417", "InternalError", userData.languages, { error, where, objectType });
+                throw new CustomError("0417", "InternalError", userData.languages, { error, deletingIds, objectType });
             }
+        }
+    }
+    // Perform all operations in transaction
+    const transactionResult = await prisma.$transaction(operations);
+    // Loop again through each type to process results
+    let transactionIndex = 0;
+    for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
+        for (let i = 0; i < Create.length; i++) {
+            const createdObject = transactionResult[transactionIndex];
+            const converted = modelToGql<object>(createdObject, partialInfo);
+            result[Create[i].index] = converted;
+            transactionIndex++;
+        }
+        for (let i = 0; i < Update.length; i++) {
+            const updatedObject = transactionResult[transactionIndex];
+            const converted = modelToGql<object>(updatedObject, partialInfo);
+            result[Update[i].index] = converted;
+            transactionIndex++;
+        }
+        if (Delete.length > 0) {
+            const ids = deletedIds[objectType];
+            for (const id of ids) {
+                const index = inputData.findIndex(({ input }) => input === id);
+                if (index >= 0) result[index] = true;
+            }
+            transactionIndex++;  // No need to iterate over multiple deletes since deleteMany returns a count, not individual records
         }
     }
     // Similar to how we grouped inputs, now we need to group outputs

@@ -312,6 +312,14 @@ export const cudInputsToMaps = async ({
 
     await convertPlaceholders({ idsByAction, idsByType, prisma, languages });
 
+    // Remove duplicate IDs from idsByAction and idsByType
+    for (const type in idsByType) {
+        idsByType[type] = [...new Set(idsByType[type])];
+    }
+    for (const action in idsByAction) {
+        idsByAction[action] = [...new Set(idsByAction[action])];
+    }
+
     return {
         idsByType,
         idsByAction,

@@ -54,7 +54,7 @@ export const NodeRoutineListItemModel: ModelLogic<NodeRoutineListItemModelLogic,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, list: "NodeRoutineList" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeRoutineListModel.validate.owner(data.list as NodeRoutineListModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => NodeRoutineListModel.validate.owner(data?.list as NodeRoutineListModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => NodeRoutineListModel.validate.isDeleted(data.list as NodeRoutineListModelLogic["PrismaModel"], languages),
         isPublic: (data, languages) => NodeRoutineListModel.validate.isPublic(data.list as NodeRoutineListModelLogic["PrismaModel"], languages),
         visibility: {

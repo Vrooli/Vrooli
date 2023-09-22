@@ -15,7 +15,7 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
-import { ApiModelLogic, BookmarkModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, OrganizationModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TagModelLogic, UserModelLogic } from "./types";
+import { ApiModelLogic, BookmarkListModelLogic, BookmarkModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, OrganizationModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TagModelLogic, UserModelLogic } from "./types";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Api: "api",
@@ -240,7 +240,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => BookmarkListModel.validate.owner(data.list as any, userId),
+        owner: (data, userId) => BookmarkListModel.validate.owner(data?.list as BookmarkListModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

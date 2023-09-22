@@ -131,7 +131,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
             canInvite: () => isLoggedIn && isAdmin,
         }),
         owner: (data) => ({
-            Organization: data.organization,
+            Organization: data?.organization,
         }),
         isDeleted: () => false,
         isPublic: (data) => data.showOnOrganizationProfile === true,

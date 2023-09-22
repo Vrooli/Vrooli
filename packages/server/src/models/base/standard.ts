@@ -230,8 +230,8 @@ export const StandardModel: ModelLogic<StandardModelLogic, typeof suppFields> = 
             versions: ["StandardVersion", ["root"]],
         }),
         owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+            Organization: data?.ownedByOrganization,
+            User: data?.ownedByUser,
         }),
         visibility: {
             private: { isPrivate: true, isDeleted: false },

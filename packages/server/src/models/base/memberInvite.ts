@@ -82,8 +82,8 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.member_inviteSelect>(data, [

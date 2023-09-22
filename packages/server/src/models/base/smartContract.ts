@@ -118,8 +118,8 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+            Organization: data?.ownedByOrganization,
+            User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

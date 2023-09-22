@@ -73,7 +73,7 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         isDeleted: () => false,
         isPublic: () => false,

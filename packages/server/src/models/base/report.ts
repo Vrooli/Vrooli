@@ -179,7 +179,7 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             canUpdate: () => isLoggedIn && isAdmin && data.status !== "Open",
         }),
         owner: (data) => ({
-            User: data.createdBy,
+            User: data?.createdBy,
         }),
         isDeleted: () => false,
         isPublic: () => true,

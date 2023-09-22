@@ -98,8 +98,8 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

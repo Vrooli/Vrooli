@@ -76,7 +76,7 @@ export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof su
         maxObjects: 100000,
         permissionsSelect: () => ({ id: true, report: "Report" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ReportModel.validate.owner(data.report as ReportModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ReportModel.validate.owner(data?.report as ReportModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => ReportModel.validate.isDeleted(data.report as ReportModelLogic["PrismaModel"], languages),
         isPublic: (data, languages) => ReportModel.validate.isPublic(data.report as ReportModelLogic["PrismaModel"], languages),
         visibility: {

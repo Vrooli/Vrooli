@@ -72,7 +72,7 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
         isPublic: (data, languages) => QuizModel.validate.isPublic(data.quiz as QuizModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => QuizModel.validate.owner(data.quiz as QuizModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => QuizModel.validate.owner(data?.quiz as QuizModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

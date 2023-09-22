@@ -275,7 +275,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
             ProjectModel.validate.isPublic(data.root as ProjectModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ProjectModel.validate.owner(data.root as ProjectModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ProjectModel.validate.owner(data?.root as ProjectModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

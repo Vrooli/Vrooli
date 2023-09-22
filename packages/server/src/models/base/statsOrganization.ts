@@ -39,7 +39,7 @@ export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typ
             organization: "Organization",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as OrganizationModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => OrganizationModel.validate.owner(data?.organization as OrganizationModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_organizationSelect>(data, [
             ["organization", "Organization"],

@@ -68,7 +68,7 @@ export const RunRoutineInputModel: ModelLogic<RunRoutineInputModelLogic, typeof 
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["data"],
-        owner: (data, userId) => RunRoutineModel.validate.owner(data.runRoutine as RunRoutineModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => RunRoutineModel.validate.owner(data?.runRoutine as RunRoutineModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as RunRoutineModelLogic["PrismaModel"], languages),
         visibility: {

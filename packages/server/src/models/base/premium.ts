@@ -29,8 +29,8 @@ export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

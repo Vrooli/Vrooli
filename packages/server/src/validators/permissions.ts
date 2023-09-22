@@ -326,6 +326,11 @@ export async function permissionsCheck(
         for (const id of ids) {
             // Skip placeholder IDs
             if (id === DUMMY_ID) continue;
+            // Skip if the ID appears in the "Create" action (e.g. connecting to a chat which is also being created in the same request). 
+            // NOTE: This opens the possibility for an attack where a user tries to create an object using another object's ID, so that the connect
+            // permissions check is sipped. However, as long as we use a transaction for the full request (i.e. if that object fails to create, 
+            // the whole request fails), this should be fine.
+            if (idsByAction.Create?.includes(id)) continue;
             // Get permissions for this ID
             const permissions = permissionsById[id];
             // If permissions doesn't exist, something went wrong.

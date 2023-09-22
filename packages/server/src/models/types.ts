@@ -349,7 +349,7 @@ export type Validator<
     /**
      * Permissions data for the object's owner
      */
-    owner: (data: Model["PrismaModel"], userId: string) => {
+    owner: (data: Model["PrismaModel"] | undefined, userId: string) => {
         Organization?: ({ id: string } & { [x: string]: any }) | null;
         User?: ({ id: string } & { [x: string]: any }) | null;
     }

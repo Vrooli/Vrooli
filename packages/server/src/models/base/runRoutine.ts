@@ -302,8 +302,8 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [

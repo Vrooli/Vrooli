@@ -50,7 +50,7 @@ export const BookmarkListModel: ModelLogic<BookmarkListModelLogic, typeof suppFi
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

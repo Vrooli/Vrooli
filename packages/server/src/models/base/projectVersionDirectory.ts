@@ -60,7 +60,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryMod
         isPublic: (data, languages) => ProjectVersionModel.validate.isPublic(data.projectVersion as ProjectVersionModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ProjectVersionModel.validate.owner(data.projectVersion as ProjectVersionModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ProjectVersionModel.validate.owner(data?.projectVersion as ProjectVersionModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

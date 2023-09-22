@@ -169,8 +169,8 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.creator,
+            Organization: data?.organization,
+            User: data?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isInvited = uuidValidate(userId) && data.invites?.some((i) => i.userId === userId && i.status === ChatInviteStatus.Pending);

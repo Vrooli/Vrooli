@@ -467,7 +467,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, userId }) => {
             const isChatAdmin = userId ? isOwnerAdminCheck(ChatModel.validate.owner(data.chat as ChatModelLogic["PrismaModel"], userId), userId) : false;

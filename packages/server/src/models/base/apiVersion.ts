@@ -137,7 +137,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
             ApiModel.validate.isPublic(data.root as ApiModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ApiModel.validate.owner(data.root as ApiModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ApiModel.validate.owner(data?.root as ApiModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

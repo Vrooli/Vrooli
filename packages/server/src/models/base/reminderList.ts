@@ -42,7 +42,7 @@ export const ReminderListModel: ModelLogic<ReminderListModelLogic, typeof suppFi
             focusMode: "FocusMode",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => FocusModeModel.validate.owner(data.focusMode as FocusModeModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => FocusModeModel.validate.owner(data?.focusMode as FocusModeModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {

@@ -44,7 +44,7 @@ export const NodeEndModel: ModelLogic<NodeEndModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeModel.validate.owner(data.node as NodeModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => NodeModel.validate.owner(data?.node as NodeModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => NodeModel.validate.isDeleted(data.node as NodeModelLogic["PrismaModel"], languages),
         isPublic: (data, languages) => NodeModel.validate.isPublic(data.node as NodeModelLogic["PrismaModel"], languages),
         visibility: {

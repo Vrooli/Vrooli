@@ -51,8 +51,8 @@ export const WalletModel: ModelLogic<WalletModelLogic, typeof suppFields> = ({
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.walletSelect>(data, [

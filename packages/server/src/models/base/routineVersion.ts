@@ -235,7 +235,7 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
             RoutineModel.validate.isPublic(data.root as RoutineModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => RoutineModel.validate.owner(data.root as RoutineModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => RoutineModel.validate.owner(data?.root as RoutineModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

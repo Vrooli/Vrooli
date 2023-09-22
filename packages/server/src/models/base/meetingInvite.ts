@@ -73,7 +73,7 @@ export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof supp
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: (data.meeting as MeetingModelLogic["PrismaModel"]).organization,
+            Organization: (data?.meeting as MeetingModelLogic["PrismaModel"])?.organization,
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.meeting_inviteSelect>(data, [

@@ -236,7 +236,7 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: 10000000,
         owner: (data) => ({
-            User: data.by,
+            User: data?.by,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
