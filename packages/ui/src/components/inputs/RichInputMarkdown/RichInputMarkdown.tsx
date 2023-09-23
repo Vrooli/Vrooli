@@ -282,6 +282,16 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "ListNumber": insertNumberList,
             "Quote": () => { }, //TODO
             "Redo": redo,
+            "SetValue": () => {
+                if (typeof data !== "string") {
+                    console.error("Invalid data for SetValue action", data);
+                    return;
+                }
+                // Set value without triggering onChange
+                const { inputElement } = getSelection(id);
+                if (!inputElement) return;
+                inputElement.value = data;
+            },
             "Spoiler": spoiler,
             "Strikethrough": strikethrough,
             "Table": () => insertTable(data as { rows: number, cols: number }),

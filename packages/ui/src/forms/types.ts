@@ -5,6 +5,7 @@ import { Dispatch, ReactNode, SetStateAction } from "react";
 import { AssistantTask } from "types";
 import { Forms } from "utils/consts";
 import { ListObject } from "utils/display/listTools";
+import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { BookmarkListShape } from "utils/shape/models/bookmarkList";
 import { BotShape } from "utils/shape/models/bot";
@@ -137,6 +138,7 @@ export type RunProjectFormProps = BaseObjectFormProps<RunProjectShape>
 export type RunRoutineFormProps = BaseObjectFormProps<RunRoutineShape>
 export type ScheduleFormProps = BaseObjectFormProps<ScheduleShape> & {
     canSetScheduleFor: boolean;
+    currTabType: CalendarPageTabOption;
 }
 export interface SmartContractFormProps extends BaseObjectFormProps<SmartContractVersionShape> {
     versions: string[];

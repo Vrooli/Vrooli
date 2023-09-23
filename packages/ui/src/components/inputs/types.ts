@@ -203,6 +203,7 @@ export type RichInputAction =
     "Mode" |
     "Quote" |
     "Redo" |
+    "SetValue" |
     "Spoiler" |
     "Strikethrough" |
     "Table" |

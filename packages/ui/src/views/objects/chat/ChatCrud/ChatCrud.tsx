@@ -251,7 +251,9 @@ const ChatForm = ({
             return;
         }
         console.log("onsubmittttt values", updatedChat ?? values);
-        console.log("onsubmittttt transformed", transformChatValues(updatedChat ?? values, existing, isCreate));
+        console.log("onsubmittttt transformed", JSON.stringify(transformChatValues(updatedChat ?? values, existing, isCreate)));
+        setMessage(""); //TODO temporary. Need to figure out why this isn't resetting value in RichInputBase. Copied out useEffect code in RichInputBase that I thought was preventing the update, but that didn't fix it. While we're doing this, should also fix typing in RichInputBase so it never moves the cursor 
+        return;
         // Filters out messages that aren't yours, except for ones marked as "isUnsent". This 
         // flag is used both to show messages you sent that haven't been fully sent yet, but also 
         // initial messages when chatting with a bot (which also haven't been sent yet, as the 
@@ -600,9 +602,6 @@ export const ChatCrud = ({
         transform: (data) => chatInitialValues(session, task, t, getUserLanguages(session)[0], data),
     });
     const { canUpdate } = useMemo(() => getYou(existing), [existing]);
-    useEffect(() => {
-        console.log("EXISTIGN CHAT", existing);
-    }, [existing]);
 
     return (
         <Formik

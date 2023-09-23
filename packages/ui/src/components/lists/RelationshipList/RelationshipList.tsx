@@ -7,7 +7,7 @@ import { UserButton } from "components/buttons/relationships/UserButton/UserButt
 import { noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { OwnerShape } from "utils/shape/models/types";
-import { RelationshipListProps } from "../types";
+import { RelationshipButtonType, RelationshipListProps } from "../types";
 
 /**
  * Converts session to user object
@@ -25,8 +25,18 @@ export const userFromSession = (session: Session): Exclude<OwnerShape, null> => 
  * Horizontal button list for assigning owner, project, and parent 
  * to objects
  */
-export function RelationshipList(props: RelationshipListProps) {
+export function RelationshipList({
+    limitTo,
+    ...props
+}: RelationshipListProps) {
     const { palette } = useTheme();
+
+    const shouldShowButton = (type: RelationshipButtonType): boolean => {
+        // If no limit is specified, show all buttons
+        if (!limitTo) return true;
+        // Otherwise, show only the buttons specified in the limitTo array
+        return limitTo.includes(type);
+    };
 
     return (
         <Stack
@@ -46,22 +56,20 @@ export function RelationshipList(props: RelationshipListProps) {
                 },
             }}
         >
-            {/* Buttons applicable to main objects (e.g. projects, notes, routines, organizations) */}
-            <OwnerButton {...props} />
-            <ProjectButton {...props} />
-            <ParentButton {...props} />
-            <IsPrivateButton {...props} />
-            <IsCompleteButton {...props} />
-            {/* Buttons for special cases (e.g. schedules) */}
-            <FocusModeButton {...props} />
-            <MeetingButton {...props} />
-            <RunProjectButton {...props} />
-            <RunRoutineButton {...props} />
-            <QuestionForButton {...props} />
-            <MembersButton {...props} />
-            <ParticipantsButton {...props} />
-            <OrganizationButton {...props} />
-            <UserButton {...props} />
+            {shouldShowButton("Owner") && <OwnerButton {...props} />}
+            {shouldShowButton("Project") && <ProjectButton {...props} />}
+            {shouldShowButton("Parent") && <ParentButton {...props} />}
+            {shouldShowButton("IsPrivate") && <IsPrivateButton {...props} />}
+            {shouldShowButton("IsComplete") && <IsCompleteButton {...props} />}
+            {shouldShowButton("FocusMode") && <FocusModeButton {...props} />}
+            {shouldShowButton("Meeting") && <MeetingButton {...props} />}
+            {shouldShowButton("RunProject") && <RunProjectButton {...props} />}
+            {shouldShowButton("RunRoutine") && <RunRoutineButton {...props} />}
+            {shouldShowButton("QuestionFor") && <QuestionForButton {...props} />}
+            {shouldShowButton("Members") && <MembersButton {...props} />}
+            {shouldShowButton("Participants") && <ParticipantsButton {...props} />}
+            {shouldShowButton("Organization") && <OrganizationButton {...props} />}
+            {shouldShowButton("User") && <UserButton {...props} />}
         </Stack>
     );
 }

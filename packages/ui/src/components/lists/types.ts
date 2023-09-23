@@ -112,7 +112,24 @@ export type RelationshipItemRunRoutine = Pick<RunRoutine, "id" | "name"> &
     routineVersion: RelationshipItemRoutineVersion;
 }
 
+export type RelationshipButtonType =
+    "Owner" |
+    "Project" |
+    "Parent" |
+    "IsPrivate" |
+    "IsComplete" |
+    "FocusMode" |
+    "Meeting" |
+    "RunProject" |
+    "RunRoutine" |
+    "QuestionFor" |
+    "Members" |
+    "Participants" |
+    "Organization" |
+    "User";
+
 export interface RelationshipListProps {
+    limitTo?: RelationshipButtonType[];
     isEditing: boolean;
     isFormDirty?: boolean;
     objectType: ObjectType;

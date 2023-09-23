@@ -706,6 +706,16 @@ const RichInputLexicalComponents = ({
                 redo();
                 triggerEditorChange();
             },
+            "SetValue": () => {
+                if (typeof data !== "string") {
+                    console.error("Invalid data type for SetValue action", data);
+                    return;
+                }
+                // set value without triggering onChange
+                editor.update(() => {
+                    $convertFromMarkdownString(data, ALL_TRANSFORMERS);
+                }, HISTORY_MERGE_OPTIONS);
+            },
             "Spoiler": toggleSpoiler,
             "Strikethrough": () => toggleFormat("strikethrough"),
             "Table": () => { }, //TODO

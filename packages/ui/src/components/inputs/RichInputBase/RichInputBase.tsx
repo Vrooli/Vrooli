@@ -37,25 +37,14 @@ export const RichInputBase = ({
     const { palette, typography } = useTheme();
     const isLeftHanded = useIsLeftHanded();
 
+    // Debounce text change
+    const onChangeDebounced = useDebounce(onChange, 200);
+
     // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
     const stack = useRef<string[]>([value]);
     const [stackIndex, setStackIndex] = useState<number>(0);
     const stackSize = useRef<number>(value?.length ?? 0); // Used to keep track of the total number of characters in the stack
     const changeTimeout = useRef<NodeJS.Timeout | null>(null); // Used to group changes together
-
-    // Internal value (since value passed back is debounced)
-    const [internalValue, setInternalValue] = useState<string>(value ?? "");
-    useEffect(() => {
-        // If new value is one of the recent items in the stack 
-        // (i.e. debounce is firing while user is still typing),
-        // then don't update the internal value
-        const recentItems = stack.current.slice(Math.max(stack.current.length - 5, 0));
-        if (value === "" || !recentItems.includes(value)) {
-            setInternalValue(value);
-        }
-    }, [value]);
-    // Debounce text change
-    const onChangeDebounced = useDebounce(onChange, 200);
 
     const addToStack = useCallback((updatedText: string) => {
         const newstack = [...stack.current];
@@ -135,6 +124,19 @@ export const RichInputBase = ({
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         return () => { };
     }, [CurrentViewComponent, toggleMarkdown]);
+
+    // Internal value (since value passed back is debounced)
+    const [internalValue, setInternalValue] = useState<string>(value ?? "");
+    useEffect(() => {
+        // If new value is one of the recent items in the stack 
+        // (i.e. debounce is firing while user is still typing),
+        // then don't update the internal value
+        const recentItems = stack.current.slice(Math.max(stack.current.length - 5, 0));
+        if (value === "" || !recentItems.includes(value)) {
+            setInternalValue(value);
+            (CurrentViewComponent as unknown as RichInputChildView)?.handleAction("SetValue", value);
+        }
+    }, [CurrentViewComponent, value]);
 
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
