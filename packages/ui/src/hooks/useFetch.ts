@@ -75,7 +75,7 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
         return result;
     }, [endpoint, inputs, method, options]);
 
-    const debouncedRefetch = useDebounce<TInput | undefined>((input?: TInput) => refetch(input), debounceMs);
+    const [debouncedRefetch] = useDebounce<TInput | undefined>((input?: TInput) => refetch(input), debounceMs);
     useEffect(() => {
         debouncedRefetch(undefined);
         // eslint-disable-next-line react-hooks/exhaustive-deps

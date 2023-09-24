@@ -4,7 +4,7 @@ import { getDisplay, ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
-import { RichInputChildView, RichInputMarkdownProps } from "../types";
+import { RichInputMarkdownProps } from "../types";
 
 enum Headers {
     H1 = "h1",
@@ -118,6 +118,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     openAssistantDialog,
     placeholder = "",
     redo,
+    setHandleAction,
     tabIndex,
     toggleMarkdown,
     undo,
@@ -267,40 +268,43 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
         tagData.setAnchorEl(null);
     }, [id, onChange, tagData]);
 
-    (RichInputMarkdown as unknown as RichInputChildView).handleAction = (action, data) => {
-        const actionMap = {
-            "Assistant": () => openAssistantDialog(getSelection(id).selected),
-            "Bold": bold,
-            "Code": () => { }, //TODO
-            "Header1": () => insertHeader(Headers.H1),
-            "Header2": () => insertHeader(Headers.H2),
-            "Header3": () => insertHeader(Headers.H3),
-            "Italic": italic,
-            "Link": insertLink,
-            "ListBullet": insertBulletList,
-            "ListCheckbox": insertCheckboxList,
-            "ListNumber": insertNumberList,
-            "Quote": () => { }, //TODO
-            "Redo": redo,
-            "SetValue": () => {
-                if (typeof data !== "string") {
-                    console.error("Invalid data for SetValue action", data);
-                    return;
-                }
-                // Set value without triggering onChange
-                const { inputElement } = getSelection(id);
-                if (!inputElement) return;
-                inputElement.value = data;
-            },
-            "Spoiler": spoiler,
-            "Strikethrough": strikethrough,
-            "Table": () => insertTable(data as { rows: number, cols: number }),
-            "Underline": underline,
-            "Undo": undo,
-        };
-        const actionFunction = actionMap[action];
-        if (actionFunction) actionFunction();
-    };
+    useEffect(() => {
+        if (!setHandleAction) return;
+        setHandleAction((action, data) => {
+            const actionMap = {
+                "Assistant": () => openAssistantDialog(getSelection(id).selected),
+                "Bold": bold,
+                "Code": () => { }, //TODO
+                "Header1": () => insertHeader(Headers.H1),
+                "Header2": () => insertHeader(Headers.H2),
+                "Header3": () => insertHeader(Headers.H3),
+                "Italic": italic,
+                "Link": insertLink,
+                "ListBullet": insertBulletList,
+                "ListCheckbox": insertCheckboxList,
+                "ListNumber": insertNumberList,
+                "Quote": () => { }, //TODO
+                "Redo": redo,
+                "SetValue": () => {
+                    if (typeof data !== "string") {
+                        console.error("Invalid data for SetValue action", data);
+                        return;
+                    }
+                    // Set value without triggering onChange
+                    const { inputElement } = getSelection(id);
+                    if (!inputElement) return;
+                    inputElement.value = data;
+                },
+                "Spoiler": spoiler,
+                "Strikethrough": strikethrough,
+                "Table": () => insertTable(data as { rows: number, cols: number }),
+                "Underline": underline,
+                "Undo": undo,
+            };
+            const actionFunction = actionMap[action];
+            if (actionFunction) actionFunction();
+        });
+    }, [bold, id, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, insertTable, italic, openAssistantDialog, redo, setHandleAction, spoiler, strikethrough, underline, undo]);
 
     // Listen for text input changes
     useEffect(() => {

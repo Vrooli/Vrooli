@@ -94,7 +94,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
             else openLink(setLocation, href);
         }
     }, [data.link, href, index, onDelete, onEdit, setLocation]);
-    const handleClickDebounce = useDebounce(handleClick, 100);
+    const [handleClickDebounce] = useDebounce(handleClick, 100);
     const handleContextMenu = useCallback((target: EventTarget) => {
         onContextMenu(target, index);
     }, [onContextMenu, index]);

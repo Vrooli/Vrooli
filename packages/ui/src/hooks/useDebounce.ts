@@ -23,6 +23,12 @@ export const useDebounce = <T>(callback: (value: T) => void, delay: number) => {
         [delay],
     );
 
+    const cancel = useCallback(() => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+    }, []);
+
     useEffect(() => {
         return () => {
             if (timeoutRef.current) {
@@ -31,5 +37,5 @@ export const useDebounce = <T>(callback: (value: T) => void, delay: number) => {
         };
     }, []);
 
-    return debouncedCallback;
+    return [debouncedCallback, cancel] as const;
 };

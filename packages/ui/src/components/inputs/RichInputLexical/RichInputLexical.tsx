@@ -27,7 +27,7 @@ import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
-import { RichInputAction, RichInputActiveStates, RichInputChildView, RichInputLexicalProps } from "../types";
+import { RichInputAction, RichInputActiveStates, RichInputLexicalProps } from "../types";
 import "./theme.css";
 
 export const CAN_USE_DOM: boolean =
@@ -536,6 +536,7 @@ const RichInputLexicalComponents = ({
     openAssistantDialog,
     placeholder = "",
     redo,
+    setHandleAction,
     tabIndex,
     toggleMarkdown,
     undo,
@@ -552,15 +553,14 @@ const RichInputLexicalComponents = ({
 
     /** Store current text properties. Logic inspired by https://github.com/facebook/lexical/blob/9e83533d52fe934bd91aaa5baaf156f682577dcf/packages/lexical-playground/src/plugins/ToolbarPlugin/index.tsx#L484 */
     const [activeEditor, setActiveEditor] = useState(editor);
-    const [activeStates, setActiveStates] = useState<RichInputActiveStates>({ ...defaultActiveStates });
+    const [activeStates, setActiveStates] = useState<Omit<RichInputActiveStates, "SetValue">>({ ...defaultActiveStates });
     const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(null);
     const [isLink, setIsLink] = useState(false);
     const [isItalic, setIsItalic] = useState(false);
     const [codeLanguage, setCodeLanguage] = useState<string>("");
     const [isEditable, setIsEditable] = useState(() => editor.isEditable());
     const $updateToolbar = useCallback(() => {
-        const updatedStates: RichInputActiveStates = { ...defaultActiveStates };
-        console.log("updating toolbar", defaultActiveStates);
+        const updatedStates = { ...defaultActiveStates };
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
             const anchorNode = selection.anchor.getNode();
@@ -683,51 +683,56 @@ const RichInputLexicalComponents = ({
     const toggleSpoiler = () => {
         editor.dispatchCommand(SPOILER_COMMAND, (void 0));
     };
-    (RichInputLexical as unknown as RichInputChildView).handleAction = (action, data) => {
-        console.log("in RichInputlExical handleAction", action);
-        const dispatch = editor.dispatchCommand;
-        const actionMap = {
-            "Assistant": () => openAssistantDialog(""),
-            "Bold": () => toggleFormat("bold"),
-            "Code": () => { }, //TODO
-            "Header1": () => toggleHeading("h1"),
-            "Header2": () => toggleHeading("h2"),
-            "Header3": () => toggleHeading("h3"),
-            "Header4": () => toggleHeading("h4"),
-            "Header5": () => toggleHeading("h5"),
-            "Header6": () => toggleHeading("h6"),
-            "Italic": () => toggleFormat("italic"),
-            "Link": () => dispatch(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
-            "ListBullet": () => dispatch(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
-            "ListCheckbox": () => dispatch(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
-            "ListNumber": () => dispatch(INSERT_ORDERED_LIST_COMMAND, (void 0)),
-            "Quote": () => { }, //TODO
-            "Redo": () => {
-                redo();
-                triggerEditorChange();
-            },
-            "SetValue": () => {
-                if (typeof data !== "string") {
-                    console.error("Invalid data type for SetValue action", data);
-                    return;
-                }
-                // set value without triggering onChange
-                editor.update(() => {
-                    $convertFromMarkdownString(data, ALL_TRANSFORMERS);
-                }, HISTORY_MERGE_OPTIONS);
-            },
-            "Spoiler": toggleSpoiler,
-            "Strikethrough": () => toggleFormat("strikethrough"),
-            "Table": () => { }, //TODO
-            "Underline": () => toggleFormat("underline"),
-            "Undo": () => {
-                undo();
-                triggerEditorChange();
-            },
-        };
-        const actionFunction = actionMap[action];
-        if (actionFunction) actionFunction();
-    };
+
+
+    useEffect(() => {
+        if (!setHandleAction) return;
+        setHandleAction((action, data) => {
+            console.log("in RichInputlExical handleAction", action);
+            const dispatch = editor.dispatchCommand;
+            const actionMap = {
+                "Assistant": () => openAssistantDialog(""),
+                "Bold": () => toggleFormat("bold"),
+                "Code": () => { }, //TODO
+                "Header1": () => toggleHeading("h1"),
+                "Header2": () => toggleHeading("h2"),
+                "Header3": () => toggleHeading("h3"),
+                "Header4": () => toggleHeading("h4"),
+                "Header5": () => toggleHeading("h5"),
+                "Header6": () => toggleHeading("h6"),
+                "Italic": () => toggleFormat("italic"),
+                "Link": () => dispatch(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
+                "ListBullet": () => dispatch(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
+                "ListCheckbox": () => dispatch(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
+                "ListNumber": () => dispatch(INSERT_ORDERED_LIST_COMMAND, (void 0)),
+                "Quote": () => { }, //TODO
+                "Redo": () => {
+                    redo();
+                    triggerEditorChange();
+                },
+                "SetValue": () => {
+                    if (typeof data !== "string") {
+                        console.error("Invalid data type for SetValue action", data);
+                        return;
+                    }
+                    // set value without triggering onChange
+                    editor.update(() => {
+                        $convertFromMarkdownString(data, ALL_TRANSFORMERS);
+                    }, HISTORY_MERGE_OPTIONS);
+                },
+                "Spoiler": toggleSpoiler,
+                "Strikethrough": () => toggleFormat("strikethrough"),
+                "Table": () => { }, //TODO
+                "Underline": () => toggleFormat("underline"),
+                "Undo": () => {
+                    undo();
+                    triggerEditorChange();
+                },
+            };
+            const actionFunction = actionMap[action];
+            if (actionFunction) actionFunction();
+        });
+    }, [editor, openAssistantDialog, redo, setHandleAction, toggleFormat, toggleHeading, toggleSpoiler, triggerEditorChange, undo]);
 
     return (
         <Box

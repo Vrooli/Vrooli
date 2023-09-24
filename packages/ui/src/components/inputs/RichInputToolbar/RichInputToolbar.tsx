@@ -8,11 +8,11 @@ import { useTranslation } from "react-i18next";
 import { SxType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { keyComboToString } from "utils/display/device";
-import { RichInputAction, RichInputActiveStates, RichInputToolbarView } from "../types";
+import { RichInputAction, RichInputActiveStates } from "../types";
 
 type PopoverActionItem = { action: RichInputAction, icon: React.ReactNode, label: string };
 
-export const defaultActiveStates: RichInputActiveStates = {
+export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {
     Bold: false,
     Code: false,
     Header1: false,
@@ -199,20 +199,24 @@ const TablePopover = ({ isOpen, anchorEl, onClose, handleTableInsert, palette, t
 };
 
 export const RichInputToolbar = ({
+    activeStates,
     canRedo,
     canUndo,
     disableAssistant = false,
     disabled = false,
     handleAction,
+    handleActiveStatesChange,
     isMarkdownOn,
     name,
     sx,
 }: {
+    activeStates: Omit<RichInputActiveStates, "SetValue">;
     canRedo: boolean;
     canUndo: boolean;
     disableAssistant?: boolean;
     disabled?: boolean;
     handleAction: (action: RichInputAction, data?: unknown) => unknown;
+    handleActiveStatesChange: (activeStates: Omit<RichInputActiveStates, "SetValue">) => unknown;
     isMarkdownOn: boolean;
     name: string,
     sx?: SxType;
@@ -224,31 +228,22 @@ export const RichInputToolbar = ({
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
 
-    // Actions which store and active state. 
-    // This is currently ignored when markdown mode is on, since it's 
-    // a bitch to keep track of
-    const [activeStates, setActiveStates] = useState<RichInputActiveStates>(defaultActiveStates);
     const handleToggleAction = (action: string, data?: unknown) => {
         // Update action's active state, if we're not using markdown mode
         if (!isMarkdownOn && action in activeStates) {
-            setActiveStates(prevState => ({
-                ...prevState,
-                [action]: !prevState[action],
-            }));
+            handleActiveStatesChange({
+                ...activeStates,
+                [action]: !activeStates[action],
+            });
         }
         // Trigger handleAction
         handleAction(action as RichInputAction, data);
     };
     useEffect(() => {
         if (isMarkdownOn) {
-            setActiveStates(defaultActiveStates);
+            handleActiveStatesChange(defaultActiveStates);
         }
-    }, [isMarkdownOn]);
-    // Declare method for RichInputBase to change active states
-    (RichInputToolbar as unknown as RichInputToolbarView).updateActiveStates = (updatedStates) => {
-        console.log('toolbar state updating', updatedStates)
-        setActiveStates({ ...updatedStates });
-    };
+    }, [handleActiveStatesChange, isMarkdownOn]);
 
     const [headerAnchorEl, openHeaderSelect, closeHeader, headerSelectOpen] = usePopover();
     const [formatAnchorEl, openFormatSelect, closeFormat, formatSelectOpen] = usePopover();
