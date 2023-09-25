@@ -1,5 +1,5 @@
 import { useDebounce } from "hooks/useDebounce";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 /**
  * Total characters stored in the change stack. 
@@ -23,9 +23,6 @@ export const useUndoRedo = <T>({
     /** Determines when the stack should be updated */
     forceAddToStack?: (updated: T, resetStackDebounce: () => void) => boolean;
 }) => {
-    useEffect(() => {
-        console.log("useUndoRedo initialized");
-    }, []);
     const [internalValue, setInternalValue] = useState(initialValue);
     const [onChangeDebounced, cancelDebounce] = useDebounce(onChange, DEBOUNCE_TIME);
 
@@ -36,13 +33,11 @@ export const useUndoRedo = <T>({
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
     const updateUndoRedoStates = useCallback(() => {
-        console.log("updating undo/redo states", stackIndex.current, stack.current);
         setCanUndo(stackIndex.current > 0);
         setCanRedo(stackIndex.current < stack.current.length - 1);
     }, []);
 
     const addToStack = useCallback((newValue: T) => {
-        console.log("adding to stack", newValue, stackIndex, stack.current);
         const newStack = [...stack.current];
         newStack.splice(stackIndex.current + 1, newStack.length - stackIndex.current - 1);
         newStack.push(newValue);
@@ -61,7 +56,6 @@ export const useUndoRedo = <T>({
 
     const [addToStackDebounced, cancelAddToStack] = useDebounce(addToStack, DEBOUNCE_TIME);
     const changeInternalValue = useCallback((newValue: T) => {
-        console.log("changeInternalValue start", newValue);
         setInternalValue(newValue);
         onChangeDebounced(newValue);
         // By default, start debounced addition
@@ -75,7 +69,6 @@ export const useUndoRedo = <T>({
                 cancelAddToStack();
                 addToStackDebounced(newValue);
             });
-            console.log("shouldImmediatelyAdd", shouldImmediatelyAdd);
             if (shouldImmediatelyAdd) {
                 // Cancel the debounced action and add to the stack immediately
                 cancelAddToStack();
@@ -95,7 +88,6 @@ export const useUndoRedo = <T>({
     }, [cancelDebounce]);
 
     const undo = () => {
-        console.log("in undo", disabled, stackIndex.current);
         if (disabled === true || stackIndex.current <= 0) return;
         stackIndex.current -= 1;
         setInternalValue(stack.current[stackIndex.current]);
@@ -104,7 +96,6 @@ export const useUndoRedo = <T>({
     };
 
     const redo = () => {
-        console.log("in redo", disabled, stackIndex.current);
         if (disabled === true || stackIndex.current >= stack.current.length - 1) return;
         stackIndex.current += 1;
         setInternalValue(stack.current[stackIndex.current]);

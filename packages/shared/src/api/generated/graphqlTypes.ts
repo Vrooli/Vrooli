@@ -6745,25 +6745,18 @@ export type ResourceEdge = {
 
 export type ResourceList = {
   __typename: 'ResourceList';
-  apiVersion?: Maybe<ApiVersion>;
   created_at: Scalars['Date'];
-  focusMode?: Maybe<FocusMode>;
   id: Scalars['ID'];
-  organization?: Maybe<Organization>;
-  post?: Maybe<Post>;
-  projectVersion?: Maybe<ProjectVersion>;
+  listFor: ResourceListOn;
   resources: Array<Resource>;
-  routineVersion?: Maybe<RoutineVersion>;
-  smartContractVersion?: Maybe<SmartContractVersion>;
-  standardVersion?: Maybe<StandardVersion>;
   translations: Array<ResourceListTranslation>;
   updated_at: Scalars['Date'];
 };
 
 export type ResourceListCreateInput = {
   id: Scalars['ID'];
-  listFor: ResourceListFor;
   listForConnect: Scalars['ID'];
+  listForType: ResourceListFor;
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   translationsCreate?: InputMaybe<Array<ResourceListTranslationCreateInput>>;
 };
@@ -6784,6 +6777,8 @@ export enum ResourceListFor {
   SmartContractVersion = 'SmartContractVersion',
   StandardVersion = 'StandardVersion'
 }
+
+export type ResourceListOn = ApiVersion | FocusMode | Organization | Post | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion;
 
 export type ResourceListSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -10318,10 +10313,11 @@ export type ResolversTypes = {
   Resource: ResolverTypeWrapper<Resource>;
   ResourceCreateInput: ResourceCreateInput;
   ResourceEdge: ResolverTypeWrapper<ResourceEdge>;
-  ResourceList: ResolverTypeWrapper<ResourceList>;
+  ResourceList: ResolverTypeWrapper<Omit<ResourceList, 'listFor'> & { listFor: ResolversTypes['ResourceListOn'] }>;
   ResourceListCreateInput: ResourceListCreateInput;
   ResourceListEdge: ResolverTypeWrapper<ResourceListEdge>;
   ResourceListFor: ResourceListFor;
+  ResourceListOn: ResolversTypes['ApiVersion'] | ResolversTypes['FocusMode'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['ProjectVersion'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
   ResourceListSearchInput: ResourceListSearchInput;
   ResourceListSearchResult: ResolverTypeWrapper<ResourceListSearchResult>;
   ResourceListSortBy: ResourceListSortBy;
@@ -11018,9 +11014,10 @@ export type ResolversParentTypes = {
   Resource: Resource;
   ResourceCreateInput: ResourceCreateInput;
   ResourceEdge: ResourceEdge;
-  ResourceList: ResourceList;
+  ResourceList: Omit<ResourceList, 'listFor'> & { listFor: ResolversParentTypes['ResourceListOn'] };
   ResourceListCreateInput: ResourceListCreateInput;
   ResourceListEdge: ResourceListEdge;
+  ResourceListOn: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['FocusMode'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['SmartContractVersion'] | ResolversParentTypes['StandardVersion'];
   ResourceListSearchInput: ResourceListSearchInput;
   ResourceListSearchResult: ResourceListSearchResult;
   ResourceListTranslation: ResourceListTranslation;
@@ -13500,17 +13497,10 @@ export type ResourceEdgeResolvers<ContextType = any, ParentType extends Resolver
 };
 
 export type ResourceListResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResourceList'] = ResolversParentTypes['ResourceList']> = {
-  apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  focusMode?: Resolver<Maybe<ResolversTypes['FocusMode']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
-  post?: Resolver<Maybe<ResolversTypes['Post']>, ParentType, ContextType>;
-  projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
+  listFor?: Resolver<ResolversTypes['ResourceListOn'], ParentType, ContextType>;
   resources?: Resolver<Array<ResolversTypes['Resource']>, ParentType, ContextType>;
-  routineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
-  smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
-  standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ResourceListTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13520,6 +13510,10 @@ export type ResourceListEdgeResolvers<ContextType = any, ParentType extends Reso
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['ResourceList'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ResourceListOnResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResourceListOn'] = ResolversParentTypes['ResourceListOn']> = {
+  __resolveType: TypeResolveFn<'ApiVersion' | 'FocusMode' | 'Organization' | 'Post' | 'ProjectVersion' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion', ParentType, ContextType>;
 };
 
 export type ResourceListSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResourceListSearchResult'] = ResolversParentTypes['ResourceListSearchResult']> = {
@@ -15037,6 +15031,7 @@ export type Resolvers<ContextType = any> = {
   ResourceEdge?: ResourceEdgeResolvers<ContextType>;
   ResourceList?: ResourceListResolvers<ContextType>;
   ResourceListEdge?: ResourceListEdgeResolvers<ContextType>;
+  ResourceListOn?: ResourceListOnResolvers<ContextType>;
   ResourceListSearchResult?: ResourceListSearchResultResolvers<ContextType>;
   ResourceListTranslation?: ResourceListTranslationResolvers<ContextType>;
   ResourceSearchResult?: ResourceSearchResultResolvers<ContextType>;

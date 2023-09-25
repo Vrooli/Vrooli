@@ -209,7 +209,6 @@ const ChatForm = ({
     dirty,
     existing,
     handleUpdate,
-    isCreate,
     isOpen,
     isReadLoading,
     onCancel,
@@ -226,6 +225,7 @@ const ChatForm = ({
     const { t } = useTranslation();
 
     const [message, setMessage] = useState<string>(context ?? "");
+    const isCreate = useMemo(() => existing.id === DUMMY_ID, [existing.id]);
 
     const {
         fetch,
@@ -252,8 +252,6 @@ const ChatForm = ({
         }
         console.log("onsubmittttt values", updatedChat ?? values);
         console.log("onsubmittttt transformed", JSON.stringify(transformChatValues(updatedChat ?? values, existing, isCreate)));
-        setMessage(""); //TODO temporary. Need to figure out why this isn't resetting value in RichInputBase. Copied out useEffect code in RichInputBase that I thought was preventing the update, but that didn't fix it. While we're doing this, should also fix typing in RichInputBase so it never moves the cursor 
-        return;
         // Filters out messages that aren't yours, except for ones marked as "isUnsent". This 
         // flag is used both to show messages you sent that haven't been fully sent yet, but also 
         // initial messages when chatting with a bot (which also haven't been sent yet, as the 
@@ -266,7 +264,11 @@ const ChatForm = ({
             fetch,
             inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values), withoutOtherMessages(existing), isCreate),
             onSuccess: (data) => {
-                handleUpdate(data);
+                // Update, but make sure messages are in the correct order
+                handleUpdate({
+                    ...data,
+                    messages: data.messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+                });
                 setMessage("");
             }, // Most forms will use handleComplete, but we may still be chatting. So don't close the form.
             onCompleted: () => { props.setSubmitting(false); },

@@ -62,19 +62,6 @@ export const RichInputBase = ({
         setCookieShowMarkdown(!isMarkdownOn);
     }, [isMarkdownOn]);
 
-    // // Internal value (since value passed back is debounced)
-    // const [internalValue, setInternalValue] = useState<string>(value ?? "");
-    // useEffect(() => {
-    //     // If new value is one of the recent items in the stack 
-    //     // (i.e. debounce is firing while user is still typing),
-    //     // then don't update the internal value
-    //     const recentItems = stack.current.slice(Math.max(stack.current.length - 5, 0));
-    //     if (value === "" || !recentItems.includes(value)) {
-    //         setInternalValue(value);
-    //         (CurrentViewComponent as unknown as RichInputChildView)?.handleAction("SetValue", value);
-    //     }
-    // }, [CurrentViewComponent, value]);
-
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
         isCreate: true,

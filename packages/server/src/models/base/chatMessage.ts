@@ -284,7 +284,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 Object.values(messageData).forEach((message) => {
                     // If the message is new, but the user ID is not yours or a bot, throw an error
                     if (message.isNew && message.userId !== userData.id && !Object.keys(botData).includes(message.userId)) {
-                        throw new CustomError("0526", "InternalError", ["en"], { message });
+                        throw new CustomError("0526", "Unauthorized", ["en"], { message });
                     }
                 });
                 // Return data
@@ -293,7 +293,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isFork: data.isFork,
-                user: { connect: { id: rest.userData.id } },
+                user: { connect: { id: data.userConnect ?? rest.userData.id } }, // Can create messages for bots. This is authenticated in the "pre" function.
                 ...(data.forkId ? { fork: { connect: { id: data.forkId } } } : {}),
                 ...(await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Chat", parentRelationshipName: "messages", data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),

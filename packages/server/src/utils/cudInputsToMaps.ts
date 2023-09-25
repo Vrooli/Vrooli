@@ -174,7 +174,7 @@ export const cudInputsToMaps = async ({
             const fieldName = field.substring(0, field.length - action.length);
             let __typename: `${GqlModelType}` = format.gqlRelMap[fieldName] as `${GqlModelType}`;
             // Make sure that the relation is defined in the relMap
-            if (!__typename) {
+            if (typeof __typename !== "string") {
                 // Translations are a special case, as they are handled internally by the object's shaping functions
                 if (fieldName === "translations") {
                     // Add to input and continue
@@ -246,7 +246,7 @@ export const cudInputsToMaps = async ({
                 }
             };
 
-            const processConnectOrDisconnect = (id: string) => {
+            const processConnectOrDisconnect = (id: string, isToOne: boolean) => {
                 initByAction(action);
                 initByType(__typename);
                 // Connect should still be an ID, so we can add it to the idsByAction and idsByType maps
@@ -260,11 +260,14 @@ export const cudInputsToMaps = async ({
                 if (closestWithId === null) {
                     return;
                 }
-                // If here, we're connecting or disconnecting a one-to-one or many-to-one relation within an update mutation. 
-                // This requires a placeholder, as we may be kicking-out an existing object without knowing its ID, and we need to query the database to find it.
-                const placeholder = `${closestWithId.__typename}|${closestWithId.id}.${closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName}`;
-                idsByAction[action]?.push(placeholder);
-                idsByType[__typename]?.push(placeholder);
+                // If here, we're connecting or disconnecting a relation within an update mutation. 
+                // If this is one-to-one or many-to-one, we need to generate a placeholder.
+                // This is because we may be kicking-out an existing object without knowing its ID, and we need to query the database to find it.
+                if (isToOne) {
+                    const placeholder = `${closestWithId.__typename}|${closestWithId.id}.${closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName}`;
+                    idsByAction[action]?.push(placeholder);
+                    idsByType[__typename]?.push(placeholder);
+                }
             };
 
             const isArray = (input[field] as unknown) instanceof Array;
@@ -281,11 +284,11 @@ export const cudInputsToMaps = async ({
             } else if (isArray && isConnectOrDisconnect) {
                 inputInfo.input[field] = input[field];
                 for (const child of input[field] as Array<string>) {
-                    processConnectOrDisconnect(child);
+                    processConnectOrDisconnect(child, false);
                 }
             } else {
                 inputInfo.input[field] = input[field];
-                processConnectOrDisconnect(input[field] as string);
+                processConnectOrDisconnect(input[field] as string, true);
             }
 
         }

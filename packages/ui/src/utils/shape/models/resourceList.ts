@@ -25,7 +25,7 @@ export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreate
         return {
             ...prims,
             listForConnect: d.listFor.id,
-            listFor: d.listFor.__typename,
+            listForType: d.listFor.__typename,
             ...createRel(d, "resources", ["Create"], "many", shapeResource, (r) => ({ list: { id: prims.id }, ...r })),
             ...createRel(d, "translations", ["Create"], "many", shapeResourceListTranslation),
         };

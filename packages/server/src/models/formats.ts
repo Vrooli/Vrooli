@@ -1394,14 +1394,19 @@ export const ResourceListFormat: Formatter<ResourceListModelLogic> = {
     gqlRelMap: {
         __typename: "ResourceList",
         resources: "Resource",
-        apiVersion: "ApiVersion",
-        organization: "Organization",
-        post: "Post",
-        projectVersion: "ProjectVersion",
-        routineVersion: "RoutineVersion",
-        smartContractVersion: "SmartContractVersion",
-        standardVersion: "StandardVersion",
-        focusMode: "FocusMode",
+        listFor: {
+            apiVersion: "ApiVersion",
+            focusMode: "FocusMode",
+            organization: "Organization",
+            post: "Post",
+            projectVersion: "ProjectVersion",
+            routineVersion: "RoutineVersion",
+            smartContractVersion: "SmartContractVersion",
+            standardVersion: "StandardVersion",
+        },
+    },
+    unionFields: {
+        listFor: { connectField: "listForConnect", typeField: "listForType" },
     },
     prismaRelMap: {
         __typename: "ResourceList",

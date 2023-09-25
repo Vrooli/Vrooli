@@ -104,7 +104,7 @@ export const BasicSnack = ({
             // Scrolls out of view when closed
             transform: open ? "translateX(0)" : "translateX(-150%)",
             transition: "transform 0.4s ease-in-out",
-            padding: "8px 16px",
+            padding: 1,
             borderRadius: 2,
             boxShadow: 8,
             ...severityStyle(severity, palette),
@@ -112,9 +112,23 @@ export const BasicSnack = ({
             {/* Icon */}
             <Icon fill="white" />
             {/* Message */}
-            <Typography variant="body1" sx={{ color: "white", marginLeft: "4px" }}>
-                {message}
-            </Typography>
+            <Box sx={{
+                flex: 1, // take up available space
+                marginLeft: "4px",
+                maxHeight: "25vh",
+                overflowY: "auto",
+            }}>
+                <Typography
+                    variant="body1"
+                    sx={{
+                        color: "white",
+                        marginLeft: "4px",
+                        overflowWrap: "break-word",
+                        wordWrap: "anywhere",
+                    }}>
+                    {message}
+                </Typography>
+            </Box>
             {/* Button */}
             {buttonText && buttonClicked && (
                 <Button
