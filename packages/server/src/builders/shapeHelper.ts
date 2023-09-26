@@ -207,12 +207,15 @@ export const shapeHelper = async<
     // Now we can further shape the result
     // Creates which show up in idsCreateToConnect should be converted to connects
     if (Array.isArray(result.create) && result.create.length > 0 && Object.keys(idsCreateToConnect).length > 0) {
-        result.connect = result.create.map((e: { [x: string]: any }) => {
+        const connected = result.create.map((e: { [x: string]: any }) => {
             const id = idsCreateToConnect[e[primaryKey]] ?? idsCreateToConnect[e.id];
             const isUuid = typeof id === "string" && uuidValidate(id);
-            return id ? { [isUuid ? primaryKey : "id"]: id } : e;
-        });
-        result.create = result.create.filter((e: { [x: string]: any }) => !idsCreateToConnect[e[primaryKey]]);
+            return id ? { [isUuid ? "id" : primaryKey]: id } : null;
+        }).filter((e) => e);
+        if (connected.length) {
+            result.connect = Array.isArray(result.connect) ? [...result.connect, ...connected] : connected;
+            result.create = result.create.filter((e: { [x: string]: any }) => !idsCreateToConnect[e[primaryKey]] && !idsCreateToConnect[e.id]);
+        }
     }
     // Connects, diconnects, and deletes must be shaped in the form of { id: '123' } (i.e. no other fields)
     if (Array.isArray(result.connect) && result.connect.length > 0) {

@@ -76,10 +76,10 @@ export function ReminderListItem({
         if (!data) return { checked: false, checkDisabled: true, checkTooltip: "" };
         // Can't press checkbox if there is more than one step. 
         // Instead, must check steps individually
-        const checkDisabled = data.reminderItems.length > 1;
+        const checkDisabled = data.reminderItems?.length > 1;
         if (data.isComplete) {
             return { checked: true, checkDisabled, checkTooltip: checkDisabled ? "Reminder is complete" : "Mark as incomplete" };
-        } else if (data.reminderItems.length > 0 && data.reminderItems.every(item => item.isComplete)) {
+        } else if (data.reminderItems?.length > 0 && data.reminderItems.every(item => item.isComplete)) {
             onAction("Updated", { ...data, isComplete: true });
             return { checked: true, checkDisabled, checkTooltip: checkDisabled ? "Reminder is complete" : "Mark as incomplete" };
         } else {
@@ -91,7 +91,7 @@ export function ReminderListItem({
         if (checkDisabled || !data) return;
         const original = data;
         const updatedItems = data.reminderItems.length > 0 ?
-            { ...(data.reminderItems.map(item => ({ ...item, isComplete: !checked }))) } :
+            [...(data.reminderItems.map(item => ({ ...item, isComplete: !checked })))] :
             [];
         const updated = { ...data, isComplete: !checked, reminderItems: updatedItems };
         onAction("Updated", updated);
@@ -106,7 +106,7 @@ export function ReminderListItem({
     const { stepsComplete, stepsTotal, percentComplete } = useMemo(() => {
         if (!data) return { stepsComplete: 0, stepsTotal: 0, percentComplete: 0 };
         const stepsTotal = data.reminderItems.length;
-        const stepsComplete = data.reminderItems.filter(item => item.isComplete).length;
+        const stepsComplete = data.reminderItems?.filter(item => item.isComplete).length ?? 0;
         const percentComplete = stepsTotal > 0 ? Math.round(stepsComplete / stepsTotal * 100) : 0;
         return { stepsComplete, stepsTotal, percentComplete };
     }, [data]);
@@ -119,8 +119,10 @@ export function ReminderListItem({
         setObject: (reminder) => onAction("Updated", reminder),
     });
 
-    const handleDeleteClick = useCallback(() => {
+    const handleDeleteClick = useCallback((event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
         if (!data?.id) return;
+        event.stopPropagation();
+        event.preventDefault();
         onActionStart("Delete");
     }, [data?.id, onActionStart]);
 

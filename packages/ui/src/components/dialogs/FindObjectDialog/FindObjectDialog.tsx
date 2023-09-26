@@ -182,7 +182,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>({ endpoint: findOneEndpoint });
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
-        console.log("fetching full data", findOneEndpoint, find); //TODO for popular, won't have findOneEndpoint. Need to try and infer from item. Ideally, should find nice way to do this for all items that don't have a findOneEndpoint (e.g. views)
+        const appendVersion = typeof versionId === "string" && !item.__typename.endsWith("Version");
+        const { findOneEndpoint } = searchTypeToParams[`${item.__typename}${appendVersion ? "Version" : ""}` as SearchType]!();
+        console.log("fetching full data", findOneEndpoint, find, item);
         if (!findOneEndpoint || find !== "Full") return false;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
         if (itemData && itemData.id === item.id && (!versionId || (itemData as any).versionId === versionId)) {
@@ -192,14 +194,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             console.log("fetching full data!", item);
             queryingRef.current = true;
             if (versionId) {
-                getItem({ id: versionId, idRoot: item.id });
+                getItem({ id: versionId }, findOneEndpoint);
             } else {
-                getItem({ id: item.id });
+                getItem({ id: item.id }, findOneEndpoint);
             }
         }
         // Return false so the list item does not navigate
         return false;
-    }, [find, findOneEndpoint, itemData, onClose, getItem]);
+    }, [find, itemData, onClose, getItem]);
 
     const onVersionSelect = useCallback((version: { id: string }) => {
         if (!selectedObject) return;

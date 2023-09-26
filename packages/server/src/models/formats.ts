@@ -568,6 +568,9 @@ export const NodeEndFormat: Formatter<NodeEndModelLogic> = {
 export const NodeLinkFormat: Formatter<NodeLinkModelLogic> = {
     gqlRelMap: {
         __typename: "NodeLink",
+        from: "Node",
+        to: "Node",
+        routineVersion: "RoutineVersion",
         whens: "NodeLinkWhen",
     },
     prismaRelMap: {
@@ -619,11 +622,12 @@ export const NodeRoutineListFormat: Formatter<NodeRoutineListModelLogic> = {
     gqlRelMap: {
         __typename: "NodeRoutineList",
         items: "NodeRoutineListItem",
+        node: "Node",
     },
     prismaRelMap: {
         __typename: "NodeRoutineList",
-        node: "Node",
         items: "NodeRoutineListItem",
+        node: "Node",
     },
     countFields: {},
 };
@@ -631,6 +635,7 @@ export const NodeRoutineListFormat: Formatter<NodeRoutineListModelLogic> = {
 export const NodeRoutineListItemFormat: Formatter<NodeRoutineListItemModelLogic> = {
     gqlRelMap: {
         __typename: "NodeRoutineListItem",
+        list: "NodeRoutineList",
         routineVersion: "RoutineVersion",
     },
     prismaRelMap: {

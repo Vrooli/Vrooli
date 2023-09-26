@@ -6427,6 +6427,7 @@ export type ReminderItemCreateInput = {
   dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   index: Scalars['Int'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
   reminderConnect: Scalars['ID'];
 };
