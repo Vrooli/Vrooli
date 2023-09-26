@@ -9294,6 +9294,7 @@ export type Tag = {
 
 export type TagCreateInput = {
   anonymous?: InputMaybe<Scalars['Boolean']>;
+  id: Scalars['ID'];
   tag: Scalars['String'];
   translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;
 };
@@ -9351,6 +9352,7 @@ export type TagTranslationUpdateInput = {
 
 export type TagUpdateInput = {
   anonymous?: InputMaybe<Scalars['Boolean']>;
+  id: Scalars['ID'];
   tag: Scalars['String'];
   translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;

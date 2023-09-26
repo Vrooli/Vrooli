@@ -4,7 +4,7 @@ import { getLogic } from "../getters";
 import { Formatter, ModelLogicType } from "../models/types";
 import { PrismaType } from "../types";
 import { getActionFromFieldName } from "./getActionFromFieldName";
-import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, InputNode, InputsById, InputsByType, QueryAction } from "./types";
+import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, IdsCreateToConnect, InputNode, InputsById, InputsByType, QueryAction } from "./types";
 
 /**
  * Converts placeholder ids to actual IDs, or null if actual ID not found. 
@@ -84,11 +84,13 @@ export const cudInputsToMaps = async ({
 }): Promise<{
     idsByAction: IdsByAction,
     idsByType: IdsByType,
+    idsCreateToConnect: IdsCreateToConnect,
     inputsById: InputsById,
     inputsByType: InputsByType,
 }> => {
     const idsByAction: IdsByAction = {};
     const idsByType: IdsByType = {};
+    const idsCreateToConnect: IdsCreateToConnect = {};
     const inputsById: InputsById = {};
     const inputsByType: InputsByType = {};
 
@@ -315,6 +317,39 @@ export const cudInputsToMaps = async ({
 
     await convertPlaceholders({ idsByAction, idsByType, prisma, languages });
 
+    // Check if any objects being created should be replaced with connects
+    // NOTE: This only updates the maps, not inputs themselves. You'll still have to 
+    // perform the correct checks when shaping the inputs.
+    for (const type in inputsByType) {
+        // Check if the type can be converted to a connect
+        const { mutate } = getLogic(["mutate"], type as GqlModelType, languages, "cudInputsToMaps - connect check");
+        if (!mutate?.shape?.findConnects) continue;
+        // Collect all IDs of this type being created
+        const createIds = inputsByType[type].Create.map(({ node }) => node.id);
+        if (!createIds?.length) continue;
+        // Find all objects of this type that already exist
+        const connectIds = await mutate.shape.findConnects({ Create: inputsByType[type].Create, prisma });
+        for (let i = 0; i < createIds.length; i++) {
+            const createId = createIds[i];
+            const connectId = connectIds[i];
+            // If null, an existing ID wasn't found. So skip.
+            if (!connectId) continue;
+            // Add to idsCreateToConnect
+            idsCreateToConnect[createId] = connectId;
+            // Move node and change it to a connect
+            const inputInfo = inputsById[connectId];
+            inputsByType[type].Create.splice(i, 1);
+            inputInfo.node.action = "Connect";
+            inputInfo.input = connectId;
+            inputsByType[type].Connect.push(inputInfo);
+            // Remove from idsByAction.Create and add to idsByAction.Connect
+            const idIndex = idsByAction.Create?.indexOf(createId);
+            if (idIndex === undefined || idIndex === -1 || !idsByAction.Create) continue;
+            idsByAction.Create.splice(idIndex, 1);
+            idsByAction.Connect = (idsByAction.Connect || []).concat(connectId);
+        }
+    }
+
     // Remove duplicate IDs from idsByAction and idsByType
     for (const type in idsByType) {
         idsByType[type] = [...new Set(idsByType[type])];
@@ -326,6 +361,7 @@ export const cudInputsToMaps = async ({
     return {
         idsByType,
         idsByAction,
+        idsCreateToConnect,
         inputsById,
         inputsByType,
     };

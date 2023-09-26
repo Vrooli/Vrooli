@@ -43,44 +43,16 @@ export const tagShapeHelper = async <
     ...rest
 }: TagShapeHelperProps<Input, Types, FieldName>):
     Promise<ShapeHelperOutput<false, false, Types[number], any, "tag">> => { // Can't specify FieldName in output because ShapeHelperOutput doesn't support join tables. The expected fieldName is the unique field name, which is found inside this function
-    // Define keys
-    const createKey = `${relation}Create` as string;
-    const connectKey = `${relation}Connect` as string;
-    const deleteKey = `${relation}Delete` as string;
-    const disconnectKey = `${relation}Disconnect` as string;
-    // Helper function to ensure that tags are an object
-    const tagsToObject = (tags: any[]) =>
-        tags.map((t: any) => typeof t === "string" ? ({ tag: t }) : t);
-    // Tags get special logic because they are treated as strings in GraphQL, 
-    // instead of a normal relationship object
-    // If any tag creates/connects, make sure they exist/not exist
-    const initialCreate = Array.isArray(data[createKey]) ?
-        data[createKey].map((c: any) => c.tag) :
-        typeof data[createKey] === "object" ? [data[createKey].tag] :
-            [];
-    const initialConnect = Array.isArray(data[connectKey]) ?
-        data[connectKey] :
-        typeof data[connectKey] === "object" ? [data[connectKey]] :
-            [];
-    const initialCombined = [...initialCreate, ...initialConnect];
-    if (initialCombined.length > 0) {
-        // Query for all of the tags, to determine which ones exist
-        const existing = await prisma.tag.findMany({
-            where: { tag: { in: initialCombined } },
-            select: { tag: true },
-        });
-        // All existing tags are the new connects
-        data[connectKey] = existing.map((t) => ({ tag: t.tag }));
-        // All new tags are the new creates
-        data[createKey] = initialCombined.filter((t) => !existing.some((et) => et.tag === t)).map((t) => typeof t === "string" ? ({ tag: t }) : t);
-    }
-    // Shape disconnects and deletes
-    if (Array.isArray(data[disconnectKey])) {
-        data[disconnectKey] = tagsToObject(data[disconnectKey]);
-    }
-    if (Array.isArray(data[deleteKey])) {
-        data[deleteKey] = tagsToObject(data[deleteKey]);
-    }
+    // Make sure that all tag relations are objects instead of strings
+    const keys = ["Create", "Connect", "Delete", "Disconnect", "Update"].map(op => `${relation}${op}` as string);
+    const tagsToObject = (tags: (string | object)[]) => {
+        return tags.map(t => typeof t === "string" ? { tag: t } : t);
+    };
+    keys.forEach(key => {
+        if (Array.isArray(data[key])) {
+            data[key] = tagsToObject(data[key]);
+        }
+    });
     return shapeHelper({
         data,
         isOneToOne: false,

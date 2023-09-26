@@ -1498,6 +1498,7 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelLogic> = {
         forks: "Routine",
         inputs: "RoutineVersionInput",
         nodes: "Node",
+        nodeLinks: "NodeLink",
         outputs: "RoutineVersionOutput",
         pullRequest: "PullRequest",
         resourceList: "ResourceList",

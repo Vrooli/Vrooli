@@ -37,7 +37,13 @@ export const TagModel: ModelLogic<TagModelLogic, typeof suppFields, typeof idFie
                 const maps = preShapeEmbeddableTranslatable<typeof idField>({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
+            findConnects: async ({ Create, prisma }) => {
+                const createIds = Create.map(({ node }) => node.id);
+                const existingTags = await prisma.tag.findMany({ where: { tag: { in: createIds } }, select: { tag: true } });
+                return createIds.map(id => existingTags.find(x => x.tag === id) ? id : null);
+            },
             create: async ({ data, ...rest }) => ({
+                id: data.id,
                 tag: data.tag,
                 createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
                 ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest })),

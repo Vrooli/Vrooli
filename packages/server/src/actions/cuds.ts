@@ -54,7 +54,7 @@ export async function cudHelper({
     }
     // Group all data, including relations, relations' relations, etc. into various maps. 
     // These are useful for validation and pre-shaping data
-    const { idsByAction, idsByType, inputsById, inputsByType } = await cudInputsToMaps({
+    const { idsByAction, idsByType, idsCreateToConnect, inputsById, inputsByType } = await cudInputsToMaps({
         inputData,
         prisma,
         languages: userData.languages,
@@ -110,7 +110,7 @@ export async function cudHelper({
                 if (input?.id === DUMMY_ID) {
                     throw new CustomError("0501", "InternalError", userData.languages, { input, objectType });
                 }
-                const data = mutate.shape.create ? await mutate.shape.create({ data: input, preMap, prisma, userData }) : input;
+                const data = mutate.shape.create ? await mutate.shape.create({ data: input, idsCreateToConnect, preMap, prisma, userData }) : input;
                 const select = selectHelper(partialInfo)?.select;
                 // Add to operations
                 const createOperation = delegate(prisma).create({
@@ -124,7 +124,7 @@ export async function cudHelper({
         if (Update.length > 0) {
             for (const { index } of Update) {
                 const { input } = inputData[index] as { input: PrismaUpdate, objectType: GqlModelType | `${GqlModelType}` };
-                const data = mutate.shape.update ? await mutate.shape.update({ data: input, preMap, prisma, userData }) : input;
+                const data = mutate.shape.update ? await mutate.shape.update({ data: input, idsCreateToConnect, preMap, prisma, userData }) : input;
                 const select = selectHelper(partialInfo)?.select;
                 // Add to operations
                 const updateOperation = delegate(prisma).update({

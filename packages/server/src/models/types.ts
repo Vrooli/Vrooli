@@ -4,7 +4,7 @@ import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../buil
 import { PrismaType, PromiseOrValue, SessionUserToken } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
-import { InputNode, InputsById, QueryAction } from "../utils/types";
+import { IdsCreateToConnect, InputNode, InputsById, QueryAction } from "../utils/types";
 
 /** Types and flags for an object's business layer */
 export type ModelLogicType = {
@@ -443,18 +443,35 @@ export type Mutater<Model extends {
             userData: SessionUserToken,
             inputsById: InputsById,
         }) => PromiseOrValue<object>,
+        /**
+         * Determines which creates should instead be connects. This is useful for
+         * things like tags, where you don't want to create a new tag if one with 
+         * the same name already exists.
+         * 
+         * @returns An array of ids to connect to, in the same order as the input array. 
+         * If the id is null, then a new object should be created.
+         * 
+         * NOTE: We don't have to worry about it for tags, but you should keep in mind 
+         * object permissions when using this function
+         */
+        findConnects?: ({ Create, prisma }: {
+            Create: { node: InputNode, input: Model["GqlCreate"] }[],
+            prisma: PrismaType,
+        }) => PromiseOrValue<(string | null)[]>,
         /** Shapes data for create mutations */
         create?: Model["GqlCreate"] extends Record<string, any> ?
-        Model["PrismaCreate"] extends Record<string, any> ? ({ data, preMap, prisma, userData }: {
+        Model["PrismaCreate"] extends Record<string, any> ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
             data: Model["GqlCreate"],
+            idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap;
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<Model["PrismaCreate"]> : never : never,
         /** Shapes data for update mutations */
         update?: Model["GqlUpdate"] extends Record<string, any> ?
-        Model["PrismaUpdate"] extends Record<string, any> ? ({ data, preMap, prisma, userData }: {
+        Model["PrismaUpdate"] extends Record<string, any> ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
             data: Model["GqlUpdate"],
+            idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,

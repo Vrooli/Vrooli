@@ -16,10 +16,7 @@ export const nodeEndNextShapeHelper = async <
     Input extends ShapeHelperInput<false, false, Types[number], "suggestedNextRoutineVersions">,
 >({
     data,
-    preMap,
-    prisma,
-    relTypes,
-    userData,
+    ...rest
 }: NodeEndNextShapeHelperProps<Input, Types>):
     Promise<ShapeHelperOutput<false, false, Types[number], "suggestedNextRoutineVersions", "id">> => {
     return shapeHelper({
@@ -31,15 +28,12 @@ export const nodeEndNextShapeHelper = async <
             uniqueFieldName: "fromEndId_toRoutineVersionId",
             childIdFieldName: "toRoutineVersionId",
             parentIdFieldName: "fromEndId",
-            parentId: (data as any).id ?? null,
+            parentId: (data as { id?: string | null | undefined }).id ?? null,
         },
         objectType: "RoutineVersion" as GqlModelType,
         parentRelationshipName: "suggestedNextByNode",
-        preMap,
         primaryKey: "id",
-        prisma,
         relation: "suggestedNextRoutineVersions",
-        relTypes,
-        userData,
+        ...rest,
     });
 };

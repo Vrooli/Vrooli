@@ -20,11 +20,7 @@ export const translationShapeHelper = async <
 >({
     data,
     embeddingNeedsUpdate = {}, // Only used for embeddable translations 
-    isRequired,
-    preMap,
-    prisma,
-    relTypes,
-    userData,
+    ...rest
 }: TranslationShapeHelperProps<Input, IsRequired, Types>):
     Promise<ShapeHelperOutput<false, IsRequired, Types[number], "translations", "id">> => {
     return shapeHelper({
@@ -41,14 +37,10 @@ export const translationShapeHelper = async <
             })),
         },
         isOneToOne: false,
-        isRequired,
         objectType: "Translation" as GqlModelType,
         parentRelationshipName: "",
-        preMap,
         primaryKey: "id",
-        prisma,
         relation: "translations",
-        relTypes,
-        userData,
+        ...rest,
     });
 };

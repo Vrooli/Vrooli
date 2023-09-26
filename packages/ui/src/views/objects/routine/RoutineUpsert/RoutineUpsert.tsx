@@ -415,6 +415,8 @@ export const RoutineUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
+                    console.log("ROUTINE VALUES", values);
+                    console.log("ROUTINE TRANSFORMED", transformRoutineValues(values, existing, isCreate));
                     fetchLazyWrapper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
                         fetch,
                         inputs: transformRoutineValues(values, existing, isCreate),

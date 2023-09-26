@@ -1,21 +1,13 @@
-import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
-import { shapeHelper, ShapeHelperOutput } from "../../builders";
-import { PreMap } from "../../models/types";
-import { PrismaType, SessionUserToken } from "../../types";
+import { lowercaseFirstLetter } from "@local/shared";
+import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders";
 
 type OwnerShapeHelperProps<
     FieldName extends "ownedBy",
-> = {
-    data: any;
-    isCreate: boolean;
-    objectType: GqlModelType | `${GqlModelType}`;
-    parentRelationshipName: string;
-    preMap: PreMap;
-    prisma: PrismaType;
-    relation: FieldName;
-    relTypes: readonly ("Connect" | "Disconnect")[];
-    userData: SessionUserToken;
-}
+    Types extends readonly ("Connect" | "Disconnect")[],
+> =
+    Omit<ShapeHelperProps<{ id: string }, false, false, Types, FieldName, "id", false>, "isOneToOne" | "isRequired" | "joinData" | "primaryKey" | "softDelete"> & {
+        isCreate: boolean;
+    }
 
 /**
 * Connect or disconnect owners to/from an object
@@ -31,7 +23,7 @@ export const ownerShapeHelper = async <
     relation,
     relTypes,
     ...rest
-}: OwnerShapeHelperProps<FieldName>): Promise<
+}: OwnerShapeHelperProps<FieldName, Types>): Promise<
     (ShapeHelperOutput<true, false, Types[number], `${FieldName}Organization`, "id"> &
         ShapeHelperOutput<true, false, Types[number], `${FieldName}User`, "id">) | object
 > => {
@@ -47,7 +39,7 @@ export const ownerShapeHelper = async <
         return {};
     }
     return {
-        ...(await shapeHelper({ relation: lowercaseFirstLetter(`${relation}Organization`), relTypes, isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName, data, ...rest })),
-        ...(await shapeHelper({ relation: lowercaseFirstLetter(`${relation}User`), relTypes, isOneToOne: true, isRequired: false, objectType: "User", parentRelationshipName, data, ...rest })),
+        ...(await shapeHelper({ ...rest, relation: lowercaseFirstLetter(`${relation}Organization`), relTypes, isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName, data })),
+        ...(await shapeHelper({ ...rest, relation: lowercaseFirstLetter(`${relation}User`), relTypes, isOneToOne: true, isRequired: false, objectType: "User", parentRelationshipName, data })),
     };
 };

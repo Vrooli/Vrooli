@@ -1,4 +1,4 @@
-import { BookmarkFor, endpointGetTags, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
+import { BookmarkFor, DUMMY_ID, endpointGetTags, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useFetch } from "hooks/useFetch";
@@ -59,7 +59,7 @@ export const TagSelectorBase = ({
             return;
         }
         // Add tag
-        handleTagAdd({ tag: tagLabel });
+        handleTagAdd({ id: DUMMY_ID, tag: tagLabel });
         // Clear input
         clearText();
     }, [clearText, handleTagAdd, inputValue, tags]);

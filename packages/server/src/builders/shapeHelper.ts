@@ -3,6 +3,7 @@ import { CustomError } from "../events";
 import { ObjectMap } from "../models/base";
 import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
+import { IdsCreateToConnect } from "../utils/types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
 import { RelationshipType, RelConnect, RelCreate, RelDelete, RelDisconnect, RelUpdate } from "./types";
 
@@ -105,6 +106,8 @@ export type ShapeHelperProps<
 > = {
     /** The data to convert */
     data: Input,
+    /** Ids which should result in a connect instead of a create */
+    idsCreateToConnect: IdsCreateToConnect,
     /**
      * True if relationship is one-to-one. This makes 
      * the results a single object instead of an array
@@ -139,7 +142,9 @@ export type ShapeHelperProps<
     primaryKey?: PrimaryKey,
     /** The Prisma client */
     prisma: PrismaType,
+    /** The name of the relationship field */
     relation: RelField,
+    /** The allowed operations on the relations (e.g. create, connect) */
     relTypes: Types,
     /**
      * If true, relationship is set to "isDelete" 
@@ -154,11 +159,6 @@ export type ShapeHelperProps<
 }
 /**
  * Creates the relationship operations for a mutater shape create or update function
- * @param data The GraphQL update data object
- * @param relTypes The allowed operations on the relations (e.g. create, connect)
- * @param relation The name of the relationship field
- * @param isRequired Whether the connection is required
- * @param isOneToOne Whether the connection is a single object or an array
  * @returns An object with the connections
  */
 export const shapeHelper = async<
@@ -171,6 +171,7 @@ export const shapeHelper = async<
     Input extends ShapeHelperInput<IsOneToOne, IsRequired, Types[number], RelField>,
 >({
     data,
+    idsCreateToConnect,
     isOneToOne,
     isRequired,
     joinData,

@@ -30,6 +30,7 @@ export type InputsByType = { [objectType in GqlModelType]?: {
     Update: { node: InputNode, input: PrismaUpdate }[];
 } };
 export type IdsByPlaceholder = { [placeholder: string]: string | null };
+export type IdsCreateToConnect = { [id: string]: string };
 // TODO add other types later. Reason is that this is used for cudHelper and cudInputsToMaps, which originally only supported the 3 types below. Ideally we want them to support all types, but baby steps :)
 export type CudInputData = {
     actionType: "Delete"; //"Connect" | "Delete" | "Disconnect";
