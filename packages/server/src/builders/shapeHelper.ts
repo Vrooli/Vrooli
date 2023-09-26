@@ -1,4 +1,4 @@
-import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
+import { GqlModelType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models/base";
 import { PreMap } from "../models/types";
@@ -205,13 +205,37 @@ export const shapeHelper = async<
             currShaped;
     }
     // Now we can further shape the result
+    // Creates which show up in idsCreateToConnect should be converted to connects
+    if (Array.isArray(result.create) && result.create.length > 0 && Object.keys(idsCreateToConnect).length > 0) {
+        result.connect = result.create.map((e: { [x: string]: any }) => {
+            const id = idsCreateToConnect[e[primaryKey]] ?? idsCreateToConnect[e.id];
+            const isUuid = typeof id === "string" && uuidValidate(id);
+            return id ? { [isUuid ? primaryKey : "id"]: id } : e;
+        });
+        result.create = result.create.filter((e: { [x: string]: any }) => !idsCreateToConnect[e[primaryKey]]);
+    }
     // Connects, diconnects, and deletes must be shaped in the form of { id: '123' } (i.e. no other fields)
-    if (Array.isArray(result.connect) && result.connect.length > 0) result.connect = result.connect.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
-    else result.connect = undefined;
-    if (Array.isArray(result.disconnect) && result.disconnect.length > 0) result.disconnect = result.disconnect.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
-    else result.disconnect = undefined;
-    if (Array.isArray(result.delete) && result.delete.length > 0) result.delete = result.delete.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
-    else result.delete = undefined;
+    if (Array.isArray(result.connect) && result.connect.length > 0) {
+        // Fallback to "id" if primaryKey is not found
+        result.connect = result.connect.map((e: { [x: string]: any }) => {
+            if (e[primaryKey]) return { [primaryKey]: e[primaryKey] };
+            return { id: e.id };
+        });
+    } else result.connect = undefined;
+    if (Array.isArray(result.disconnect) && result.disconnect.length > 0) {
+        // Fallback to "id" if primaryKey is not found
+        result.disconnect = result.disconnect.map((e: { [x: string]: any }) => {
+            if (e[primaryKey]) return { [primaryKey]: e[primaryKey] };
+            return { id: e.id };
+        });
+    } else result.disconnect = undefined;
+    if (Array.isArray(result.delete) && result.delete.length > 0) {
+        // Fallback to "id" if primaryKey is not found
+        result.delete = result.delete.map((e: { [x: string]: any }) => {
+            if (e[primaryKey]) return { [primaryKey]: e[primaryKey] };
+            return { id: e.id };
+        });
+    } else result.delete = undefined;
     // Updates must be shaped in the form of { where: { id: '123' }, data: {...}}
     if (Array.isArray(result.update) && result.update.length > 0) {
         result.update = result.update.map((e: any) => ({ where: { id: e.id }, data: e }));
@@ -228,7 +252,7 @@ export const shapeHelper = async<
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
-            const created = await (mutate.shape as any).create({ data: create, preMap, prisma, userData });
+            const created = await mutate.shape.create({ data: create, idsCreateToConnect, preMap, prisma, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = created;
             shaped.push(rest);
@@ -238,7 +262,7 @@ export const shapeHelper = async<
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await (mutate.shape as any).update({ data: update.data, preMap, prisma, userData, where: update.where });
+            const updated = await mutate.shape.update({ data: update.data, idsCreateToConnect, preMap, prisma, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = updated;
             shaped.push({ where: update.where, data: rest });

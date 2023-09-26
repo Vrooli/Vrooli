@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { GqlModelType, uuidValidate } from "@local/shared";
 import { permissionsSelectHelper } from "../builders";
 import { PrismaSelect } from "../builders/types";
 import { CustomError, logger } from "../events";
@@ -22,9 +22,23 @@ export const getAuthenticatedData = async (
     for (const type of Object.keys(idsByType) as GqlModelType[]) {
         // Find validator and prisma delegate for this object type
         const { delegate, idField, validate } = getLogic(["delegate", "idField", "validate"], type, userData?.languages ?? ["en"], "getAuthenticatedData");
-
+        const ids = idsByType[type] ?? [];
+        // Build "where" clause
+        let where: any = {};
+        // If idField is "id", just use that
+        if (idField === "id") {
+            where = { id: { in: ids } };
+        } else {
+            // We may have "id" values mixed with idField values
+            const uuids = ids.filter(uuidValidate);
+            const otherIds = ids.filter(x => !uuidValidate(x));
+            if (uuids.length) {
+                where = { OR: [{ [idField]: { in: otherIds } }, { id: { in: uuids } }] };
+            } else {
+                where = { [idField]: { in: ids } };
+            }
+        }
         // Query for data
-        const where = { [idField]: { in: idsByType[type] } };
         let select: PrismaSelect | undefined;
         let data: any[];
         try {
@@ -36,7 +50,8 @@ export const getAuthenticatedData = async (
         }
         // Add data to return object
         for (const datum of data) {
-            authDataById[datum[idField]] = { __typename: type, ...datum };
+            if (idField !== "id") authDataById[datum[idField]] = { __typename: type, ...datum };
+            authDataById[datum.id] = { __typename: type, ...datum };
         }
     }
     // Return the data
