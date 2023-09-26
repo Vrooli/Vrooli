@@ -251,9 +251,9 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            StandardModel.validate.isPublic(data.root as StandardModelLogic["PrismaModel"], languages),
+            StandardModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Standard")) as StandardModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => StandardModel.validate.owner(data?.root as StandardModelLogic["PrismaModel"], userId),

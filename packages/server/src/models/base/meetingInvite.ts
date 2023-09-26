@@ -76,9 +76,9 @@ export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof supp
             Organization: (data?.meeting as MeetingModelLogic["PrismaModel"])?.organization,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.meeting_inviteSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.meeting_inviteSelect>(data, [
             ["meeting", "Meeting"],
-        ], languages),
+        ], getParentInfo, languages),
         visibility: {
             private: {},
             public: {},

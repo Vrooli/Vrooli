@@ -47,7 +47,7 @@ export const ScheduleExceptionModel: ModelLogic<ScheduleExceptionModelLogic, typ
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ScheduleModel.validate.owner(data?.schedule as ScheduleModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => ScheduleModel.validate.isDeleted(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => ScheduleModel.validate.isPublic(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => ScheduleModel.validate.isPublic((data.schedule ?? getParentInfo(data.id, "Schedule")) as ScheduleModelLogic["PrismaModel"], getParentInfo, languages),
         visibility: {
             private: { schedule: ScheduleModel.validate.visibility.private },
             public: { schedule: ScheduleModel.validate.visibility.public },

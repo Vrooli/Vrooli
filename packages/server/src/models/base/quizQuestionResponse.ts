@@ -65,7 +65,7 @@ export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogi
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => QuizAttemptModel.validate.isPublic(data?.quizAttempt as QuizAttemptModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => QuizAttemptModel.validate.isPublic((data?.quizAttempt ?? getParentInfo(data.id, "QuizAttempt")) as QuizAttemptModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => QuizAttemptModel.validate.owner(data?.quizAttempt as QuizAttemptModelLogic["PrismaModel"], userId),

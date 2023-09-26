@@ -109,12 +109,12 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
             oneIsPublic<Prisma.smart_contractSelect>(data, [
                 ["ownedByOrganization", "Organization"],
                 ["ownedByUser", "User"],
-            ], languages),
+            ], getParentInfo, languages),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({

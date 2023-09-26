@@ -118,10 +118,10 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.quizSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false && oneIsPublic<Prisma.quizSelect>(data, [
             ["project", "Project"],
             ["routine", "Routine"],
-        ], languages),
+        ], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({

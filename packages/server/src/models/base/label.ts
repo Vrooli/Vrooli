@@ -91,10 +91,10 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.commentSelect>(data, [
             ["ownedByOrganization", "Organization"],
             ["ownedByUser", "User"],
-        ], languages),
+        ], getParentInfo, languages),
         visibility: {
             private: {},
             public: {},

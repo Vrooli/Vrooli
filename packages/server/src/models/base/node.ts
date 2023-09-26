@@ -71,7 +71,7 @@ export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => RoutineVersionModel.validate.isPublic((data.routineVersion ?? getParentInfo(data.id, "RoutineVerison")) as RoutineVersionModelLogic["PrismaModel"], getParentInfo, languages),
         visibility: {
             private: { routineVersion: RoutineVersionModel.validate.visibility.private },
             public: { routineVersion: RoutineVersionModel.validate.visibility.public },

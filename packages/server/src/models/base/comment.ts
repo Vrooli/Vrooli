@@ -293,7 +293,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.commentSelect>(data, [
             ["apiVersion", "ApiVersion"],
             ["issue", "Issue"],
             ["post", "Post"],
@@ -304,7 +304,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             ["routineVersion", "RoutineVersion"],
             ["smartContractVersion", "SmartContractVersion"],
             ["standardVersion", "StandardVersion"],
-        ], languages),
+        ], getParentInfo, languages),
         visibility: {
             private: {},
             public: {},

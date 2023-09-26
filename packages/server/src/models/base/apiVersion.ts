@@ -132,9 +132,9 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ApiModel.validate.isPublic(data.root as ApiModelLogic["PrismaModel"], languages),
+            ApiModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Api")) as ApiModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ApiModel.validate.owner(data?.root as ApiModelLogic["PrismaModel"], userId),

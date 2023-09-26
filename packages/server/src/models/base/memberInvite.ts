@@ -86,9 +86,9 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.member_inviteSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.member_inviteSelect>(data, [
             ["organization", "Organization"],
-        ], languages),
+        ], getParentInfo, languages),
         visibility: {
             private: {},
             public: {},

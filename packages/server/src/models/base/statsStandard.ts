@@ -41,9 +41,9 @@ export const StatsStandardModel: ModelLogic<StatsStandardModelLogic, typeof supp
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => StandardModel.validate.owner(data?.standard as StandardModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_standardSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.stats_standardSelect>(data, [
             ["standard", "Standard"],
-        ], languages),
+        ], getParentInfo, languages),
         visibility: {
             private: { standard: StandardModel.validate.visibility.private },
             public: { standard: StandardModel.validate.visibility.public },

@@ -66,7 +66,7 @@ export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = 
         permissionResolvers: (params) => ResourceListModel.validate.permissionResolvers({ ...params, data: params.data.list as any }),
         owner: (data, userId) => ResourceListModel.validate.owner(data?.list as ResourceListModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => ResourceListModel.validate.isPublic(data.list as ResourceListModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => ResourceListModel.validate.isPublic((data.list ?? getParentInfo(data.id, "ResourceList")) as ResourceListModelLogic["PrismaModel"], getParentInfo, languages),
         visibility: {
             private: {},
             public: {},

@@ -230,9 +230,9 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            RoutineModel.validate.isPublic(data.root as RoutineModelLogic["PrismaModel"], languages),
+            RoutineModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Routine")) as RoutineModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => RoutineModel.validate.owner(data?.root as RoutineModelLogic["PrismaModel"], userId),

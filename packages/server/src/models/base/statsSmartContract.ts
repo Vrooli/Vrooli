@@ -41,9 +41,9 @@ export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, t
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => SmartContractModel.validate.owner(data?.smartContract as SmartContractModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_smart_contractSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.stats_smart_contractSelect>(data, [
             ["smartContract", "SmartContract"],
-        ], languages),
+        ], getParentInfo, languages),
         visibility: {
             private: { smartContract: SmartContractModel.validate.visibility.private },
             public: { smartContract: SmartContractModel.validate.visibility.public },

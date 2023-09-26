@@ -45,7 +45,7 @@ export const RoutineVersionOutputModel: ModelLogic<RoutineVersionOutputModelLogi
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => RoutineVersionModel.validate.isPublic((data.routineVersion ?? getParentInfo(data.id, "RoutineVersion")) as RoutineVersionModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: 100000,
         owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),

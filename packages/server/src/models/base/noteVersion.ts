@@ -152,8 +152,8 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
-            NoteModel.validate.isPublic(data.root as NoteModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
+            NoteModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Note")) as NoteModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => NoteModel.validate.owner(data?.root as NoteModelLogic["PrismaModel"], userId),

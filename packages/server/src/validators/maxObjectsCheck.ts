@@ -131,6 +131,18 @@ export async function maxObjectsCheck(
     prisma: PrismaType,
     userData: SessionUserToken,
 ) {
+     /**
+     * Helper function to find the parent validation data for an object
+     * @param id ID of object to find parent for
+     * @param typename Only return parent if it matches this typename
+     * @returns Input data for parent object, or undefined if parent doesn't exist or doesn't match typename
+     */
+     const getParentInfo = (id: string, typename: `${GqlModelType}`): any | undefined => {
+        // TODO 1: Need to find out what happens when an object appears in the input multiple times. For example, if an object is updated in one part of the input and connected in another, is some data overwritten in inputsById?
+        const node = inputsById[id]?.node; 
+        if (node?.__typename !== typename) return undefined;
+        return node?.parent ? inputsById[node.parent.id]?.input : undefined;
+    };
     // Initialize counts. This is used to count how many objects a user or organization will have after every action is applied.
     const counts: { [key in GqlModelType]?: { [ownerId: string]: { private: number, public: number } } } = {};
     // Loop through every "Create" action, and increment the count for the object type
@@ -150,7 +162,7 @@ export async function maxObjectsCheck(
             counts[typename] = counts[typename] || {};
             counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validate.isPublic(combinedData, userData.languages);
+            const isPublic = validate.isPublic(combinedData, getParentInfo, userData.languages);
             // Increment count
             counts[typename]![ownerId][isPublic ? "public" : "private"]++;
         }
@@ -172,7 +184,7 @@ export async function maxObjectsCheck(
             counts[authData.__typename] = counts[authData.__typename] || {};
             counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validate.isPublic(authData, userData.languages);
+            const isPublic = validate.isPublic(authData, getParentInfo, userData.languages);
             // Decrement count
             counts[authData.__typename]![ownerId][isPublic ? "public" : "private"]--;
         }

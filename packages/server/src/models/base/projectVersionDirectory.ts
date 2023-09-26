@@ -57,7 +57,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryMod
     search: {} as any,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ProjectVersionModel.validate.isPublic(data.projectVersion as ProjectVersionModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => ProjectVersionModel.validate.isPublic((data.projectVersion ?? getParentInfo(data.id, "ProjectVersion")) as ProjectVersionModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ProjectVersionModel.validate.owner(data?.projectVersion as ProjectVersionModelLogic["PrismaModel"], userId),

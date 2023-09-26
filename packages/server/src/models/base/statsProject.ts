@@ -41,9 +41,9 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ProjectModel.validate.owner(data?.project as ProjectModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_projectSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.stats_projectSelect>(data, [
             ["project", "Project"],
-        ], languages),
+        ], getParentInfo, languages),
         visibility: {
             private: { project: ProjectModel.validate.visibility.private },
             public: { project: ProjectModel.validate.visibility.public },

@@ -295,6 +295,10 @@ export const cudInputsToMaps = async ({
 
         }
         // Add inputInfo to inputsById and inputsByType
+        // Check if inputInfo already exists in inputsById
+        if (input[idField] in inputsById) {
+            console.warn("TODO Not sure if this is a problem");
+        }
         inputsById[input[idField]] = inputInfo;
         inputsByType[format.gqlRelMap.__typename]?.[actionType]?.push(inputInfo);
         // Return the root node

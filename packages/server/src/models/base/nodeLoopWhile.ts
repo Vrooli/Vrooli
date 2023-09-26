@@ -44,7 +44,7 @@ export const NodeLoopWhileModel: ModelLogic<NodeLoopWhileModelLogic, typeof supp
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => NodeLoopModel.validate.owner(data?.loop as NodeLoopModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => NodeLoopModel.validate.isDeleted(data.loop as NodeLoopModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => NodeLoopModel.validate.isPublic(data.loop as NodeLoopModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => NodeLoopModel.validate.isPublic((data.loop ?? getParentInfo(data.id, "NodeLoop")) as NodeLoopModelLogic["PrismaModel"], getParentInfo, languages),
         visibility: {
             private: { loop: NodeLoopModel.validate.visibility.private },
             public: { loop: NodeLoopModel.validate.visibility.public },

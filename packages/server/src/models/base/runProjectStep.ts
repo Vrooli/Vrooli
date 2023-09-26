@@ -33,7 +33,7 @@ export const RunProjectStepModel: ModelLogic<RunProjectStepModelLogic, typeof su
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => RunProjectModel.validate.isPublic(data.runProject as RunProjectModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => RunProjectModel.validate.isPublic((data.runProject ?? getParentInfo(data.id, "RunProject")) as RunProjectModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: 100000,
         owner: (data, userId) => RunProjectModel.validate.owner(data?.runProject as RunProjectModelLogic["PrismaModel"], userId),

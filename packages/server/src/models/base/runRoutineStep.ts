@@ -59,7 +59,7 @@ export const RunRoutineStepModel: ModelLogic<RunRoutineStepModelLogic, typeof su
         profanityFields: ["name"],
         owner: (data, userId) => RunRoutineModel.validate.owner(data?.runRoutine as RunRoutineModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as RunRoutineModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => RunRoutineModel.validate.isPublic((data.runRoutine ?? getParentInfo(data.id, "RunRoutine")) as RunRoutineModelLogic["PrismaModel"], getParentInfo, languages),
         visibility: {
             private: { runRoutine: { isPrivate: true } },
             public: { runRoutine: { isPrivate: false } },

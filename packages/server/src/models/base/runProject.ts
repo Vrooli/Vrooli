@@ -111,10 +111,10 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_projectSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_projectSelect>(data, [
             ["organization", "Organization"],
             ["user", "User"],
-        ], languages),
+        ], getParentInfo, languages),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },

@@ -306,10 +306,10 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
             ["organization", "Organization"],
             ["user", "User"],
-        ], languages),
+        ], getParentInfo, languages),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },

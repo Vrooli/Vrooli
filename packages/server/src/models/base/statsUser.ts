@@ -41,9 +41,9 @@ export const StatsUserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> 
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => UserModel.validate.owner(data?.user as UserModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_userSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.stats_userSelect>(data, [
             ["user", "User"],
-        ], languages),
+        ], getParentInfo, languages),
         visibility: {
             private: { user: UserModel.validate.visibility.private },
             public: { user: UserModel.validate.visibility.public },

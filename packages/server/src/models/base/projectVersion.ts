@@ -270,9 +270,9 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ProjectModel.validate.isPublic(data.root as ProjectModelLogic["PrismaModel"], languages),
+            ProjectModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Project")) as ProjectModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ProjectModel.validate.owner(data?.root as ProjectModelLogic["PrismaModel"], userId),

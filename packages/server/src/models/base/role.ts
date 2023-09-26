@@ -71,7 +71,7 @@ export const RoleModel: ModelLogic<RoleModelLogic, typeof suppFields> = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => OrganizationModel.validate.owner(data?.organization as OrganizationModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as OrganizationModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as OrganizationModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => OrganizationModel.validate.isPublic((data.organization ?? getParentInfo(data.id, "Organization")) as OrganizationModelLogic["PrismaModel"], getParentInfo, languages),
         visibility: {
             private: { organization: OrganizationModel.validate.visibility.private },
             public: { organization: OrganizationModel.validate.visibility.public },

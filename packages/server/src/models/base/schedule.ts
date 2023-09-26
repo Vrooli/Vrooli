@@ -97,12 +97,12 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.scheduleSelect>(data, [
+        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.scheduleSelect>(data, [
             ["focusModes", "FocusMode"],
             ["meetings", "Meeting"],
             ["runProjects", "RunProject"],
             ["runRoutines", "RunRoutine"],
-        ], languages),
+        ], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => {

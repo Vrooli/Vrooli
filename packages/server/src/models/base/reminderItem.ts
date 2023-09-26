@@ -42,7 +42,7 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ReminderModel.validate.isPublic(data.reminder as ReminderModelLogic["PrismaModel"], languages),
+        isPublic: (data, getParentInfo, languages) => ReminderModel.validate.isPublic((data.reminder ?? getParentInfo(data.id, "Reminder")) as ReminderModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ReminderModel.validate.owner(data?.reminder as ReminderModelLogic["PrismaModel"], userId),

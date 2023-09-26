@@ -130,9 +130,9 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            SmartContractModel.validate.isPublic(data.root as SmartContractModelLogic["PrismaModel"], languages),
+            SmartContractModel.validate.isPublic((data.root ?? getParentInfo(data.id, "SmartContract")) as SmartContractModelLogic["PrismaModel"], getParentInfo, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => SmartContractModel.validate.owner(data?.root as SmartContractModelLogic["PrismaModel"], userId),
