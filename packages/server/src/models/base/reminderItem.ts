@@ -1,6 +1,6 @@
 import { MaxObjects, reminderItemValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { ReminderItemFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ReminderModel } from "./reminder";
@@ -42,7 +42,7 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => ReminderModel.validate.isPublic((data.reminder ?? getParentInfo(data.id, "Reminder")) as ReminderModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<ReminderItemModelLogic["PrismaSelect"]>([["reminder", "Reminder"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ReminderModel.validate.owner(data?.reminder as ReminderModelLogic["PrismaModel"], userId),

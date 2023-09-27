@@ -3,7 +3,7 @@
 import { ReportResponseSortBy, reportResponseValidation } from "@local/shared";
 import i18next from "i18next";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportResponseFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -78,7 +78,7 @@ export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof su
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ReportModel.validate.owner(data?.report as ReportModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => ReportModel.validate.isDeleted(data.report as ReportModelLogic["PrismaModel"], languages),
-        isPublic: (data, getParentInfo, languages) => ReportModel.validate.isPublic((data.report ?? getParentInfo(data.id, "Report")) as ReportModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<ReportResponseModelLogic["PrismaSelect"]>([["report", "Report"]], ...rest),
         visibility: {
             private: { report: ReportModel.validate.visibility.private },
             public: { report: ReportModel.validate.visibility.public },

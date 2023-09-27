@@ -6,6 +6,7 @@ import { ObjectMap } from "../models/base";
 import { AuthDataById } from "../utils";
 import { authDataWithInput } from "../utils/authDataWithInput";
 import { hasProfanity } from "../utils/censor";
+import { getParentInfo } from "../utils/getParentInfo";
 import { CudInputData, InputsById } from "../utils/types";
 
 type ProfanityFieldsToCheck = {
@@ -116,7 +117,7 @@ export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById
         const existingData = authDataById[item.input[idField]];
         const input = item.input as object;
         const combinedData = authDataWithInput(input, existingData ?? {}, inputsById, authDataById);
-        const isPublic = validate?.isPublic(combinedData, languages);
+        const isPublic = validate?.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), languages);
         if (isPublic === false) continue;
         const newFields = collectProfanities(item.input as ProfanityFieldsToCheck, item.objectType);
         for (const field in newFields) {

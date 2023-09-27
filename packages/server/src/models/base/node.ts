@@ -1,7 +1,7 @@
 import { MaxObjects, nodeValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { CustomError } from "../../events";
-import { bestTranslation, defaultPermissions } from "../../utils";
+import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -71,7 +71,7 @@ export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
-        isPublic: (data, getParentInfo, languages) => RoutineVersionModel.validate.isPublic((data.routineVersion ?? getParentInfo(data.id, "RoutineVerison")) as RoutineVersionModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<NodeModelLogic["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
             private: { routineVersion: RoutineVersionModel.validate.visibility.private },
             public: { routineVersion: RoutineVersionModel.validate.visibility.public },

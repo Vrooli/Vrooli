@@ -1,5 +1,5 @@
 import { MaxObjects, runRoutineStepValidation } from "@local/shared";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { RunRoutineStepFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RunRoutineModel } from "./runRoutine";
@@ -59,7 +59,7 @@ export const RunRoutineStepModel: ModelLogic<RunRoutineStepModelLogic, typeof su
         profanityFields: ["name"],
         owner: (data, userId) => RunRoutineModel.validate.owner(data?.runRoutine as RunRoutineModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => RunRoutineModel.validate.isPublic((data.runRoutine ?? getParentInfo(data.id, "RunRoutine")) as RunRoutineModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<RunRoutineStepModelLogic["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
             private: { runRoutine: { isPrivate: true } },
             public: { runRoutine: { isPrivate: false } },

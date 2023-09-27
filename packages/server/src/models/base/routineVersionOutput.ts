@@ -1,6 +1,6 @@
 import { routineVersionOutputValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { RoutineVersionOutputFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -45,7 +45,7 @@ export const RoutineVersionOutputModel: ModelLogic<RoutineVersionOutputModelLogi
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => RoutineVersionModel.validate.isPublic((data.routineVersion ?? getParentInfo(data.id, "RoutineVersion")) as RoutineVersionModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<RoutineVersionOutputModelLogic["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         isTransferable: false,
         maxObjects: 100000,
         owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),

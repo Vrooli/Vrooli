@@ -1,5 +1,5 @@
 import { runProjectStepValidation } from "@local/shared";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { RunProjectStepFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RunProjectModel } from "./runProject";
@@ -33,7 +33,7 @@ export const RunProjectStepModel: ModelLogic<RunProjectStepModelLogic, typeof su
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => RunProjectModel.validate.isPublic((data.runProject ?? getParentInfo(data.id, "RunProject")) as RunProjectModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<RunProjectStepModelLogic["PrismaSelect"]>([["runProject", "RunProject"]], ...rest),
         isTransferable: false,
         maxObjects: 100000,
         owner: (data, userId) => RunProjectModel.validate.owner(data?.runProject as RunProjectModelLogic["PrismaModel"], userId),

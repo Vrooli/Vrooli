@@ -109,7 +109,7 @@ export const ResourceListModel: ModelLogic<ResourceListModelLogic, typeof suppFi
             return validate.owner(resourceOnData, userId);
         },
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.resource_listSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<ResourceListModelLogic["PrismaSelect"]>([
             ["apiVersion", "ApiVersion"],
             ["focusMode", "FocusMode"],
             ["organization", "Organization"],
@@ -118,7 +118,7 @@ export const ResourceListModel: ModelLogic<ResourceListModelLogic, typeof suppFi
             ["routineVersion", "RoutineVersion"],
             ["smartContractVersion", "SmartContractVersion"],
             ["standardVersion", "StandardVersion"],
-        ], getParentInfo, languages),
+        ], ...rest),
         visibility: {
             private: {},
             public: {},

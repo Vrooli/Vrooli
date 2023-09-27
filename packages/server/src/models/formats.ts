@@ -554,12 +554,13 @@ export const NodeFormat: Formatter<NodeModelLogic> = {
 export const NodeEndFormat: Formatter<NodeEndModelLogic> = {
     gqlRelMap: {
         __typename: "NodeEnd",
+        node: "Node",
         suggestedNextRoutineVersions: "RoutineVersion",
     },
     prismaRelMap: {
         __typename: "NodeEnd",
-        suggestedNextRoutineVersions: "RoutineVersion",
         node: "Node",
+        suggestedNextRoutineVersions: "RoutineVersion",
     },
     joinMap: { suggestedNextRoutineVersions: "toRoutineVersion" },
     countFields: {},

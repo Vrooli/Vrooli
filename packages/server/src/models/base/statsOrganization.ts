@@ -1,5 +1,4 @@
 import { StatsOrganizationSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsOrganizationFormat } from "../formats";
@@ -41,9 +40,7 @@ export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typ
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => OrganizationModel.validate.owner(data?.organization as OrganizationModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.stats_organizationSelect>(data, [
-            ["organization", "Organization"],
-        ], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<StatsOrganizationModelLogic["PrismaSelect"]>([["organization", "Organization"]], ...rest),
         visibility: {
             private: { organization: OrganizationModel.validate.visibility.private },
             public: { organization: OrganizationModel.validate.visibility.public },

@@ -3,7 +3,9 @@ import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
-import { QueryAction } from "../utils/types";
+import { AuthDataById } from "../utils";
+import { getParentInfo } from "../utils/getParentInfo";
+import { InputsById, QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
 
 /**
@@ -224,7 +226,8 @@ export type StandardPolicy = {
  * @returns Map of permissions objects, keyed by ID
  */
 export async function getMultiTypePermissions(
-    authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
+    authDataById: AuthDataById,
+    inputsById: InputsById,
     userData: SessionUserToken | null,
 ): Promise<{ [id: string]: { [x: string]: any } }> {
     // Initialize result
@@ -236,7 +239,7 @@ export async function getMultiTypePermissions(
         const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authData, userData.id), userData.id) : false;
         const isDeleted = validate.isDeleted(authData, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
-        const isPublic = validate.isPublic(authData, userData?.languages ?? ["en"]);
+        const isPublic = validate.isPublic(authData, (...rest) => getParentInfo(...rest, inputsById), userData?.languages ?? ["en"]);
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataById[id], userId: userData?.id });
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.
@@ -288,7 +291,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
         const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authDataItem, userData.id), userData.id) : false;
         const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
-        const isPublic = validate.isPublic(authDataItem, userData?.languages ?? ["en"]);
+        const isPublic = validate.isPublic(authDataItem, () => undefined, userData?.languages ?? ["en"]);
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataItem, userId: userData?.id });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
@@ -312,10 +315,11 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
 export async function permissionsCheck(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
+    inputsById: InputsById,
     userData: SessionUserToken | null,
 ) {
     // Get permissions
-    const permissionsById = await getMultiTypePermissions(authDataById, userData);
+    const permissionsById = await getMultiTypePermissions(authDataById, inputsById, userData);
     // Loop through each action and validate permissions
     for (const action of Object.keys(idsByAction)) {
         // Skip "Create" action

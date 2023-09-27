@@ -1,6 +1,6 @@
 import { MaxObjects, NoteVersionSortBy, noteVersionValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { NoteVersionFormat } from "../formats";
@@ -152,8 +152,8 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
-            NoteModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Note")) as NoteModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (data, ...rest) => data.isPrivate === false &&
+            oneIsPublic<NoteVersionModelLogic["PrismaSelect"]>([["root", "Note"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => NoteModel.validate.owner(data?.root as NoteModelLogic["PrismaModel"], userId),

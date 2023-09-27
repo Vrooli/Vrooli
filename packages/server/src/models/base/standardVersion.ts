@@ -2,7 +2,7 @@ import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVe
 import { randomString } from "../../auth/wallet";
 import { noNull, shapeHelper } from "../../builders";
 import { PrismaType, SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { sortify } from "../../utils/objectTools";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
@@ -251,9 +251,9 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            StandardModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Standard")) as StandardModelLogic["PrismaModel"], getParentInfo, languages),
+            oneIsPublic<StandardVersionModelLogic["PrismaSelect"]>([["root", "Standard"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => StandardModel.validate.owner(data?.root as StandardModelLogic["PrismaModel"], userId),

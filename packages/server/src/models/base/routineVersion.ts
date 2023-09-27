@@ -2,7 +2,7 @@ import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVer
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { PrismaType } from "../../types";
-import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString } from "../../utils";
+import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { RoutineVersionFormat } from "../formats";
@@ -230,9 +230,9 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            RoutineModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Routine")) as RoutineModelLogic["PrismaModel"], getParentInfo, languages),
+            oneIsPublic<RoutineVersionModelLogic["PrismaSelect"]>([["root", "Routine"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => RoutineModel.validate.owner(data?.root as RoutineModelLogic["PrismaModel"], userId),

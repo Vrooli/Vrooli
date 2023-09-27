@@ -1,7 +1,7 @@
 import { MaxObjects, ProjectVersionSortBy, projectVersionValidation } from "@local/shared";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ProjectVersionFormat } from "../formats";
@@ -270,9 +270,9 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ProjectModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Project")) as ProjectModelLogic["PrismaModel"], getParentInfo, languages),
+            oneIsPublic<ProjectVersionModelLogic["PrismaSelect"]>([["root", "Project"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ProjectModel.validate.owner(data?.root as ProjectModelLogic["PrismaModel"], userId),

@@ -1,6 +1,6 @@
 import { MaxObjects, nodeLinkWhenValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeLinkWhenFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -44,7 +44,7 @@ export const NodeLinkWhenModel: ModelLogic<NodeLinkWhenModelLogic, typeof suppFi
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => NodeLinkModel.validate.owner(data?.link as NodeLinkModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => NodeLinkModel.validate.isDeleted(data.link as NodeLinkModelLogic["PrismaModel"], languages),
-        isPublic: (data, getParentInfo, languages) => NodeLinkModel.validate.isPublic((data.link ?? getParentInfo(data.id, "NodeLink")) as NodeLinkModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<NodeLinkWhenModelLogic["PrismaSelect"]>([["link", "NodeLink"]], ...rest),
         visibility: {
             private: { link: NodeLinkModel.validate.visibility.private },
             public: { link: NodeLinkModel.validate.visibility.public },

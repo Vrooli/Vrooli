@@ -1,5 +1,4 @@
 import { MaxObjects, RoutineSortBy, routineValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { getLabels } from "../../getters";
 import { defaultPermissions, oneIsPublic } from "../../utils";
@@ -297,13 +296,13 @@ export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
             data.isInternal === false &&
-            oneIsPublic<Prisma.routineSelect>(data, [
+            oneIsPublic<RoutineModelLogic["PrismaSelect"]>([
                 ["ownedByOrganization", "Organization"],
                 ["ownedByUser", "User"],
-            ], getParentInfo, languages),
+            ], data, ...rest),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({

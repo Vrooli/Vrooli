@@ -60,7 +60,7 @@ export const EmbeddingTables: { [key in EmbeddableType]: string } = {
  * @returns A Promise that resolves with the embeddings, in the same order as the sentences
  * @throws An Error if the API request fails
  */
-export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<any[]> {
+export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<number[][]> {
     try {
         const instruction = Instructions[objectType];
         return new Promise((resolve, reject) => {
@@ -82,6 +82,8 @@ export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableTy
                 });
                 apiRes.on("end", () => {
                     const result = JSON.parse(responseBody);
+                    // TODO ensure result is of expected type, or log error. Make sure to handle errors where this function is used
+                    // Check type of result
                     resolve(result.embeddings);
                 });
             });

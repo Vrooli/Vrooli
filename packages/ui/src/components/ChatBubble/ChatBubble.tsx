@@ -17,7 +17,7 @@ import { AddIcon, BotIcon, EditIcon, ErrorIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
-import { getDisplay } from "utils/display/listTools";
+import { getDisplay, ListObject } from "utils/display/listTools";
 import { fontSizeToPixels } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
@@ -312,7 +312,7 @@ export const ChatBubble = ({
     };
 
     const { name, handle, adornments } = useMemo(() => {
-        const { title, adornments } = getDisplay(message.user);
+        const { title, adornments } = getDisplay(message.user as ListObject);
         return {
             name: title,
             handle: message.user?.handle,

@@ -343,7 +343,11 @@ export type Validator<
      */
     isDeleted: (data: Model["PrismaModel"], languages: string[]) => boolean;
     /**
-     * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false
+     * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false. 
+     * @param data The data used to determine if the object is public
+     * @param getParentInfo Used to get the data of the parent object. When using data from the 
+     * database, this is not needed. When using data from a create mutation, it can be useful.
+     * @param languages Languages to display error messages in
      */
     isPublic: (data: Model["PrismaModel"], getParentInfo: ((id: string, typename: `${GqlModelType}`) => any | undefined), languages: string[]) => boolean;
     /**

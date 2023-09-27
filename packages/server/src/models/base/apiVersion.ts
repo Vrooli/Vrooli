@@ -1,6 +1,6 @@
 import { ApiVersionSortBy, apiVersionValidation, MaxObjects } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ApiVersionFormat } from "../formats";
@@ -132,9 +132,9 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ApiModel.validate.isPublic((data.root ?? getParentInfo(data.id, "Api")) as ApiModelLogic["PrismaModel"], getParentInfo, languages),
+            oneIsPublic<ApiVersionModelLogic["PrismaSelect"]>([["root", "Api"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ApiModel.validate.owner(data?.root as ApiModelLogic["PrismaModel"], userId),

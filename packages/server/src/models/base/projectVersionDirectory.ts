@@ -1,6 +1,6 @@
 import { MaxObjects, projectVersionDirectoryValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions } from "../../utils";
+import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ProjectVersionDirectoryFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -57,7 +57,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryMod
     search: {} as any,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => ProjectVersionModel.validate.isPublic((data.projectVersion ?? getParentInfo(data.id, "ProjectVersion")) as ProjectVersionModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<ProjectVersionDirectoryModelLogic["PrismaSelect"]>([["projectVersion", "ProjectVersion"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ProjectVersionModel.validate.owner(data?.projectVersion as ProjectVersionModelLogic["PrismaModel"], userId),

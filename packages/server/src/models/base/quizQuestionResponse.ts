@@ -1,7 +1,7 @@
 import { MaxObjects, QuizQuestionResponseSortBy, quizQuestionResponseValidation } from "@local/shared";
 import i18next from "i18next";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizQuestionResponseFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -65,7 +65,7 @@ export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogi
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => QuizAttemptModel.validate.isPublic((data?.quizAttempt ?? getParentInfo(data.id, "QuizAttempt")) as QuizAttemptModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<QuizQuestionResponseModelLogic["PrismaSelect"]>([["quizAttempt", "QuizAttempt"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => QuizAttemptModel.validate.owner(data?.quizAttempt as QuizAttemptModelLogic["PrismaModel"], userId),

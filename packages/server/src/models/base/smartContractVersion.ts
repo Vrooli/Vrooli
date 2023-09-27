@@ -1,6 +1,6 @@
 import { MaxObjects, SmartContractVersionSortBy, smartContractVersionValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { SmartContractVersionFormat } from "../formats";
@@ -130,9 +130,9 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            SmartContractModel.validate.isPublic((data.root ?? getParentInfo(data.id, "SmartContract")) as SmartContractModelLogic["PrismaModel"], getParentInfo, languages),
+            oneIsPublic<SmartContractVersionModelLogic["PrismaSelect"]>([["root", "SmartContract"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => SmartContractModel.validate.owner(data?.root as SmartContractModelLogic["PrismaModel"], userId),

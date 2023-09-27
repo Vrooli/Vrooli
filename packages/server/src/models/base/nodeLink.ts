@@ -1,6 +1,6 @@
 import { MaxObjects, nodeLinkValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { NodeLinkFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
@@ -54,7 +54,7 @@ export const NodeLinkModel: ModelLogic<NodeLinkModelLogic, typeof suppFields> = 
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
-        isPublic: (data, getParentInfo, languages) => RoutineVersionModel.validate.isPublic((data.routineVersion ?? getParentInfo(data.id, "RoutineVersion")) as RoutineVersionModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<NodeLinkModelLogic["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
             private: { routineVersion: RoutineVersionModel.validate.visibility.private },
             public: { routineVersion: RoutineVersionModel.validate.visibility.public },

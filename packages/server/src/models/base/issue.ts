@@ -99,7 +99,7 @@ export const IssueModel: ModelLogic<IssueModelLogic, typeof suppFields> = ({
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.issueSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<IssueModelLogic["PrismaSelect"]>([
             ["api", "Api"],
             ["organization", "Organization"],
             ["note", "Note"],
@@ -107,7 +107,7 @@ export const IssueModel: ModelLogic<IssueModelLogic, typeof suppFields> = ({
             ["routine", "Routine"],
             ["smartContract", "SmartContract"],
             ["standard", "Standard"],
-        ], getParentInfo, languages),
+        ], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({

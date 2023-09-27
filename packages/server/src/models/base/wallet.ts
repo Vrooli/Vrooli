@@ -55,10 +55,10 @@ export const WalletModel: ModelLogic<WalletModelLogic, typeof suppFields> = ({
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.walletSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<Prisma.walletSelect>([
             ["organization", "Organization"],
             ["user", "User"],
-        ], getParentInfo, languages),
+        ], ...rest),
         visibility: {
             private: {},
             public: {},

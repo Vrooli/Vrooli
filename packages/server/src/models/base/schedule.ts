@@ -1,5 +1,4 @@
 import { GqlModelType, MaxObjects, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { findFirstRel, noNull, shapeHelper } from "../../builders";
 import { getLogic } from "../../getters";
@@ -97,12 +96,12 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.scheduleSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<ScheduleModelLogic["PrismaSelect"]>([
             ["focusModes", "FocusMode"],
             ["meetings", "Meeting"],
             ["runProjects", "RunProject"],
             ["runRoutines", "RunRoutine"],
-        ], getParentInfo, languages),
+        ], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => {

@@ -1,5 +1,4 @@
 import { StatsQuizSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsQuizFormat } from "../formats";
@@ -41,9 +40,7 @@ export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> 
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => QuizModel.validate.owner(data?.quiz as QuizModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.stats_quizSelect>(data, [
-            ["quiz", "Quiz"],
-        ], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<StatsQuizModelLogic["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
         visibility: {
             private: { quiz: QuizModel.validate.visibility.private },
             public: { quiz: QuizModel.validate.visibility.public },

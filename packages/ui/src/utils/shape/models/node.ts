@@ -35,8 +35,8 @@ export const shapeNode: ShapeModel<NodeShape, NodeCreateInput, NodeUpdateInput> 
         ...updatePrims(o, u, "id", "columnIndex", "nodeType", "rowIndex"),
         ...updateRel(o, u, "routineVersion", ["Connect"], "one"),
         // ...updateRel(o, u, "loop", ['Create', 'Update', 'Delete'], "one", shapeLoop),
-        ...updateRel(o, u, "end", ["Update"], "one", shapeNodeEnd),
-        ...updateRel(o, u, "routineList", ["Update"], "one", shapeNodeRoutineList),
+        ...updateRel(o, u, "end", ["Create", "Update"], "one", shapeNodeEnd),
+        ...updateRel(o, u, "routineList", ["Create", "Update"], "one", shapeNodeRoutineList),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeNodeTranslation),
     }, a),
 };

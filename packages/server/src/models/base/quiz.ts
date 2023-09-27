@@ -1,5 +1,4 @@
 import { MaxObjects, QuizSortBy, quizValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
@@ -118,10 +117,10 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false && oneIsPublic<Prisma.quizSelect>(data, [
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<QuizModelLogic["PrismaSelect"]>([
             ["project", "Project"],
             ["routine", "Routine"],
-        ], getParentInfo, languages),
+        ], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({

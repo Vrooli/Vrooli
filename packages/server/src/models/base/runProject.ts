@@ -1,5 +1,4 @@
 import { MaxObjects, RunProjectSortBy, runProjectValidation, RunStatus } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
@@ -111,10 +110,10 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_projectSelect>(data, [
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunProjectModelLogic["PrismaSelect"]>([
             ["organization", "Organization"],
             ["user", "User"],
-        ], getParentInfo, languages),
+        ], data, ...rest),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },

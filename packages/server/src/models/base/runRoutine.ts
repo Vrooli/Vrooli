@@ -1,5 +1,5 @@
 import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
-import { Prisma, RunStatus, run_routine } from "@prisma/client";
+import { RunStatus, run_routine } from "@prisma/client";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
 import { GraphQLInfo } from "../../builders/types";
 import { CustomError, Trigger } from "../../events";
@@ -306,10 +306,10 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunRoutineModelLogic["PrismaSelect"]>([
             ["organization", "Organization"],
             ["user", "User"],
-        ], getParentInfo, languages),
+        ], data, ...rest),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },

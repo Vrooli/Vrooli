@@ -1,5 +1,4 @@
 import { MaxObjects, StandardCreateInput, StandardSortBy, standardValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { getLabels } from "../../getters";
 import { PrismaType, SessionUserToken } from "../../types";
@@ -209,12 +208,12 @@ export const StandardModel: ModelLogic<StandardModelLogic, typeof suppFields> = 
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, getParentInfo, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<Prisma.smart_contractSelect>(data, [
+            oneIsPublic<StandardModelLogic["PrismaSelect"]>([
                 ["ownedByOrganization", "Organization"],
                 ["ownedByUser", "User"],
-            ], getParentInfo, languages),
+            ], data, ...rest),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         permissionResolvers: defaultPermissions,

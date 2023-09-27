@@ -1,6 +1,6 @@
 import { QuizAttemptSortBy, quizAttemptValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizAttemptFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -74,7 +74,7 @@ export const QuizAttemptModel: ModelLogic<QuizAttemptModelLogic, typeof suppFiel
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => QuizModel.validate.isPublic((data.quiz ?? getParentInfo(data.id, "Quiz")) as QuizModelLogic["PrismaModel"], getParentInfo, languages),
+        isPublic: (...rest) => oneIsPublic<QuizAttemptModelLogic["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
         maxObjects: 100000,
         owner: (data, userId) => QuizModel.validate.owner(data?.quiz as QuizModelLogic["PrismaModel"], userId),

@@ -3239,12 +3239,14 @@ export enum NodeType {
 
 export type NodeUpdateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
+  endCreate?: InputMaybe<NodeEndCreateInput>;
   endUpdate?: InputMaybe<NodeEndUpdateInput>;
   id: Scalars['ID'];
   loopCreate?: InputMaybe<NodeLoopCreateInput>;
   loopDelete?: InputMaybe<Scalars['Boolean']>;
   loopUpdate?: InputMaybe<NodeLoopUpdateInput>;
   nodeType?: InputMaybe<NodeType>;
+  routineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   routineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
   routineVersionConnect?: InputMaybe<Scalars['ID']>;
   rowIndex?: InputMaybe<Scalars['Int']>;

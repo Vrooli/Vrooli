@@ -6,8 +6,8 @@ import { getLogic } from "../getters";
  * This typically means that one of the fields has a non-null value with "isPrivate" and "isDeleted" set to false.
  */
 export const oneIsPublic = <PrismaSelect extends { [x: string]: any }>(
-    permissionsData: { [key in keyof PrismaSelect]: any },
     list: [keyof PrismaSelect, `${GqlModelType}`][],
+    permissionsData: { [key in keyof PrismaSelect]: any },
     getParentInfo: ((id: string, typename: `${GqlModelType}`) => any | undefined),
     languages: string[],
 ): boolean => {
@@ -17,7 +17,7 @@ export const oneIsPublic = <PrismaSelect extends { [x: string]: any }>(
         // Get the validator for this type
         const { idField, validate } = getLogic(["idField", "validate"], type, languages, "oneIsPublic");
         // Use validator to determine if this field is public
-        if (permissionsData[field] && validate.isPublic(permissionsData[field] ?? getParentInfo(permissionsData.id ?? permissionsData[idField], type), languages)) {
+        if (permissionsData[field] && validate.isPublic(permissionsData[field] ?? getParentInfo(permissionsData.id ?? permissionsData[idField], type), getParentInfo, languages)) {
             return true;
         }
     }

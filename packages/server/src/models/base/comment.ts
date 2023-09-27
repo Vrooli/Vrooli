@@ -1,5 +1,4 @@
 import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getUser } from "../../auth";
 import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../../builders";
@@ -293,7 +292,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.commentSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<CommentModelLogic["PrismaSelect"]>([
             ["apiVersion", "ApiVersion"],
             ["issue", "Issue"],
             ["post", "Post"],
@@ -304,7 +303,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             ["routineVersion", "RoutineVersion"],
             ["smartContractVersion", "SmartContractVersion"],
             ["standardVersion", "StandardVersion"],
-        ], getParentInfo, languages),
+        ], ...rest),
         visibility: {
             private: {},
             public: {},

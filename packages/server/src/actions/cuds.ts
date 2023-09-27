@@ -74,7 +74,7 @@ export async function cudHelper({
     // Query for all authentication data
     const authDataById = await getAuthenticatedData(idsByType, prisma, userData);
     // Validate permissions
-    await permissionsCheck(authDataById, idsByAction, userData);
+    await permissionsCheck(authDataById, idsByAction, inputsById, userData);
     // Perform profanity checks
     profanityCheck(inputData, inputsById, authDataById, userData.languages);
     // Max objects check

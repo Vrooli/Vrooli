@@ -1,5 +1,4 @@
 import { LabelSortBy, labelValidation, MaxObjects } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
@@ -91,10 +90,10 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (data, getParentInfo, languages) => oneIsPublic<Prisma.commentSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<LabelModelLogic["PrismaSelect"]>([
             ["ownedByOrganization", "Organization"],
             ["ownedByUser", "User"],
-        ], getParentInfo, languages),
+        ], ...rest),
         visibility: {
             private: {},
             public: {},
