@@ -1,9 +1,9 @@
-import { blankToUndefined, maxStrErr, minStrErr, QuestionForType } from "@local/shared";
+import { maxStrErr, minStrErr, QuestionForType } from "@local/shared";
 import * as yup from "yup";
 import { bool, enumToYup, id, name, opt, referencing, req, transRel, YupModel, yupObj } from "../utils";
 
 const forObjectType = enumToYup(QuestionForType);
-const description = yup.string().transform(blankToUndefined).min(1, minStrErr).max(16384, maxStrErr);
+const description = yup.string().trim().removeEmptyString().min(1, minStrErr).max(16384, maxStrErr);
 
 export const questionTranslationValidation: YupModel = transRel({
     create: {

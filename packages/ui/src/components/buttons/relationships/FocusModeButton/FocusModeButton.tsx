@@ -53,7 +53,7 @@ export function FocusModeButton({
             // Otherwise, open select dialog
             else setDialogOpen(true);
         }
-    }, [isAvailable, focusModeField.value, allFocusModes, isEditing, reminderListField.value, setLocation, focusModeHelpers, reminderListHelpers]);
+    }, [isAvailable, focusModeField.value, allFocusModes, isEditing, reminderListField?.value, setLocation, focusModeHelpers]);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, [setDialogOpen]);
     const handleSelect = useCallback((focusMode: RelationshipItemFocusMode) => {
         console.log("setting focus mode", focusMode, focusModeField.value, reminderListField.value);
@@ -86,7 +86,7 @@ export function FocusModeButton({
             Icon: FocusModeIcon,
             tooltip: t(`FocusModeTogglePress${isEditing ? "Editable" : ""}`, { focusMode: focusModeName }),
         };
-    }, [focusModeField?.value, allFocusModes, t, isEditing, reminderListField?.value?.id]);
+    }, [focusModeField?.value, allFocusModes, t, isEditing, reminderListField?.value?.id, reminderListField?.value?.focusMode?.name]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;

@@ -19,18 +19,24 @@ export async function updateHelper<GraphQLModel>({
 }: UpdateHelperProps): Promise<RecursivePartial<GraphQLModel>> {
     const userData = assertRequestFrom(req, { isUser: true });
     // Get formatter and id field
-    const { format, idField } = getLogic(["format", "idField"], objectType, userData?.languages ?? ["en"], "updateHelper");
+    const { format } = getLogic(["format"], objectType, userData?.languages ?? ["en"], "updateHelper");
     // Partially convert info type
     const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
-    // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
-    const shapedInput = { where: { [idField]: input[idField] }, data: input };
     // Create objects. cudHelper will check permissions
-    const cudResult = await cudHelper({ updateMany: [shapedInput], objectType, partialInfo, prisma, userData });
-    const { updated } = cudResult;
-    if (updated && updated.length > 0) {
+    const updated = (await cudHelper({
+        inputData: [{
+            actionType: "Update",
+            input,
+            objectType,
+        }],
+        partialInfo,
+        prisma,
+        userData,
+    }))[0];
+    if (typeof updated !== "boolean") {
         // Handle new version trigger, if applicable
         //TODO might be done in shapeUpdate. Not sure yet
-        return (await addSupplementalFields(prisma, userData, updated, partialInfo))[0] as any;
+        return (await addSupplementalFields(prisma, userData, [updated], partialInfo))[0] as any;
     }
     throw new CustomError("0032", "ErrorUnknown", userData.languages);
 }

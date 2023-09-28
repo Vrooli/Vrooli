@@ -1,13 +1,13 @@
 import { InputType } from "@local/shared";
 import * as yup from "yup";
-import { blankToUndefined, bool, description, enumToYup, id, jsonVariable, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import { bool, description, enumToYup, id, jsonVariable, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { resourceListValidation } from "./resourceList";
 import { standardValidation } from "./standard";
 
-const standardDefault = yup.string().transform(blankToUndefined).max(2048, maxStrErr);
+const standardDefault = yup.string().trim().removeEmptyString().max(2048, maxStrErr);
 const standardType = enumToYup(InputType);
-const standardProps = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
-const standardYup = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
+const standardProps = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
+const standardYup = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 
 export const standardVersionTranslationValidation: YupModel = transRel({
     create: {

@@ -183,150 +183,6 @@ export const shapeUpdate = <
     return result;
 };
 
-/**
- * Finds items which have been added to the array, and connects them to the parent.
- * @param original The original array
- * @param updated The updated array
- * @param idField The name of the id field in the relationship (defaults to "id")
- * @returns IDs of items which have been added to the array,
- * or undefined if no items have been added.
- */
-const findConnectedItems = <
-    Input extends { [x in IDField]: string }[],
-    IDField extends string,
->(
-    original: Input[],
-    updated: Input[],
-    idField: IDField = "id" as IDField,
-): string | string[] | undefined => {
-    const connected: string[] = [];
-    for (const updatedItem of (updated as any)) {
-        if (!updatedItem || !updatedItem[idField]) continue;
-        const originalItem = (original as any).find(item => item[idField] === updatedItem[idField]);
-        if (!originalItem) connected.push(updatedItem[idField]);
-    }
-    return connected.length > 0 ? connected : undefined;
-};
-
-/**
- * Finds objects which have been created, and returns an array of the created objects, formatted for
- * the create mutation
- * @param original The original array
- * @param updated The updated array
- * @returns Created objects formatted for the create mutation,
- * or undefined if no objects have been created.
- */
-const findCreatedItems = <
-    Item extends { [x in FieldName]: Record<string, any> | Record<string, any>[] },
-    FieldName extends string,
-    Shape extends ShapeModel<any, object, any>,
-    Output extends object
->(
-    original: Item,
-    updated: Item,
-    relation: FieldName,
-    shape: Shape,
-    preShape?: (item: any, originalOrUpdated: Item) => any,
-): Output[] | undefined => {
-    const idField = shape.idField ?? "id";
-    const preShaper = preShape ?? ((x: any) => x);
-    const originalDataArray = asArray(original[relation]);
-    const updatedDataArray = asArray(updated[relation]).map(data => preShaper(data, updated));
-    const createdItems: Output[] = [];
-    for (const updatedItem of updatedDataArray) {
-        if (!updatedItem || !updatedItem[idField]) continue;
-        const oi = originalDataArray.find(item => item[idField] === updatedItem[idField]);
-        // Add if not found in original, and not a connect-only item
-        if (!oi && !hasOnlyConnectData(updatedItem)) {
-            createdItems.push(shape.create(updatedItem) as Output);
-        }
-    }
-    return createdItems.length > 0 ? createdItems : undefined;
-};
-
-/**
- * Find objects which have been updated, and returns an array of the updated objects, formatted for 
- * the update mutation
- * @param original The original array
- * @param updated The updated array
- * @returns An array of the updated objects formatted for the update mutation, 
- * or undefined if no objects have been updated.
- */
-const findUpdatedItems = <
-    Item extends { [x in FieldName]: Record<string, any> | Record<string, any>[] },
-    FieldName extends string,
-    Shape extends ShapeModel<any, null, object>,
-    Output extends object
->(
-    original: Item,
-    updated: Item,
-    relation: FieldName,
-    shape: Shape,
-    preShape?: (item: any, originalOrUpdated: Item) => any,
-): Output[] | undefined => {
-    const idField = shape.idField ?? "id";
-    const preShaper = preShape ?? ((x: any) => x);
-    const originalDataArray = asArray(original[relation]).map(data => preShaper(data, original));
-    const updatedDataArray = asArray(updated[relation]).map(data => preShaper(data, updated));
-    const updatedItems: Output[] = [];
-    for (const updatedItem of updatedDataArray) {
-        if (!updatedItem || !updatedItem[idField]) continue;
-        const oi = originalDataArray.find(item => item && item[idField] && item[idField] === updatedItem[idField]);
-        if (oi && (shape.hasObjectChanged ?? hasObjectChanged)(oi, updatedItem)) {
-            updatedItems.push(shape.update(oi, updatedItem) as Output);
-        }
-    }
-    return updatedItems.length > 0 ? updatedItems : undefined;
-};
-
-/**
- * Finds items which have been removed from the array.
- * @param original The original array
- * @param updated The updated array
- * @returns The IDs of items which have been removed from the array, 
- * or undefined if no items have been removed.
- */
-const findDeletedItems = <
-    IDField extends string,
-    Input extends { [key in IDField]?: string | null }
->(
-    original: Input[],
-    updated: Input[],
-    idField: IDField = "id" as IDField,
-): string[] | undefined => {
-    const removed: string[] = [];
-    for (const originalItem of original) {
-        if (!originalItem || !originalItem[idField]) continue;
-        const updatedItem = updated.find(item => item[idField] === originalItem[idField]);
-        if (!updatedItem) removed.push(originalItem[idField as string]);
-    }
-    return removed.length > 0 ? removed : undefined;
-};
-
-/**
- * Finds items which have been disconnected from the parent.
- * @param original The original array
- * @param updated The updated array
- * @returns The IDs of items which have been disconnected from the parent,
- * or undefined if no items have been disconnected.
- */
-const findDisconnectedItems = <
-    IDField extends string,
-    Input extends { [key in IDField]?: string | null }
->(
-    original: Input[],
-    updated: Input[],
-    idField: IDField = "id" as IDField,
-): string[] | undefined => {
-    const disconnected: string[] = [];
-    for (const originalItem of original) {
-        if (!original || !originalItem[idField]) continue;
-        const updatedItem = updated.find(item => item[idField] === originalItem[idField]);
-        if (!updatedItem) disconnected.push(originalItem[idField as string]);
-    }
-    return disconnected.length > 0 ? disconnected : undefined;
-};
-
 const asArray = <T>(value: T | T[]): T[] => {
     if (Array.isArray(value)) return value;
     return [value];
@@ -348,14 +204,7 @@ export const updateRel = <
         { [x in FieldName]?: object[] | null | undefined }),
     FieldName extends string,
     RelTypes extends readonly RelationshipType[],
-    // Shape object only required when RelTypes includes 'Create' or 'Update'
-    Shape extends ("Create" extends RelTypes[number] ?
-        "Update" extends RelTypes[number] ?
-        ShapeModel<any, object, object> :
-        ShapeModel<any, object, null> :
-        "Update" extends RelTypes[number] ?
-        ShapeModel<any, null, object> :
-        never),
+    Shape extends ShapeModel<any, any, any>,
     IsOneToOne extends "one" | "many",
 >(
     original: Item,
@@ -364,85 +213,114 @@ export const updateRel = <
     relTypes: RelTypes,
     isOneToOne: IsOneToOne,
     shape?: Shape,
-    preShape?: (item: Record<string, any>, originalOrUpdated: Record<string, any>) => any,
+    preShape?: (item: any, originalOrUpdated: any) => any,
 ): UpdateRelOutput<IsOneToOne, RelTypes[number], FieldName> => {
+    // Initialize result
+    const result: UpdateRelOutput<IsOneToOne, RelTypes[number], FieldName> = {} as UpdateRelOutput<IsOneToOne, RelTypes[number], FieldName>;
     // Check if shape is required
     if (relTypes.includes("Create") || relTypes.includes("Update")) {
         if (!shape) throw new Error(`Model is required if relTypes includes "Create" or "Update": ${relation}`);
     }
-    // Find relation data in item
-    const originalRelationData = original[relation];
-    const updatedRelationData = updated[relation];
     // If no original, treat as create/connect
-    if (!exists(originalRelationData)) {
+    if (!exists(original[relation])) {
         return createRel(
             updated,
             relation,
-            relTypes.filter(x => x === "Create" || x === "Connect") as any,
+            relTypes.filter(x => ["Create", "Connect"].includes(x)) as any[],
             isOneToOne,
             shape as any,
-        ) as any;
+        ) as UpdateRelOutput<IsOneToOne, RelTypes[number], FieldName>;
     }
     // If updated if undefined, return empty object
-    if (updatedRelationData === undefined) return {} as any;
+    if (updated[relation] === undefined) return result;
     // If updated is null, treat as delete/disconnect. 
     // We do this by removing connect/create/update from relTypes
-    const filteredRelTypes = updatedRelationData === null ?
-        relTypes.filter(x => x !== "Create" && x !== "Connect" && x !== "Update") as any :
-        relTypes;
-    // Initialize result
-    const result: { [x: string]: any } = {};
-    const idField = (shape as ShapeModel<any, any, any> | undefined)?.idField ?? "id";
-    // Loop through relation types
-    for (const t of filteredRelTypes) {
-        // If type is connect, add IDs to result
-        if (t === "Connect") {
-            const shaped = findConnectedItems(
-                asArray(originalRelationData as any),
-                asArray(updatedRelationData as any),
-                idField);
-            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+    const filteredRelTypes = updated[relation] === null ? relTypes.filter(x => !["Create", "Connect", "Update"].includes(x)) : relTypes;
+    // Find relation data in item
+    const originalRelation = asArray(original[relation] as any);
+    const updatedRelation = asArray(updated[relation] as any);
+    const idField = shape?.idField ?? "id";
+    const preShaper = preShape ?? ((x) => x);
+    // Check connect before create, so that we can exclude items in the create array which are being connected
+    if (filteredRelTypes.includes("Connect")) {
+        const shaped: string[] = [];
+        for (const updatedItem of (updatedRelation as { id?: string }[])) {
+            // Can only connect items that exist and have an ID. 
+            // We must use "id" and not the idField, because custom unique fields don't have an equivalent to 
+            // DUMMY_ID to indicate that they are for creating instead of connecting
+            if (!updatedItem || !updatedItem.id) continue;
+            // Check if an item with the same ID exists in the original array
+            const originalItem = (originalRelation as { id?: string }[]).find(item => item.id === updatedItem.id);
+            // If not, we can connect it if the ID is not DUMMY_ID
+            if (!originalItem && updatedItem.id !== DUMMY_ID) shaped.push(updatedItem.id);
         }
-        else if (t === "Create") {
-            const shaped = findCreatedItems(
-                original as any,
-                updated as any,
-                relation,
-                shape as ShapeModel<any, object, null>,
-                preShape as any);
-            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
-        }
-        else if (t === "Delete") {
-            const shaped = findDeletedItems(
-                asArray(originalRelationData as any),
-                asArray(updatedRelationData as any),
-                idField);
-            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
-        }
-        else if (t === "Disconnect") {
-            const shaped = findDisconnectedItems(
-                asArray(originalRelationData as any),
-                asArray(updatedRelationData as any),
-                idField);
-            // Logic is different for one-to-one disconnects, since it expects a boolean instead of an ID. 
-            // And if we already have a connect, we can exclude the disconnect altogether
-            if (isOneToOne === "one") {
-                const hasConnect = typeof result[`${relation}Connect`] === "string";
-                if (!hasConnect) result[`${relation}${t}`] = shaped && shaped[0] ? true : undefined;
-            } else {
-                result[`${relation}${t}`] = shaped;
+        result[`${relation}Connect` as string] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+    }
+    // Check create
+    if (filteredRelTypes.includes("Create")) {
+        if (!shape || !(shape as ShapeModel<object, object, object | null>).create) throw new Error(`shape.create is required for create: ${relation}`);
+        let shaped: any[] = [];
+        for (const updatedItem of updatedRelation.map(data => preShaper(data, updated))) {
+            if (!updatedItem || !updatedItem[idField]) continue;
+            const oi = originalRelation.find(item => item[idField] === updatedItem[idField]);
+            // Add if not found in original, and not a connect-only item
+            if (!oi && !hasOnlyConnectData(updatedItem)) {
+                shaped.push((shape as ShapeModel<object, object, object | null>).create(updatedItem));
             }
         }
-        else if (t === "Update") {
-            const shaped = findUpdatedItems(
-                original as any,
-                updated as any,
-                relation,
-                shape as ShapeModel<any, null, object>,
-                preShape as any);
-            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+        if (shaped.length > 0) {
+            // Filter out items which are already connected
+            shaped = shaped?.filter((x) => x.id === DUMMY_ID || !asArray(result[`${relation}Connect` as string]).includes(x.id));
+            result[`${relation}Create` as string] = isOneToOne === "one" ? shaped[0] : shaped;
         }
     }
+    // Check disconnect before delete, so that we can exclude items in the delete array which are being disconnected
+    if (filteredRelTypes.includes("Disconnect")) {
+        const shaped: string[] = [];
+        // Any item that exists in the original array, but not in the updated array, should be disconnected
+        for (const originalItem of originalRelation) {
+            if (!originalItem || !originalItem[idField]) continue;
+            const updatedItem = updatedRelation.find(item => item[idField] === originalItem[idField]);
+            if (!updatedItem) shaped.push(originalItem[idField as string]);
+        }
+        // Logic is different for one-to-one disconnects, since it expects a boolean instead of an ID. 
+        // And if we already have a connect, we can exclude the disconnect altogether
+        if (isOneToOne === "one") {
+            const hasConnect = typeof result[`${relation}Connect`] === "string";
+            if (!hasConnect) result[`${relation}Disconnect` as string] = shaped && shaped[0] ? true : undefined;
+        } else {
+            result[`${relation}Disconnect` as string] = shaped;
+        }
+    }
+    // Check delete
+    if (filteredRelTypes.includes("Delete")) {
+        let shaped: string[] = [];
+        // Any item that exists in the original array, but not in the updated array, should be deleted
+        for (const originalItem of originalRelation) {
+            if (!originalItem || !originalItem[idField]) continue;
+            const updatedItem = updatedRelation.find(item => item[idField] === originalItem[idField]);
+            if (!updatedItem) shaped.push(originalItem[idField as string]);
+        }
+        // Filter out items which are already disconnected
+        if (shaped.length > 0) {
+            shaped = shaped?.filter((x) => !asArray(result[`${relation}Disconnect` as string]).includes(x));
+            result[`${relation}Delete` as string] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+        }
+    }
+    // Check update
+    if (filteredRelTypes.includes("Update")) {
+        if (!shape || !(shape as ShapeModel<object, object | null, object>).update) throw new Error(`shape.create is required for create: ${relation}`);
+        const originalDataArray = originalRelation.map(data => preShaper(data, originalRelation));
+        const shaped: any[] = [];
+        for (const updatedItem of updatedRelation.map(data => preShaper(data, updatedRelation))) {
+            if (!updatedItem || !updatedItem[idField]) continue;
+            const oi = originalDataArray.find(item => item && item[idField] && item[idField] === updatedItem[idField]);
+            if (oi && ((shape as ShapeModel<object, object | null, object>).hasObjectChanged ?? hasObjectChanged)(oi, updatedItem)) {
+                shaped.push((shape as ShapeModel<object, object | null, object>).update(oi, updatedItem));
+            }
+        }
+        result[`${relation}Update` as string] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+    }
     // Return result
-    return result as any;
+    return result;
 };

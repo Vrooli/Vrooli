@@ -1,7 +1,7 @@
 import { MaxObjects, pushDeviceValidation } from "@local/shared";
 import { noNull } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { PushDeviceFormat } from "../format/pushDevice";
+import { PushDeviceFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { PushDeviceModelLogic } from "./types";
 
@@ -45,7 +45,7 @@ export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

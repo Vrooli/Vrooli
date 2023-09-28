@@ -1,15 +1,16 @@
 import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getUser } from "../../auth";
 import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../../builders";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
 import { getSearchStringQuery } from "../../getters";
 import { PrismaType, SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { SortMap } from "../../utils/sortMap";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
-import { CommentFormat } from "../format/comment";
+import { CommentFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
@@ -40,8 +41,8 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerOrganizationField: "ownedByOrganization",
@@ -287,11 +288,11 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             canReply: () => isLoggedIn && (isAdmin || isPublic),
         }),
         owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+            Organization: data?.ownedByOrganization,
+            User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<CommentModelLogic["PrismaSelect"]>([
             ["apiVersion", "ApiVersion"],
             ["issue", "Issue"],
             ["post", "Post"],
@@ -302,7 +303,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             ["routineVersion", "RoutineVersion"],
             ["smartContractVersion", "SmartContractVersion"],
             ["standardVersion", "StandardVersion"],
-        ], languages),
+        ], ...rest),
         visibility: {
             private: {},
             public: {},

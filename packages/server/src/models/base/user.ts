@@ -1,9 +1,9 @@
 import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, userValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
-import { UserFormat } from "../format/user";
+import { UserFormat } from "../formats";
 import { ModelLogic, Mutater } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { UserModelLogic } from "./types";
@@ -76,9 +76,9 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
     format: UserFormat,
     mutate: {
         shape: {
-            pre: async ({ updateList, prisma, userData }) => {
-                await handlesCheck(prisma, "User", [], updateList, userData.languages);
-                const maps = preShapeEmbeddableTranslatable({ createList: [], updateList, objectType: __typename });
+            pre: async ({ Update, prisma, userData }) => {
+                await handlesCheck(prisma, __typename, [], Update, userData.languages);
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create: [], Update, objectType: __typename });
                 return { ...maps };
             },
             /** Create only applies for bots */
@@ -88,7 +88,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
                 botSettings: data.botSettings,
                 handle: data.handle ?? null,
                 isBot: true,
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 name: data.name,
                 profileImage: noNull(data.profileImage),
                 invitedByUser: { connect: { id: rest.userData.id } },
@@ -148,7 +148,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
             languages: { select: { language: true } },
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => ({ User: data.isBot ? data.invitedByUser : data }),
+        owner: (data) => ({ User: data?.isBot ? data.invitedByUser : data }),
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,
         profanityFields: ["name", "handle"],

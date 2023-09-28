@@ -1,7 +1,7 @@
 import { MaxObjects, nodeLoopValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
-import { NodeLoopFormat } from "../format/nodeLoop";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { NodeLoopFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
 import { NodeLoopModelLogic, NodeModelLogic } from "./types";
@@ -45,9 +45,9 @@ export const NodeLoopModel: ModelLogic<NodeLoopModelLogic, typeof suppFields> = 
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeModel.validate.owner(data.node as NodeModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => NodeModel.validate.owner(data?.node as NodeModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => NodeModel.validate.isDeleted(data.node as NodeModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => NodeModel.validate.isPublic(data.node as NodeModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeLoopModelLogic["PrismaSelect"]>([["node", "Node"]], ...rest),
         visibility: {
             private: { node: NodeModel.validate.visibility.private },
             public: { node: NodeModel.validate.visibility.public },

@@ -1,11 +1,11 @@
 import { focusModeFilterValidation, MaxObjects } from "@local/shared";
 import { shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { FocusModeFilterFormat } from "../format/focusModeFilter";
+import { FocusModeFilterFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
 import { TagModel } from "./tag";
-import { FocusModeFilterModelLogic, TagModelLogic } from "./types";
+import { FocusModeFilterModelLogic, FocusModeModelLogic, TagModelLogic } from "./types";
 
 const __typename = "FocusModeFilter" as const;
 const suppFields = [] as const;
@@ -37,7 +37,7 @@ export const FocusModeFilterModel: ModelLogic<FocusModeFilterModelLogic, typeof 
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => FocusModeModel.validate.owner(data.focusMode as any, userId),
+        owner: (data, userId) => FocusModeModel.validate.owner(data?.focusMode as FocusModeModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

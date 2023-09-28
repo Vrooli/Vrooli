@@ -1,7 +1,8 @@
 import { MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, translationShapeHelper } from "../../utils";
-import { ResourceFormat } from "../format/resource";
+import { bestTranslation, oneIsPublic } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
+import { ResourceFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ResourceListModel } from "./resourceList";
 import { ResourceListModelLogic, ResourceModelLogic } from "./types";
@@ -63,9 +64,9 @@ export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = 
             list: "ResourceList",
         }),
         permissionResolvers: (params) => ResourceListModel.validate.permissionResolvers({ ...params, data: params.data.list as any }),
-        owner: (data, userId) => ResourceListModel.validate.owner(data.list as ResourceListModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ResourceListModel.validate.owner(data?.list as ResourceListModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => ResourceListModel.validate.isPublic(data.list as ResourceListModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ResourceModelLogic["PrismaSelect"]>([["list", "ResourceList"]], ...rest),
         visibility: {
             private: {},
             public: {},

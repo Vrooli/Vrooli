@@ -2,7 +2,7 @@ import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
 import { randomString } from "../../auth";
 import { noNull } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { ApiKeyFormat } from "../format/apiKey";
+import { ApiKeyFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { ApiKeyModelLogic } from "./types";
@@ -52,8 +52,8 @@ export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

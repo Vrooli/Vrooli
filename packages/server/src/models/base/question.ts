@@ -1,10 +1,11 @@
 import { MaxObjects, QuestionForType, QuestionSortBy, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
-import { QuestionFormat } from "../format/question";
+import { QuestionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
@@ -44,12 +45,13 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
     format: QuestionFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
+                isPrivate: data.isPrivate,
                 referencing: noNull(data.referencing),
                 createdBy: { connect: { id: rest.userData.id } },
                 ...((data.forObjectConnect && data.forObjectType) ? ({ [forMapper[data.forObjectType]]: { connect: { id: data.forObjectConnect } } }) : {}),
@@ -57,6 +59,7 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
                 ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
+                isPrivate: noNull(data.isPrivate),
                 ...(data.acceptedAnswerConnect ? {
                     answers: {
                         update: {
@@ -70,8 +73,8 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerUserField: "createdBy",
@@ -127,7 +130,7 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.createdBy,
+            User: data?.createdBy,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

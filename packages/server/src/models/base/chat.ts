@@ -2,10 +2,10 @@ import { ChatSortBy, chatValidation, MaxObjects, User, uuid, uuidValidate } from
 import { ChatInviteStatus } from "@prisma/client";
 import i18next from "i18next";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
-import { ChatFormat } from "../format/chat";
+import { ChatFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ChatModelLogic } from "./types";
 
@@ -33,13 +33,13 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
     format: ChatFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, prisma, userData }) => {
+            pre: async ({ Create, Update, prisma }) => {
                 // Find invited users. Any that are bots are automatically accepted.
-                const invitedUsers = createList.reduce((acc, c) => [...acc, ...(c.invitesCreate?.map((i) => i.userConnect) ?? []) as string[]], [] as string[]);
+                const invitedUsers = Create.reduce((acc, c) => [...acc, ...(c.input.invitesCreate?.map((i) => i.userConnect) ?? []) as string[]], [] as string[]);
                 // Find all bots
                 const bots = await prisma.user.findMany({ where: { id: { in: invitedUsers }, isBot: true } });
                 // Find translations that need text embeddings
-                const embeddingMaps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                const embeddingMaps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...embeddingMaps, bots };
             },
             create: async ({ data, ...rest }) => ({
@@ -125,7 +125,7 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
+            afterMutations: async ({ createdIds, prisma, userData }) => {
                 //TODO If starting a chat with a bot (not Valyxa, since we create an initial message in the 
                 // UI for speed), allow the bot to send a message to the chat
             },
@@ -169,8 +169,8 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.creator,
+            Organization: data?.organization,
+            User: data?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isInvited = uuidValidate(userId) && data.invites?.some((i) => i.userId === userId && i.status === ChatInviteStatus.Pending);

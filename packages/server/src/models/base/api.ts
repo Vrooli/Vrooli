@@ -1,9 +1,11 @@
 import { ApiSortBy, apiValidation, MaxObjects } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { defaultPermissions } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
-import { ApiFormat } from "../format/api";
+import { ApiFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiVersionModel } from "./apiVersion";
 import { BookmarkModel } from "./bookmark";
@@ -27,7 +29,7 @@ export const ApiModel: ModelLogic<ApiModelLogic, typeof suppFields> = ({
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
@@ -48,8 +50,8 @@ export const ApiModel: ModelLogic<ApiModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonRoot({ ...params, objectType: __typename });
+            afterMutations: async (params) => {
+                await afterMutationsRoot({ ...params, objectType: __typename });
             },
         },
         yup: apiValidation,
@@ -108,8 +110,8 @@ export const ApiModel: ModelLogic<ApiModelLogic, typeof suppFields> = ({
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+            Organization: data?.ownedByOrganization,
+            User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

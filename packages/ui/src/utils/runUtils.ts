@@ -201,9 +201,11 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
         }
     }
     // Check 4
-    const unsuccessfulEndNodes = nodesOnGraph.filter(node => node.nodeType === NodeType.End && node.end && node.end?.wasSuccessful !== true);
-    if (unsuccessfulEndNodes.length > 0) {
+    const allEndNodes = nodesOnGraph.filter(node => node.nodeType === NodeType.End);
+    const unsuccessfulEndNodes = allEndNodes.filter(node => node?.end?.wasSuccessful !== true);
+    if (unsuccessfulEndNodes.length >= allEndNodes.length) {
         statuses.push([Status.Invalid, "No successful end node(s) found"]);
+        console.log("no successful end nodes found", allEndNodes, unsuccessfulEndNodes);
     }
     // Performs checks which make the routine incomplete, but not invalid
     // 1. There are unpositioned nodes
@@ -275,12 +277,18 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
             name: "Subroutine 1",
         }] as Node["translations"],
     };
+    const endNodeId = uuid();
     const endNode: NodeShape = {
         __typename: "Node",
-        id: uuid(),
+        id: endNodeId,
         nodeType: NodeType.End,
         columnIndex: 2,
         rowIndex: 0,
+        end: {
+            id: uuid(),
+            wasSuccessful: true,
+            node: { id: endNodeId },
+        },
         routineVersion: { id: routineVersionId },
         translations: [],
     };

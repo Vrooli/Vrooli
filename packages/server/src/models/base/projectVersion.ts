@@ -1,10 +1,10 @@
 import { MaxObjects, ProjectVersionSortBy, projectVersionValidation } from "@local/shared";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
-import { preShapeVersion } from "../../utils/preShapeVersion";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { ProjectVersionFormat } from "../format/projectVersion";
+import { ProjectVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ProjectModel } from "./project";
 import { RunProjectModel } from "./runProject";
@@ -40,22 +40,22 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     mutate: {
         shape: {
             pre: async (params) => {
-                const { createList, updateList, deleteList, prisma, userData } = params;
+                const { Create, Update, Delete, prisma, userData } = params;
                 await versionsCheck({
-                    createList,
-                    deleteList,
+                    Create,
+                    Delete,
                     objectType: __typename,
                     prisma,
-                    updateList,
+                    Update,
                     userData,
                 });
-                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
-                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
@@ -73,8 +73,10 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
                 // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
-            post: async (params) => {
-                await postShapeVersion({ ...params, objectType: __typename });
+        },
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
         yup: projectVersionValidation,
@@ -268,12 +270,12 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ProjectModel.validate.isPublic(data.root as ProjectModelLogic["PrismaModel"], languages),
+            oneIsPublic<ProjectVersionModelLogic["PrismaSelect"]>([["root", "Project"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ProjectModel.validate.owner(data.root as ProjectModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ProjectModel.validate.owner(data?.root as ProjectModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

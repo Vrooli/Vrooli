@@ -20,7 +20,7 @@ export const typeDef = gql`
 
     input NoteVersionCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]

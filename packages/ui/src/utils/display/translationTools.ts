@@ -565,6 +565,7 @@ export const getLanguageSubtag = (language: string): string => {
  * 1. Languages in session data
  * 2. Languages in browser (i.e. navigator.language)
  * 3. English
+ * 
  * Strips languages so only the subtag is returned (e.g. en-US becomes en)
  * @param session Session data
  * @param useDefault If true, will return English if no languages are found

@@ -1,8 +1,9 @@
 import { MaxObjects, nodeValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { CustomError } from "../../events";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
-import { NodeFormat } from "../format/node";
+import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
+import { NodeFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RoutineVersionModel } from "./routineVersion";
 import { NodeModelLogic, RoutineVersionModelLogic } from "./types";
@@ -22,13 +23,13 @@ export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
     format: NodeFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, deleteList, prisma, userData }) => {
+            pre: async ({ Create, Delete, prisma, userData }) => {
                 // Don't allow more than 100 nodes in a routine
-                if (createList.length) {
-                    const deltaAdding = createList.length - deleteList.length;
+                if (Create.length) {
+                    const deltaAdding = Create.length - Delete.length;
                     if (deltaAdding < 0) return;
                     const existingCount = await prisma.routine_version.findUnique({
-                        where: { id: createList[0].routineVersionConnect },
+                        where: { id: Create[0].input.routineVersionConnect },
                         include: { _count: { select: { nodes: true } } },
                     });
                     const totalCount = (existingCount?._count.nodes ?? 0) + deltaAdding;
@@ -68,9 +69,9 @@ export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeModelLogic["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
             private: { routineVersion: RoutineVersionModel.validate.visibility.private },
             public: { routineVersion: RoutineVersionModel.validate.visibility.public },

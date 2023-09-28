@@ -1,8 +1,7 @@
 import { StatsApiSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsApiFormat } from "../format/statsApi";
+import { StatsApiFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { ApiModelLogic, StatsApiModelLogic } from "./types";
@@ -39,11 +38,9 @@ export const StatsApiModel: ModelLogic<StatsApiModelLogic, typeof suppFields> = 
             api: "Api",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ApiModel.validate.owner(data.api as ApiModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ApiModel.validate.owner(data?.api as ApiModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_apiSelect>(data, [
-            ["api", "Api"],
-        ], languages),
+        isPublic: (...rest) => oneIsPublic<StatsApiModelLogic["PrismaSelect"]>([["api", "Api"]], ...rest),
         visibility: {
             private: { api: ApiModel.validate.visibility.private },
             public: { api: ApiModel.validate.visibility.public },

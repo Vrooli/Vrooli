@@ -1,7 +1,8 @@
 import { MaxObjects, QuestionAnswerSortBy, questionAnswerValidation } from "@local/shared";
 import { shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
-import { QuestionAnswerFormat } from "../format/questionAnswer";
+import { bestTranslation, defaultPermissions } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
+import { QuestionAnswerFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { QuestionAnswerModelLogic } from "./types";
 
@@ -54,7 +55,7 @@ export const QuestionAnswerModel: ModelLogic<QuestionAnswerModelLogic, typeof su
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.createdBy,
+            User: data?.createdBy,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

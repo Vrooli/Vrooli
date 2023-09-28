@@ -24,7 +24,7 @@ export const typeDef = gql`
         id: ID!
         callLink: String!
         documentationLink: String
-        isPrivate: Boolean
+        isPrivate: Boolean!
         isComplete: Boolean
         versionLabel: String!
         versionNotes: String

@@ -1,7 +1,7 @@
 import * as yup from "yup";
-import { bio, blankToUndefined, bool, handle, id, maxStrErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { bio, bool, handle, id, imageFile, maxStrErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 
-const botSettings = yup.string().transform(blankToUndefined).max(4096, maxStrErr);
+export const botSettings = yup.string().trim().removeEmptyString().max(4096, maxStrErr);
 
 export const botTranslationValidation: YupModel = transRel({
     create: {
@@ -15,10 +15,12 @@ export const botTranslationValidation: YupModel = transRel({
 export const botValidation: YupModel = {
     create: ({ o }) => yupObj({
         id: req(id),
+        bannerImage: opt(imageFile),
         botSettings: req(botSettings),
         handle: opt(handle),
         isPrivate: opt(bool),
         name: req(name),
+        profileImage: opt(imageFile),
     }, [
         ["translations", ["Create"], "many", "opt", botTranslationValidation],
     ], [], o),

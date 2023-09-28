@@ -1,8 +1,9 @@
 import { MaxObjects, PostSortBy, postValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
-import { PostFormat } from "../format/post";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { preShapeEmbeddableTranslatable, tagShapeHelper } from "../../utils/shapes";
+import { afterMutationsPlain } from "../../utils/triggers";
+import { PostFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { PostModelLogic } from "./types";
@@ -31,14 +32,14 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
     format: PostFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isPinned: noNull(data.isPinned),
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
                 user: !data.organizationConnect ? { connect: { id: rest.userData.id } } : undefined,
                 ...(await shapeHelper({ relation: "repostedFrom", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Post", parentRelationshipName: "reposts", data, ...rest })),
@@ -55,8 +56,8 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerOrganizationField: "organization",
@@ -97,8 +98,8 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

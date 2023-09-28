@@ -20,13 +20,16 @@ export const shapeResourceListTranslation: ShapeModel<ResourceListTranslationSha
 };
 
 export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreateInput, ResourceListUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id"),
-        listForConnect: d.listFor.id,
-        listFor: d.listFor.__typename,
-        ...createRel(d, "resources", ["Create"], "many", shapeResource, (r) => ({ list: { id: d.id }, ...r })),
-        ...createRel(d, "translations", ["Create"], "many", shapeResourceListTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id");
+        return {
+            ...prims,
+            listForConnect: d.listFor.id,
+            listForType: d.listFor.__typename,
+            ...createRel(d, "resources", ["Create"], "many", shapeResource, (r) => ({ list: { id: prims.id }, ...r })),
+            ...createRel(d, "translations", ["Create"], "many", shapeResourceListTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id"),
         ...updateRel(o, u, "resources", ["Create", "Update", "Delete"], "many", shapeResource, (r, i) => ({ list: { id: i.id }, ...r })),

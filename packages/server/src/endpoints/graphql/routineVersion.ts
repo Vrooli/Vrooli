@@ -29,7 +29,7 @@ export const typeDef = gql`
         apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         versionLabel: String!
         versionNotes: String
         smartContractCallData: String

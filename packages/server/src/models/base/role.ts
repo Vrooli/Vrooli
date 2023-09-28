@@ -1,7 +1,8 @@
 import { MaxObjects, RoleSortBy, roleValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
-import { RoleFormat } from "../format/role";
+import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
+import { RoleFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { OrganizationModelLogic, RoleModelLogic } from "./types";
@@ -68,9 +69,9 @@ export const RoleModel: ModelLogic<RoleModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, organization: "Organization" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as OrganizationModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => OrganizationModel.validate.owner(data?.organization as OrganizationModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as OrganizationModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as OrganizationModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<RoleModelLogic["PrismaSelect"]>([["organization", "Organization"]], ...rest),
         visibility: {
             private: { organization: OrganizationModel.validate.visibility.private },
             public: { organization: OrganizationModel.validate.visibility.public },

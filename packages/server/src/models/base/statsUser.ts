@@ -1,8 +1,7 @@
 import { StatsUserSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsUserFormat } from "../format/statsUser";
+import { StatsUserFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { StatsUserModelLogic, UserModelLogic } from "./types";
 import { UserModel } from "./user";
@@ -39,11 +38,9 @@ export const StatsUserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> 
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => UserModel.validate.owner(data.user as UserModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => UserModel.validate.owner(data?.user as UserModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_userSelect>(data, [
-            ["user", "User"],
-        ], languages),
+        isPublic: (...rest) => oneIsPublic<StatsUserModelLogic["PrismaSelect"]>([["user", "User"]], ...rest),
         visibility: {
             private: { user: UserModel.validate.visibility.private },
             public: { user: UserModel.validate.visibility.public },

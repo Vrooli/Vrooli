@@ -1,9 +1,8 @@
 import { MaxObjects, RunProjectSortBy, runProjectValidation, RunStatus } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { RunProjectFormat } from "../format/runProject";
+import { RunProjectFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { ProjectVersionModel } from "./projectVersion";
@@ -35,7 +34,7 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches: noNull(data.contextSwitches),
                     embeddingNeedsUpdate: true,
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
                     ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
@@ -107,14 +106,14 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_projectSelect>(data, [
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunProjectModelLogic["PrismaSelect"]>([
             ["organization", "Organization"],
             ["user", "User"],
-        ], languages),
+        ], data, ...rest),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },

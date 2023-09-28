@@ -1,6 +1,6 @@
 import { MaxObjects, NotificationSortBy } from "@local/shared";
 import { defaultPermissions } from "../../utils";
-import { NotificationFormat } from "../format/notification";
+import { NotificationFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NotificationModelLogic } from "./types";
 
@@ -36,7 +36,7 @@ export const NotificationModel: ModelLogic<NotificationModelLogic, typeof suppFi
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

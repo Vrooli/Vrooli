@@ -1,6 +1,6 @@
 import { ChatParticipantSortBy, chatParticipantValidation, MaxObjects } from "@local/shared";
 import { defaultPermissions } from "../../utils";
-import { ChatParticipantFormat } from "../format/chatParticipant";
+import { ChatParticipantFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
 import { ChatModelLogic, ChatParticipantModelLogic, UserModelLogic } from "./types";
@@ -47,8 +47,8 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data.chat as ChatModelLogic["PrismaModel"]).organization,
-            User: (data.chat as ChatModelLogic["PrismaModel"]).creator,
+            Organization: (data?.chat as ChatModelLogic["PrismaModel"])?.organization,
+            User: (data?.chat as ChatModelLogic["PrismaModel"])?.creator,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

@@ -3,7 +3,9 @@ import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
-import { QueryAction } from "../utils/types";
+import { AuthDataById } from "../utils";
+import { getParentInfo } from "../utils/getParentInfo";
+import { InputsById, QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
 
 /**
@@ -224,7 +226,8 @@ export type StandardPolicy = {
  * @returns Map of permissions objects, keyed by ID
  */
 export async function getMultiTypePermissions(
-    authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
+    authDataById: AuthDataById,
+    inputsById: InputsById,
     userData: SessionUserToken | null,
 ): Promise<{ [id: string]: { [x: string]: any } }> {
     // Initialize result
@@ -236,7 +239,7 @@ export async function getMultiTypePermissions(
         const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authData, userData.id), userData.id) : false;
         const isDeleted = validate.isDeleted(authData, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
-        const isPublic = validate.isPublic(authData, userData?.languages ?? ["en"]);
+        const isPublic = validate.isPublic(authData, (...rest) => getParentInfo(...rest, inputsById), userData?.languages ?? ["en"]);
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataById[id], userId: userData?.id });
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.
@@ -288,7 +291,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
         const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authDataItem, userData.id), userData.id) : false;
         const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
-        const isPublic = validate.isPublic(authDataItem, userData?.languages ?? ["en"]);
+        const isPublic = validate.isPublic(authDataItem, () => undefined, userData?.languages ?? ["en"]);
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataItem, userId: userData?.id });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
@@ -312,26 +315,31 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
 export async function permissionsCheck(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
+    inputsById: InputsById,
     userData: SessionUserToken | null,
 ) {
     // Get permissions
-    const permissionsById = await getMultiTypePermissions(authDataById, userData);
+    const permissionsById = await getMultiTypePermissions(authDataById, inputsById, userData);
     // Loop through each action and validate permissions
     for (const action of Object.keys(idsByAction)) {
+        // Skip "Create" action
+        if (action === "Create") continue;
         // Get IDs for this action
         const ids = idsByAction[action];
         // Loop through each ID and validate permissions
         for (const id of ids) {
             // Skip placeholder IDs
             if (id === DUMMY_ID) continue;
+            // Skip if the ID appears in the "Create" action (e.g. connecting to a chat which is also being created in the same request). 
+            // NOTE: This opens the possibility for an attack where a user tries to create an object using another object's ID, so that the connect
+            // permissions check is sipped. However, as long as we use a transaction for the full request (i.e. if that object fails to create, 
+            // the whole request fails), this should be fine.
+            if (idsByAction.Create?.includes(id)) continue;
             // Get permissions for this ID
             const permissions = permissionsById[id];
-            // Make sure permissions exists. If not, and not create, something went wrong.
+            // If permissions doesn't exist, something went wrong.
             if (!permissions) {
-                if (action !== "Create") {
-                    throw new CustomError("0390", "InternalError", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
-                }
-                continue;
+                throw new CustomError("0390", "InternalError", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
             }
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {

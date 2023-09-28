@@ -4,7 +4,7 @@ import { ApiModel, ChatMessageModel, CommentModel, IssueModel, NoteModel, PostMo
 import { onlyValidIds } from "../../builders";
 import { CustomError, Trigger } from "../../events";
 import { PrismaType, SessionUserToken } from "../../types";
-import { ReactionFormat } from "../format/reaction";
+import { ReactionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModelLogic, ChatMessageModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, ReactionModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic } from "./types";
 

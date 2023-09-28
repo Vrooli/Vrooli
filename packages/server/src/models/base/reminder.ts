@@ -1,7 +1,7 @@
 import { MaxObjects, ReminderSortBy, reminderValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { ReminderFormat } from "../format/reminder";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { ReminderFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ReminderListModel } from "./reminderList";
 import { ReminderListModelLogic, ReminderModelLogic } from "./types";
@@ -66,10 +66,10 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ReminderListModel.validate.isPublic(data.reminderList as ReminderListModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ReminderModelLogic["PrismaSelect"]>([["reminderList", "ReminderList"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderListModel.validate.owner(data.reminderList as ReminderListModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ReminderListModel.validate.owner(data?.reminderList as ReminderListModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

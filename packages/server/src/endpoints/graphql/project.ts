@@ -29,7 +29,7 @@ export const typeDef = gql`
     input ProjectCreateInput {
         id: ID!
         handle: String
-        isPrivate: Boolean
+        isPrivate: Boolean!
         permissions: String
         ownedByUserConnect: ID
         ownedByOrganizationConnect: ID

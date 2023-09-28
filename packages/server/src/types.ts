@@ -67,6 +67,10 @@ declare global {
     }
 }
 
+export type WithIdField<IdField extends string = "id"> = {
+    [key in IdField]: string;
+}
+
 /** Prisma type shorthand */
 export type PrismaType = pkg.PrismaClient<pkg.Prisma.PrismaClientOptions, never, pkg.Prisma.RejectOnNotFound | pkg.Prisma.RejectPerOperation | undefined>
 

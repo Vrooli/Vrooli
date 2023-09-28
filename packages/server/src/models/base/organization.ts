@@ -3,10 +3,10 @@ import { role } from "@prisma/client";
 import { noNull, onlyValidIds, shapeHelper } from "../../builders";
 import { getLabels } from "../../getters";
 import { PrismaType } from "../../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, tagShapeHelper, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
-import { OrganizationFormat } from "../format/organization";
+import { OrganizationFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModelLogic } from "./types";
@@ -36,11 +36,11 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
     format: OrganizationFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, prisma, userData }) => {
-                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
-                await handlesCheck(prisma, "Organization", createList, updateList, userData.languages);
+            pre: async ({ Create, Update, prisma, userData }) => {
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
+                await handlesCheck(prisma, __typename, Create, Update, userData.languages);
                 // Find translations that need text embeddings
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
@@ -49,7 +49,7 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
                     bannerImage: data.bannerImage,
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     permissions: JSON.stringify({}), //TODO
                     profileImage: data.profileImage,
                     createdBy: { connect: { id: rest.userData.id } },
@@ -83,11 +83,18 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
-                for (const { id: organizationId } of created) {
-                    // Add 'Admin' role to organization
-                    await prisma.role.create({
-                        data: {
+            afterMutations: async ({ createdIds, prisma, userData }) => {
+                for (const organizationId of createdIds) {
+                    // Upsert "Admin" role (in case they already included it in the request). 
+                    // Trying to connect you as a member again shouldn't throw an error (hopefully)
+                    await prisma.role.upsert({
+                        where: {
+                            role_organizationId_name_unique: {
+                                name: "Admin",
+                                organizationId,
+                            },
+                        },
+                        create: {
                             id: uuid(),
                             name: "Admin",
                             permissions: JSON.stringify({}), //TODO
@@ -100,6 +107,17 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
                                 },
                             },
                             organizationId,
+                        },
+                        update: {
+                            permissions: JSON.stringify({}), //TODO
+                            members: {
+                                connect: {
+                                    member_organizationid_userid_unique: {
+                                        userId: userData.id,
+                                        organizationId,
+                                    },
+                                },
+                            },
                         },
                     });
                     // Handle trigger

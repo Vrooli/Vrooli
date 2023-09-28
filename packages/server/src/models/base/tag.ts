@@ -1,15 +1,16 @@
 import { MaxObjects, TagSortBy, tagValidation } from "@local/shared";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions } from "../../utils";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
-import { TagFormat } from "../format/tag";
+import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { TagFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { TagModelLogic } from "./types";
 
 const __typename = "Tag" as const;
 const suppFields = ["you"] as const;
-export const TagModel: ModelLogic<TagModelLogic, typeof suppFields> = ({
+const idField = "tag";
+export const TagModel: ModelLogic<TagModelLogic, typeof suppFields, typeof idField> = ({
     __typename,
     delegate: (prisma) => prisma.tag,
     display: {
@@ -28,15 +29,21 @@ export const TagModel: ModelLogic<TagModelLogic, typeof suppFields> = ({
             },
         },
     },
-    idField: "tag",
+    idField,
     format: TagFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<typeof idField>({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
+            findConnects: async ({ Create, prisma }) => {
+                const createIds = Create.map(({ node }) => node.id);
+                const existingTags = await prisma.tag.findMany({ where: { tag: { in: createIds } }, select: { tag: true } });
+                return createIds.map(id => existingTags.find(x => x.tag === id) ? id : null);
+            },
             create: async ({ data, ...rest }) => ({
+                id: data.id,
                 tag: data.tag,
                 createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
                 ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest })),

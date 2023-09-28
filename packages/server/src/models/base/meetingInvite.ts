@@ -1,9 +1,8 @@
 import { MaxObjects, MeetingInviteSortBy, meetingInviteValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { MeetingInviteFormat } from "../format/meetingInvite";
+import { MeetingInviteFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { MeetingModel } from "./meeting";
 import { MeetingInviteModelLogic, MeetingModelLogic } from "./types";
@@ -73,12 +72,10 @@ export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof supp
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: (data.meeting as MeetingModelLogic["PrismaModel"]).organization,
+            Organization: (data?.meeting as MeetingModelLogic["PrismaModel"])?.organization,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.meeting_inviteSelect>(data, [
-            ["meeting", "Meeting"],
-        ], languages),
+        isPublic: (...rest) => oneIsPublic<MeetingInviteModelLogic["PrismaSelect"]>([["meeting", "Meeting"]], ...rest),
         visibility: {
             private: {},
             public: {},

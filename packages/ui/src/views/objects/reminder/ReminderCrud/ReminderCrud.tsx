@@ -138,6 +138,8 @@ const ReminderForm = ({
             PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
             return;
         }
+        console.log("onsubmit values", values);
+        console.log("onsubmit transformed", transformReminderValues(values, existing, isCreate));
         fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
             fetch,
             inputs: transformReminderValues(values, existing, isCreate),

@@ -6,9 +6,10 @@ export const nodeLinkValidation: YupModel = {
         id: req(id),
         operation: opt(nodeOperation),
     }, [
-        ["whens", ["Create"], "many", "opt", nodeLinkWhenValidation],
         ["from", ["Connect"], "one", "req"],
+        ["routineVersion", ["Connect"], "one", "req"],
         ["to", ["Connect"], "one", "req"],
+        ["whens", ["Create"], "many", "opt", nodeLinkWhenValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),

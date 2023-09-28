@@ -1,8 +1,7 @@
 import { StatsRoutineSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsRoutineFormat } from "../format/statsRoutine";
+import { StatsRoutineFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
 import { RoutineModelLogic, StatsRoutineModelLogic } from "./types";
@@ -39,11 +38,9 @@ export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFi
             routine: "Routine",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineModel.validate.owner(data.routine as RoutineModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => RoutineModel.validate.owner(data?.routine as RoutineModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_routineSelect>(data, [
-            ["routine", "Routine"],
-        ], languages),
+        isPublic: (...rest) => oneIsPublic<StatsRoutineModelLogic["PrismaSelect"]>([["routine", "Routine"]], ...rest),
         visibility: {
             private: { routine: RoutineModel.validate.visibility.private },
             public: { routine: RoutineModel.validate.visibility.public },

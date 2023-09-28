@@ -173,6 +173,7 @@ export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionBut
     openAssistantDialog: (selectedText: string) => unknown;
     onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
     redo: () => unknown;
+    setHandleAction: (handleAction: (action: RichInputAction, data?: unknown) => unknown) => unknown;
     toggleMarkdown: () => unknown;
     undo: () => unknown;
     sx?: CSSProperties;
@@ -180,10 +181,6 @@ export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionBut
 
 export type RichInputMarkdownProps = RichInputChildProps;
 export type RichInputLexicalProps = RichInputChildProps;
-
-export interface RichInputChildView {
-    handleAction: (action: Exclude<RichInputAction, "Mode">, data?: unknown) => unknown;
-}
 
 export type RichInputAction =
     "Assistant" |
@@ -203,15 +200,13 @@ export type RichInputAction =
     "Mode" |
     "Quote" |
     "Redo" |
+    "SetValue" |
     "Spoiler" |
     "Strikethrough" |
     "Table" |
     "Underline" |
     "Undo";
 export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo">]: boolean };
-export interface RichInputToolbarView {
-    updateActiveStates: (activeStates: RichInputActiveStates) => unknown;
-}
 
 export type PasswordTextFieldProps = TextFieldProps & {
     autoComplete?: string;

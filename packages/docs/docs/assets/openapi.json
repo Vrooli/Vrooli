@@ -4026,7 +4026,6 @@
           },
           "isPrivate": {
             "title": "ApiCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "labelsConnect": {
@@ -4131,7 +4130,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "ApiCreateInput",
@@ -4961,7 +4961,6 @@
           },
           "isPrivate": {
             "title": "ApiVersionCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "resourceListCreate": {
@@ -5024,6 +5023,7 @@
         "required": [
           "callLink",
           "id",
+          "isPrivate",
           "versionLabel"
         ],
         "additionalProperties": false,
@@ -6570,7 +6570,6 @@
           },
           "isPrivate": {
             "title": "BotCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "name": {
@@ -6600,6 +6599,7 @@
         "required": [
           "botSettings",
           "id",
+          "isPrivate",
           "name"
         ],
         "additionalProperties": false,
@@ -7316,6 +7316,10 @@
             "title": "ChatMessage.id",
             "type": "string"
           },
+          "isFork": {
+            "title": "ChatMessage.isFork",
+            "type": "boolean"
+          },
           "reactionSummaries": {
             "items": {
               "$ref": "#/components/schemas/ReactionSummary"
@@ -7367,6 +7371,7 @@
           "chat",
           "created_at",
           "id",
+          "isFork",
           "reactionSummaries",
           "reports",
           "reportsCount",
@@ -7415,12 +7420,17 @@
               }
             ],
             "title": "ChatMessageCreateInput.translationsCreate"
+          },
+          "userConnect": {
+            "title": "ChatMessageCreateInput.userConnect",
+            "type": "string"
           }
         },
         "required": [
           "chatConnect",
           "id",
-          "isFork"
+          "isFork",
+          "userConnect"
         ],
         "additionalProperties": false,
         "title": "ChatMessageCreateInput",
@@ -16345,7 +16355,6 @@
           },
           "isPrivate": {
             "title": "NoteCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "labelsConnect": {
@@ -16450,7 +16459,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "NoteCreateInput",
@@ -17123,7 +17133,6 @@
           },
           "isPrivate": {
             "title": "NoteVersionCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "rootConnect": {
@@ -17172,6 +17181,7 @@
         },
         "required": [
           "id",
+          "isPrivate",
           "versionLabel"
         ],
         "additionalProperties": false,
@@ -19008,7 +19018,6 @@
           },
           "isPrivate": {
             "title": "OrganizationCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "memberInvitesCreate": {
@@ -19114,7 +19123,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "OrganizationCreateInput",
@@ -20616,7 +20626,6 @@
           },
           "isPrivate": {
             "title": "PostCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "organizationConnect": {
@@ -20697,7 +20706,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "PostCreateInput",
@@ -21759,7 +21769,6 @@
           },
           "isPrivate": {
             "title": "ProjectCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "labelsConnect": {
@@ -21864,7 +21873,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "ProjectCreateInput",
@@ -23621,7 +23631,6 @@
           },
           "isPrivate": {
             "title": "ProjectVersionCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "rootConnect": {
@@ -23686,6 +23695,7 @@
         },
         "required": [
           "id",
+          "isPrivate",
           "versionLabel"
         ],
         "additionalProperties": false,
@@ -26639,7 +26649,6 @@
           },
           "isPrivate": {
             "title": "QuestionCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "referencing": {
@@ -26697,7 +26706,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "QuestionCreateInput",
@@ -27857,7 +27867,6 @@
           },
           "isPrivate": {
             "title": "QuizCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "maxAttempts": {
@@ -27929,7 +27938,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "QuizCreateInput",
@@ -33283,7 +33293,6 @@
           },
           "isPrivate": {
             "title": "RoutineCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "labelsConnect": {
@@ -33388,7 +33397,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "RoutineCreateInput",
@@ -34247,7 +34257,6 @@
           },
           "isPrivate": {
             "title": "RoutineVersionCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "nodeLinksCreate": {
@@ -34383,6 +34392,7 @@
         },
         "required": [
           "id",
+          "isPrivate",
           "versionLabel"
         ],
         "additionalProperties": false,
@@ -36272,7 +36282,6 @@
           },
           "isPrivate": {
             "title": "RunProjectCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "name": {
@@ -36331,6 +36340,7 @@
         },
         "required": [
           "id",
+          "isPrivate",
           "name",
           "projectVersionConnect",
           "status"
@@ -37647,7 +37657,6 @@
           },
           "isPrivate": {
             "title": "RunRoutineCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "name": {
@@ -37711,6 +37720,7 @@
         },
         "required": [
           "id",
+          "isPrivate",
           "name",
           "routineVersionConnect",
           "status"
@@ -40369,7 +40379,6 @@
           },
           "isPrivate": {
             "title": "SmartContractCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "labelsConnect": {
@@ -40474,7 +40483,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "SmartContractCreateInput",
@@ -41192,7 +41202,6 @@
           },
           "isPrivate": {
             "title": "SmartContractVersionCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "resourceListCreate": {
@@ -41255,6 +41264,7 @@
           "content",
           "contractType",
           "id",
+          "isPrivate",
           "rootConnect",
           "versionLabel"
         ],
@@ -42140,7 +42150,6 @@
           },
           "isPrivate": {
             "title": "StandardCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "labelsConnect": {
@@ -42245,7 +42254,8 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "isPrivate"
         ],
         "additionalProperties": false,
         "title": "StandardCreateInput",
@@ -42980,7 +42990,6 @@
           },
           "isPrivate": {
             "title": "StandardVersionCreateInput.isPrivate",
-            "nullable": true,
             "type": "boolean"
           },
           "props": {
@@ -43054,6 +43063,7 @@
         },
         "required": [
           "id",
+          "isPrivate",
           "props",
           "rootConnect",
           "standardType",

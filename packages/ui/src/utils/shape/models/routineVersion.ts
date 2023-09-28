@@ -33,20 +33,23 @@ export const shapeRoutineVersionTranslation: ShapeModel<RoutineVersionTranslatio
 };
 
 export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersionCreateInput, RoutineVersionUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes", "smartContractCallData"),
-        ...createRel(d, "apiVersion", ["Connect"], "one"),
-        ...createRel(d, "directoryListings", ["Connect"], "many"),
-        ...createRel(d, "inputs", ["Create"], "many", shapeRoutineVersionInput, (i) => ({ ...i, routineVersion: { id: d.id } })),
-        ...createRel(d, "nodes", ["Create"], "many", shapeNode, (n) => ({ ...n, routineVersion: { id: d.id } })),
-        ...createRel(d, "nodeLinks", ["Create"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: d.id } })),
-        ...createRel(d, "outputs", ["Create"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: d.id } })),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "RoutineVersion" } })),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine, (r) => ({ ...r, isPrivate: d.isPrivate })),
-        ...createRel(d, "smartContractVersion", ["Connect"], "one"),
-        ...createRel(d, "suggestedNextByRoutineVersion", ["Connect"], "many"),
-        ...createRel(d, "translations", ["Create"], "many", shapeRoutineVersionTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes", "smartContractCallData");
+        return {
+            ...prims,
+            ...createRel(d, "apiVersion", ["Connect"], "one"),
+            ...createRel(d, "directoryListings", ["Connect"], "many"),
+            ...createRel(d, "inputs", ["Create"], "many", shapeRoutineVersionInput, (i) => ({ ...i, routineVersion: { id: prims.id } })),
+            ...createRel(d, "nodes", ["Create"], "many", shapeNode, (n) => ({ ...n, routineVersion: { id: prims.id } })),
+            ...createRel(d, "nodeLinks", ["Create"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: prims.id } })),
+            ...createRel(d, "outputs", ["Create"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: prims.id } })),
+            ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: prims.id, __typename: "RoutineVersion" } })),
+            ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine, (r) => ({ ...r, isPrivate: d.isPrivate })),
+            ...createRel(d, "smartContractVersion", ["Connect"], "one"),
+            ...createRel(d, "suggestedNextByRoutineVersion", ["Connect"], "many"),
+            ...createRel(d, "translations", ["Create"], "many", shapeRoutineVersionTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes", "smartContractCallData"),
         ...updateRel(o, u, "apiVersion", ["Connect", "Disconnect"], "one"),

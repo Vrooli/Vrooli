@@ -1,20 +1,32 @@
 import { GqlModelType } from "@local/shared";
 import { isRelationshipArray, isRelationshipObject } from "../builders";
 import { CustomError } from "../events";
+import { getLogic } from "../getters";
 import { ObjectMap } from "../models/base";
+import { AuthDataById } from "../utils";
+import { authDataWithInput } from "../utils/authDataWithInput";
 import { hasProfanity } from "../utils/censor";
+import { getParentInfo } from "../utils/getParentInfo";
+import { CudInputData, InputsById } from "../utils/types";
+
+type ProfanityFieldsToCheck = {
+    tagsConnect?: string[],
+    translationsCreate?: object[],
+    translationsUpdate?: object[],
+}
 
 /**
  * Helper function for profanity check. Recursively finds every field which must be checked for profanity, by: 
  * - Grabbing every field in a "translationsCreate" or "translationsUpdate" object
  * - Grabbing every field specified by the current object's validator's profanityFields array
- * @param input The input object to collect translations from
- * @param objectType The type of the input object
  * @returns An object with every field that must be checked for profanity
  */
-const collectProfanities = (input: { [x: string]: any }, objectType?: `${GqlModelType}`): { [x: string]: string[] } => {
+const collectProfanities = (
+    input: ProfanityFieldsToCheck,
+    objectType?: `${GqlModelType}`,
+): Record<string, string[]> => {
     // Initialize result
-    const result: { [x: string]: string[] } = {};
+    const result: Record<string, string[]> = {};
     // Handle base case
     // Get current object's formatter and validator
     const format = objectType ? ObjectMap[objectType]?.format : undefined;
@@ -91,15 +103,23 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: `${GqlMode
  * 
  * Additionally, finds the validator for the object's type and checks if any additional fields - besides 
  * those found in translation objects - should be checked for censored words (e.g. username, email).
- * @params input An array of objects with translations
- * @params objectType The type of the object
- * @params languages The languages to use for error messages
  */
-export const profanityCheck = (input: { [x: string]: any }[], objectType: `${GqlModelType}` | undefined, languages: string[]): void => {
+export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById, authDataById: AuthDataById, languages: string[]): void => {
     // Find all fields which must be checked for profanity
     const fieldsToCheck: { [x: string]: string[] } = {};
-    for (const item of input) {
-        const newFields = collectProfanities(item, objectType);
+    for (const item of inputData) {
+        // Only check objects being created or updated
+        if (!["Create", "Update"].includes(item.actionType)) continue;
+        // Only check for objects which are not private. 
+        // NOTE: This means that a user could create a private object with profanity in it, and then change it to public. 
+        // We'll have to rely on the reporting and reputation system to handle this.
+        const { idField, validate } = getLogic(["idField", "validate"], item.objectType, languages, "profanityCheck");
+        const existingData = authDataById[item.input[idField]];
+        const input = item.input as object;
+        const combinedData = authDataWithInput(input, existingData ?? {}, inputsById, authDataById);
+        const isPublic = validate?.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), languages);
+        if (isPublic === false) continue;
+        const newFields = collectProfanities(item.input as ProfanityFieldsToCheck, item.objectType);
         for (const field in newFields) {
             fieldsToCheck[field] = fieldsToCheck[field] ? [...fieldsToCheck[field], ...newFields[field]] : newFields[field];
         }

@@ -1,7 +1,7 @@
 import { BookmarkListSortBy, bookmarkListValidation, MaxObjects } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { BookmarkListFormat } from "../format/bookmarkList";
+import { BookmarkListFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkListModelLogic } from "./types";
 
@@ -50,7 +50,7 @@ export const BookmarkListModel: ModelLogic<BookmarkListModelLogic, typeof suppFi
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

@@ -1152,7 +1152,7 @@ export const BuildView = ({
                     canCancelMutate={!loading}
                     canSubmitMutate={!loading && !isEqual(routineVersion, changedRoutineVersion)}
                     errors={{
-                        "graph": status.status !== Status.Valid ? status.messages : null,
+                        "graph": status.status === Status.Invalid ? status.messages : null,
                         "unchanged": isEqual(routineVersion, changedRoutineVersion) ? "No changes made" : null,
                     }}
                     handleCancel={revertChanges}

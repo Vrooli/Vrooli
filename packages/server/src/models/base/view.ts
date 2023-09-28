@@ -6,7 +6,7 @@ import { getLabels, getLogic } from "../../getters";
 import { withRedis } from "../../redisConn";
 import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions } from "../../utils";
-import { ViewFormat } from "../format/view";
+import { ViewFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
@@ -236,7 +236,7 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: 10000000,
         owner: (data) => ({
-            User: data.by,
+            User: data?.by,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

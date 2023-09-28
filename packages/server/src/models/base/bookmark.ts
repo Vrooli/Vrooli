@@ -6,7 +6,7 @@ import { Trigger } from "../../events";
 import { getLogic } from "../../getters";
 import { PrismaType } from "../../types";
 import { defaultPermissions } from "../../utils";
-import { BookmarkFormat } from "../format/bookmark";
+import { BookmarkFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { CommentModel } from "./comment";
 import { NoteModel } from "./note";
@@ -15,7 +15,7 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
-import { ApiModelLogic, BookmarkModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, OrganizationModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TagModelLogic, UserModelLogic } from "./types";
+import { ApiModelLogic, BookmarkListModelLogic, BookmarkModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, OrganizationModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TagModelLogic, UserModelLogic } from "./types";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Api: "api",
@@ -94,21 +94,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    // Find type and id of bookmarked object
-                    const [objectRel, objectId] = findFirstRel(c, ["apiId", "commentId", "issueId", "noteId", "organizationId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "smartContractId", "standardId", "tagId", "userId"]);
-                    if (!objectRel || !objectId) return;
-                    // Object type is objectRel with "Id" removed and first letter capitalized
-                    const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
-                    // Update "bookmarks" count for bookmarked object
-                    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "bookmark onCreated");
-                    await delegate(prisma).update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
-                    // Trigger bookmarkCreated event
-                    Trigger(prisma, userData.languages).objectBookmark(true, objectType, objectId, userData.id);
-                }
-            },
-            beforeDeleted: async ({ deletingIds, prisma }) => {
+            beforeDeleted: async ({ beforeDeletedData, deletingIds, prisma }) => {
                 // Grab bookmarked object id and type
                 const deleting = await prisma.bookmark.findMany({
                     where: { id: { in: deletingIds } },
@@ -128,11 +114,25 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
                     acc[objectType].push(objectId);
                     return acc;
                 }, {});
-                return grouped;
+                // Add result to beforeDeletedData
+                if (beforeDeletedData[__typename]) beforeDeletedData[__typename] = { ...beforeDeletedData[__typename], ...grouped };
+                else beforeDeletedData[__typename] = grouped;
             },
-            onDeleted: async ({ beforeDeletedData, prisma, userData }) => {
+            afterMutations: async ({ beforeDeletedData, createInputs, prisma, userData }) => {
+                for (const c of createInputs) {
+                    // Find type and id of bookmarked object
+                    const [objectRel, objectId] = findFirstRel(c, ["apiId", "commentId", "issueId", "noteId", "organizationId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "smartContractId", "standardId", "tagId", "userId"]);
+                    if (!objectRel || !objectId) return;
+                    // Object type is objectRel with "Id" removed and first letter capitalized
+                    const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
+                    // Update "bookmarks" count for bookmarked object
+                    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "bookmark onCreated");
+                    await delegate(prisma).update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
+                    // Trigger bookmarkCreated event
+                    Trigger(prisma, userData.languages).objectBookmark(true, objectType, objectId, userData.id);
+                }
                 // For each bookmarked object type, decrement the bookmark count
-                for (const [objectType, objectIds] of Object.entries(beforeDeletedData)) {
+                for (const [objectType, objectIds] of Object.entries((beforeDeletedData[__typename] ?? {}) as { [key in BookmarkFor]?: string[] })) {
                     const { delegate } = getLogic(["delegate"], objectType as GqlModelType, userData.languages, "bookmark onDeleted");
                     await (delegate(prisma) as any).updateMany({ where: { id: { in: objectIds } }, data: { bookmarks: { decrement: 1 } } });
                     // For each bookmarked object, trigger bookmarkDeleted event
@@ -240,7 +240,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => BookmarkListModel.validate.owner(data.list as any, userId),
+        owner: (data, userId) => BookmarkListModel.validate.owner(data?.list as BookmarkListModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

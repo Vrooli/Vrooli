@@ -1,4 +1,4 @@
-import { endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, userValidation } from "@local/shared";
+import { endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, ProfileUpdateInput, profileValidation, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
@@ -89,7 +89,7 @@ export const SideMenu = () => {
             theme: getCurrentUser(session).theme ?? "light",
         },
         enableReinitialize: true,
-        validationSchema: userValidation.update({}),
+        validationSchema: profileValidation.update({}),
         onSubmit: (values) => {
             // If not logged in, do nothing
             if (!userId) {

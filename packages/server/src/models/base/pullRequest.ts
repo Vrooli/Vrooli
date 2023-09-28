@@ -1,10 +1,10 @@
-import { PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
+import { GqlModelType, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { findFirstRel, noNull } from "../../builders";
 import { getLogic } from "../../getters";
-import { translationShapeHelper } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
-import { PullRequestFormat } from "../format/pullRequest";
+import { PullRequestFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { ApiVersionModel } from "./apiVersion";
@@ -137,8 +137,9 @@ export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFiel
         isTransferable: false,
         maxObjects: 1000000,
         owner: (data, userId) => {
+            if (!data) return {};
             // If you are the creator, return that
-            if (data.createdBy?.id === userId) return ({
+            if (data?.createdBy?.id === userId) return ({
                 User: data.createdBy,
             });
             // Otherwise, find owner from the object that has the pull request
@@ -150,9 +151,10 @@ export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFiel
                 "toSmartContract",
                 "toStandard",
             ]);
+            if (!onField || !onData) return {};
             // Object type is field without the 'to' prefix
-            const onType = onField!.slice(2);
-            const { validate } = getLogic(["validate"], onType as any, ["en"], "ResourceListModel.validate.owner");
+            const onType = onField.slice(2) as GqlModelType;
+            const { validate } = getLogic(["validate"], onType, ["en"], "ResourceListModel.validate.owner");
             return validate.owner(onData, userId);
         },
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic }) => ({

@@ -1,8 +1,7 @@
 import { StatsProjectSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsProjectFormat } from "../format/statsProject";
+import { StatsProjectFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ProjectModel } from "./project";
 import { ProjectModelLogic, StatsProjectModelLogic } from "./types";
@@ -39,11 +38,9 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
             project: "Project",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ProjectModel.validate.owner(data.project as ProjectModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ProjectModel.validate.owner(data?.project as ProjectModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_projectSelect>(data, [
-            ["project", "Project"],
-        ], languages),
+        isPublic: (...rest) => oneIsPublic<StatsProjectModelLogic["PrismaSelect"]>([["project", "Project"]], ...rest),
         visibility: {
             private: { project: ProjectModel.validate.visibility.private },
             public: { project: ProjectModel.validate.visibility.public },

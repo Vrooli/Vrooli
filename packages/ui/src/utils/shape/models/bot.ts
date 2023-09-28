@@ -44,6 +44,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         // Convert to object, where keys are language codes and values are the bot settings
         const textSettings = Object.fromEntries(textData.translationsCreate?.map(({ language, ...rest }) => [language, rest]) ?? []);
         return {
+            ...createPrims(d, "id", "isPrivate"),
             isBot: true,
             botSettings: JSON.stringify({
                 translations: textSettings,
@@ -71,7 +72,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
                 creativity: u.creativity ?? undefined,
                 verbosity: u.verbosity ?? undefined,
             }),
-            ...updatePrims(o, u, "id", "bannerImage", "handle", "isBot", "name", "profileImage"),
+            ...updatePrims(o, u, "id", "bannerImage", "handle", "isBot", "isPrivate", "name", "profileImage"),
             ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeUserTranslation),
         }, a);
     },

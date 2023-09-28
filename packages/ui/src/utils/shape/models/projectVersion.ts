@@ -24,12 +24,16 @@ export const shapeProjectVersionTranslation: ShapeModel<ProjectVersionTranslatio
 };
 
 export const shapeProjectVersion: ShapeModel<ProjectVersionShape, ProjectVersionCreateInput, ProjectVersionUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
-        ...createRel(d, "directories", ["Create"], "many", shapeProjectVersionDirectory),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeProject, (r) => ({ ...r, isPrivate: d.isPrivate })), ...createRel(d, "suggestedNextByProject", ["Connect"], "many"),
-        ...createRel(d, "translations", ["Create"], "many", shapeProjectVersionTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "isComplete", "isPrivate", "versionLabel", "versionNotes");
+        return {
+            ...prims,
+            ...createRel(d, "directories", ["Create"], "many", shapeProjectVersionDirectory),
+            ...createRel(d, "root", ["Connect", "Create"], "one", shapeProject, (r) => ({ ...r, isPrivate: prims.isPrivate })),
+            ...createRel(d, "suggestedNextByProject", ["Connect"], "many"),
+            ...createRel(d, "translations", ["Create"], "many", shapeProjectVersionTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isPrivate", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "directories", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),

@@ -23,7 +23,7 @@ export const typeDef = gql`
     input SmartContractVersionCreateInput {
         id: ID!
         isComplete: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         default: String
         contractType: String!
         content: String!

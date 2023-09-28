@@ -1,12 +1,12 @@
 import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
-import { Prisma, RunStatus, run_routine } from "@prisma/client";
+import { RunStatus, run_routine } from "@prisma/client";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
 import { GraphQLInfo } from "../../builders/types";
 import { CustomError, Trigger } from "../../events";
 import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { RunRoutineFormat } from "../format/runRoutine";
+import { RunRoutineFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { RoutineVersionModel } from "./routineVersion";
@@ -67,7 +67,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches: noNull(data.contextSwitches),
                     embeddingNeedsUpdate: true,
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
                     ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
@@ -97,30 +97,30 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             },
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
+            afterMutations: ({ createInputs, createdIds, updatedIds, updateInputs, prisma, userData }) => {
                 // Handle run start trigger for every run with status InProgress
-                for (const c of created) {
-                    if (c.status === RunStatus.InProgress) {
-                        Trigger(prisma, userData.languages).runRoutineStart(c.id, userData.id, false);
+                for (const { id, status } of createInputs) {
+                    if (status === RunStatus.InProgress) {
+                        Trigger(prisma, userData.languages).runRoutineStart(id, userData.id, false);
                     }
                 }
-            },
-            onUpdated: ({ prisma, updated, updateInput, userData }) => {
-                for (let i = 0; i < updated.length; i++) {
+                for (let i = 0; i < updatedIds.length; i++) {
+                    const { id, status } = updateInputs[i];
+                    if (!status) continue;
                     // Handle run start trigger for every run with status InProgress, 
                     // that previously had a status of Scheduled
-                    if (updated[i].status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineStart(updated[i].id, userData.id, false);
+                    if (status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
+                        Trigger(prisma, userData.languages).runRoutineStart(id, userData.id, false);
                     }
                     // Handle run complete trigger for every run with status Completed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineComplete(updated[i].id, userData.id, false);
+                    if (status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
+                        Trigger(prisma, userData.languages).runRoutineComplete(id, userData.id, false);
                     }
                     // Handle run fail trigger for every run with status Failed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineFail(updated[i].id, userData.id, false);
+                    if (status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
+                        Trigger(prisma, userData.languages).runRoutineFail(id, userData.id, false);
                     }
                 }
             },
@@ -302,14 +302,14 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunRoutineModelLogic["PrismaSelect"]>([
             ["organization", "Organization"],
             ["user", "User"],
-        ], languages),
+        ], data, ...rest),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },

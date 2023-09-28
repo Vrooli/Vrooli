@@ -1,7 +1,7 @@
 import { MaxObjects, MemberSortBy } from "@local/shared";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { MemberFormat } from "../format/member";
+import { MemberFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { RoleModel } from "./role";
@@ -55,9 +55,9 @@ export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, organization: "Organization" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as OrganizationModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => OrganizationModel.validate.owner(data?.organization as OrganizationModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as OrganizationModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as OrganizationModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<MemberModelLogic["PrismaSelect"]>([["organization", "Organization"]], ...rest),
         visibility: {
             private: { organization: OrganizationModel.validate.visibility.private },
             public: { organization: OrganizationModel.validate.visibility.public },

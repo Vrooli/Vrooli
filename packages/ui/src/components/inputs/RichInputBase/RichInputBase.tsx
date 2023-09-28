@@ -1,18 +1,19 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
-import { useDebounce } from "hooks/useDebounce";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useUndoRedo } from "hooks/useUndoRedo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
+import { noop } from "utils/objects";
 import { assistantChatInfo, ChatCrud } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
-import { RichInputToolbar } from "../RichInputToolbar/RichInputToolbar";
-import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputChildView, RichInputToolbarView } from "../types";
+import { defaultActiveStates, RichInputToolbar } from "../RichInputToolbar/RichInputToolbar";
+import { RichInputAction, RichInputActiveStates, RichInputBaseProps } from "../types";
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
-const MAX_STACK_SIZE = 1000000; // Total characters stored in the change stack. 1 million characters will be about 1-1.5 MB
+
 
 /** TextField for entering rich text. Supports markdown and WYSIWYG */
 export const RichInputBase = ({
@@ -37,104 +38,29 @@ export const RichInputBase = ({
     const { palette, typography } = useTheme();
     const isLeftHanded = useIsLeftHanded();
 
-    // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
-    const stack = useRef<string[]>([value]);
-    const [stackIndex, setStackIndex] = useState<number>(0);
-    const stackSize = useRef<number>(value?.length ?? 0); // Used to keep track of the total number of characters in the stack
-    const changeTimeout = useRef<NodeJS.Timeout | null>(null); // Used to group changes together
-
-    // Internal value (since value passed back is debounced)
-    const [internalValue, setInternalValue] = useState<string>(value ?? "");
+    const { internalValue, changeInternalValue, resetInternalValue, undo, redo, canUndo, canRedo } = useUndoRedo({
+        initialValue: value,
+        onChange,
+        forceAddToStack: (updated, resetAddToStack) => {
+            // Force add if a delimiter (e.g. space, newline) is typed
+            const lastChar = updated[updated.length - 1];
+            if (lastChar === " " || lastChar === "\n") {
+                return true;
+            }
+            // Otherwise, cancel the add to stack to the stack is only updated on inactivity
+            resetAddToStack();
+            return false;
+        },
+    });
     useEffect(() => {
-        // If new value is one of the recent items in the stack 
-        // (i.e. debounce is firing while user is still typing),
-        // then don't update the internal value
-        const recentItems = stack.current.slice(Math.max(stack.current.length - 5, 0));
-        if (value === "" || !recentItems.includes(value)) {
-            setInternalValue(value);
-        }
-    }, [value]);
-    // Debounce text change
-    const onChangeDebounced = useDebounce(onChange, 200);
-
-    const addToStack = useCallback((updatedText: string) => {
-        const newstack = [...stack.current];
-        newstack.splice(stackIndex + 1, newstack.length - stackIndex - 1);
-        newstack.push(updatedText);
-        stackSize.current += updatedText.length;
-        // If the stack is too big, remove the oldest items
-        if (stackSize.current > MAX_STACK_SIZE) {
-            while (stackSize.current > MAX_STACK_SIZE) {
-                stackSize.current -= newstack[0].length;
-                newstack.shift();
-            }
-        }
-        stack.current = newstack;
-        setStackIndex(newstack.length - 1);
-    }, [stackIndex]);
-
-    /** Moves back one in the change stack */
-    const undo = useCallback(() => {
-        if (disabled || stackIndex <= 0) return;
-        setStackIndex(stackIndex - 1);
-        setInternalValue(stack.current[stackIndex - 1]);
-        onChangeDebounced(stack.current[stackIndex - 1]);
-    }, [stackIndex, disabled, onChangeDebounced]);
-    const canUndo = useMemo(() => stackIndex > 0 && stack.current.length > 0, [stackIndex]);
-    /** Moves forward one in the change stack */
-    const redo = useCallback(() => {
-        if (disabled || stackIndex >= stack.current.length - 1) return;
-        setStackIndex(stackIndex + 1);
-        setInternalValue(stack.current[stackIndex + 1]);
-        onChangeDebounced(stack.current[stackIndex + 1]);
-    }, [stackIndex, disabled, onChangeDebounced]);
-    const canRedo = useMemo(() => stackIndex < stack.current.length - 1 && stack.current.length > 0, [stackIndex]);
-    /**
-     * Adds, to change stack, and removes anything from the change stack after the current index
-     */
-    const handleChange = useCallback((updatedText: string) => {
-        setInternalValue(updatedText);
-        onChangeDebounced(updatedText);
-        // Check for delimiter or pause in typing
-        if (changeTimeout.current) {
-            clearTimeout(changeTimeout.current);
-        }
-        // Wait for inactivity before adding to the stack
-        changeTimeout.current = setTimeout(() => {
-            addToStack(updatedText);
-        }, 500);
-        // If a space (or another delimiter) is typed, add to stack immediately
-        if (updatedText.endsWith(" ")) {
-            if (changeTimeout.current) {
-                clearTimeout(changeTimeout.current);
-            }
-            addToStack(updatedText);
-        }
-    }, [onChangeDebounced, addToStack]);
+        resetInternalValue(value);
+    }, [value, resetInternalValue]);
 
     const [isMarkdownOn, setIsMarkdownOn] = useState(getCookieShowMarkdown() ?? false);
     const toggleMarkdown = useCallback(() => {
         setIsMarkdownOn(!isMarkdownOn);
         setCookieShowMarkdown(!isMarkdownOn);
     }, [isMarkdownOn]);
-
-    // Get current view 
-    const CurrentViewComponent = useMemo(() => isMarkdownOn ? RichInputMarkdown : RichInputLexical, [isMarkdownOn]);
-    // Map view-specific functions to this component
-    const handleAction = useCallback((action: RichInputAction, data?: unknown) => {
-        // We can handle Mode without passing to the view
-        if (action === "Mode") {
-            toggleMarkdown();
-        }
-        // Otherwise, pass to the view
-        else if (CurrentViewComponent && (CurrentViewComponent as unknown as RichInputChildView).handleAction) {
-            (CurrentViewComponent as unknown as RichInputChildView).handleAction(action, data);
-        } else {
-            console.error("RichInputToolbar does not have a handleAction function");
-        }
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        return () => { };
-    }, [CurrentViewComponent, toggleMarkdown]);
 
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
@@ -155,7 +81,6 @@ export const RichInputBase = ({
         // Otherwise, provide the last 1500 characters
         else context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
         // Open the assistant dialog
-        console.log("context here", context);
         setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `"""\n${context}\n"""\n` : undefined }));
     }, [disabled, internalValue]);
 
@@ -185,18 +110,55 @@ export const RichInputBase = ({
         }
         // If the target is not the textArea, then prevent default
         if (parent && parent.id !== id) {
-            console.log("preventing default", parent.id);
             e.preventDefault();
             e.stopPropagation();
         }
     }, [id]);
 
-    const Toolbar = useMemo(() => RichInputToolbar, []);
-    const onActiveStatesChange = useCallback((activeStates: RichInputActiveStates) => {
-        if (Toolbar && (Toolbar as unknown as RichInputToolbarView).updateActiveStates) {
-            (Toolbar as unknown as RichInputToolbarView).updateActiveStates(activeStates);
+    // Actions which store and active state for the Toolbar. 
+    // This is currently ignored when markdown mode is on, since it's 
+    // a bitch to keep track of
+    const [activeStates, setActiveStates] = useState<Omit<RichInputActiveStates, "SetValue">>(defaultActiveStates);
+    const handleActiveStatesChange = (newActiveStates) => {
+        setActiveStates(newActiveStates);
+    };
+
+    const currentHandleActionRef = useRef<((action: RichInputAction, data?: unknown) => unknown) | null>(null);
+    const setChildHandleAction = useCallback((handleAction: (action: RichInputAction, data?: unknown) => unknown) => {
+        currentHandleActionRef.current = handleAction;
+    }, []);
+    const handleAction = useCallback((action: RichInputAction, data?: unknown) => {
+        if (action === "Mode") {
+            toggleMarkdown();
+        } else if (currentHandleActionRef.current) {
+            currentHandleActionRef.current(action, data);
+        } else {
+            console.error("RichInputBase: No child handleAction function found");
         }
-    }, [Toolbar]);
+        return noop;
+    }, [toggleMarkdown]);
+    const viewProps = useMemo(() => ({
+        autoFocus,
+        disabled,
+        error,
+        getTaggableItems,
+        id,
+        maxRows,
+        minRows,
+        name,
+        onActiveStatesChange: handleActiveStatesChange,
+        onBlur,
+        onChange: changeInternalValue,
+        openAssistantDialog,
+        placeholder,
+        redo,
+        setHandleAction: setChildHandleAction,
+        tabIndex,
+        toggleMarkdown,
+        undo,
+        value: internalValue,
+        sx: sxs?.textArea,
+    }), [autoFocus, changeInternalValue, disabled, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
 
     return (
         <>
@@ -209,38 +171,19 @@ export const RichInputBase = ({
                 onMouseDown={handleMouseDown}
                 sx={{ ...(sxs?.root ?? {}) }}
             >
-                <Toolbar
+                <RichInputToolbar
+                    activeStates={activeStates}
                     canRedo={canRedo}
                     canUndo={canUndo}
                     disableAssistant={disableAssistant}
                     disabled={disabled}
                     handleAction={handleAction}
+                    handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={isMarkdownOn}
                     name={name}
                     sx={sxs?.bar}
                 />
-                {/* TextField for entering Markdown or WYSISWG */}
-                <CurrentViewComponent
-                    autoFocus={autoFocus}
-                    disabled={disabled}
-                    error={error}
-                    getTaggableItems={getTaggableItems}
-                    id={id}
-                    maxRows={maxRows}
-                    minRows={minRows}
-                    name={name}
-                    onActiveStatesChange={onActiveStatesChange}
-                    onBlur={onBlur}
-                    onChange={handleChange}
-                    openAssistantDialog={openAssistantDialog}
-                    placeholder={placeholder}
-                    redo={redo}
-                    tabIndex={tabIndex}
-                    toggleMarkdown={toggleMarkdown}
-                    undo={undo}
-                    value={internalValue}
-                    sx={sxs?.textArea}
-                />
+                {isMarkdownOn ? <RichInputMarkdown {...viewProps} /> : <RichInputLexical {...viewProps} />}
                 {/* Help text, characters remaining indicator, and action buttons */}
                 {
                     (helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box

@@ -79,6 +79,7 @@ const updateSortBy = (searchParams: Pick<FullSearchParams, "defaultSortBy" | "so
  * @param params search params
  */
 const readyToSearch = (params: FullSearchParams) => {
+    console.log("calculating readyToSearch", params);
     return params.canSearch &&
         !params.loading &&
         params.hasMore &&

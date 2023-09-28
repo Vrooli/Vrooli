@@ -1,7 +1,7 @@
 import * as yup from "yup";
-import { blankToUndefined, req, YupModel, yupObj } from "../utils";
+import { req, YupModel, yupObj } from "../utils";
 
-const emailAddress = yup.string().transform(blankToUndefined).email();
+const emailAddress = yup.string().trim().removeEmptyString().email();
 
 export const emailValidation: YupModel<true, false> = {
     create: ({ o }) => yupObj({

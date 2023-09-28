@@ -1,12 +1,12 @@
 import { Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
-import { createPrims, createRel, shapeUpdate, updateRel, updateTranslationPrims } from "./tools";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type TagTranslationShape = Pick<TagTranslation, "id" | "language" | "description"> & {
     __typename?: "TagTranslation";
 }
 
-export type TagShape = Pick<Tag, "tag"> & {
+export type TagShape = Pick<Tag, "id" | "tag"> & {
     __typename?: "Tag";
     anonymous?: boolean | null;
     translations?: TagTranslationShape[] | null;
@@ -20,13 +20,11 @@ export const shapeTagTranslation: ShapeModel<TagTranslationShape, TagTranslation
 export const shapeTag: ShapeModel<TagShape, TagCreateInput, TagUpdateInput> = {
     idField: "tag",
     create: (d) => ({
-        // anonymous?: boolean | null; TODO
-        tag: d.tag,
+        ...createPrims(d, "id", "tag"),
         ...createRel(d, "translations", ["Create"], "many", shapeTagTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        // anonymous: TODO
-        tag: o.tag,
+        ...updatePrims(o, u, "id", "tag"),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeTagTranslation),
     }, a),
 };

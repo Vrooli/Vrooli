@@ -3,6 +3,15 @@ import { gql } from "apollo-server-express";
 import { EndpointsResourceList, ResourceListEndpoints } from "../logic";
 
 export const typeDef = gql`
+    enum ResourceListSortBy {
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
+        IndexAsc
+        IndexDesc
+    }
+
     enum ResourceListFor {
         ApiVersion
         FocusMode
@@ -14,18 +23,11 @@ export const typeDef = gql`
         StandardVersion
     }   
 
-    enum ResourceListSortBy {
-        DateCreatedAsc
-        DateCreatedDesc
-        DateUpdatedAsc
-        DateUpdatedDesc
-        IndexAsc
-        IndexDesc
-    }
+    union ResourceListOn = ApiVersion | FocusMode | Organization | Post | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion
 
     input ResourceListCreateInput {
         id: ID!
-        listFor: ResourceListFor!
+        listForType: ResourceListFor!
         listForConnect: ID!
         resourcesCreate: [ResourceCreateInput!]
         translationsCreate: [ResourceListTranslationCreateInput!]
@@ -43,14 +45,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        apiVersion: ApiVersion
-        organization: Organization
-        post: Post
-        projectVersion: ProjectVersion
-        routineVersion: RoutineVersion
-        smartContractVersion: SmartContractVersion
-        standardVersion: StandardVersion
-        focusMode: FocusMode
+        listFor: ResourceListOn!
         translations: [ResourceListTranslation!]!
         resources: [Resource!]!
     }

@@ -1,10 +1,11 @@
-import { Api, ApiCreateInput, ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, ApiYou, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, Comment, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, CommentYou, Email, EmailCreateInput, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, MemberSearchInput, MemberSortBy, MemberUpdateInput, Node, NodeCreateInput, NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeUpdateInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, NoteYou, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, Premium, ProfileUpdateInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, ProjectYou, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, QuizQuestionYou, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou, Reaction, ReactionSearchInput, ReactionSortBy, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou, RoutineYou, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunProjectYou, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, RunRoutineYou, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, SmartContractYou, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, StandardYou, StatsApi, StatsApiSearchInput, StatsApiSortBy, StatsOrganization, StatsOrganizationSearchInput, StatsOrganizationSortBy, StatsProject, StatsProjectSearchInput, StatsProjectSortBy, StatsQuiz, StatsQuizSearchInput, StatsQuizSortBy, StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy, StatsStandard, StatsStandardSearchInput, StatsStandardSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Transfer, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, User, UserSearchInput, UserSortBy, UserYou, VersionYou, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
+import { Api, ApiCreateInput, ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, ApiYou, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, Comment, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, CommentYou, Email, EmailCreateInput, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, MemberSearchInput, MemberSortBy, MemberUpdateInput, Node, NodeCreateInput, NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeUpdateInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, NoteYou, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, Premium, ProfileUpdateInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, ProjectYou, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, QuizQuestionYou, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou, ReactInput, Reaction, ReactionSearchInput, ReactionSortBy, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou, RoutineYou, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunProjectYou, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, RunRoutineYou, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, SmartContractYou, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, StandardYou, StatsApi, StatsApiSearchInput, StatsApiSortBy, StatsOrganization, StatsOrganizationSearchInput, StatsOrganizationSortBy, StatsProject, StatsProjectSearchInput, StatsProjectSortBy, StatsQuiz, StatsQuizSearchInput, StatsQuizSortBy, StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy, StatsStandard, StatsStandardSearchInput, StatsStandardSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Transfer, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, User, UserSearchInput, UserSortBy, UserYou, VersionYou, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Resource } from "i18next";
 import { SelectWrap } from "../../builders/types";
 
 export type ApiPermissions = Pick<ApiYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type ApiModelLogic = {
+    __typename: "Api",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: ApiCreateInput,
@@ -21,6 +22,7 @@ export type ApiModelLogic = {
 }
 
 export type ApiKeyModelLogic = {
+    __typename: "ApiKey",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ApiKeyCreateInput,
@@ -38,6 +40,7 @@ export type ApiKeyModelLogic = {
 
 export type ApiVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type ApiVersionModelLogic = {
+    __typename: "ApiVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ApiVersionCreateInput,
@@ -54,6 +57,7 @@ export type ApiVersionModelLogic = {
 }
 
 export type AwardModelLogic = {
+    __typename: "Award",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -70,6 +74,7 @@ export type AwardModelLogic = {
 }
 
 export type BookmarkModelLogic = {
+    __typename: "Bookmark",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: BookmarkCreateInput,
@@ -86,6 +91,7 @@ export type BookmarkModelLogic = {
 }
 
 export type BookmarkListModelLogic = {
+    __typename: "BookmarkList",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: BookmarkListCreateInput,
@@ -103,6 +109,7 @@ export type BookmarkListModelLogic = {
 
 export type ChatPermissions = Pick<ChatYou, "canDelete" | "canInvite" | "canUpdate">;
 export type ChatModelLogic = {
+    __typename: "Chat",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ChatCreateInput,
@@ -120,6 +127,7 @@ export type ChatModelLogic = {
 
 export type ChatInvitePermissions = Pick<ChatInviteYou, "canDelete" | "canUpdate">;
 export type ChatInviteModelLogic = {
+    __typename: "ChatInvite",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ChatInviteCreateInput,
@@ -137,6 +145,7 @@ export type ChatInviteModelLogic = {
 
 export type ChatMessagePermissions = Pick<ChatMessageYou, "canDelete" | "canUpdate" | "canReply" | "canReport" | "canReact">;
 export type ChatMessageModelLogic = {
+    __typename: "ChatMessage",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ChatMessageCreateInput,
@@ -153,6 +162,7 @@ export type ChatMessageModelLogic = {
 }
 
 export type ChatParticipantModelLogic = {
+    __typename: "ChatParticipant",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -170,6 +180,7 @@ export type ChatParticipantModelLogic = {
 
 export type CommentPermissions = Pick<CommentYou, "canDelete" | "canUpdate" | "canBookmark" | "canReply" | "canReport" | "canReact">;
 export type CommentModelLogic = {
+    __typename: "Comment",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: CommentCreateInput,
@@ -186,6 +197,7 @@ export type CommentModelLogic = {
 }
 
 export type EmailModelLogic = {
+    __typename: "Email",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: EmailCreateInput,
@@ -202,6 +214,7 @@ export type EmailModelLogic = {
 }
 
 export type FocusModeModelLogic = {
+    __typename: "FocusMode",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: FocusModeCreateInput,
@@ -218,6 +231,7 @@ export type FocusModeModelLogic = {
 }
 
 export type FocusModeFilterModelLogic = {
+    __typename: "FocusModeFilter",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: FocusModeFilterCreateInput,
@@ -235,6 +249,7 @@ export type FocusModeFilterModelLogic = {
 
 export type IssuePermissions = Pick<IssueYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canReport" | "canRead" | "canReact">;
 export type IssueModelLogic = {
+    __typename: "Issue",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: IssueCreateInput,
@@ -252,6 +267,7 @@ export type IssueModelLogic = {
 
 export type LabelPermissions = Pick<LabelYou, "canDelete" | "canUpdate">;
 export type LabelModelLogic = {
+    __typename: "Label",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: LabelCreateInput,
@@ -269,6 +285,7 @@ export type LabelModelLogic = {
 
 export type MeetingPermissions = Pick<MeetingYou, "canDelete" | "canInvite" | "canUpdate">;
 export type MeetingModelLogic = {
+    __typename: "Meeting",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: MeetingCreateInput,
@@ -286,6 +303,7 @@ export type MeetingModelLogic = {
 
 export type MeetingInvitePermissions = Pick<MeetingInviteYou, "canDelete" | "canUpdate">;
 export type MeetingInviteModelLogic = {
+    __typename: "MeetingInvite",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: MeetingInviteCreateInput,
@@ -302,6 +320,7 @@ export type MeetingInviteModelLogic = {
 }
 
 export type MemberModelLogic = {
+    __typename: "Member",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -319,6 +338,7 @@ export type MemberModelLogic = {
 
 export type MemberInvitePermissions = Pick<MemberInviteYou, "canDelete" | "canUpdate">;
 export type MemberInviteModelLogic = {
+    __typename: "MemberInvite",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: MemberInviteCreateInput,
@@ -335,6 +355,7 @@ export type MemberInviteModelLogic = {
 }
 
 export type NodeModelLogic = {
+    __typename: "Node",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeCreateInput,
@@ -351,6 +372,7 @@ export type NodeModelLogic = {
 }
 
 export type NodeEndModelLogic = {
+    __typename: "NodeEnd",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeEndCreateInput,
@@ -367,6 +389,7 @@ export type NodeEndModelLogic = {
 }
 
 export type NodeLinkModelLogic = {
+    __typename: "NodeLink",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeLinkCreateInput,
@@ -383,6 +406,7 @@ export type NodeLinkModelLogic = {
 }
 
 export type NodeLinkWhenModelLogic = {
+    __typename: "NodeLinkWhen",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeLinkWhenCreateInput,
@@ -399,6 +423,7 @@ export type NodeLinkWhenModelLogic = {
 }
 
 export type NodeLoopModelLogic = {
+    __typename: "NodeLoop",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeLoopCreateInput,
@@ -415,6 +440,7 @@ export type NodeLoopModelLogic = {
 }
 
 export type NodeLoopWhileModelLogic = {
+    __typename: "NodeLoopWhile",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeLoopWhileCreateInput,
@@ -431,6 +457,7 @@ export type NodeLoopWhileModelLogic = {
 }
 
 export type NodeRoutineListModelLogic = {
+    __typename: "NodeRoutineList",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeRoutineListCreateInput,
@@ -447,6 +474,7 @@ export type NodeRoutineListModelLogic = {
 }
 
 export type NodeRoutineListItemModelLogic = {
+    __typename: "NodeRoutineListItem",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeRoutineListItemCreateInput,
@@ -464,6 +492,7 @@ export type NodeRoutineListItemModelLogic = {
 
 export type NotePermissions = Pick<NoteYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type NoteModelLogic = {
+    __typename: "Note",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: NoteCreateInput,
@@ -481,6 +510,7 @@ export type NoteModelLogic = {
 
 export type NoteVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type NoteVersionModelLogic = {
+    __typename: "NoteVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NoteVersionCreateInput,
@@ -497,6 +527,7 @@ export type NoteVersionModelLogic = {
 }
 
 export type NotificationModelLogic = {
+    __typename: "Notification",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -513,6 +544,7 @@ export type NotificationModelLogic = {
 }
 
 export type NotificationSubscriptionModelLogic = {
+    __typename: "NotificationSubscription",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NotificationSubscriptionCreateInput,
@@ -530,6 +562,7 @@ export type NotificationSubscriptionModelLogic = {
 
 export type OrganizationPermissions = Pick<OrganizationYou, "canAddMembers" | "canDelete" | "canUpdate" | "canBookmark" | "canRead">;
 export type OrganizationModelLogic = {
+    __typename: "Organization",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: OrganizationCreateInput,
@@ -546,6 +579,7 @@ export type OrganizationModelLogic = {
 }
 
 export type PaymentModelLogic = {
+    __typename: "Payment",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -562,6 +596,7 @@ export type PaymentModelLogic = {
 }
 
 export type PhoneModelLogic = {
+    __typename: "Phone",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: PhoneCreateInput,
@@ -578,6 +613,7 @@ export type PhoneModelLogic = {
 }
 
 export type PostModelLogic = {
+    __typename: "Post",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: PostCreateInput,
@@ -594,6 +630,7 @@ export type PostModelLogic = {
 }
 
 export type PremiumModelLogic = {
+    __typename: "Premium",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -611,6 +648,7 @@ export type PremiumModelLogic = {
 
 export type ProjectPermissions = Pick<ProjectYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type ProjectModelLogic = {
+    __typename: "Project",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: ProjectCreateInput,
@@ -628,6 +666,7 @@ export type ProjectModelLogic = {
 
 export type ProjectVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type ProjectVersionModelLogic = {
+    __typename: "ProjectVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ProjectVersionCreateInput,
@@ -644,6 +683,7 @@ export type ProjectVersionModelLogic = {
 }
 
 export type ProjectVersionDirectoryModelLogic = {
+    __typename: "ProjectVersionDirectory",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ProjectVersionDirectoryCreateInput,
@@ -661,6 +701,7 @@ export type ProjectVersionDirectoryModelLogic = {
 
 export type PullRequestPermissions = Pick<PullRequestYou, "canComment" | "canDelete" | "canUpdate" | "canReport">;
 export type PullRequestModelLogic = {
+    __typename: "PullRequest",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: PullRequestCreateInput,
@@ -677,6 +718,7 @@ export type PullRequestModelLogic = {
 }
 
 export type PushDeviceModelLogic = {
+    __typename: "PushDevice",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: PushDeviceCreateInput,
@@ -694,6 +736,7 @@ export type PushDeviceModelLogic = {
 
 export type QuestionPermissions = Pick<QuestionYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 export type QuestionModelLogic = {
+    __typename: "Question",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuestionCreateInput,
@@ -710,6 +753,7 @@ export type QuestionModelLogic = {
 }
 
 export type QuestionAnswerModelLogic = {
+    __typename: "QuestionAnswer",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuestionAnswerCreateInput,
@@ -727,6 +771,7 @@ export type QuestionAnswerModelLogic = {
 
 export type QuizPermissions = Pick<QuizYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 export type QuizModelLogic = {
+    __typename: "Quiz",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizCreateInput,
@@ -744,6 +789,7 @@ export type QuizModelLogic = {
 
 export type QuizAttemptPermissions = Pick<QuizAttemptYou, "canDelete" | "canUpdate">;
 export type QuizAttemptModelLogic = {
+    __typename: "QuizAttempt",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizAttemptCreateInput,
@@ -761,6 +807,7 @@ export type QuizAttemptModelLogic = {
 
 export type QuizQuestionPermissions = Pick<QuizQuestionYou, "canDelete" | "canUpdate">;
 export type QuizQuestionModelLogic = {
+    __typename: "QuizQuestion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizQuestionCreateInput,
@@ -778,6 +825,7 @@ export type QuizQuestionModelLogic = {
 
 type QuizQuestionResponsePermissions = Pick<QuizQuestionResponseYou, "canDelete" | "canUpdate">;
 export type QuizQuestionResponseModelLogic = {
+    __typename: "QuizQuestionResponse",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizQuestionResponseCreateInput,
@@ -794,9 +842,10 @@ export type QuizQuestionResponseModelLogic = {
 }
 
 export type ReactionModelLogic = {
+    __typename: "Reaction",
     IsTransferable: false,
     IsVersioned: false,
-    GqlCreate: undefined,
+    GqlCreate: ReactInput,
     GqlUpdate: undefined,
     GqlModel: Reaction,
     GqlSearch: ReactionSearchInput,
@@ -810,6 +859,7 @@ export type ReactionModelLogic = {
 }
 
 export type ReactionSummaryModelLogic = {
+    __typename: "ReactionSummary",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -826,6 +876,7 @@ export type ReactionSummaryModelLogic = {
 }
 
 export type ReminderModelLogic = {
+    __typename: "Reminder",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReminderCreateInput,
@@ -842,6 +893,7 @@ export type ReminderModelLogic = {
 }
 
 export type ReminderItemModelLogic = {
+    __typename: "ReminderItem",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReminderItemCreateInput,
@@ -858,6 +910,7 @@ export type ReminderItemModelLogic = {
 }
 
 export type ReminderListModelLogic = {
+    __typename: "ReminderList",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReminderListCreateInput,
@@ -875,6 +928,7 @@ export type ReminderListModelLogic = {
 
 export type ReportPermissions = Pick<ReportYou, "canDelete" | "canUpdate" | "canRespond">;
 export type ReportModelLogic = {
+    __typename: "Report",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReportCreateInput,
@@ -892,6 +946,7 @@ export type ReportModelLogic = {
 
 export type ReportResponsePermissions = Pick<ReportResponseYou, "canDelete" | "canUpdate">;
 export type ReportResponseModelLogic = {
+    __typename: "ReportResponse",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReportResponseCreateInput,
@@ -908,6 +963,7 @@ export type ReportResponseModelLogic = {
 }
 
 export type ResourceModelLogic = {
+    __typename: "Resource",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ResourceCreateInput,
@@ -924,6 +980,7 @@ export type ResourceModelLogic = {
 }
 
 export type ResourceListModelLogic = {
+    __typename: "ResourceList",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ResourceListCreateInput,
@@ -940,6 +997,7 @@ export type ResourceListModelLogic = {
 }
 
 export type RoleModelLogic = {
+    __typename: "Role",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RoleCreateInput,
@@ -957,6 +1015,7 @@ export type RoleModelLogic = {
 
 type RoutinePermissions = Pick<RoutineYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 export type RoutineModelLogic = {
+    __typename: "Routine",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: RoutineCreateInput,
@@ -974,6 +1033,7 @@ export type RoutineModelLogic = {
 
 export type RoutineVersionPermissions = Pick<RoutineVersionYou, "canComment" | "canCopy" | "canDelete" | "canUpdate" | "canBookmark" | "canReport" | "canRun" | "canRead" | "canReact">;
 export type RoutineVersionModelLogic = {
+    __typename: "RoutineVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RoutineVersionCreateInput,
@@ -990,6 +1050,7 @@ export type RoutineVersionModelLogic = {
 }
 
 export type RoutineVersionInputModelLogic = {
+    __typename: "RoutineVersionInput",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RoutineVersionInputCreateInput,
@@ -1006,6 +1067,7 @@ export type RoutineVersionInputModelLogic = {
 }
 
 export type RoutineVersionOutputModelLogic = {
+    __typename: "RoutineVersionOutput",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RoutineVersionOutputCreateInput,
@@ -1023,6 +1085,7 @@ export type RoutineVersionOutputModelLogic = {
 
 export type RunProjectPermissions = Pick<RunProjectYou, "canDelete" | "canUpdate" | "canRead">;
 export type RunProjectModelLogic = {
+    __typename: "RunProject",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunProjectCreateInput,
@@ -1039,6 +1102,7 @@ export type RunProjectModelLogic = {
 }
 
 export type RunProjectStepModelLogic = {
+    __typename: "RunProjectStep",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunProjectStepCreateInput,
@@ -1056,6 +1120,7 @@ export type RunProjectStepModelLogic = {
 
 export type RunRoutinePermissions = Pick<RunRoutineYou, "canDelete" | "canUpdate" | "canRead">;
 export type RunRoutineModelLogic = {
+    __typename: "RunRoutine",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunRoutineCreateInput,
@@ -1072,6 +1137,7 @@ export type RunRoutineModelLogic = {
 }
 
 export type RunRoutineInputModelLogic = {
+    __typename: "RunRoutineInput",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunRoutineInputCreateInput,
@@ -1088,6 +1154,7 @@ export type RunRoutineInputModelLogic = {
 }
 
 export type RunRoutineStepModelLogic = {
+    __typename: "RunRoutineStep",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunRoutineStepCreateInput,
@@ -1104,6 +1171,7 @@ export type RunRoutineStepModelLogic = {
 }
 
 export type ScheduleModelLogic = {
+    __typename: "Schedule",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ScheduleCreateInput,
@@ -1120,6 +1188,7 @@ export type ScheduleModelLogic = {
 }
 
 export type ScheduleExceptionModelLogic = {
+    __typename: "ScheduleException",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ScheduleExceptionCreateInput,
@@ -1136,6 +1205,7 @@ export type ScheduleExceptionModelLogic = {
 }
 
 export type ScheduleRecurrenceModelLogic = {
+    __typename: "ScheduleRecurrence",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ScheduleRecurrenceCreateInput,
@@ -1153,6 +1223,7 @@ export type ScheduleRecurrenceModelLogic = {
 
 export type SmartContractPermissions = Pick<SmartContractYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type SmartContractModelLogic = {
+    __typename: "SmartContract",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: SmartContractCreateInput,
@@ -1170,6 +1241,7 @@ export type SmartContractModelLogic = {
 
 export type SmartContractVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type SmartContractVersionModelLogic = {
+    __typename: "SmartContractVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: SmartContractVersionCreateInput,
@@ -1187,6 +1259,7 @@ export type SmartContractVersionModelLogic = {
 
 export type StandardPermissions = Pick<StandardYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type StandardModelLogic = {
+    __typename: "Standard",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: StandardCreateInput,
@@ -1204,6 +1277,7 @@ export type StandardModelLogic = {
 
 export type StandardVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type StandardVersionModelLogic = {
+    __typename: "StandardVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: StandardVersionCreateInput,
@@ -1220,6 +1294,7 @@ export type StandardVersionModelLogic = {
 }
 
 export type StatsApiModelLogic = {
+    __typename: "StatsApi",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1236,6 +1311,7 @@ export type StatsApiModelLogic = {
 }
 
 export type StatsOrganizationModelLogic = {
+    __typename: "StatsOrganization",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1252,6 +1328,7 @@ export type StatsOrganizationModelLogic = {
 }
 
 export type StatsProjectModelLogic = {
+    __typename: "StatsProject",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1268,6 +1345,7 @@ export type StatsProjectModelLogic = {
 }
 
 export type StatsQuizModelLogic = {
+    __typename: "StatsQuiz",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1284,6 +1362,7 @@ export type StatsQuizModelLogic = {
 }
 
 export type StatsRoutineModelLogic = {
+    __typename: "StatsRoutine",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1300,6 +1379,7 @@ export type StatsRoutineModelLogic = {
 }
 
 export type StatsSiteModelLogic = {
+    __typename: "StatsSite",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1316,6 +1396,7 @@ export type StatsSiteModelLogic = {
 }
 
 export type StatsSmartContractModelLogic = {
+    __typename: "StatsSmartContract",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1332,6 +1413,7 @@ export type StatsSmartContractModelLogic = {
 }
 
 export type StatsStandardModelLogic = {
+    __typename: "StatsStandard",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1348,6 +1430,7 @@ export type StatsStandardModelLogic = {
 }
 
 export type StatsUserModelLogic = {
+    __typename: "StatsUser",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1364,6 +1447,7 @@ export type StatsUserModelLogic = {
 }
 
 export type TagModelLogic = {
+    __typename: "Tag",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: TagCreateInput,
@@ -1381,9 +1465,10 @@ export type TagModelLogic = {
 
 export type TransferPermissions = Pick<TransferYou, "canDelete" | "canUpdate">;
 export type TransferModelLogic = {
+    __typename: "Transfer",
     IsTransferable: false,
     IsVersioned: false,
-    GqlCreate: undefined,
+    GqlCreate: TransferRequestSendInput | TransferRequestReceiveInput,
     GqlUpdate: TransferUpdateInput,
     GqlModel: Transfer,
     GqlSearch: TransferSearchInput,
@@ -1398,6 +1483,7 @@ export type TransferModelLogic = {
 
 export type UserPermissions = Pick<UserYou, "canDelete" | "canUpdate" | "canReport">
 export type UserModelLogic = {
+    __typename: "User",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: BotCreateInput, // Can only create bot users
@@ -1414,6 +1500,7 @@ export type UserModelLogic = {
 }
 
 export type ViewModelLogic = {
+    __typename: "View",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1430,6 +1517,7 @@ export type ViewModelLogic = {
 }
 
 export type WalletModelLogic = {
+    __typename: "Wallet",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,

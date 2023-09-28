@@ -25,7 +25,7 @@ export const typeDef = gql`
     input PostCreateInput {
         id: ID!
         isPinned: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         organizationConnect: ID
         repostedFromConnect: ID
         resourceListCreate: ResourceListCreateInput

@@ -1,8 +1,9 @@
 import { commentTranslationValidation } from "@local/shared";
-import { Box, Typography, useTheme } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -69,42 +70,43 @@ export const CommentDialog = ({
                     paddingBottom: 0,
                 }}
             >
-                <TranslatedRichInput
-                    language={language}
-                    name="text"
-                    placeholder={t("PleaseBeNice")}
-                    minRows={10}
-                    sxs={{
-                        bar: {
-                            borderRadius: 0,
-                            background: palette.primary.main,
-                            position: "sticky",
-                            top: 0,
-                        },
-                        root: {
-                            height: "100%",
-                            position: "relative",
-                            maxWidth: "800px",
-                        },
-                        textArea: {
-                            borderRadius: 0,
-                            resize: "none",
-                            height: "100%",
-                            overflow: "hidden", // Container handles scrolling
-                            background: palette.background.paper,
-                            border: "none",
-                        },
-                    }}
-                />
-                {/* Display parent underneath */}
-                {parent && (
-                    <Box sx={{
-                        backgroundColor: palette.background.paper,
-                        height: "30vh",
-                    }}>
-                        <Typography variant="body2">{parentText}</Typography>
-                    </Box>
-                )}
+                <Box>
+                    {parent && <MarkdownDisplay
+                        content={parentText}
+                        sx={{
+                            padding: "16px",
+                            color: palette.background.textSecondary,
+                        }}
+                    />}
+                    <TranslatedRichInput
+                        language={language}
+                        name="text"
+                        placeholder={t("PleaseBeNice")}
+                        minRows={10}
+                        sxs={{
+                            bar: {
+                                borderRadius: 0,
+                                background: palette.primary.main,
+                                position: "sticky",
+                                top: 0,
+                            },
+                            root: {
+                                height: "100%",
+                                position: "relative",
+                                maxWidth: "800px",
+                                marginBottom: "64px",
+                            },
+                            textArea: {
+                                borderRadius: 0,
+                                resize: "none",
+                                height: "100%",
+                                overflow: "hidden", // Container handles scrolling
+                                background: palette.background.paper,
+                                border: "none",
+                            },
+                        }}
+                    />
+                </Box>
                 <BottomActionsButtons
                     display={"dialog"}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}

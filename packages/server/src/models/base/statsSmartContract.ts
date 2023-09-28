@@ -1,8 +1,7 @@
 import { StatsSmartContractSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsSmartContractFormat } from "../format/statsSmartContract";
+import { StatsSmartContractFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { SmartContractModel } from "./smartContract";
 import { SmartContractModelLogic, StatsSmartContractModelLogic } from "./types";
@@ -39,11 +38,9 @@ export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, t
             smartContract: "SmartContract",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => SmartContractModel.validate.owner(data.smartContract as SmartContractModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => SmartContractModel.validate.owner(data?.smartContract as SmartContractModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_smart_contractSelect>(data, [
-            ["smartContract", "SmartContract"],
-        ], languages),
+        isPublic: (...rest) => oneIsPublic<StatsSmartContractModelLogic["PrismaSelect"]>([["smartContract", "SmartContract"]], ...rest),
         visibility: {
             private: { smartContract: SmartContractModel.validate.visibility.private },
             public: { smartContract: SmartContractModel.validate.visibility.public },

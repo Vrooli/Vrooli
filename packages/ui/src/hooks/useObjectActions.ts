@@ -144,8 +144,7 @@ export const useObjectActions = ({
         isDeleteDialogOpen,
         DeleteDialogComponent,
     } = useDeleter({
-        objectId: object?.id,
-        objectName: getDisplay(object).title,
+        object,
         objectType: objectType as GqlModelType,
         onActionComplete,
     });

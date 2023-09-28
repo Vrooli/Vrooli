@@ -1,7 +1,7 @@
 import { scheduleRecurrenceValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
-import { ScheduleRecurrenceFormat } from "../format/scheduleRecurrence";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { ScheduleRecurrenceFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ScheduleModel } from "./schedule";
 import { ScheduleModelLogic, ScheduleRecurrenceModelLogic } from "./types";
@@ -51,9 +51,9 @@ export const ScheduleRecurrenceModel: ModelLogic<ScheduleRecurrenceModelLogic, t
         maxObjects: 100000,
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ScheduleModel.validate.owner(data.schedule as ScheduleModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ScheduleModel.validate.owner(data?.schedule as ScheduleModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => ScheduleModel.validate.isDeleted(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => ScheduleModel.validate.isPublic(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ScheduleRecurrenceModelLogic["PrismaSelect"]>([["schedule", "Schedule"]], ...rest),
         visibility: {
             private: { schedule: ScheduleModel.validate.visibility.private },
             public: { schedule: ScheduleModel.validate.visibility.public },

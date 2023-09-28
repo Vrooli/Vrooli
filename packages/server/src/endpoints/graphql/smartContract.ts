@@ -28,7 +28,7 @@ export const typeDef = gql`
 
     input SmartContractCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         permissions: String
         parentConnect: ID
         ownedByUserConnect: ID

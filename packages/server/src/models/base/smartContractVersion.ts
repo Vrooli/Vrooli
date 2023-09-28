@@ -1,9 +1,9 @@
 import { MaxObjects, SmartContractVersionSortBy, smartContractVersionValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
-import { preShapeVersion } from "../../utils/preShapeVersion";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { SmartContractVersionFormat } from "../format/smartContractVersion";
+import { SmartContractVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { SmartContractModel } from "./smartContract";
 import { SmartContractModelLogic, SmartContractVersionModelLogic } from "./types";
@@ -38,17 +38,17 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
     mutate: {
         shape: {
             pre: async (params) => {
-                const { createList, updateList, deleteList, prisma, userData } = params;
+                const { Create, Update, Delete, prisma, userData } = params;
                 await versionsCheck({
-                    createList,
-                    deleteList,
+                    Create,
+                    Delete,
                     objectType: __typename,
                     prisma,
-                    updateList,
+                    Update,
                     userData,
                 });
-                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
-                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
@@ -56,7 +56,7 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
                 content: data.content,
                 contractType: data.contractType,
                 default: noNull(data.default),
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
@@ -78,8 +78,10 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
                 ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: true, objectType: "SmartContract", parentRelationshipName: "versions", data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
-            post: async (params) => {
-                await postShapeVersion({ ...params, objectType: __typename });
+        },
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
         yup: smartContractVersionValidation,
@@ -128,12 +130,12 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            SmartContractModel.validate.isPublic(data.root as SmartContractModelLogic["PrismaModel"], languages),
+            oneIsPublic<SmartContractVersionModelLogic["PrismaSelect"]>([["root", "SmartContract"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => SmartContractModel.validate.owner(data.root as SmartContractModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => SmartContractModel.validate.owner(data?.root as SmartContractModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

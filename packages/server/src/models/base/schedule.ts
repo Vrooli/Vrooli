@@ -1,10 +1,9 @@
-import { MaxObjects, ScheduleSortBy, scheduleValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { GqlModelType, MaxObjects, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
 import i18next from "i18next";
 import { findFirstRel, noNull, shapeHelper } from "../../builders";
 import { getLogic } from "../../getters";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { ScheduleFormat } from "../format/schedule";
+import { ScheduleFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
 import { MeetingModel } from "./meeting";
@@ -70,11 +69,8 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
             },
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                // TODO should check if schedule is starting soon (i.e. before cron job runs), and handle accordingly
-            },
-            onUpdated: ({ prisma, updated, updateInput, userData }) => {
-                // TODO should check if schedule is starting soon (i.e. before cron job runs), and handle accordingly
+            afterMutations: ({ createdIds, updatedIds, prisma, userData }) => {
+                // TODO should check both creates and updates if schedule is starting soon (i.e. before cron job runs), and handle accordingly
             },
         },
         yup: scheduleValidation,
@@ -100,15 +96,16 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.scheduleSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<ScheduleModelLogic["PrismaSelect"]>([
             ["focusModes", "FocusMode"],
             ["meetings", "Meeting"],
             ["runProjects", "RunProject"],
             ["runRoutines", "RunRoutine"],
-        ], languages),
+        ], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => {
+            if (!data) return {};
             // Find owner from the object that has the pull request
             const [onField, onData] = findFirstRel(data, [
                 "focusModes",
@@ -116,7 +113,9 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
                 "runProjects",
                 "runRoutines",
             ]);
-            const { validate } = getLogic(["validate"], onField as any, ["en"], "ScheduleModel.validate.owner");
+            if (!onField || !onData) return {};
+            const onType = uppercaseFirstLetter(onField.slice(0, -1)) as GqlModelType;
+            const { validate } = getLogic(["validate"], onType, ["en"], "ScheduleModel.validate.owner");
             return Array.isArray(onData) && onData.length > 0 ?
                 validate.owner(onData[0], userId)
                 : {};

@@ -21,22 +21,25 @@ export type ScheduleShape = Pick<Schedule, "id" | "startTime" | "endTime" | "tim
 }
 
 export const shapeSchedule: ShapeModel<ScheduleShape, ScheduleCreateInput, ScheduleUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", ["startTime", shapeDate], ["endTime", shapeDate], "timezone"),
-        ...createRel(d, "exceptions", ["Create"], "many", shapeScheduleException, (e) => ({
-            ...e,
-            schedule: { __typename: "Schedule" as const, id: d.id },
-        })),
-        ...createRel(d, "focusMode", ["Connect"], "one"),
-        ...createRel(d, "labels", ["Create", "Connect"], "many", shapeLabel),
-        ...createRel(d, "meeting", ["Connect"], "one"),
-        ...createRel(d, "recurrences", ["Create"], "many", shapeScheduleRecurrence, (e) => ({
-            ...e,
-            schedule: { __typename: "Schedule" as const, id: d.id },
-        })),
-        ...createRel(d, "runProject", ["Connect"], "one"),
-        ...createRel(d, "runRoutine", ["Connect"], "one"),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", ["startTime", shapeDate], ["endTime", shapeDate], "timezone");
+        return {
+            ...prims,
+            ...createRel(d, "exceptions", ["Create"], "many", shapeScheduleException, (e) => ({
+                ...e,
+                schedule: { __typename: "Schedule" as const, id: prims.id },
+            })),
+            ...createRel(d, "focusMode", ["Connect"], "one"),
+            ...createRel(d, "labels", ["Create", "Connect"], "many", shapeLabel),
+            ...createRel(d, "meeting", ["Connect"], "one"),
+            ...createRel(d, "recurrences", ["Create"], "many", shapeScheduleRecurrence, (e) => ({
+                ...e,
+                schedule: { __typename: "Schedule" as const, id: prims.id },
+            })),
+            ...createRel(d, "runProject", ["Connect"], "one"),
+            ...createRel(d, "runRoutine", ["Connect"], "one"),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", ["startTime", shapeDate], ["endTime", shapeDate], "timezone"),
         ...updateRel(o, u, "exceptions", ["Create", "Update", "Delete"], "many", shapeScheduleException, (e, i) => ({

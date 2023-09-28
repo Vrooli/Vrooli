@@ -1,6 +1,6 @@
 import { MaxObjects, PaymentSortBy } from "@local/shared";
 import { defaultPermissions } from "../../utils";
-import { PaymentFormat } from "../format/payment";
+import { PaymentFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { PaymentModelLogic } from "./types";
@@ -42,8 +42,8 @@ export const PaymentModel: ModelLogic<PaymentModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

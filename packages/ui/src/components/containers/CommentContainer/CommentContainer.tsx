@@ -53,7 +53,7 @@ export function CommentContainer({
         sortByOptions,
         timeFrame,
     } = useFindMany<ThreadType>({
-        canSearch: (params) => uuidValidate(Object.values(params.where ?? {})[0]),
+        canSearch: () => uuidValidate(objectId),
         controlsUrl: false,
         searchType: "Comment",
         resolve: (result) => result.threads,
@@ -108,37 +108,41 @@ export function CommentContainer({
                 onCompleted={onCommentAdd}
                 parent={null} // parent is the thread. This is a top-level comment, so no parent
             />
-            {/* Sort & filter */}
-            {allData.length > 0 ? <>
-                <SearchButtons
-                    advancedSearchParams={advancedSearchParams}
-                    advancedSearchSchema={advancedSearchSchema}
-                    searchType="Comment"
-                    setAdvancedSearchParams={setAdvancedSearchParams}
-                    setSortBy={setSortBy}
-                    setTimeFrame={setTimeFrame}
-                    sortBy={sortBy}
-                    sortByOptions={sortByOptions}
-                    timeFrame={timeFrame}
-                />
-                {/* Comments list */}
-                <Stack direction="column" spacing={2}>
-                    {allData.map((thread, index) => (
-                        <CommentThread
-                            key={index}
-                            canOpen={true}
-                            data={thread}
-                            language={language}
-                        />
-                    ))}
-                </Stack>
-            </> : (!isAddCommentOpen && isMobile) ? <Button
-                fullWidth
-                startIcon={<CreateIcon />}
-                onClick={handleAddCommentOpen}
-                sx={{ marginTop: 2 }}
-                variant="outlined"
-            >{t("AddComment")}</Button> : null}
+            <Stack direction="column" spacing={2}>
+                {/* Add comment button */}
+                {!isAddCommentOpen && isMobile && <Button
+                    fullWidth
+                    startIcon={<CreateIcon />}
+                    onClick={handleAddCommentOpen}
+                    sx={{ marginTop: 2 }}
+                    variant="outlined"
+                >{t("AddComment")}</Button>}
+                {/* Sort & filter */}
+                {allData.length > 0 && <>
+                    <SearchButtons
+                        advancedSearchParams={advancedSearchParams}
+                        advancedSearchSchema={advancedSearchSchema}
+                        searchType="Comment"
+                        setAdvancedSearchParams={setAdvancedSearchParams}
+                        setSortBy={setSortBy}
+                        setTimeFrame={setTimeFrame}
+                        sortBy={sortBy}
+                        sortByOptions={sortByOptions}
+                        timeFrame={timeFrame}
+                    />
+                    {/* Comments list */}
+                    <Stack direction="column" spacing={2}>
+                        {allData.map((thread, index) => (
+                            <CommentThread
+                                key={index}
+                                canOpen={true}
+                                data={thread}
+                                language={language}
+                            />
+                        ))}
+                    </Stack>
+                </>}
+            </Stack>
         </ContentCollapse>
     );
 }

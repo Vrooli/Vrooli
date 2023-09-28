@@ -2,7 +2,7 @@ import { ChatInviteSortBy, chatInviteValidation, MaxObjects, uuidValidate } from
 import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { ChatInviteFormat } from "../format/chatInvite";
+import { ChatInviteFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
 import { ChatInviteModelLogic, ChatModelLogic, UserModelLogic } from "./types";
@@ -36,7 +36,7 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
+            afterMutations: async ({ createdIds, prisma, userData }) => {
                 //TODO Create invite notifications
             },
         },
@@ -76,8 +76,8 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data.chat as ChatModelLogic["PrismaModel"]).organization,
-            User: (data.chat as ChatModelLogic["PrismaModel"]).creator,
+            Organization: (data?.chat as ChatModelLogic["PrismaModel"])?.organization,
+            User: (data?.chat as ChatModelLogic["PrismaModel"])?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isYourInvite = uuidValidate(userId) && data.userId === userId;

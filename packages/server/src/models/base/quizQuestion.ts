@@ -1,8 +1,9 @@
 import { MaxObjects, QuizQuestionSortBy, quizQuestionValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
-import { QuizQuestionFormat } from "../format/quizQuestion";
+import { QuizQuestionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { QuizModel } from "./quiz";
 import { QuizModelLogic, QuizQuestionModelLogic } from "./types";
@@ -68,10 +69,10 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => QuizModel.validate.isPublic(data.quiz as QuizModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<QuizQuestionModelLogic["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => QuizModel.validate.owner(data.quiz as QuizModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => QuizModel.validate.owner(data?.quiz as QuizModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

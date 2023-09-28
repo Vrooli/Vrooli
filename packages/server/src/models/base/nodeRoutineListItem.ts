@@ -1,7 +1,8 @@
 import { MaxObjects, nodeRoutineListItemValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
-import { NodeRoutineListItemFormat } from "../format/nodeRoutineListItem";
+import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
+import { NodeRoutineListItemFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NodeRoutineListModel } from "./nodeRoutineList";
 import { RoutineVersionModel } from "./routineVersion";
@@ -53,9 +54,9 @@ export const NodeRoutineListItemModel: ModelLogic<NodeRoutineListItemModelLogic,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, list: "NodeRoutineList" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeRoutineListModel.validate.owner(data.list as NodeRoutineListModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => NodeRoutineListModel.validate.owner(data?.list as NodeRoutineListModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => NodeRoutineListModel.validate.isDeleted(data.list as NodeRoutineListModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => NodeRoutineListModel.validate.isPublic(data.list as NodeRoutineListModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeRoutineListItemModelLogic["PrismaSelect"]>([["list", "NodeRoutineList"]], ...rest),
         visibility: {
             private: { list: NodeRoutineListModel.validate.visibility.private },
             public: { list: NodeRoutineListModel.validate.visibility.public },

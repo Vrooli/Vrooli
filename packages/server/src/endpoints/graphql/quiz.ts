@@ -20,7 +20,7 @@ export const typeDef = gql`
 
     input QuizCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         maxAttempts: Int
         randomizeQuestionOrder: Boolean
         revealCorrectAnswers: Boolean

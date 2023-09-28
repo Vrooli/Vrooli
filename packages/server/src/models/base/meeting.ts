@@ -1,9 +1,10 @@
 import { MaxObjects, MeetingSortBy, meetingValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
-import { MeetingFormat } from "../format/meeting";
+import { MeetingFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { MeetingModelLogic } from "./types";
@@ -32,8 +33,8 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
     format: MeetingFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
@@ -74,8 +75,8 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerOrganizationField: "organization",
@@ -108,7 +109,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
         supplemental: {
             dbFields: ["organizationId"],
             graphqlFields: suppFields,
-            toGraphQL: async ({ ids, objects, prisma, userData }) => {
+            toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
@@ -130,7 +131,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
             canInvite: () => isLoggedIn && isAdmin,
         }),
         owner: (data) => ({
-            Organization: data.organization,
+            Organization: data?.organization,
         }),
         isDeleted: () => false,
         isPublic: (data) => data.showOnOrganizationProfile === true,

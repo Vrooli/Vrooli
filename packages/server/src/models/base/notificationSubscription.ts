@@ -2,7 +2,7 @@ import { MaxObjects, NotificationSubscriptionSortBy, notificationSubscriptionVal
 import { Prisma } from "@prisma/client";
 import { noNull } from "../../builders";
 import { defaultPermissions } from "../../utils";
-import { NotificationSubscriptionFormat } from "../format/notificationSubscription";
+import { NotificationSubscriptionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { CommentModel } from "./comment";
@@ -142,7 +142,7 @@ export const NotificationSubscriptionModel: ModelLogic<NotificationSubscriptionM
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.subscriber,
+            User: data?.subscriber,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

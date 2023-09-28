@@ -30,7 +30,7 @@ import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { parseSingleItemUrl, UrlInfo } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
 import { UserViewProps } from "../types";
@@ -47,22 +47,23 @@ export const UserView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
 
     // Parse information from URL
-    const urlInfo = useMemo(() => {
+    const urlInfo = useMemo<UrlInfo & { isOwnProfile: boolean }>(() => {
         // Use common function to parse URL
-        let urlInfo = { ...parseSingleItemUrl({ url: location }), isOwnProfile: false };
-        // If it returns a handle of "profile", it's not actually a handle - it's the current user
-        if (urlInfo.handle === "profile" && session) {
+        let urlInfo: UrlInfo & { isOwnProfile?: boolean } = parseSingleItemUrl({ url: location });
+        // If it returns the handle "profile", or the location it returns nothing, then it's the current user's profile
+        if (session && (urlInfo.handle === "profile" || Object.keys(urlInfo).length === 0)) {
             urlInfo.isOwnProfile = true;
             const currentUser = getCurrentUser(session);
             urlInfo = { ...urlInfo, handle: currentUser?.handle ?? undefined, id: currentUser?.id };
+        } else {
+            urlInfo.isOwnProfile = false;
         }
-        return urlInfo;
+        return urlInfo as UrlInfo & { isOwnProfile: boolean };
     }, [location, session]);
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
     const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
     const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
     const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
-    console.log("got user data", user);
     useDisplayServerError(userErrors ?? profileErrors);
     // Get user or profile data
     useEffect(() => {

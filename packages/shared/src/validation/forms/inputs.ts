@@ -2,27 +2,27 @@
  * Validation schemas for all standards/inputs/outputs
  */
 import * as yup from "yup";
-import { blankToUndefined, opt, optArr, req } from "../utils";
+import { opt, optArr, req } from "../utils";
 
 const required = yup.boolean();
 
 export const inputYup = yup.object().shape({
     required: opt(required),
-    type: yup.string().transform(blankToUndefined).oneOf(["string"]).default("string"),
+    type: yup.string().trim().removeEmptyString().oneOf(["string"]).default("string"),
     // checks: 
 });
 
 export const textStandardInputForm = yup.object().shape({
-    defaultValue: opt(yup.string().transform(blankToUndefined)),
-    autoComplete: opt(yup.string().transform(blankToUndefined)),
+    defaultValue: opt(yup.string().trim().removeEmptyString()),
+    autoComplete: opt(yup.string().trim().removeEmptyString()),
     isMarkdown: opt(yup.boolean()),
     maxRows: opt(yup.number()),
     yup: opt(inputYup),
 });
 
 export const jsonStandardInputForm = yup.object().shape({
-    format: req(yup.string().transform(blankToUndefined)),
-    defaultValue: opt(yup.string().transform(blankToUndefined)),
+    format: req(yup.string().trim().removeEmptyString()),
+    defaultValue: opt(yup.string().trim().removeEmptyString()),
     // Object with keys of the format: { label?: string, helperText?: string, yup?: inputYup, defaultValue?: string | object }
     variables: yup.object().test(
         "variables",
@@ -70,7 +70,7 @@ export const radioStandardInputForm = yup.object().shape({
     // Array of objects with keys of the format: { label: string, value: any }
     options: optArr(
         yup.object().shape({
-            label: req(yup.string().transform(blankToUndefined)),
+            label: req(yup.string().trim().removeEmptyString()),
             value: req(yup.mixed()),
         }),
     ),
@@ -85,7 +85,7 @@ export const checkboxStandardInputForm = yup.object().shape({
     // Array of { label: string }
     options: optArr(
         yup.object().shape({
-            label: req(yup.string().transform(blankToUndefined)),
+            label: req(yup.string().trim().removeEmptyString()),
         }),
     ),
     // Display as row or column

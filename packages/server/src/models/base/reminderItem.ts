@@ -1,7 +1,7 @@
 import { MaxObjects, reminderItemValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
-import { ReminderItemFormat } from "../format/reminderItem";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { ReminderItemFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ReminderModel } from "./reminder";
 import { ReminderItemModelLogic, ReminderModelLogic } from "./types";
@@ -25,6 +25,7 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
                 index: data.index,
+                isComplete: noNull(data.isComplete),
                 name: data.name,
                 ...(await shapeHelper({ relation: "reminder", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Reminder", parentRelationshipName: "reminderItems", data, ...rest })),
             }),
@@ -41,10 +42,10 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ReminderModel.validate.isPublic(data.reminder as ReminderModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ReminderItemModelLogic["PrismaSelect"]>([["reminder", "Reminder"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderModel.validate.owner(data.reminder as ReminderModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ReminderModel.validate.owner(data?.reminder as ReminderModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

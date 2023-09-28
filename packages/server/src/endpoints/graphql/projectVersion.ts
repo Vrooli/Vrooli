@@ -35,7 +35,7 @@ export const typeDef = gql`
 
     input ProjectVersionCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         isComplete: Boolean
         versionLabel: String!
         versionNotes: String

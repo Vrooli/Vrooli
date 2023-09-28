@@ -1,7 +1,8 @@
 import { MaxObjects, nodeEndValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions, nodeEndNextShapeHelper } from "../../utils";
-import { NodeEndFormat } from "../format/nodeEnd";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { nodeEndNextShapeHelper } from "../../utils/shapes";
+import { NodeEndFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
 import { NodeEndModelLogic, NodeModelLogic } from "./types";
@@ -43,9 +44,9 @@ export const NodeEndModel: ModelLogic<NodeEndModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeModel.validate.owner(data.node as NodeModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => NodeModel.validate.owner(data?.node as NodeModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => NodeModel.validate.isDeleted(data.node as NodeModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => NodeModel.validate.isPublic(data.node as NodeModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeEndModelLogic["PrismaSelect"]>([["node", "Node"]], ...rest),
         visibility: {
             private: { node: NodeModel.validate.visibility.private },
             public: { node: NodeModel.validate.visibility.public },

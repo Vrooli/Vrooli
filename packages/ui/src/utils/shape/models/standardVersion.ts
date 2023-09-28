@@ -23,13 +23,16 @@ export const shapeStandardVersionTranslation: ShapeModel<StandardVersionTranslat
 };
 
 export const shapeStandardVersion: ShapeModel<StandardVersionShape, StandardVersionCreateInput, StandardVersionUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "isComplete", "isPrivate", "isFile", "default", "props", "yup", "standardType", "versionLabel", "versionNotes"),
-        ...createRel(d, "directoryListings", ["Create"], "many", shapeProjectVersionDirectory),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeStandard, (r) => ({ ...r, isPrivate: d.isPrivate })),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "StandardVersion" } })),
-        ...createRel(d, "translations", ["Create"], "many", shapeStandardVersionTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "isComplete", "isPrivate", "isFile", "default", "props", "yup", "standardType", "versionLabel", "versionNotes");
+        return {
+            ...prims,
+            ...createRel(d, "directoryListings", ["Create"], "many", shapeProjectVersionDirectory),
+            ...createRel(d, "root", ["Connect", "Create"], "one", shapeStandard, (r) => ({ ...r, isPrivate: prims.isPrivate })),
+            ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: prims.id, __typename: "StandardVersion" } })),
+            ...createRel(d, "translations", ["Create"], "many", shapeStandardVersionTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isComplete", "isPrivate", "isFile", "default", "props", "yup", "standardType", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "directoryListings", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),

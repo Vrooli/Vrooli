@@ -1,4 +1,4 @@
-import { endpointPutProfile, ProfileUpdateInput, User, userValidation } from "@local/shared";
+import { endpointPutProfile, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -145,7 +145,7 @@ export const SettingsPrivacyView = ({
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={userValidation.update({})}
+                        validationSchema={profileValidation.update({})}
                     >
                         {(formik) => <SettingsPrivacyForm
                             display={display}

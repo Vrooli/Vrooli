@@ -51,7 +51,7 @@ export const RoutineListNode = ({
 
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && node.routineList.items?.length === 0);
-    const collapseDebounce = useDebounce(setCollapseOpen, 100);
+    const [collapseDebounce] = useDebounce(setCollapseOpen, 100);
     const toggleCollapse = useCallback((target: EventTarget) => {
         if (isLinked && shouldCollapse(target.id)) {
             PubSub.get().publishFastUpdate({ duration: 1000 });

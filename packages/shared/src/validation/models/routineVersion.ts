@@ -9,7 +9,7 @@ import { routineVersionOutputValidation } from "./routineVersionOutput";
 export const routineVersionTranslationValidation: YupModel = transRel({
     create: {
         description: opt(description),
-        instructions: opt(instructions),
+        instructions: req(instructions),
         name: req(name),
     },
     update: {

@@ -2,7 +2,7 @@ import { MaxObjects, ReportFor, ReportSortBy, reportValidation } from "@local/sh
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError } from "../../events";
 import { getSingleTypePermissions } from "../../validators";
-import { ReportFormat } from "../format/report";
+import { ReportFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiVersionModel } from "./apiVersion";
 import { ChatMessageModel } from "./chatMessage";
@@ -79,15 +79,15 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
     format: ReportFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, prisma, userData }) => {
+            pre: async ({ Create, prisma, userData }) => {
                 // Make sure user does not have any open reports on these objects
-                if (createList.length) {
+                if (Create.length) {
                     const existing = await prisma.report.findMany({
                         where: {
                             status: "Open",
                             user: { id: userData.id },
-                            OR: createList.map((x) => ({
-                                [forMapper[x.createdFor]]: { id: x.createdForConnect },
+                            OR: Create.map((x) => ({
+                                [forMapper[x.input.createdFor]]: { id: x.input.createdForConnect },
                             })),
                         },
                     });
@@ -114,9 +114,11 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             },
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    // Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
+            afterMutations: async ({ createdIds, prisma, userData }) => {
+                for (const objectId of createdIds) {
+                    // await Trigger(prisma, userData.languages).reportActivity({
+                    //     objectId,
+                    // });
                 }
             },
         },
@@ -177,7 +179,7 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             canUpdate: () => isLoggedIn && isAdmin && data.status !== "Open",
         }),
         owner: (data) => ({
-            User: data.createdBy,
+            User: data?.createdBy,
         }),
         isDeleted: () => false,
         isPublic: () => true,

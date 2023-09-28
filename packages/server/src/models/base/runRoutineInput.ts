@@ -1,7 +1,7 @@
 import { MaxObjects, RunRoutineInputSortBy, runRoutineInputValidation } from "@local/shared";
 import { RoutineVersionInputModel } from ".";
-import { defaultPermissions } from "../../utils";
-import { RunRoutineInputFormat } from "../format/runRoutineInput";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { RunRoutineInputFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { RunRoutineModel } from "./runRoutine";
 import { RoutineVersionInputModelLogic, RunRoutineInputModelLogic, RunRoutineModelLogic } from "./types";
@@ -68,9 +68,9 @@ export const RunRoutineInputModel: ModelLogic<RunRoutineInputModelLogic, typeof 
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["data"],
-        owner: (data, userId) => RunRoutineModel.validate.owner(data.runRoutine as RunRoutineModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => RunRoutineModel.validate.owner(data?.runRoutine as RunRoutineModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as RunRoutineModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<RunRoutineInputModelLogic["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
             private: { runRoutine: { isPrivate: true } },
             public: { runRoutine: { isPrivate: false } },

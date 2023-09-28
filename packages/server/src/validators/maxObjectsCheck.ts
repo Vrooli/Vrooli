@@ -15,7 +15,10 @@ import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, Object
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
-import { QueryAction } from "../utils/types";
+import { AuthDataById } from "../utils";
+import { authDataWithInput } from "../utils/authDataWithInput";
+import { getParentInfo } from "../utils/getParentInfo";
+import { InputsById, QueryAction } from "../utils/types";
 
 /**
  * Helper function to check if a count exceeds a number
@@ -123,7 +126,8 @@ const checkObjectLimit = (
  * @parma userId ID of user requesting permissions
  */
 export async function maxObjectsCheck(
-    authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
+    inputsById: InputsById,
+    authDataById: AuthDataById,
     idsByAction: { [key in QueryAction]?: string[] },
     prisma: PrismaType,
     userData: SessionUserToken,
@@ -133,22 +137,23 @@ export async function maxObjectsCheck(
     // Loop through every "Create" action, and increment the count for the object type
     if (idsByAction.Create) {
         for (const id of idsByAction.Create) {
-            // Get auth data
-            const authData = authDataById[id];
+            const typename = inputsById[id].node.__typename;
             // Get validator
-            const { validate } = getLogic(["validate"], authData.__typename, userData.languages, "maxObjectsCheck-create");
+            const { validate } = getLogic(["validate"], typename, userData.languages, "maxObjectsCheck-create");
+            // Creates shouldn't have authData, so we'll only use the input data. 
+            // We still need to pass this through authDataWithInput to convert relationships to the correct shape
+            const combinedData = authDataWithInput(inputsById[id].input as object, {}, inputsById, authDataById);
             // Find owner and object type
-            const owners = validate.owner(authData, userData.id);
-            // Increment count for owner
-            const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
-            if (!ownerId) throw new CustomError("0310", "InternalError", userData.languages);
+            const owners = validate.owner(combinedData, userData.id);
+            // Increment count for owner. We can assume we're the owner if no owner was provided
+            const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id ?? userData.id;
             // Initialize shape of counts for this owner
-            counts[authData.__typename] = counts[authData.__typename] || {};
-            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 };
+            counts[typename] = counts[typename] || {};
+            counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validate.isPublic(authData, userData.languages);
+            const isPublic = validate.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), userData.languages);
             // Increment count
-            counts[authData.__typename]![ownerId][isPublic ? "public" : "private"]++;
+            counts[typename]![ownerId][isPublic ? "public" : "private"]++;
         }
     }
     // Ignore count for updates, as that doesn't change the total number of objects
@@ -168,7 +173,7 @@ export async function maxObjectsCheck(
             counts[authData.__typename] = counts[authData.__typename] || {};
             counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validate.isPublic(authData, userData.languages);
+            const isPublic = validate.isPublic(authData, (...rest) => getParentInfo(...rest, inputsById), userData.languages);
             // Decrement count
             counts[authData.__typename]![ownerId][isPublic ? "public" : "private"]--;
         }

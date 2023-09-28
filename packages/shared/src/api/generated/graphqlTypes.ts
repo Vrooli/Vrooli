@@ -66,7 +66,7 @@ export type Api = {
 
 export type ApiCreateInput = {
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -223,7 +223,7 @@ export type ApiVersionCreateInput = {
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<ApiCreateInput>;
@@ -558,7 +558,7 @@ export type BotCreateInput = {
   botSettings: Scalars['String'];
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   profileImage?: InputMaybe<Scalars['Upload']>;
   translationsCreate?: InputMaybe<Array<UserTranslationCreateInput>>;
@@ -3239,12 +3239,14 @@ export enum NodeType {
 
 export type NodeUpdateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
+  endCreate?: InputMaybe<NodeEndCreateInput>;
   endUpdate?: InputMaybe<NodeEndUpdateInput>;
   id: Scalars['ID'];
   loopCreate?: InputMaybe<NodeLoopCreateInput>;
   loopDelete?: InputMaybe<Scalars['Boolean']>;
   loopUpdate?: InputMaybe<NodeLoopUpdateInput>;
   nodeType?: InputMaybe<NodeType>;
+  routineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   routineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
   routineVersionConnect?: InputMaybe<Scalars['ID']>;
   rowIndex?: InputMaybe<Scalars['Int']>;
@@ -3285,7 +3287,7 @@ export type Note = {
 
 export type NoteCreateInput = {
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -3414,7 +3416,7 @@ export type NoteVersion = {
 export type NoteVersionCreateInput = {
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<NoteCreateInput>;
   translationsCreate?: InputMaybe<Array<NoteVersionTranslationCreateInput>>;
@@ -3729,7 +3731,7 @@ export type OrganizationCreateInput = {
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
   permissions?: InputMaybe<Scalars['String']>;
   profileImage?: InputMaybe<Scalars['Upload']>;
@@ -4018,7 +4020,7 @@ export type Post = {
 export type PostCreateInput = {
   id: Scalars['ID'];
   isPinned?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   organizationConnect?: InputMaybe<Scalars['ID']>;
   repostedFromConnect?: InputMaybe<Scalars['ID']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
@@ -4205,7 +4207,7 @@ export type Project = {
 export type ProjectCreateInput = {
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -4510,7 +4512,7 @@ export type ProjectVersionCreateInput = {
   directoriesCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<ProjectCreateInput>;
   suggestedNextByProjectConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -5803,7 +5805,7 @@ export type QuestionCreateInput = {
   forObjectConnect?: InputMaybe<Scalars['ID']>;
   forObjectType?: InputMaybe<QuestionForType>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   referencing?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
@@ -6032,7 +6034,7 @@ export type QuizAttemptYou = {
 
 export type QuizCreateInput = {
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   maxAttempts?: InputMaybe<Scalars['Int']>;
   pointsToPass?: InputMaybe<Scalars['Int']>;
   projectConnect?: InputMaybe<Scalars['ID']>;
@@ -6427,6 +6429,7 @@ export type ReminderItemCreateInput = {
   dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   index: Scalars['Int'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
   reminderConnect: Scalars['ID'];
 };
@@ -6745,25 +6748,18 @@ export type ResourceEdge = {
 
 export type ResourceList = {
   __typename: 'ResourceList';
-  apiVersion?: Maybe<ApiVersion>;
   created_at: Scalars['Date'];
-  focusMode?: Maybe<FocusMode>;
   id: Scalars['ID'];
-  organization?: Maybe<Organization>;
-  post?: Maybe<Post>;
-  projectVersion?: Maybe<ProjectVersion>;
+  listFor: ResourceListOn;
   resources: Array<Resource>;
-  routineVersion?: Maybe<RoutineVersion>;
-  smartContractVersion?: Maybe<SmartContractVersion>;
-  standardVersion?: Maybe<StandardVersion>;
   translations: Array<ResourceListTranslation>;
   updated_at: Scalars['Date'];
 };
 
 export type ResourceListCreateInput = {
   id: Scalars['ID'];
-  listFor: ResourceListFor;
   listForConnect: Scalars['ID'];
+  listForType: ResourceListFor;
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   translationsCreate?: InputMaybe<Array<ResourceListTranslationCreateInput>>;
 };
@@ -6784,6 +6780,8 @@ export enum ResourceListFor {
   SmartContractVersion = 'SmartContractVersion',
   StandardVersion = 'StandardVersion'
 }
+
+export type ResourceListOn = ApiVersion | FocusMode | Organization | Post | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion;
 
 export type ResourceListSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -7067,7 +7065,7 @@ export type Routine = {
 export type RoutineCreateInput = {
   id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -7219,7 +7217,7 @@ export type RoutineVersionCreateInput = {
   inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
   outputsCreate?: InputMaybe<Array<RoutineVersionOutputCreateInput>>;
@@ -7547,7 +7545,7 @@ export type RunProjectCreateInput = {
   completedComplexity?: InputMaybe<Scalars['Int']>;
   contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   organizationConnect?: InputMaybe<Scalars['ID']>;
   projectVersionConnect: Scalars['ID'];
@@ -7769,7 +7767,7 @@ export type RunRoutineCreateInput = {
   contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
   inputsCreate?: InputMaybe<Array<RunRoutineInputCreateInput>>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   organizationConnect?: InputMaybe<Scalars['ID']>;
   routineVersionConnect: Scalars['ID'];
@@ -8273,7 +8271,7 @@ export type SmartContract = {
 
 export type SmartContractCreateInput = {
   id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -8404,7 +8402,7 @@ export type SmartContractVersionCreateInput = {
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect: Scalars['ID'];
   rootCreate?: InputMaybe<SmartContractCreateInput>;
@@ -8568,7 +8566,7 @@ export type Standard = {
 export type StandardCreateInput = {
   id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
@@ -8702,7 +8700,7 @@ export type StandardVersionCreateInput = {
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isFile?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   props: Scalars['String'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect: Scalars['ID'];
@@ -9299,6 +9297,7 @@ export type Tag = {
 
 export type TagCreateInput = {
   anonymous?: InputMaybe<Scalars['Boolean']>;
+  id: Scalars['ID'];
   tag: Scalars['String'];
   translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;
 };
@@ -9356,6 +9355,7 @@ export type TagTranslationUpdateInput = {
 
 export type TagUpdateInput = {
   anonymous?: InputMaybe<Scalars['Boolean']>;
+  id: Scalars['ID'];
   tag: Scalars['String'];
   translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -10318,10 +10318,11 @@ export type ResolversTypes = {
   Resource: ResolverTypeWrapper<Resource>;
   ResourceCreateInput: ResourceCreateInput;
   ResourceEdge: ResolverTypeWrapper<ResourceEdge>;
-  ResourceList: ResolverTypeWrapper<ResourceList>;
+  ResourceList: ResolverTypeWrapper<Omit<ResourceList, 'listFor'> & { listFor: ResolversTypes['ResourceListOn'] }>;
   ResourceListCreateInput: ResourceListCreateInput;
   ResourceListEdge: ResolverTypeWrapper<ResourceListEdge>;
   ResourceListFor: ResourceListFor;
+  ResourceListOn: ResolversTypes['ApiVersion'] | ResolversTypes['FocusMode'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['ProjectVersion'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
   ResourceListSearchInput: ResourceListSearchInput;
   ResourceListSearchResult: ResolverTypeWrapper<ResourceListSearchResult>;
   ResourceListSortBy: ResourceListSortBy;
@@ -11018,9 +11019,10 @@ export type ResolversParentTypes = {
   Resource: Resource;
   ResourceCreateInput: ResourceCreateInput;
   ResourceEdge: ResourceEdge;
-  ResourceList: ResourceList;
+  ResourceList: Omit<ResourceList, 'listFor'> & { listFor: ResolversParentTypes['ResourceListOn'] };
   ResourceListCreateInput: ResourceListCreateInput;
   ResourceListEdge: ResourceListEdge;
+  ResourceListOn: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['FocusMode'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['SmartContractVersion'] | ResolversParentTypes['StandardVersion'];
   ResourceListSearchInput: ResourceListSearchInput;
   ResourceListSearchResult: ResourceListSearchResult;
   ResourceListTranslation: ResourceListTranslation;
@@ -13500,17 +13502,10 @@ export type ResourceEdgeResolvers<ContextType = any, ParentType extends Resolver
 };
 
 export type ResourceListResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResourceList'] = ResolversParentTypes['ResourceList']> = {
-  apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  focusMode?: Resolver<Maybe<ResolversTypes['FocusMode']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
-  post?: Resolver<Maybe<ResolversTypes['Post']>, ParentType, ContextType>;
-  projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
+  listFor?: Resolver<ResolversTypes['ResourceListOn'], ParentType, ContextType>;
   resources?: Resolver<Array<ResolversTypes['Resource']>, ParentType, ContextType>;
-  routineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
-  smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
-  standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ResourceListTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13520,6 +13515,10 @@ export type ResourceListEdgeResolvers<ContextType = any, ParentType extends Reso
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['ResourceList'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ResourceListOnResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResourceListOn'] = ResolversParentTypes['ResourceListOn']> = {
+  __resolveType: TypeResolveFn<'ApiVersion' | 'FocusMode' | 'Organization' | 'Post' | 'ProjectVersion' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion', ParentType, ContextType>;
 };
 
 export type ResourceListSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResourceListSearchResult'] = ResolversParentTypes['ResourceListSearchResult']> = {
@@ -15037,6 +15036,7 @@ export type Resolvers<ContextType = any> = {
   ResourceEdge?: ResourceEdgeResolvers<ContextType>;
   ResourceList?: ResourceListResolvers<ContextType>;
   ResourceListEdge?: ResourceListEdgeResolvers<ContextType>;
+  ResourceListOn?: ResourceListOnResolvers<ContextType>;
   ResourceListSearchResult?: ResourceListSearchResultResolvers<ContextType>;
   ResourceListTranslation?: ResourceListTranslationResolvers<ContextType>;
   ResourceSearchResult?: ResourceSearchResultResolvers<ContextType>;

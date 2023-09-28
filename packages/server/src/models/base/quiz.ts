@@ -1,10 +1,10 @@
 import { MaxObjects, QuizSortBy, quizValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, oneIsPublic, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
-import { QuizFormat } from "../format/quiz";
+import { QuizFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ProjectModel } from "./project";
@@ -36,13 +36,13 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
     format: QuizFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 maxAttempts: noNull(data.maxAttempts),
                 randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
                 revealCorrectAnswers: noNull(data.revealCorrectAnswers),
@@ -69,8 +69,8 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerUserField: "createdBy",
@@ -117,14 +117,14 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.quizSelect>(data, [
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<QuizModelLogic["PrismaSelect"]>([
             ["project", "Project"],
             ["routine", "Routine"],
-        ], languages),
+        ], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.createdBy,
+            User: data?.createdBy,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

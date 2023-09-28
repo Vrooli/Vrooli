@@ -25,15 +25,18 @@ export const shapeMeetingTranslation: ShapeModel<MeetingTranslationShape, Meetin
 };
 
 export const shapeMeeting: ShapeModel<MeetingShape, MeetingCreateInput, MeetingUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "openToAnyoneWithInvite", "showOnOrganizationProfile"),
-        ...createRel(d, "organization", ["Connect"], "one"),
-        ...createRel(d, "restrictedToRoles", ["Connect"], "many"),
-        ...createRel(d, "invites", ["Create"], "many", shapeMeetingInvite, (i) => ({ ...i, meeting: { id: d.id } })),
-        ...createRel(d, "labels", ["Connect"], "many"),
-        ...createRel(d, "schedule", ["Create"], "one", shapeSchedule),
-        ...createRel(d, "translations", ["Create"], "many", shapeMeetingTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "openToAnyoneWithInvite", "showOnOrganizationProfile");
+        return {
+            ...prims,
+            ...createRel(d, "organization", ["Connect"], "one"),
+            ...createRel(d, "restrictedToRoles", ["Connect"], "many"),
+            ...createRel(d, "invites", ["Create"], "many", shapeMeetingInvite, (i) => ({ ...i, meeting: { id: prims.id } })),
+            ...createRel(d, "labels", ["Connect"], "many"),
+            ...createRel(d, "schedule", ["Create"], "one", shapeSchedule),
+            ...createRel(d, "translations", ["Create"], "many", shapeMeetingTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "openToAnyoneWithInvite", "showOnOrganizationProfile"),
         ...updateRel(o, u, "restrictedToRoles", ["Connect", "Disconnect"], "many"),

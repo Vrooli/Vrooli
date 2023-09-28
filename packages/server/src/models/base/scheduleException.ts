@@ -1,7 +1,7 @@
 import { scheduleExceptionValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
-import { ScheduleExceptionFormat } from "../format/scheduleException";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { ScheduleExceptionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ScheduleModel } from "./schedule";
 import { ScheduleExceptionModelLogic, ScheduleModelLogic } from "./types";
@@ -45,9 +45,9 @@ export const ScheduleExceptionModel: ModelLogic<ScheduleExceptionModelLogic, typ
         maxObjects: 100000,
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ScheduleModel.validate.owner(data.schedule as ScheduleModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ScheduleModel.validate.owner(data?.schedule as ScheduleModelLogic["PrismaModel"], userId),
         isDeleted: (data, languages) => ScheduleModel.validate.isDeleted(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
-        isPublic: (data, languages) => ScheduleModel.validate.isPublic(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ScheduleExceptionModelLogic["PrismaSelect"]>([["schedule", "Schedule"]], ...rest),
         visibility: {
             private: { schedule: ScheduleModel.validate.visibility.private },
             public: { schedule: ScheduleModel.validate.visibility.public },

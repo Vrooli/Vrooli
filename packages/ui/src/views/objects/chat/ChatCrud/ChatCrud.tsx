@@ -31,7 +31,7 @@ import { useLocation } from "route";
 import { FormContainer, FormSection, pagePaddingBottom } from "styles";
 import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, getYou } from "utils/display/listTools";
+import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { uuidToBase36 } from "utils/navigation/urlTools";
@@ -209,7 +209,6 @@ const ChatForm = ({
     dirty,
     existing,
     handleUpdate,
-    isCreate,
     isOpen,
     isReadLoading,
     onCancel,
@@ -226,6 +225,7 @@ const ChatForm = ({
     const { t } = useTranslation();
 
     const [message, setMessage] = useState<string>(context ?? "");
+    const isCreate = useMemo(() => existing.id === DUMMY_ID, [existing.id]);
 
     const {
         fetch,
@@ -251,7 +251,7 @@ const ChatForm = ({
             return;
         }
         console.log("onsubmittttt values", updatedChat ?? values);
-        console.log("onsubmittttt transformed", transformChatValues(updatedChat ?? values, existing, isCreate));
+        console.log("onsubmittttt transformed", JSON.stringify(transformChatValues(updatedChat ?? values, existing, isCreate)));
         // Filters out messages that aren't yours, except for ones marked as "isUnsent". This 
         // flag is used both to show messages you sent that haven't been fully sent yet, but also 
         // initial messages when chatting with a bot (which also haven't been sent yet, as the 
@@ -264,7 +264,11 @@ const ChatForm = ({
             fetch,
             inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values), withoutOtherMessages(existing), isCreate),
             onSuccess: (data) => {
-                handleUpdate(data);
+                // Update, but make sure messages are in the correct order
+                handleUpdate({
+                    ...data,
+                    messages: data.messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+                });
                 setMessage("");
             }, // Most forms will use handleComplete, but we may still be chatting. So don't close the form.
             onCompleted: () => { props.setSubmitting(false); },
@@ -286,6 +290,7 @@ const ChatForm = ({
 
         // Define chat-specific event handlers
         socket.on("message", (message: ChatMessage) => {
+            console.log("GOT MESSAGE", message);
             // Add message to chat if it's not already there. 
             // Make sure it is inserted in the correct order, using the created_at field.
             // Find index to insert message at
@@ -393,8 +398,7 @@ const ChatForm = ({
         handleDelete,
         DeleteDialogComponent,
     } = useDeleter({
-        objectId: existing?.id,
-        objectName: getDisplay(existing).title,
+        object: existing,
         objectType: "Chat",
         onActionComplete: actionData.onActionComplete,
     });

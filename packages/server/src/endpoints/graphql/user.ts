@@ -143,7 +143,7 @@ export const typeDef = gql`
         bannerImage: Upload
         botSettings: String!
         handle: String
-        isPrivate: Boolean
+        isPrivate: Boolean!
         name: String!
         profileImage: Upload
         translationsCreate: [UserTranslationCreateInput!]

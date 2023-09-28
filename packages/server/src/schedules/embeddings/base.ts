@@ -8,6 +8,7 @@
  * like "Artificial Intelligence (AI)", "LLM", and "Machine Learning", even if "ai" 
  * is not directly in the tag's name/description.
  */
+import { ValueOf } from "@local/shared";
 import { Prisma, RunStatus } from "@prisma/client";
 import { ObjectMap } from "../../models/base";
 import { ModelLogic } from "../../models/types";
@@ -28,7 +29,7 @@ const API_BATCH_SIZE = 100; // Size set in the API to limit the number of embedd
 /**
  * Helper function to extract sentences from translated embeddable objects
  */
-const extractTranslatedSentences = <T extends { id: string, translations: { language: string }[] }>(batch: T[], model: ModelLogic<any, any>) => {
+const extractTranslatedSentences = <T extends { translations: { language: string }[] }>(batch: T[], model: ValueOf<typeof ObjectMap>) => {
     // Initialize array to store sentences
     const sentences: string[] = [];
     // Loop through each object in the batch
@@ -72,11 +73,11 @@ const updateEmbedding = async (
  * @param tableName - The name of the table where the embeddings should be updated. e.g. "api_version_translation"
  */
 const processTranslatedBatchHelper = async (
-    batch: { id: string, translations: { id: string, embeddingNeedsUpdate: boolean, language: string }[] }[],
+    batch: { translations: { id: string, embeddingNeedsUpdate: boolean, language: string }[] }[],
     prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
 ): Promise<void> => {
-    const model = ObjectMap[objectType]!;
+    const model = ObjectMap[objectType];
     // Extract sentences from the batch
     const sentences = extractTranslatedSentences(batch, model);
     if (sentences.length === 0) return;
@@ -104,9 +105,9 @@ const processUntranslatedBatchHelper = async (
     prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
 ): Promise<void> => {
-    const model = ObjectMap[objectType]! as ModelLogic<any, any>;
+    const model = ObjectMap[objectType] as ModelLogic<any, any>;
     // Extract sentences from the batch
-    const sentences = batch.map(obj => model.display.embed!.get(obj as any, []));
+    const sentences = batch.map(obj => model.display.embed?.get(obj as any, []) ?? "");
     if (sentences.length === 0) return;
     // Find embeddings for all objects in the batch
     const embeddings = await getEmbeddings(objectType, sentences);

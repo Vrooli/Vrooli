@@ -1,7 +1,7 @@
 import { MaxObjects, phoneValidation } from "@local/shared";
 import { Trigger } from "../../events";
 import { defaultPermissions } from "../../utils";
-import { PhoneFormat } from "../format/phone";
+import { PhoneFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { PhoneModelLogic } from "./types";
@@ -31,14 +31,14 @@ export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
-                for (const object of created) {
+            afterMutations: async ({ createdIds, prisma, userData }) => {
+                for (const objectId of createdIds) {
                     await Trigger(prisma, userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A
                         owner: { id: userData.id, __typename: "User" },
-                        object,
+                        objectId,
                         objectType: __typename,
                     });
                 }
@@ -53,8 +53,8 @@ export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

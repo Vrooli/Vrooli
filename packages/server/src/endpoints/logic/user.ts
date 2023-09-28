@@ -84,8 +84,7 @@ export const UserEndpoints: EndpointsUser = {
             // Create new emails
             if (input.emailsCreate) {
                 await cudHelper({
-                    createMany: input.emailsCreate,
-                    objectType: "Email",
+                    inputData: input.emailsCreate.map(email => ({ actionType: "Create", input: email, objectType: "Email" })),
                     partialInfo: { __typename: "Email", id: true, emailAddress: true },
                     prisma,
                     userData,

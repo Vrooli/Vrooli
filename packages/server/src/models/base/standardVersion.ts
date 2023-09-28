@@ -1,12 +1,12 @@
-import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, standardVersionValidation } from "@local/shared";
+import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, standardVersionValidation } from "@local/shared";
 import { randomString } from "../../auth/wallet";
 import { noNull, shapeHelper } from "../../builders";
 import { PrismaType, SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { sortify } from "../../utils/objectTools";
-import { preShapeVersion } from "../../utils/preShapeVersion";
+import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { StandardVersionFormat } from "../format/standardVersion";
+import { StandardVersionFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { StandardModel } from "./standard";
 import { StandardModelLogic, StandardVersionModelLogic } from "./types";
@@ -118,17 +118,17 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
     mutate: {
         shape: {
             pre: async (params) => {
-                const { createList, updateList, deleteList, prisma, userData } = params;
+                const { Create, Update, Delete, prisma, userData } = params;
                 await versionsCheck({
-                    createList,
-                    deleteList,
+                    Create,
+                    Delete,
                     objectType: __typename,
                     prisma,
-                    updateList,
+                    Update,
                     userData,
                 });
-                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
-                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
@@ -136,15 +136,15 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                 // This makes comparing standards a whole lot easier
                 const { translations } = await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.create?.length) {
-                    translations.create = translations.create.map(t => {
-                        t.jsonVariables = sortify(t.jsonVariables, rest.userData.languages);
+                    translations.create = translations.create.map((t: StandardVersionTranslationCreateInput) => {
+                        if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable, rest.userData.languages);
                         return t;
                     });
                 }
                 return {
                     id: data.id,
                     default: noNull(data.default),
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
                     props: sortify(data.props, rest.userData.languages),
@@ -162,17 +162,14 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                 // If jsonVariables defined, sort them
                 const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.update?.length) {
-                    translations.update = translations.update.map(t => {
-                        t.data = {
-                            ...t.data,
-                            jsonVariables: sortify(t.data.jsonVariables, rest.userData.languages),
-                        };
+                    translations.update = translations.update.map((t: { where: { id: string }, data: StandardVersionTranslationUpdateInput }) => {
+                        if (t.data.jsonVariable) t.data.jsonVariable = sortify(t.data.jsonVariable, rest.userData.languages);
                         return t;
                     });
                 }
                 if (translations?.create?.length) {
-                    translations.create = translations.create.map(t => {
-                        t.jsonVariables = sortify(t.jsonVariables, rest.userData.languages);
+                    translations.create = translations.create.map((t: StandardVersionTranslationCreateInput) => {
+                        if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable, rest.userData.languages);
                         return t;
                     });
                 }
@@ -188,12 +185,14 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
                     ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest })),
                     ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest })),
+                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Standard", parentRelationshipName: "versions", data, ...rest })),
                     translations,
                 };
             },
-            post: async (params) => {
-                await postShapeVersion({ ...params, objectType: __typename });
+        },
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
         yup: standardVersionValidation,
@@ -249,12 +248,12 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            StandardModel.validate.isPublic(data.root as StandardModelLogic["PrismaModel"], languages),
+            oneIsPublic<StandardVersionModelLogic["PrismaSelect"]>([["root", "Standard"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => StandardModel.validate.owner(data.root as StandardModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => StandardModel.validate.owner(data?.root as StandardModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

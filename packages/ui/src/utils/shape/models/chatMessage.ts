@@ -8,7 +8,7 @@ export type ChatMessageTranslationShape = Pick<ChatMessageTranslation, "id" | "l
 }
 
 export type ChatMessageShape = Pick<ChatMessage, "id"> & {
-    __typename?: "ChatMessage";
+    __typename: "ChatMessage";
     created_at: string; // Only used by the UI
     updated_at: string; // Only used by the UI
     chat?: { id: string } | ChatShape;

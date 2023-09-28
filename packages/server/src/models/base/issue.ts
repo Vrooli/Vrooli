@@ -1,9 +1,9 @@
 import { IssueFor, IssueSortBy, issueValidation, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, oneIsPublic, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
-import { IssueFormat } from "../format/issue";
+import { IssueFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
@@ -43,8 +43,8 @@ export const IssueModel: ModelLogic<IssueModelLogic, typeof suppFields> = ({
     format: IssueFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
@@ -99,7 +99,7 @@ export const IssueModel: ModelLogic<IssueModelLogic, typeof suppFields> = ({
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.issueSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<IssueModelLogic["PrismaSelect"]>([
             ["api", "Api"],
             ["organization", "Organization"],
             ["note", "Note"],
@@ -107,11 +107,11 @@ export const IssueModel: ModelLogic<IssueModelLogic, typeof suppFields> = ({
             ["routine", "Routine"],
             ["smartContract", "SmartContract"],
             ["standard", "Standard"],
-        ], languages),
+        ], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.createdBy,
+            User: data?.createdBy,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
