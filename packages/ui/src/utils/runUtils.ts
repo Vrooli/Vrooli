@@ -277,12 +277,18 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
             name: "Subroutine 1",
         }] as Node["translations"],
     };
+    const endNodeId = uuid();
     const endNode: NodeShape = {
         __typename: "Node",
-        id: uuid(),
+        id: endNodeId,
         nodeType: NodeType.End,
         columnIndex: 2,
         rowIndex: 0,
+        end: {
+            id: uuid(),
+            wasSuccessful: true,
+            node: { id: endNodeId },
+        },
         routineVersion: { id: routineVersionId },
         translations: [],
     };

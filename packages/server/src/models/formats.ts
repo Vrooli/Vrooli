@@ -1851,6 +1851,7 @@ export const StandardVersionFormat: Formatter<StandardVersionModelLogic> = {
         forks: "StandardVersion",
         pullRequest: "PullRequest",
         reports: "Report",
+        resourceList: "ResourceList",
         root: "Standard",
     },
     prismaRelMap: {
@@ -1860,6 +1861,7 @@ export const StandardVersionFormat: Formatter<StandardVersionModelLogic> = {
         forks: "StandardVersion",
         pullRequest: "PullRequest",
         reports: "Report",
+        resourceList: "ResourceList",
         root: "Standard",
     },
     countFields: {

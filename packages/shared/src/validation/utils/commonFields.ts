@@ -15,7 +15,6 @@ import { minVersionTest } from "./versions";
 
 yup.addMethod(yup.string, "removeEmptyString", function () {
     return this.when([], (schema, { value }: any) => {
-        console.log("in removeEmptyString", value);
         if (typeof value !== "string" || value === "") return schema.strip();
         return schema;
     });

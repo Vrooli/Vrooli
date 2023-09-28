@@ -33,7 +33,7 @@ export const typeDef = gql`
         yup: String
         directoryListingsConnect: [ID!]
         resourceListCreate: ResourceListCreateInput
-        rootConnect: ID!
+        rootConnect: ID
         rootCreate: StandardCreateInput
         translationsCreate: [StandardVersionTranslationCreateInput!]
     }

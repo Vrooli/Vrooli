@@ -1,21 +1,26 @@
 import * as yup from "yup";
-import { description, id, maxStrErr, minNumErr, minStrErr, opt, req, YupModel, yupObj } from "../utils";
+import { bool, description, id, maxStrErr, minNumErr, minStrErr, opt, req, YupModel, yupObj } from "../utils";
 
 const index = yup.number().integer().min(0, minNumErr);
+const name = yup.string().trim().removeEmptyString().min(1, minStrErr).max(50, maxStrErr);
 
 export const reminderItemValidation: YupModel = {
     create: ({ o }) => yupObj({
         id: req(id),
-        name: req(yup.string().trim().removeEmptyString().min(1, minStrErr).max(50, maxStrErr)),
         description: opt(description),
         dueDate: opt(yup.date()),
         index: opt(index),
-    }, [], [], o),
+        isComplete: opt(bool),
+        name: req(name),
+    }, [
+        ["reminder", ["Connect"], "one", "req"],
+    ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
-        name: opt(yup.string().trim().removeEmptyString().min(1, minStrErr).max(50, maxStrErr)),
         description: opt(description),
         dueDate: opt(yup.date()),
         index: opt(index),
+        isComplete: opt(bool),
+        name: opt(name),
     }, [], [], o),
 };

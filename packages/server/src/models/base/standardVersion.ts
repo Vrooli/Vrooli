@@ -1,4 +1,4 @@
-import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, standardVersionValidation } from "@local/shared";
+import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, standardVersionValidation } from "@local/shared";
 import { randomString } from "../../auth/wallet";
 import { noNull, shapeHelper } from "../../builders";
 import { PrismaType, SessionUserToken } from "../../types";
@@ -136,8 +136,8 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                 // This makes comparing standards a whole lot easier
                 const { translations } = await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.create?.length) {
-                    translations.create = translations.create.map(t => {
-                        t.jsonVariables = sortify(t.jsonVariables, rest.userData.languages);
+                    translations.create = translations.create.map((t: StandardVersionTranslationCreateInput) => {
+                        if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable, rest.userData.languages);
                         return t;
                     });
                 }
@@ -162,17 +162,14 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                 // If jsonVariables defined, sort them
                 const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.update?.length) {
-                    translations.update = translations.update.map(t => {
-                        t.data = {
-                            ...t.data,
-                            jsonVariables: sortify(t.data.jsonVariables, rest.userData.languages),
-                        };
+                    translations.update = translations.update.map((t: { where: { id: string }, data: StandardVersionTranslationUpdateInput }) => {
+                        if (t.data.jsonVariable) t.data.jsonVariable = sortify(t.data.jsonVariable, rest.userData.languages);
                         return t;
                     });
                 }
                 if (translations?.create?.length) {
-                    translations.create = translations.create.map(t => {
-                        t.jsonVariables = sortify(t.jsonVariables, rest.userData.languages);
+                    translations.create = translations.create.map((t: StandardVersionTranslationCreateInput) => {
+                        if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable, rest.userData.languages);
                         return t;
                     });
                 }
@@ -188,7 +185,7 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
                     ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest })),
                     ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest })),
+                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Standard", parentRelationshipName: "versions", data, ...rest })),
                     translations,
                 };
             },

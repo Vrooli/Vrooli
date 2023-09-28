@@ -6,7 +6,7 @@ import error from "./translations/locales/en/error.json" assert { type: "json" }
 import langs from "./translations/locales/en/langs.json" assert { type: "json" };
 import notify from "./translations/locales/en/notify.json" assert { type: "json" };
 // import validate from "./translations/locales/en/validate.json" assert { type: "json" };
-import * as yup from "yup";
+import "yup";
 
 declare module "@local/shared";
 export * from ".";
@@ -27,7 +27,7 @@ declare module "i18next" {
 }
 
 declare module "yup" {
-    interface StringSchema extends yup.StringSchema {
+    interface StringSchema {
         /**
          * Converts empty/whitespace strings to undefined
          */

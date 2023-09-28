@@ -1,5 +1,8 @@
-import { description, id, name, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { ResourceListFor } from "@local/shared";
+import { description, enumToYup, id, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { resourceValidation } from "./resource";
+
+const listForType = enumToYup(ResourceListFor);
 
 export const resourceListTranslationValidation: YupModel = transRel({
     create: {
@@ -15,14 +18,9 @@ export const resourceListTranslationValidation: YupModel = transRel({
 export const resourceListValidation: YupModel = {
     create: ({ o }) => yupObj({
         id: req(id),
+        listForType: req(listForType),
     }, [
-        ["apiVersion", ["Connect"], "one", "opt"],
-        ["focusMode", ["Connect"], "one", "opt"],
-        ["organization", ["Connect"], "one", "opt"],
-        ["post", ["Connect"], "one", "opt"],
-        ["projectVersion", ["Connect"], "one", "opt"],
-        ["routineVersion", ["Connect"], "one", "opt"],
-        ["smartContractVersion", ["Connect"], "one", "opt"],
+        ["listFor", ["Connect"], "one", "req"],
         ["translations", ["Create"], "many", "opt", resourceListTranslationValidation],
         ["resources", ["Create"], "many", "opt", resourceValidation, ["list"]],
     ], [], o),

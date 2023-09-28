@@ -8,6 +8,7 @@ export const nodeRoutineListValidation: YupModel = {
         isOptional: opt(bool),
     }, [
         ["items", ["Create"], "many", "opt", nodeRoutineListItemValidation],
+        ["node", ["Connect"], "one", "req"],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),

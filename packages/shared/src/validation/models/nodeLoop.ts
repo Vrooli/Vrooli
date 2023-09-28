@@ -12,6 +12,7 @@ export const nodeLoopValidation: YupModel = {
         maxLoops: opt(maxLoops),
         operation: opt(nodeOperation),
     }, [
+        ["node", ["Connect"], "one", "req"],
         ["whiles", ["Create"], "many", "req", nodeLoopWhileValidation],
     ], [], o),
     update: ({ o }) => yupObj({
