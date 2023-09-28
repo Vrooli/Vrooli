@@ -1,14 +1,14 @@
 import { Comment, CommentFor, commentTranslationValidation, commentValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { useTheme } from "@mui/material";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { SessionContext } from "contexts/SessionContext";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { CommentFormProps } from "forms/types";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
+import { SendIcon } from "icons";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { FormContainer } from "styles";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
+import { getUserLanguages } from "utils/display/translationTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { CommentShape, shapeComment } from "utils/shape/models/comment";
 
@@ -52,6 +52,7 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
+    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -71,23 +72,25 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
                 display={display}
                 isLoading={isLoading}
                 ref={ref}
+                style={{ paddingBottom: 0 }}
             >
-                <FormContainer>
-                    <TranslatedRichInput
-                        language={language}
-                        name="text"
-                        placeholder={t("PleaseBeNice")}
-                        minRows={3}
-                    />
-                </FormContainer>
-                <BottomActionsButtons
-                    display={display}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
+                <TranslatedRichInput
+                    disabled={isLoading}
+                    language={language}
+                    name="text"
+                    placeholder={t("PleaseBeNice")}
+                    maxChars={32768}
+                    minRows={3}
+                    maxRows={15}
+                    actionButtons={[{
+                        Icon: SendIcon,
+                        onClick: () => { props.handleSubmit(); },
+                    }]}
+                    sxs={{
+                        root: { width: "100%", background: palette.primary.dark, borderRadius: 1, overflow: "overlay", marginTop: 1 },
+                        bar: { borderRadius: 0 },
+                        textArea: { borderRadius: 0, paddingRight: 4, height: "100%" },
+                    }}
                 />
             </BaseForm>
         </>

@@ -105,9 +105,9 @@ const processUntranslatedBatchHelper = async (
     prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
 ): Promise<void> => {
-    const model = ObjectMap[objectType]! as ModelLogic<any, any>;
+    const model = ObjectMap[objectType] as ModelLogic<any, any>;
     // Extract sentences from the batch
-    const sentences = batch.map(obj => model.display.embed!.get(obj as any, []));
+    const sentences = batch.map(obj => model.display.embed?.get(obj as any, []) ?? "");
     if (sentences.length === 0) return;
     // Find embeddings for all objects in the batch
     const embeddings = await getEmbeddings(objectType, sentences);

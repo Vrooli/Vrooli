@@ -13,6 +13,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
+import { Formik } from "formik";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon } from "icons";
@@ -23,6 +24,7 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { noopSubmit } from "utils/objects";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
@@ -94,87 +96,93 @@ export const StandardView = ({
                     languages={availableLanguages}
                 />}
             />
-            <Box sx={{
-                marginLeft: "auto",
-                marginRight: "auto",
-                width: "min(100%, 700px)",
-                padding: 2,
-            }}>
-                {/* Relationships */}
-                <RelationshipList
-                    isEditing={false}
-                    objectType={"Routine"}
-                />
-                {/* Resources */}
-                {Array.isArray(resourceList?.resources) && resourceList!.resources.length > 0 && <ResourceListHorizontal
-                    title={"Resources"}
-                    list={resourceList as any}
-                    canUpdate={false}
-                    // eslint-disable-next-line @typescript-eslint/no-empty-function
-                    handleUpdate={() => { }} // Intentionally blank
-                    loading={isLoading}
-                    parent={{ __typename: "StandardVersion", id: existing?.id ?? "" }}
-                />}
-                {/* Box with description */}
-                <Box sx={containerProps(palette)}>
-                    <TextCollapse
-                        title="Description"
-                        text={description}
+            <Formik
+                enableReinitialize={true}
+                initialValues={initialValues}
+                onSubmit={noopSubmit}
+            >
+                {(formik) => <Box sx={{
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    width: "min(100%, 800px)",
+                    padding: 2,
+                }}>
+                    {/* Relationships */}
+                    <RelationshipList
+                        isEditing={false}
+                        objectType={"Routine"}
+                    />
+                    {/* Resources */}
+                    {Array.isArray(resourceList?.resources) && resourceList!.resources.length > 0 && <ResourceListHorizontal
+                        title={"Resources"}
+                        list={resourceList as any}
+                        canUpdate={false}
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
+                        handleUpdate={() => { }} // Intentionally blank
                         loading={isLoading}
-                        loadingLines={2}
-                    />
-                </Box>
-                {/* Box with standard */}
-                <Stack direction="column" spacing={4} sx={containerProps(palette)}>
-                    <StandardInput
-                        disabled={true}
-                        fieldName="preview"
-                    />
-                </Stack>
-                {/* Tags */}
-                {Array.isArray(tags) && tags!.length > 0 && <TagList
-                    maxCharacters={30}
-                    parentId={existing?.id ?? ""}
-                    tags={tags as any[]}
-                    sx={{ marginTop: 4 }}
-                />}
-                {/* Date and version labels */}
-                <Stack direction="row" spacing={1} mt={2} mb={1}>
-                    {/* Date created */}
-                    <DateDisplay
-                        loading={isLoading}
-                        showIcon={true}
-                        timestamp={existing?.created_at}
-                    />
-                    <VersionDisplay
-                        currentVersion={existing}
-                        prefix={" - "}
-                        versions={existing?.root?.versions}
-                    />
-                </Stack>
-                {/* Votes, reports, and other basic stats */}
-                {/* <StatsCompact
+                        parent={{ __typename: "StandardVersion", id: existing?.id ?? "" }}
+                    />}
+                    {/* Box with description */}
+                    <Box sx={containerProps(palette)}>
+                        <TextCollapse
+                            title="Description"
+                            text={description}
+                            loading={isLoading}
+                            loadingLines={2}
+                        />
+                    </Box>
+                    {/* Box with standard */}
+                    <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                        <StandardInput
+                            disabled={true}
+                            fieldName="preview"
+                        />
+                    </Stack>
+                    {/* Tags */}
+                    {Array.isArray(tags) && tags!.length > 0 && <TagList
+                        maxCharacters={30}
+                        parentId={existing?.id ?? ""}
+                        tags={tags as any[]}
+                        sx={{ marginTop: 4 }}
+                    />}
+                    {/* Date and version labels */}
+                    <Stack direction="row" spacing={1} mt={2} mb={1}>
+                        {/* Date created */}
+                        <DateDisplay
+                            loading={isLoading}
+                            showIcon={true}
+                            timestamp={existing?.created_at}
+                        />
+                        <VersionDisplay
+                            currentVersion={existing}
+                            prefix={" - "}
+                            versions={existing?.root?.versions}
+                        />
+                    </Stack>
+                    {/* Votes, reports, and other basic stats */}
+                    {/* <StatsCompact
                 handleObjectUpdate={updateStandard}
                 loading={loading}
                 object={existing}
             /> */}
-                {/* Action buttons */}
-                <ObjectActionsRow
-                    actionData={actionData}
-                    exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                    object={existing}
-                />
-                {/* Comments */}
-                <Box sx={containerProps(palette)}>
-                    <CommentContainer
-                        forceAddCommentOpen={isAddCommentOpen}
-                        language={language}
-                        objectId={existing?.id ?? ""}
-                        objectType={CommentFor.StandardVersion}
-                        onAddCommentClose={closeAddCommentDialog}
+                    {/* Action buttons */}
+                    <ObjectActionsRow
+                        actionData={actionData}
+                        exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                        object={existing}
                     />
-                </Box>
-            </Box>
+                    {/* Comments */}
+                    <Box sx={containerProps(palette)}>
+                        <CommentContainer
+                            forceAddCommentOpen={isAddCommentOpen}
+                            language={language}
+                            objectId={existing?.id ?? ""}
+                            objectType={CommentFor.StandardVersion}
+                            onAddCommentClose={closeAddCommentDialog}
+                        />
+                    </Box>
+                </Box>}
+            </Formik>
             <SideActionsButtons
                 display={display}
                 sx={{ position: "fixed" }}

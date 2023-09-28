@@ -33,6 +33,7 @@ import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
+import { noopSubmit } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
 import { standardVersionToFieldData } from "utils/shape/general";
@@ -207,7 +208,7 @@ export const RoutineView = ({
             <Formik
                 enableReinitialize={true}
                 initialValues={initialValues}
-                onSubmit={() => { }}
+                onSubmit={noopSubmit}
             >
                 {(formik) => <Stack direction="column" spacing={4} sx={{
                     marginLeft: "auto",
