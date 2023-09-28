@@ -42,6 +42,7 @@ export async function cudHelper({
 }): Promise<Array<boolean | Record<string, any>>> {
     // Initialize results
     const result: Array<boolean | Record<string, any>> = new Array(inputData.length).fill(false);
+    // Validate and cast inputs
     for (let i = 0; i < inputData.length; i++) {
         const { actionType, input, objectType } = inputData[i];
         if (actionType === "Create") {

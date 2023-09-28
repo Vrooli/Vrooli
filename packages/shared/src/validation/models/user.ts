@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { bio, blankToUndefined, bool, email, handle, id, imageFile, maxStrErr, name, opt, password, req, theme, transRel, YupModel, yupObj } from "../utils";
+import { bio, bool, email, handle, id, imageFile, maxStrErr, name, opt, password, req, theme, transRel, YupModel, yupObj } from "../utils";
 import { botSettings, botValidation } from "./bot";
 import { emailValidation } from "./email";
 import { focusModeValidation } from "./focusMode";
@@ -9,8 +9,8 @@ import { focusModeValidation } from "./focusMode";
  */
 export const emailLogInSchema = yup.object().shape({
     email: opt(email),
-    password: opt(yup.string().trim().transform(blankToUndefined).max(128, maxStrErr)),
-    verificationCode: opt(yup.string().trim().transform(blankToUndefined).max(128, maxStrErr)),
+    password: opt(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
+    verificationCode: opt(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
 });
 
 export const userTranslationValidation: YupModel = transRel({
@@ -102,7 +102,7 @@ export const userValidation: YupModel<true, true> = {
  * Schema for traditional email/password log in FORM.
  */
 export const userDeleteOneSchema = yup.object().shape({
-    password: req(yup.string().transform(blankToUndefined).max(128, maxStrErr)),
+    password: req(yup.string().removeEmptyString().max(128, maxStrErr)),
     deletePublicData: req(bool),
 });
 

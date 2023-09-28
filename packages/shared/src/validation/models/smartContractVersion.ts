@@ -1,11 +1,11 @@
 import * as yup from "yup";
-import { blankToUndefined, bool, description, id, jsonVariable, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import { bool, description, id, jsonVariable, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { resourceListValidation } from "./resourceList";
 import { smartContractValidation } from "./smartContract";
 
-const smartContractDefault = yup.string().trim().transform(blankToUndefined).max(2048, maxStrErr);
-const contractType = yup.string().trim().transform(blankToUndefined).max(256, maxStrErr);
-const content = yup.string().trim().transform(blankToUndefined).max(8192, maxStrErr);
+const smartContractDefault = yup.string().trim().removeEmptyString().max(2048, maxStrErr);
+const contractType = yup.string().trim().removeEmptyString().max(256, maxStrErr);
+const content = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 
 export const smartContractVersionTranslationValidation: YupModel = transRel({
     create: {

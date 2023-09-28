@@ -1,9 +1,9 @@
 import { CommentFor } from "@local/shared";
 import * as yup from "yup";
-import { blankToUndefined, enumToYup, id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { enumToYup, id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
 
 const createdFor = enumToYup(CommentFor);
-const text = yup.string().trim().transform(blankToUndefined).min(1, minStrErr).max(32768, maxStrErr);
+const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(32768, maxStrErr);
 
 export const commentTranslationValidation: YupModel = transRel({
     create: {
