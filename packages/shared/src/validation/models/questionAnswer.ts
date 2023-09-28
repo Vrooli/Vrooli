@@ -1,7 +1,7 @@
 import * as yup from "yup";
 import { blankToUndefined, id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
 
-const text = yup.string().transform(blankToUndefined).min(1, minStrErr).max(32768, maxStrErr);
+const text = yup.string().trim().transform(blankToUndefined).min(1, minStrErr).max(32768, maxStrErr);
 
 export const questionAnswerTranslationValidation: YupModel = transRel({
     create: {

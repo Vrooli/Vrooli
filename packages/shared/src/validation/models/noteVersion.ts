@@ -2,7 +2,7 @@ import * as yup from "yup";
 import { bool, description, id, intPositiveOrZero, language, maxStrErr, name, opt, req, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { noteValidation } from "./note";
 
-const text = yup.string().max(65536, maxStrErr);
+const text = yup.string().trim().max(65536, maxStrErr);
 
 export const notePageValidation: YupModel = {
     create: ({ o }) => yupObj({

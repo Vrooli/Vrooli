@@ -42,14 +42,16 @@ export async function cudHelper({
 }): Promise<Array<boolean | Record<string, any>>> {
     // Initialize results
     const result: Array<boolean | Record<string, any>> = new Array(inputData.length).fill(false);
-    // Validate create and update data
-    for (const { actionType, input, objectType } of inputData) {
+    for (let i = 0; i < inputData.length; i++) {
+        const { actionType, input, objectType } = inputData[i];
         if (actionType === "Create") {
             const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper create");
-            mutate.yup.create && mutate.yup.create({}).validateSync(input);
+            const transformedInput = mutate.yup.create && mutate.yup.create({}).cast(input, { stripUnknown: true });
+            inputData[i].input = transformedInput;
         } else if (actionType === "Update") {
             const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper update");
-            mutate.yup.update && mutate.yup.update({}).validateSync(input);
+            const transformedInput = mutate.yup.update && mutate.yup.update({}).cast(input, { stripUnknown: true });
+            inputData[i].input = transformedInput;
         }
     }
     // Group all data, including relations, relations' relations, etc. into various maps. 

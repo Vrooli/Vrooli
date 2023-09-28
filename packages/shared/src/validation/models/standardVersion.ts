@@ -4,10 +4,10 @@ import { blankToUndefined, bool, description, enumToYup, id, jsonVariable, maxSt
 import { resourceListValidation } from "./resourceList";
 import { standardValidation } from "./standard";
 
-const standardDefault = yup.string().transform(blankToUndefined).max(2048, maxStrErr);
+const standardDefault = yup.string().trim().transform(blankToUndefined).max(2048, maxStrErr);
 const standardType = enumToYup(InputType);
-const standardProps = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
-const standardYup = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
+const standardProps = yup.string().trim().transform(blankToUndefined).max(8192, maxStrErr);
+const standardYup = yup.string().trim().transform(blankToUndefined).max(8192, maxStrErr);
 
 export const standardVersionTranslationValidation: YupModel = transRel({
     create: {

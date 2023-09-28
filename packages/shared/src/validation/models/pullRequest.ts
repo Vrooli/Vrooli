@@ -4,7 +4,7 @@ import { blankToUndefined, enumToYup, id, maxStrErr, minStrErr, opt, req, transR
 
 const pullRequestTo = enumToYup(PullRequestToObjectType);
 const pullRequestStatus = enumToYup(PullRequestStatus);
-const text = yup.string().transform(blankToUndefined).min(1, minStrErr).max(32768, maxStrErr);
+const text = yup.string().trim().transform(blankToUndefined).min(1, minStrErr).max(32768, maxStrErr);
 
 export const pullRequestTranslationValidation: YupModel = transRel({
     create: {

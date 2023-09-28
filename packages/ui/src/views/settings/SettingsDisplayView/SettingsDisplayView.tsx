@@ -1,4 +1,4 @@
-import { endpointPutProfile, ProfileUpdateInput, User, userValidation } from "@local/shared";
+import { endpointPutProfile, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -119,7 +119,7 @@ export const SettingsDisplayView = ({
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={userValidation.update({})}
+                        validationSchema={profileValidation.update({})}
                     >
                         {(formik) => <SettingsDisplayForm
                             display={display}

@@ -1,7 +1,7 @@
 import * as yup from "yup";
 import { bio, blankToUndefined, bool, handle, id, maxStrErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 
-const botSettings = yup.string().transform(blankToUndefined).max(4096, maxStrErr);
+export const botSettings = yup.string().trim().transform(blankToUndefined).max(4096, maxStrErr);
 
 export const botTranslationValidation: YupModel = transRel({
     create: {

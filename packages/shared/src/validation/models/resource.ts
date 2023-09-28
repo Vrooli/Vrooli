@@ -3,7 +3,7 @@ import * as yup from "yup";
 import { addHttps, blankToUndefined, description, enumToYup, handleRegex, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from "../utils";
 
 // Link must match one of the regex above
-const link = yup.string().transform(blankToUndefined).transform(addHttps).max(1024, maxStrErr).test(
+const link = yup.string().trim().transform(blankToUndefined).transform(addHttps).max(1024, maxStrErr).test(
     "link",
     "Must be a URL, Cardano payment address, or ADA Handle",
     (value: string | undefined) => {

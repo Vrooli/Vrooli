@@ -10,7 +10,7 @@ export const nodeEndFormValidation = yup.object().shape({
 
 export const emailLogInFormValidation = yup.object().shape({
     email: req(email),
-    password: req(yup.string().transform(blankToUndefined).max(128, maxStrErr)),
+    password: req(yup.string().trim().transform(blankToUndefined).max(128, maxStrErr)),
 });
 
 export const emailSignUpFormValidation = yup.object().shape({
