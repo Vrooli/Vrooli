@@ -7,27 +7,27 @@ const pullRequestStatus = enumToYup(PullRequestStatus);
 const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(32768, maxStrErr);
 
 export const pullRequestTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         text: req(text),
-    },
-    update: {
+    }),
+    update: () => ({
         text: opt(text),
-    },
+    }),
 });
 
 export const pullRequestValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         toObjectType: req(pullRequestTo),
     }, [
         ["to", ["Connect"], "one", "req"],
         ["from", ["Connect"], "one", "req"],
         ["translations", ["Create"], "many", "opt", pullRequestTranslationValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         status: opt(pullRequestStatus),
     }, [
         ["translations", ["Delete", "Create", "Update"], "many", "opt", pullRequestTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

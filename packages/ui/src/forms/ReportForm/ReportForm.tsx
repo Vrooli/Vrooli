@@ -52,7 +52,7 @@ export const transformReportValues = (values: ReportShape, existing: ReportShape
 export const validateReportValues = async (values: ReportShape, existing: ReportShape, isCreate: boolean) => {
     const transformedValues = transformReportValues(values, existing, isCreate);
     console.log("transformed report", transformedValues);
-    const validationSchema = reportValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = reportValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

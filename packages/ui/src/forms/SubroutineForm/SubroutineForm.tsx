@@ -54,7 +54,7 @@ export const transformSubroutineValues = (values: NodeRoutineListItemShape, exis
 
 export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape | undefined, isCreate: boolean) => {
     const transformedValues = transformSubroutineValues(values, existing, isCreate);
-    const validationSchema = nodeRoutineListItemValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = nodeRoutineListItemValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -87,7 +87,7 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "instructions", "name"],
-        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     const [indexField] = useField<number>("index");

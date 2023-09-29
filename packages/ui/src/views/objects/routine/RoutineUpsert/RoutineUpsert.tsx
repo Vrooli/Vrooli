@@ -84,7 +84,7 @@ const transformRoutineValues = (values: RoutineVersionShape, existing: RoutineVe
 
 const validateRoutineValues = async (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) => {
     const transformedValues = transformRoutineValues(values, existing, isCreate);
-    const validationSchema = routineVersionValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = routineVersionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -118,7 +118,7 @@ const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "instructions", "name"],
-        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     const [idField] = useField<string>("id");

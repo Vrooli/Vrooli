@@ -52,7 +52,7 @@ const transformQuestionValues = (values: QuestionShape, existing: QuestionShape,
 
 const validateQuestionValues = async (values: QuestionShape, existing: QuestionShape, isCreate: boolean) => {
     const transformedValues = transformQuestionValues(values, existing, isCreate);
-    const validationSchema = questionValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = questionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -82,7 +82,7 @@ const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name"],
-        validationSchema: questionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: questionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     return (

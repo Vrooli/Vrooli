@@ -53,7 +53,7 @@ export const transformNodeEndValues = (values: NodeWithEndShape, existing: NodeW
 
 export const validateNodeEndValues = async (values: NodeWithEndShape, existing: NodeWithEndShape, isCreate: boolean) => {
     const transformedValues = transformNodeEndValues(values, existing, isCreate);
-    const validationSchema = nodeValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = nodeValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -79,7 +79,7 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name"],
-        validationSchema: nodeTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: nodeTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     const [wasSuccessfulField] = useField<boolean>("end.wasSuccessful");

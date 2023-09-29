@@ -7,27 +7,27 @@ import { routineVersionInputValidation } from "./routineVersionInput";
 import { routineVersionOutputValidation } from "./routineVersionOutput";
 
 export const routineVersionTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         description: opt(description),
         instructions: req(instructions),
         name: req(name),
-    },
-    update: {
+    }),
+    update: () => ({
         description: opt(description),
         instructions: opt(instructions),
         name: opt(name),
-    },
+    }),
 });
 
 export const routineVersionValidation: YupModel = {
-    create: ({ o, minVersion = "0.0.1" }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         apiCallData: opt(apiCallData),
         smartContractCallData: opt(smartContractCallData),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
-        versionLabel: req(versionLabel(minVersion)),
+        versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
         ["root", ["Connect", "Create"], "one", "req", routineValidation, ["versions"]],
@@ -41,15 +41,15 @@ export const routineVersionValidation: YupModel = {
         ["translations", ["Create"], "many", "opt", routineVersionTranslationValidation],
         ["directoryListings", ["Connect"], "many", "opt"],
         ["suggestedNextByProject", ["Connect"], "many", "opt"],
-    ], [["rootConnect", "rootCreate"]], o),
-    update: ({ o, minVersion = "0.0.1" }) => yupObj({
+    ], [["rootConnect", "rootCreate"]], d),
+    update: (d) => yupObj({
         id: req(id),
         apiCallData: opt(apiCallData),
         smartContractCallData: opt(smartContractCallData),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
-        versionLabel: opt(versionLabel(minVersion)),
+        versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
         ["apiVersion", ["Connect", "Disconnect"], "one", "opt"],
@@ -62,5 +62,5 @@ export const routineVersionValidation: YupModel = {
         ["translations", ["Create", "Update", "Delete"], "many", "opt", routineVersionTranslationValidation],
         ["directoryListings", ["Connect", "Disconnect"], "many", "opt"],
         ["suggestedNextByProject", ["Connect", "Disconnect"], "many", "opt"],
-    ], [], o),
+    ], [], d),
 };

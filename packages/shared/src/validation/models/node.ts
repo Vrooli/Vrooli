@@ -10,18 +10,18 @@ const rowIndex = yup.number().integer().min(0, minNumErr).nullable();
 const nodeType = enumToYup(NodeType);
 
 export const nodeTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         description: opt(description),
         name: req(name),
-    },
-    update: {
+    }),
+    update: () => ({
         description: opt(description),
         name: opt(name),
-    },
+    }),
 });
 
 export const nodeValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         columnIndex: opt(columnIndex),
         nodeType: req(nodeType),
@@ -32,8 +32,8 @@ export const nodeValidation: YupModel = {
         ["routineList", ["Create"], "one", "opt", nodeRoutineListValidation],
         ["routineVersion", ["Connect"], "one", "req"],
         ["translations", ["Create"], "many", "opt", nodeTranslationValidation],
-    ], [["endCreate", "routineListCreate"]], o),
-    update: ({ o }) => yupObj({
+    ], [["endCreate", "routineListCreate"]], d),
+    update: (d) => yupObj({
         id: req(id),
         columnIndex: opt(columnIndex),
         nodeType: opt(nodeType),
@@ -44,5 +44,5 @@ export const nodeValidation: YupModel = {
         ["routineList", ["Create", "Update"], "one", "opt", nodeRoutineListValidation, ["node"]],
         ["routineVersion", ["Connect"], "one", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", nodeTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

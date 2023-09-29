@@ -74,7 +74,7 @@ const transformSmartContractValues = (values: SmartContractVersionShape, existin
 
 const validateSmartContractValues = async (values: SmartContractVersionShape, existing: SmartContractVersionShape, isCreate: boolean) => {
     const transformedValues = transformSmartContractValues(values, existing, isCreate);
-    const validationSchema = smartContractVersionValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = smartContractVersionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -105,7 +105,7 @@ const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContractFormP
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "jsonVariable", "name"],
-        validationSchema: smartContractVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: smartContractVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     return (

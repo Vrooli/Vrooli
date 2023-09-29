@@ -52,7 +52,7 @@ const transformOrganizationValues = (values: OrganizationShape, existing: Organi
 
 const validateOrganizationValues = async (values: OrganizationShape, existing: OrganizationShape, isCreate: boolean) => {
     const transformedValues = transformOrganizationValues(values, existing, isCreate);
-    const validationSchema = organizationValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = organizationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -81,7 +81,7 @@ const OrganizationForm = forwardRef<BaseFormRef | undefined, OrganizationFormPro
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["bio", "name"],
-        validationSchema: organizationTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: organizationTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     return (

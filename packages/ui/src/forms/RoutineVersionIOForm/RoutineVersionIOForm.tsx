@@ -78,14 +78,14 @@ export const transformRoutineVersionIOValues = <IsInput extends boolean>(
 
 export const validateRoutineVersionInputValues = async (values: RoutineVersionInputShape, existing: RoutineVersionInputShape, isCreate: boolean) => {
     const transformedValues = transformRoutineVersionInputValues(values, existing, isCreate);
-    const validationSchema = routineVersionInputValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = routineVersionInputValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
 
 export const validateRoutineVersionOutputValues = async (values: RoutineVersionOutputShape, existing: RoutineVersionOutputShape, isCreate: boolean) => {
     const transformedValues = transformRoutineVersionOutputValues(values, existing, isCreate);
-    const validationSchema = routineVersionOutputValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = routineVersionOutputValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

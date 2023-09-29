@@ -77,7 +77,7 @@ const transformNoteValues = (values: NoteVersionShape, existing: NoteVersionShap
 const validateNoteValues = async (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) => {
     const transformedValues = transformNoteValues(values, existing, isCreate);
     console.log("validating note value", values, transformedValues);
-    const validationSchema = noteVersionValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = noteVersionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -145,7 +145,7 @@ const NoteForm = ({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name", "pages[0].text"],
-        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
     console.log("noteform", props.errors, translationErrors);
 

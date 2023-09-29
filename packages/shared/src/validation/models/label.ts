@@ -4,16 +4,16 @@ import { description, hexColor, id, maxStrErr, opt, req, transRel, YupModel, yup
 const label = yup.string().trim().removeEmptyString().max(128, maxStrErr);
 
 export const labelTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         description: req(description),
-    },
-    update: {
+    }),
+    update: () => ({
         description: opt(description),
-    },
+    }),
 });
 
 export const labelValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         label: req(label),
         color: opt(hexColor),
@@ -30,8 +30,8 @@ export const labelValidation: YupModel = {
         ["meetings", ["Connect"], "many", "opt"],
         ["schedules", ["Connect"], "many", "opt"],
         ["translations", ["Create"], "many", "opt", labelTranslationValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         label: req(label),
         color: opt(hexColor),
@@ -47,5 +47,5 @@ export const labelValidation: YupModel = {
         ["meetings", ["Connect", "Disconnect"], "many", "opt"],
         ["schedules", ["Connect", "Disconnect"], "many", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", labelTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

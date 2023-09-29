@@ -8,7 +8,7 @@ const dayOfWeek = yup.number().min(1, minNumErr).max(7, maxNumErr).integer();
 const dayOfMonth = yup.number().min(1, minNumErr).max(31, maxNumErr).integer();
 
 export const scheduleRecurrenceValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         recurrenceType: req(recurrenceType),
         interval: req(intPositiveOrOne),
@@ -17,13 +17,13 @@ export const scheduleRecurrenceValidation: YupModel = {
         endDate: opt(endDate),
     }, [
         ["schedule", ["Connect"], "one", "req", scheduleValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         recurrenceType: opt(recurrenceType),
         interval: opt(intPositiveOrOne),
         dayOfWeek: opt(dayOfWeek),
         dayOfMonth: opt(dayOfMonth),
         endDate: opt(endDate),
-    }, [], [], o),
+    }, [], [], d),
 };

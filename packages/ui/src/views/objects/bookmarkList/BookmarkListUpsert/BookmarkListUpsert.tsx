@@ -41,7 +41,7 @@ const transformBookmarkListValues = (values: BookmarkListShape, existing: Bookma
 
 const validateBookmarkListValues = async (values: BookmarkListShape, existing: BookmarkListShape, isCreate: boolean) => {
     const transformedValues = transformBookmarkListValues(values, existing, isCreate);
-    const validationSchema = bookmarkListValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = bookmarkListValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

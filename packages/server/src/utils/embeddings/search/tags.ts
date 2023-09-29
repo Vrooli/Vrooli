@@ -110,7 +110,7 @@ export const findTags = async ({
     let embedding = "";
     const searchStringTrimmed = searchString.trim();
     if (searchStringTrimmed.length > 0) {
-        const embeddings = await getEmbeddings("Tag", [searchString]);
+        const { data: embeddings } = await getEmbeddings("Tag", [searchString]);
         embedding = JSON.stringify(embeddings[0]);
     }
     // Common props for all helper functions

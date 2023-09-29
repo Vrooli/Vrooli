@@ -45,7 +45,7 @@ export const transformMeetingValues = (values: MeetingShape, existing: MeetingSh
 
 export const validateMeetingValues = async (values: MeetingShape, existing: MeetingShape, isCreate: boolean) => {
     const transformedValues = transformMeetingValues(values, existing, isCreate);
-    const validationSchema = meetingValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = meetingValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

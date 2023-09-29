@@ -61,7 +61,7 @@ export const UserEndpoints: EndpointsUser = {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 100, req });
             // Validate input
-            profileEmailUpdateValidation.update({}).validateSync(input, { abortEarly: false });
+            profileEmailUpdateValidation.update({ env: process.env.NODE_ENV as "development" | "production" }).validateSync(input, { abortEarly: false });
             // Find user
             const user = await prisma.user.findUnique({ where: { id: userData.id } });
             if (!user)

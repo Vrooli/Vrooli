@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { YupModel } from "../../utils/types";
+import { YupModel, YupMutateParams } from "../../utils/types";
 import { id, language } from "../commonFields";
 import { opt } from "./opt";
 import { req } from "./req";
@@ -15,17 +15,17 @@ import { yupObj } from "./yupObj";
  * @returns YupModel for the translation object
  */
 export const transRel = (partialYupModel: ({
-    create: { [key: string]: yup.StringSchema }
-    update: { [key: string]: yup.StringSchema }
+    create: (params: YupMutateParams) => { [key: string]: yup.StringSchema };
+    update: (params: YupMutateParams) => { [key: string]: yup.StringSchema };
 })): YupModel => ({
-    create: ({ o }) => yupObj({
+    create: (data) => yupObj({
         id: req(id),
         language: req(language),
-        ...partialYupModel.create,
-    }, [], [], o),
-    update: ({ o }) => yupObj({
+        ...partialYupModel.create(data),
+    }, [], [], data),
+    update: (data) => yupObj({
         id: req(id),
         language: opt(language),
-        ...partialYupModel.update,
-    }, [], [], o),
+        ...partialYupModel.update(data),
+    }, [], [], data),
 });

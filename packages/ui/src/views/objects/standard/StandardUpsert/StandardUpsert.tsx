@@ -78,7 +78,7 @@ const transformStandardValues = (values: StandardVersionShape, existing: Standar
 
 const validateStandardValues = async (values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) => {
     const transformedValues = transformStandardValues(values, existing, isCreate);
-    const validationSchema = standardVersionValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = standardVersionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -109,7 +109,7 @@ const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description"],
-        validationSchema: standardVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: standardVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     return (

@@ -37,7 +37,7 @@ export const transformRunProjectValues = (values: RunProjectShape, existing: Run
 
 export const validateRunProjectValues = async (values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) => {
     const transformedValues = transformRunProjectValues(values, existing, isCreate);
-    const validationSchema = runProjectValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = runProjectValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

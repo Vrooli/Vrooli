@@ -5,53 +5,53 @@ import { noteValidation } from "./note";
 const text = yup.string().trim().max(65536, maxStrErr);
 
 export const notePageValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         pageIndex: req(intPositiveOrZero),
         text: text.defined().strict(true),
-    }, [], [], o),
-    update: ({ o }) => yupObj({
+    }, [], [], d),
+    update: (d) => yupObj({
         pageIndex: opt(intPositiveOrZero),
         text: text.defined().strict(true).optional(),
-    }, [], [], o),
+    }, [], [], d),
 };
 
 export const noteVersionTranslationValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         language: req(language),
         description: opt(description),
         name: opt(name),
     }, [
         ["pages", ["Create", "Update", "Delete"], "many", "opt", notePageValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         language: opt(language),
         description: opt(description),
         name: opt(name),
     }, [
         ["pages", ["Create", "Update", "Delete"], "many", "opt", notePageValidation],
-    ], [], o),
+    ], [], d),
 };
 
 export const noteVersionValidation: YupModel = {
-    create: ({ o, minVersion = "0.0.1" }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
-        versionLabel: req(versionLabel(minVersion)),
+        versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
         ["root", ["Connect", "Create"], "one", "req", noteValidation, ["versions"]],
         ["directoryListings", ["Connect"], "many", "opt"],
         ["translations", ["Create"], "many", "opt", noteVersionTranslationValidation],
-    ], [["rootConnect", "rootCreate"]], o),
-    update: ({ o, minVersion = "0.0.1" }) => yupObj({
+    ], [["rootConnect", "rootCreate"]], d),
+    update: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
-        versionLabel: opt(versionLabel(minVersion)),
+        versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
         ["directoryListings", ["Connect", "Disconnect"], "many", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", noteVersionTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

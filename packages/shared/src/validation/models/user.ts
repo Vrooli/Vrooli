@@ -14,17 +14,17 @@ export const emailLogInSchema = yup.object().shape({
 });
 
 export const userTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         bio: opt(bio),
-    },
-    update: {
+    }),
+    update: () => ({
         bio: opt(bio),
-    },
+    }),
 });
 
 export const profileValidation: YupModel<false, true> = {
     // Can't create a non-bot user directly - must use sign up form(s)
-    update: ({ o }) => yupObj({
+    update: (d) => yupObj({
         bannerImage: opt(imageFile),
         handle: opt(handle),
         name: opt(name),
@@ -52,7 +52,7 @@ export const profileValidation: YupModel<false, true> = {
     }, [
         ["focusModes", ["Create", "Update", "Delete"], "many", "opt", focusModeValidation],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", userTranslationValidation],
-    ], [], o),
+    ], [], d),
 };
 
 // Since bots are a special case of users, we must create a combined validation model 
@@ -61,7 +61,7 @@ export const userValidation: YupModel<true, true> = {
     // You can only create bots, so we can take botValidation.create directly
     create: botValidation.create,
     // For update, we must combine both botValidation.update and profileValidation.update
-    update: ({ o }) => yupObj({
+    update: (d) => yupObj({
         // Bot part
         id: opt(id), // Have to make this optional
         botSettings: opt(botSettings),
@@ -95,7 +95,7 @@ export const userValidation: YupModel<true, true> = {
         ["focusModes", ["Create", "Update", "Delete"], "many", "opt", focusModeValidation],
         // Works for both bots and profiles
         ["translations", ["Create", "Update", "Delete"], "many", "opt", userTranslationValidation],
-    ], [], o),
+    ], [], d),
 };
 
 /**
@@ -122,10 +122,10 @@ export const emailResetPasswordSchema = yup.object().shape({
 });
 
 export const profileEmailUpdateValidation: YupModel<false, true> = {
-    update: ({ o }) => yupObj({
+    update: (d) => yupObj({
         currentPassword: req(password),
         newPassword: opt(password),
     }, [
         ["emails", ["Create", "Delete"], "many", "opt", emailValidation],
-    ], [], o),
+    ], [], d),
 };

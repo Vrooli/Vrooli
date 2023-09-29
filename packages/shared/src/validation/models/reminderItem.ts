@@ -5,7 +5,7 @@ const index = yup.number().integer().min(0, minNumErr);
 const name = yup.string().trim().removeEmptyString().min(1, minStrErr).max(50, maxStrErr);
 
 export const reminderItemValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         description: opt(description),
         dueDate: opt(yup.date()),
@@ -14,13 +14,13 @@ export const reminderItemValidation: YupModel = {
         name: req(name),
     }, [
         ["reminder", ["Connect"], "one", "req"],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         description: opt(description),
         dueDate: opt(yup.date()),
         index: opt(index),
         isComplete: opt(bool),
         name: opt(name),
-    }, [], [], o),
+    }, [], [], d),
 };

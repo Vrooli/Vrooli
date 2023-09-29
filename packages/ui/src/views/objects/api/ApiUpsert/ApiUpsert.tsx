@@ -72,7 +72,7 @@ const transformApiValues = (values: ApiVersionShape, existing: ApiVersionShape, 
 
 const validateApiValues = async (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) => {
     const transformedValues = transformApiValues(values, existing, isCreate);
-    const validationSchema = apiVersionValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = apiVersionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -108,7 +108,7 @@ const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["details", "name", "summary"],
-        validationSchema: apiVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: apiVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     const [hasDocUrl, setHasDocUrl] = useState(false);

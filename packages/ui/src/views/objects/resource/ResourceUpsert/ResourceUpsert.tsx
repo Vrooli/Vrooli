@@ -60,7 +60,7 @@ export const transformResourceValues = (values: ResourceShape, existing: Resourc
 
 export const validateResourceValues = async (values: ResourceShape, existing: ResourceShape, isCreate: boolean) => {
     const transformedValues = transformResourceValues(values, existing, isCreate);
-    const validationSchema = resourceValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = resourceValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -90,7 +90,7 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["bio"],
-        validationSchema: userTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: userTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     const [field, , helpers] = useField("translations");

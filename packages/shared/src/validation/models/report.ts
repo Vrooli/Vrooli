@@ -1,7 +1,7 @@
 import { details, id, language, opt, reportCreatedFor, reportReason, req, YupModel, yupObj } from "../utils";
 
 export const reportValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         createdFor: req(reportCreatedFor),
         details: opt(details),
@@ -9,11 +9,11 @@ export const reportValidation: YupModel = {
         reason: req(reportReason),
     }, [
         ["createdFor", ["Connect"], "one", "req"],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         details: opt(details),
         language: opt(language),
         reason: opt(reportReason),
-    }, [], [], o),
+    }, [], [], d),
 };

@@ -44,7 +44,7 @@ export const transformFocusModeValues = (values: FocusModeShape, existing: Focus
 
 export const validateFocusModeValues = async (values: FocusModeShape, existing: FocusModeShape, isCreate: boolean) => {
     const transformedValues = transformFocusModeValues(values, existing, isCreate);
-    const validationSchema = focusModeValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = focusModeValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

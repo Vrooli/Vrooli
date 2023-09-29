@@ -79,7 +79,7 @@ const transformProjectValues = (values: ProjectVersionShape, existing: ProjectVe
 
 const validateProjectValues = async (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) => {
     const transformedValues = transformProjectValues(values, existing, isCreate);
-    const validationSchema = projectVersionValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = projectVersionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -110,7 +110,7 @@ const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name"],
-        validationSchema: projectVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: projectVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     // For now, we'll only deal with one directory listing

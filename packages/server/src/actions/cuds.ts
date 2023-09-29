@@ -47,11 +47,11 @@ export async function cudHelper({
         const { actionType, input, objectType } = inputData[i];
         if (actionType === "Create") {
             const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper create");
-            const transformedInput = mutate.yup.create && mutate.yup.create({}).cast(input, { stripUnknown: true });
+            const transformedInput = mutate.yup.create && mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
             inputData[i].input = transformedInput;
         } else if (actionType === "Update") {
             const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper update");
-            const transformedInput = mutate.yup.update && mutate.yup.update({}).cast(input, { stripUnknown: true });
+            const transformedInput = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
             inputData[i].input = transformedInput;
         }
     }

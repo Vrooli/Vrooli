@@ -48,7 +48,7 @@ const transformMemberInviteValues = (values: MemberInviteShape, existing: Member
 
 const validateMemberInviteValues = async (values: MemberInviteShape, existing: MemberInviteShape, isCreate: boolean) => {
     const transformedValues = transformMemberInviteValues(values, existing, isCreate);
-    const validationSchema = memberInviteValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = memberInviteValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

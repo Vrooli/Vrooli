@@ -37,7 +37,7 @@ export const transformRunRoutineValues = (values: RunRoutineShape, existing: Run
 
 export const validateRunRoutineValues = async (values: RunRoutineShape, existing: RunRoutineShape, isCreate: boolean) => {
     const transformedValues = transformRunRoutineValues(values, existing, isCreate);
-    const validationSchema = runRoutineValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = runRoutineValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

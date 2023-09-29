@@ -29,7 +29,7 @@ export const EmailList = ({
             emailAddress: "",
         },
         enableReinitialize: true,
-        validationSchema: emailValidation.create({}),
+        validationSchema: emailValidation.create({ env: process.env.NODE_ENV }),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
             fetchLazyWrapper<EmailCreateInput, Email>({

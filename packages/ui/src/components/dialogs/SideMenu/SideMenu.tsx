@@ -89,7 +89,7 @@ export const SideMenu = () => {
             theme: getCurrentUser(session).theme ?? "light",
         },
         enableReinitialize: true,
-        validationSchema: profileValidation.update({}),
+        validationSchema: profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" }),
         onSubmit: (values) => {
             // If not logged in, do nothing
             if (!userId) {

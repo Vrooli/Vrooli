@@ -119,7 +119,7 @@ export const SettingsDisplayView = ({
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={profileValidation.update({})}
+                        validationSchema={profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" })}
                     >
                         {(formik) => <SettingsDisplayForm
                             display={display}

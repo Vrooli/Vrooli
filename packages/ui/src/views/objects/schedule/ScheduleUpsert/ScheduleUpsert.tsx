@@ -51,7 +51,7 @@ export const transformScheduleValues = (values: ScheduleShape, existing: Schedul
 
 export const validateScheduleValues = async (values: ScheduleShape, existing: ScheduleShape, isCreate: boolean) => {
     const transformedValues = transformScheduleValues(values, existing, isCreate);
-    const validationSchema = scheduleValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = scheduleValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

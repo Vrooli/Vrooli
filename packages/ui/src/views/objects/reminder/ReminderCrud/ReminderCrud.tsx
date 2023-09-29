@@ -87,7 +87,7 @@ const transformReminderValues = (values: ReminderShape, existing: ReminderShape,
 
 const validateReminderValues = async (values: ReminderShape, existing: ReminderShape, isCreate: boolean) => {
     const transformedValues = transformReminderValues(values, existing, isCreate);
-    const validationSchema = reminderValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = reminderValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

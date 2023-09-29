@@ -52,7 +52,7 @@ const transformBotValues = (session: Session | undefined, values: BotShape, exis
 
 const validateBotValues = async (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) => {
     const transformedValues = transformBotValues(session, values, existing, isCreate);
-    const validationSchema = botValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = botValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -84,7 +84,7 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name"],
-        validationSchema: botTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: botTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     return (

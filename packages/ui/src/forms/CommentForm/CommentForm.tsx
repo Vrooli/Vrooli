@@ -36,7 +36,7 @@ export const transformCommentValues = (values: CommentShape, existing: CommentSh
 
 export const validateCommentValues = async (values: CommentShape, existing: CommentShape, isCreate: boolean) => {
     const transformedValues = transformCommentValues(values, existing, isCreate);
-    const validationSchema = commentValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = commentValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -62,7 +62,7 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["text"],
-        validationSchema: commentTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: commentTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     return (

@@ -46,7 +46,7 @@ const transformChatInviteValues = (values: ChatInviteShape, existing: ChatInvite
 
 const validateChatInviteValues = async (values: ChatInviteShape, existing: ChatInviteShape, isCreate: boolean) => {
     const transformedValues = transformChatInviteValues(values, existing, isCreate);
-    const validationSchema = chatInviteValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = chatInviteValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
