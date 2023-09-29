@@ -445,6 +445,7 @@
     "NodeWasSuccessfulHelp": "If a routine finishes at this node, should it be considered a success?",
     "Note_one": "Note",
     "Note_other": "Notes",
+    "Notes": "Notes",
     "NoteVersion_one": "Note Version",
     "NoteVersion_other": "Note Versions",
     "Notification_one": "Notification",

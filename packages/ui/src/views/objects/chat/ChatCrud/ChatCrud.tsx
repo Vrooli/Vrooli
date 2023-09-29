@@ -118,7 +118,7 @@ export const transformChatValues = (values: ChatShape, existing: ChatShape, isCr
 
 export const validateChatValues = async (values: ChatShape, existing: ChatShape, isCreate: boolean) => {
     const transformedValues = transformChatValues(values, existing, isCreate);
-    const validationSchema = chatValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = chatValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -331,7 +331,7 @@ const ChatForm = ({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name"],
-        validationSchema: chatTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: chatTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     const addMessage = useCallback((text: string) => {
@@ -630,60 +630,3 @@ export const ChatCrud = ({
         </Formik>
     );
 };
-
-
-//TODO
-// <Formik
-//     enableReinitialize={true}
-//     initialValues={{
-//         editingMessage: "",
-//         newMessage: context ?? "",
-//     }}
-//     onSubmit={(values, helpers) => {
-//         if (!chat) return;
-//         const isEditing = values.editingMessage.trim().length > 0;
-//         if (isEditing) {
-//             //TODO
-//         } else {
-//             //TODO
-//             const text = values.newMessage.trim();
-//             if (text.length === 0) return;
-//             // for now, just add the message to the list
-//             const newMessage: ChatMessage & { isUnsent?: boolean } = {
-//                 __typename: "ChatMessage" as const,
-//                 id: uuid(),
-//                 created_at: new Date().toISOString(),
-//                 updated_at: new Date().toISOString(),
-//                 isUnsent: true,
-//                 chat: {
-//                     __typename: "Chat" as const,
-//                     id: chat.id,
-//                 } as any,
-//                 translations: [{
-//                     __typename: "ChatMessageTranslation" as const,
-//                     id: DUMMY_ID,
-//                     language: lng,
-//                     text,
-//                 }],
-//                 user: {
-//                     __typename: "User" as const,
-//                     id: getCurrentUser(session).id,
-//                     isBot: false,
-//                     name: getCurrentUser(session).name,
-//                 },
-//                 you: {
-//                     canDelete: true,
-//                     canUpdate: true,
-//                     canReply: true,
-//                     canReport: true,
-//                     canReact: true,
-//                     reaction: null,
-//                 },
-//             } as any;
-//             console.log("creating message 0", newMessage);
-//             setMessages([...messages, newMessage]);
-//             helpers.setFieldValue("newMessage", "");
-//         }
-//     }}
-// // validate={async (values) => await validateChatValues(values, existing)}
-// ></Formik>

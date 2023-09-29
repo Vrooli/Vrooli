@@ -1,24 +1,23 @@
 import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
-import { Box, Stack } from "@mui/material";
+import { Box, IconButton, useTheme } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
-import { PageContainer } from "components/containers/PageContainer/PageContainer";
-import { SiteSearchBar } from "components/inputs/search";
+import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { HomePrompt } from "components/text/HomePrompt/HomePrompt";
+import { Resizable, useDimensionContext } from "components/Resizable/Resizable";
 import { SessionContext } from "contexts/SessionContext";
 import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useFetch } from "hooks/useFetch";
 import { useReactSearch } from "hooks/useReactSearch";
 import { PageTab } from "hooks/useTabs";
-import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon, ReminderIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AddIcon, ListIcon, MonthIcon, NoteIcon, OpenInNewIcon, ReminderIcon, SearchIcon } from "icons";
+import { Dispatch, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { centeredDiv } from "styles";
+import { pagePaddingBottom } from "styles";
 import { AutocompleteOption, CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay, listToAutocomplete } from "utils/display/listTools";
@@ -31,11 +30,60 @@ import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { DashboardViewProps } from "../types";
 
+const SearchBox = ({
+    searchString,
+    handleSubmit,
+    setSearchString,
+}: {
+    searchString: string,
+    setSearchString: Dispatch<SetStateAction<string>>,
+    handleSubmit: (text: string) => unknown,
+}) => {
+    const { t } = useTranslation();
+    const dimensions = useDimensionContext();
+
+    return (
+        <RichInputBase
+            actionButtons={[{
+                Icon: SearchIcon, // Should be SearchIcon by default. But if search result is focused, then can change to that item's icon
+                onClick: () => {
+                    //TODO
+                },
+            }]}
+            disableAssistant={true}
+            fullWidth
+            getTaggableItems={async (searchString) => {
+                // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
+                return [];
+            }}
+            maxChars={1500}
+            minRows={4}
+            maxRows={15}
+            name="search"
+            onChange={setSearchString}
+            placeholder={t("WhatWouldYouLikeToDo")}
+            sxs={{
+                root: {
+                    height: dimensions.height,
+                    width: "100%",
+                    // When BottomNav is shown, need to make room for it
+                    paddingBottom: { xs: pagePaddingBottom, md: 0 },
+                    willChange: "height",
+                },
+                bar: { borderRadius: 0 },
+                textArea: { paddingRight: 4, border: "none", height: "100%" },
+            }}
+            value={searchString}
+        />
+    );
+};
+
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
     isOpen,
     onClose,
 }: DashboardViewProps) => {
+    const { palette } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -96,7 +144,7 @@ export const DashboardView = ({
         id: DUMMY_ID,
         resources: [],
         translations: [],
-    });
+    } as any);
     useEffect(() => {
         if (data?.resources) {
             setResourceList(r => ({ ...r, resources: data.resources }));
@@ -256,11 +304,24 @@ export const DashboardView = ({
     }, [upcomingEvents]);
 
     return (
-        <PageContainer sx={{ marginBottom: 2 }}>
+        <>
             {/* Main content */}
             <TopBar
                 display={display}
                 onClose={onClose}
+                startComponent={<IconButton
+                    aria-label="Open chat menu"
+                    onClick={() => { }}
+                    sx={{
+                        width: "48px",
+                        height: "48px",
+                        marginLeft: 1,
+                        marginRight: 1,
+                        cursor: "pointer",
+                    }}
+                >
+                    <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
+                </IconButton>}
                 // Navigate between for you and history pages
                 below={showTabs && (
                     <PageTabs
@@ -274,7 +335,7 @@ export const DashboardView = ({
                 )}
             />
             {/* Prompt stack */}
-            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: "5vh", sm: "20vh" } }}>
+            {/* <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: "5vh", sm: "20vh" } }}>
                 <HomePrompt />
                 <SiteSearchBar
                     id="main-search"
@@ -287,13 +348,12 @@ export const DashboardView = ({
                     showSecondaryLabel={true}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
                 />
-            </Stack>
+            </Stack> */}
             {/* Result feeds */}
             <Box sx={{
                 display: "flex",
                 flexDirection: "column",
                 margin: "auto",
-                marginTop: 10,
                 gap: 4,
             }}>
                 {/* Resources */}
@@ -302,6 +362,7 @@ export const DashboardView = ({
                     list={resourceList}
                     canUpdate={true}
                     handleUpdate={setResourceList}
+                    hideIcons={true}
                     loading={loading}
                     mutate={true}
                     parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
@@ -375,6 +436,24 @@ export const DashboardView = ({
                     />
                 </ListTitleContainer>
             </Box>
-        </PageContainer>
+            <Resizable
+                id="chat-message-input"
+                min={150}
+                max={"50vh"}
+                position="top"
+                sx={{
+                    position: "sticky",
+                    bottom: 0,
+                    height: "min(50vh, 250px)",
+                    background: palette.primary.dark,
+                    color: palette.primary.contrastText,
+                }}>
+                <SearchBox
+                    handleSubmit={() => { }}
+                    searchString={searchString}
+                    setSearchString={setSearchString}
+                />
+            </Resizable>
+        </>
     );
 };

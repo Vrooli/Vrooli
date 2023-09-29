@@ -4,7 +4,7 @@
  * field with a duplicate name has the name format, so as long as 
  * that format matches the fields below, there should be no errors.
  */
-import { ReportFor } from "@local/shared";
+import { ReportFor, urlRegexDev, YupMutateParams } from "@local/shared";
 import * as yup from "yup";
 import { enumToYup } from "./builders";
 import { toPosInt } from "./builders/toPosInt";
@@ -41,13 +41,18 @@ export const pushNotificationKeys = yup.object().shape({
     auth: yup.string().trim().removeEmptyString().max(256, maxStrErr),
 });
 export const smartContractCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const url = yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
-    "link",
-    "Must be a URL",
-    (value: string | undefined) => {
-        return value !== undefined ? urlRegex.test(value) : true;
-    },
-);
+export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
+    yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
+        "link",
+        "Must be a URL",
+        (value: string | undefined) => {
+            return value !== undefined ?
+                env !== "development" ?
+                    urlRegex.test(value) :
+                    urlRegexDev.test(value) :
+                true;
+        },
+    );
 
 export const bool = yup.boolean();
 
@@ -80,7 +85,7 @@ export const referencing = yup.string().trim().removeEmptyString().max(2048, max
 export const language = yup.string().trim().removeEmptyString().min(2, minStrErr).max(3, maxStrErr); // Language code
 export const name = yup.string().trim().removeEmptyString().min(3, minStrErr).max(50, maxStrErr);
 export const tag = yup.string().trim().removeEmptyString().min(2, minStrErr).max(64, maxStrErr);
-export const versionLabel = (minVersion = "0.0.1") => yup.string().trim().removeEmptyString().max(16, maxStrErr).test(...minVersionTest(minVersion));
+export const versionLabel = ({ minVersion = "0.0.1" }: { minVersion?: string }) => yup.string().trim().removeEmptyString().max(16, maxStrErr).test(...minVersionTest(minVersion));
 export const versionNotes = yup.string().trim().removeEmptyString().max(4092, maxStrErr);
 export const idArray = yup.array().of(id.required(reqErr));
 export const tagArray = yup.array().of(tag.required(reqErr));

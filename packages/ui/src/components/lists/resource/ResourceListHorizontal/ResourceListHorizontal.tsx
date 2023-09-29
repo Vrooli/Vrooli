@@ -35,8 +35,8 @@ const ResourceBox = styled(Box)(({ theme }) => ({
     margin: "auto",
     padding: theme.spacing(1),
     cursor: "pointer",
-    width: "120px",
-    minWidth: "120px",
+    width: "194px",
+    minWidth: "194px",
     minHeight: "120px",
     height: "120px",
     position: "relative",
@@ -51,6 +51,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
     data,
     dragProps,
     dragHandleProps,
+    hideIcons,
     index,
     onContextMenu,
     onEdit,
@@ -71,7 +72,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link);
-    }, [data]);
+    }, [data.link, data.usedFor]);
 
     const href = useMemo(() => getResourceUrl(data.link), [data]);
     const handleClick = useCallback((target: EventTarget) => {
@@ -117,7 +118,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
                 onClick={(e) => e.preventDefault()}
             >
                 {/* Edit and delete icons, only visible on hover */}
-                {canUpdate && (
+                {canUpdate && !hideIcons && (
                     <>
                         <Tooltip title={t("Edit")}>
                             <IconButton
@@ -148,7 +149,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
                         textOverflow: "ellipsis",
                     }}
                 >
-                    <Icon sx={{ fill: "white" }} />
+                    {typeof Icon === "function" ? <Icon fill={palette.background.textPrimary} /> : Icon}
                     <Typography
                         gutterBottom
                         variant="body2"
@@ -188,6 +189,7 @@ const LoadingCard = () => {
 export const ResourceListHorizontal = ({
     canUpdate = true,
     handleUpdate,
+    hideIcons = false,
     id,
     list,
     loading = false,
@@ -360,6 +362,7 @@ export const ResourceListHorizontal = ({
                                             dragHandleProps={provided.dragHandleProps}
                                             canUpdate={canUpdate}
                                             key={`resource-card-${index}`}
+                                            hideIcons={hideIcons}
                                             index={index}
                                             data={c}
                                             onContextMenu={openContext}

@@ -6,6 +6,11 @@ export interface ResourceCardProps {
     data: Resource;
     dragProps: DraggableProvidedDraggableProps;
     dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
+    /** 
+     * Hides edit and delete icons when in edit mode, 
+     * making only drag'n'drop and the context menu available.
+     **/
+    hideIcons: boolean;
     index: number;
     onContextMenu: (target: EventTarget, index: number) => void;
     onEdit: (index: number) => void;
@@ -16,6 +21,7 @@ export interface ResourceListHorizontalProps {
     title?: string;
     canUpdate?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
+    hideIcons?: boolean;
     id?: string;
     list: ResourceList | null | undefined;
     loading?: boolean;

@@ -94,7 +94,7 @@ export function ResourceListItem({
                     width: "48px",
                     height: "48px",
                 }}>
-                    <Icon fill={palette.background.textPrimary} width="80%" height="80%" />
+                    {typeof Icon === "function" ? <Icon fill={palette.background.textPrimary} width="80%" height="80%" /> : Icon}
                 </IconButton>
                 <Stack direction="column" spacing={1} pl={2} sx={{ width: "-webkit-fill-available" }}>
                     {/* Name/Title */}

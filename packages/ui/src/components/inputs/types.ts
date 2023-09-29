@@ -267,7 +267,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     disabled?: boolean;
     fullWidth?: boolean;
     getOptionDescription?: (option: T) => string | null | undefined;
-    getOptionIcon?: (option: T) => SvgComponent;
+    getOptionIcon?: (option: T) => SvgComponent | JSX.Element;
     getOptionLabel: (option: T) => string;
     inputAriaLabel?: string;
     label?: string;

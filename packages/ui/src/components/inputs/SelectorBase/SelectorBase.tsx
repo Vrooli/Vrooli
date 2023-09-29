@@ -44,11 +44,15 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
         const Icon = getOptionIcon ? getOptionIcon(option) : null;
         return (
             <MenuItem key={labelText} value={labelText} sx={{ whiteSpace: "normal" }}>
-                {Icon && <ListItemIcon sx={{
-                    minWidth: "32px",
-                }}>
-                    <Icon fill={palette.background.textSecondary} />
-                </ListItemIcon>}
+                {
+                    Icon ?
+                        typeof Icon === "function" ?
+                            <ListItemIcon sx={{ minWidth: "32px" }}>
+                                <Icon fill={palette.background.textSecondary} />
+                            </ListItemIcon> :
+                            Icon :
+                        null
+                }
                 <Stack direction="column">
                     <ListItemText sx={{
                         ...getOptionStyle(labelText),
