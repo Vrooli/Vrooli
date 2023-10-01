@@ -11,9 +11,11 @@ import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";
+import { useDeleter } from "hooks/useDeleter";
 import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon, BotIcon, EditIcon, ErrorIcon, UserIcon } from "icons";
+import usePress from "hooks/usePress";
+import { AddIcon, BotIcon, DeleteIcon, EditIcon, ErrorIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
@@ -31,16 +33,21 @@ const ChatBubbleStatus = ({
     hasError,
     isEditing,
     isSending,
+    onDelete,
     onEdit,
     onRetry,
+    showButtons,
 }: {
     isEditing: boolean;
     /** Indicates if the message is still sending */
     isSending: boolean;
     /** Indicates if there has been an error in sending the message */
     hasError: boolean;
+    onDelete: () => unknown;
     onEdit: () => unknown;
     onRetry: () => unknown;
+    /** Indicates if the edit and delete buttons should be shown */
+    showButtons: boolean;
 }) => {
     const [progress, setProgress] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
@@ -104,12 +111,19 @@ const ChatBubbleStatus = ({
             </IconButton>
         );
     }
-    // Otherwise, show an EditIcon
-    return (
-        <IconButton onClick={() => { onEdit(); }} sx={{ color: green[500] }}>
-            <EditIcon />
-        </IconButton>
+    // If allowed to show buttons, show edit and delete buttons
+    if (showButtons) return (
+        <>
+            <IconButton onClick={onEdit} sx={{ color: green[500] }}>
+                <EditIcon />
+            </IconButton>
+            <IconButton onClick={onDelete} sx={{ color: red[500] }}>
+                <DeleteIcon />
+            </IconButton>
+        </>
     );
+    // Otherwise, show nothing
+    return null;
 };
 
 /**
@@ -205,15 +219,17 @@ const ChatBubbleReactions = ({
 };
 
 export const ChatBubble = ({
+    chatWidth,
     index,
     isOwn,
     message,
+    onDeleted,
     onUpdated,
 }: ChatBubbleProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
-    console.log("chat bubble", message);
+    const isMobile = useMemo(() => chatWidth <= breakpoints.values.sm, [breakpoints, chatWidth]);
 
     const [createMessage, { loading: isCreating, errors: createErrors }] = useLazyFetch<ChatMessageCreateInput, ChatMessage>(endpointPostChatMessage);
     const [updateMessage, { loading: isUpdating, errors: updateErrors }] = useLazyFetch<ChatMessageUpdateInput, ChatMessage>(endpointPutChatMessage);
@@ -226,6 +242,15 @@ export const ChatBubble = ({
             setHasError(true);
         }
     }, [createErrors, updateErrors]);
+
+    const {
+        handleDelete,
+        DeleteDialogComponent,
+    } = useDeleter({
+        object: message as ListObject,
+        objectType: "ChatMessage",
+        onActionComplete: () => { onDeleted(message); },
+    });
 
     const shouldRetry = useRef(true);
     useEffect(() => {
@@ -320,137 +345,162 @@ export const ChatBubble = ({
         };
     }, [message.user]);
 
+    const [bubblePressed, setBubblePressed] = useState(false);
+    const toggleBubblePressed = () => {
+        if (!isMobile && bubblePressed) return;
+        setBubblePressed(!bubblePressed);
+    };
+    const pressEvents = usePress({
+        onLongPress: toggleBubblePressed,
+        onClick: toggleBubblePressed,
+    });
+    useEffect(() => {
+        const handleResize = () => {
+            console.log("handleResize", isMobile, bubblePressed);
+            if (!isMobile && !bubblePressed) setBubblePressed(true);
+            if (isMobile && bubblePressed) setBubblePressed(false);
+        };
+        window.addEventListener("resize", handleResize);
+        return () => {
+            window.removeEventListener("resize", handleResize);
+        };
+    }, [bubblePressed, isMobile]);
+
     return (
-        <Box
-            key={index}
-            sx={{
-                display: "flex",
-                flexDirection: "column",
-                padding: "8px",
-            }}
-        >
-            {/* User name display if it's not your message */}
-            {/* {!isOwn && (
-                <Typography variant="body2">
-                    {message.user?.name ?? message.user?.handle}
-                </Typography>
-            )} */}
-            {!isOwn && (
-                <Stack direction="row" alignItems="center" spacing={0.5} mb={0.5}>
-                    <Typography variant="body2">
-                        {name}
-                    </Typography>
-                    {adornments.length > 0 && adornments.map((Adornment, index) => (
-                        <Box key={index} sx={{
-                            width: fontSizeToPixels("0.85rem") * Number("1.5"),
-                            height: fontSizeToPixels("0.85rem") * Number("1.5"),
-                        }}>
-                            {Adornment}
-                        </Box>
-                    ))}
-                    {handle && (
-                        <Typography variant="body2" color="textSecondary">
-                            @{handle}
-                        </Typography>
-                    )}
-                </Stack>
-            )}
-            {/* Avatar, chat bubble, and status indicator */}
-            <Stack direction="row" justifyContent={isOwn ? "flex-end" : "flex-start"}>
+        <>
+            {DeleteDialogComponent}
+            <Box
+                key={index}
+                sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    padding: "8px",
+                    maxWidth: "100vw",
+                }}
+            >
+                {/* User name display if it's not your message */}
                 {!isOwn && (
-                    <Avatar
-                        src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, 50)}
-                        alt={message.user?.name ?? message.user?.handle ?? message?.user?.isBot ? "Bot" : "User"}
-                        // onClick handlers...
+                    <Stack direction="row" alignItems="center" spacing={0.5} mb={0.5}>
+                        <Typography variant="body2">
+                            {name}
+                        </Typography>
+                        {adornments.length > 0 && adornments.map((Adornment, index) => (
+                            <Box key={index} sx={{
+                                width: fontSizeToPixels("0.85rem") * Number("1.5"),
+                                height: fontSizeToPixels("0.85rem") * Number("1.5"),
+                            }}>
+                                {Adornment}
+                            </Box>
+                        ))}
+                        {handle && (
+                            <Typography variant="body2" color="textSecondary">
+                                @{handle}
+                            </Typography>
+                        )}
+                    </Stack>
+                )}
+                {/* Avatar, chat bubble, and status indicator */}
+                <Stack direction="row" justifyContent={isOwn ? "flex-end" : "flex-start"}>
+                    {!isOwn && (
+                        <Avatar
+                            src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, 50)}
+                            alt={message.user?.name ?? message.user?.handle ?? message?.user?.isBot ? "Bot" : "User"}
+                            // onClick handlers...
+                            sx={{
+                                bgcolor: message.user?.isBot ? "grey" : undefined,
+                                boxShadow: 2,
+                                cursor: "pointer",
+                                marginRight: 1,
+                                // Bots show up as squares, to distinguish them from users
+                                ...(message.user?.isBot ? { borderRadius: "8px" } : {}),
+                            }}
+                        >
+                            {message.user?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                        </Avatar>
+                    )}
+                    <Box
+                        {...pressEvents}
                         sx={{
-                            bgcolor: message.user?.isBot ? "grey" : undefined,
+                            p: 1,
+                            pl: 2,
+                            pr: 2,
+                            ml: isOwn ? "auto" : 0,
+                            mr: isOwn ? 0 : "auto",
+                            backgroundColor: isOwn ?
+                                palette.mode === "light" ? "#88d17e" : "#1a5413" :
+                                palette.background.paper,
+                            color: palette.background.textPrimary,
+                            borderRadius: isOwn ? "8px 8px 0 8px" : "8px 8px 8px 0",
                             boxShadow: 2,
-                            cursor: "pointer",
-                            marginRight: 1,
-                            // Bots show up as squares, to distinguish them from users
-                            ...(message.user?.isBot ? { borderRadius: "8px" } : {}),
+                            width: editingText !== undefined ? "100%" : "unset",
+                            transition: "width 0.3s ease-in-out",
                         }}
                     >
-                        {message.user?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
-                    </Avatar>
-                )}
-                <Box
-                    sx={{
-                        p: 1,
-                        pl: 2,
-                        pr: 2,
-                        ml: isOwn ? "auto" : 0,
-                        mr: isOwn ? 0 : "auto",
-                        backgroundColor: isOwn ?
-                            palette.mode === "light" ? "#88d17e" : "#1a5413" :
-                            palette.background.paper,
-                        color: palette.background.textPrimary,
-                        borderRadius: isOwn ? "8px 8px 0 8px" : "8px 8px 8px 0",
-                        boxShadow: 2,
-                        width: editingText !== undefined ? "100%" : "unset",
-                    }}
-                >
-                    {editingText === undefined ? <MarkdownDisplay
-                        content={getTranslation(message, getUserLanguages(session), true)?.text}
-                        sx={{
-                            whiteSpace: "pre-wrap",
-                            wordWrap: "break-word",
-                            minHeight: "unset",
-                        }}
-                    /> : <>
-                        <RichInputBase
-                            fullWidth
-                            maxChars={1500}
-                            minRows={editingText?.split("\n").length ?? 1}
-                            name="edit-message"
-                            onChange={(updatedText) => setEditingText(updatedText)}
-                            value={editingText ?? ""}
-                        />
-                        <Grid container spacing={1} mt={2}>
-                            <BottomActionsButtons
-                                disabledCancel={isCreating || isUpdating}
-                                disabledSubmit={isCreating || isUpdating}
-                                display="page"
-                                errors={{}}
-                                isCreate={false}
-                                onCancel={() => {
-                                    setEditingText(undefined);
-                                }}
-                                onSubmit={() => {
-                                    finishEditing();
-                                }}
+                        {editingText === undefined ? <MarkdownDisplay
+                            content={getTranslation(message, getUserLanguages(session), true)?.text}
+                            sx={{
+                                whiteSpace: "pre-wrap",
+                                wordWrap: "break-word",
+                                overflowWrap: "anywhere",
+                                minHeight: "unset",
+                            }}
+                        /> : <>
+                            <RichInputBase
+                                fullWidth
+                                maxChars={1500}
+                                minRows={editingText?.split("\n").length ?? 1}
+                                name="edit-message"
+                                onChange={(updatedText) => setEditingText(updatedText)}
+                                value={editingText ?? ""}
                             />
-                        </Grid>
-                    </>
-                    }
-                </Box>
-                {/* Status indicator and edit/retry buttons */}
-                {isOwn && (
-                    <Box display="flex" alignItems="center">
-                        <ChatBubbleStatus
-                            isEditing={Boolean(editingText)}
-                            isSending={isCreating || isUpdating}
-                            hasError={hasError}
-                            onEdit={() => {
-                                startEditing();
-                            }}
-                            onRetry={() => {
-                                shouldRetry.current = true;
-                                onUpdated({ ...message, isUnsent: true });
-                            }}
-                        />
+                            <Grid container spacing={1} mt={2}>
+                                <BottomActionsButtons
+                                    disabledCancel={isCreating || isUpdating}
+                                    disabledSubmit={isCreating || isUpdating}
+                                    display="page"
+                                    errors={{}}
+                                    isCreate={false}
+                                    onCancel={() => {
+                                        setEditingText(undefined);
+                                    }}
+                                    onSubmit={() => {
+                                        finishEditing();
+                                    }}
+                                />
+                            </Grid>
+                        </>
+                        }
                     </Box>
-                )}
-            </Stack>
-            {/* Reactions */}
-            <ChatBubbleReactions
-                handleReactionAdd={handleReactionAdd}
-                isBot={message.user?.isBot ?? false}
-                isOwn={isOwn}
-                isUnsent={message.isUnsent ?? false}
-                messageId={message.id}
-                reactions={message.reactionSummaries}
-            />
-        </Box>
+                    {/* Status indicator and edit/retry buttons */}
+                    {isOwn && (
+                        <Box display="flex" alignItems="center">
+                            <ChatBubbleStatus
+                                isEditing={Boolean(editingText)}
+                                isSending={isCreating || isUpdating}
+                                hasError={hasError}
+                                onDelete={handleDelete}
+                                onEdit={() => {
+                                    startEditing();
+                                }}
+                                onRetry={() => {
+                                    shouldRetry.current = true;
+                                    onUpdated({ ...message, isUnsent: true });
+                                }}
+                                showButtons={bubblePressed}
+                            />
+                        </Box>
+                    )}
+                </Stack>
+                {/* Reactions */}
+                <ChatBubbleReactions
+                    handleReactionAdd={handleReactionAdd}
+                    isBot={message.user?.isBot ?? false}
+                    isOwn={isOwn}
+                    isUnsent={message.isUnsent ?? false}
+                    messageId={message.id}
+                    reactions={message.reactionSummaries}
+                />
+            </Box>
+        </>
     );
 };

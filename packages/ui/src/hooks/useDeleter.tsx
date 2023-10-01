@@ -17,7 +17,7 @@ const ObjectsToConfirmLevel: Record<DeleteType, ConfirmationLevel> = {
     Bookmark: "none",
     Chat: "minimal",
     ChatInvite: "none",
-    ChatMessage: "none",
+    ChatMessage: "minimal",
     ChatParticipant: "none",
     Comment: "minimal",
     Email: "minimal",

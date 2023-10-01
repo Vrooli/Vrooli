@@ -1,6 +1,6 @@
-import { Chat, ChatCreateInput, ChatMessage, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Checkbox, IconButton, InputAdornment, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper, socket } from "api";
+import { errorToMessage, fetchLazyWrapper, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -18,6 +18,7 @@ import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ChatFormProps } from "forms/types";
 import { useDeleter } from "hooks/useDeleter";
+import { useDimensions } from "hooks/useDimensions";
 import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
@@ -31,13 +32,13 @@ import { useLocation } from "route";
 import { FormContainer, FormSection, pagePaddingBottom } from "styles";
 import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { getYou } from "utils/display/listTools";
+import { getDisplay, getYou, ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { uuidToBase36 } from "utils/navigation/urlTools";
 import { noopSubmit } from "utils/objects";
 import { PubSub } from "utils/pubsub";
-import { updateArray, validateAndGetYupErrors } from "utils/shape/general";
+import { addToArray, updateArray, validateAndGetYupErrors } from "utils/shape/general";
 import { ChatShape, shapeChat } from "utils/shape/models/chat";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
@@ -153,7 +154,6 @@ const NewMessageContainer = ({
 }) => {
     const session = useContext(SessionContext);
     const dimensions = useDimensionContext();
-    console.log("newmessagecontainer dimensions", dimensions);
 
     return (
         <RichInputBase
@@ -203,6 +203,45 @@ const NewMessageContainer = ({
     );
 };
 
+const getTypingIndicatorText = (participants: ListObject[], maxChars: number) => {
+    if (participants.length === 0) return "";
+    if (participants.length === 1) return `${getDisplay(participants[0]).title} is typing`;
+    if (participants.length === 2) return `${getDisplay(participants[0]).title}, ${getDisplay(participants[1]).title} are typing`;
+    let text = `${getDisplay(participants[0]).title}, ${getDisplay(participants[1]).title}`;
+    let remainingCount = participants.length - 2;
+    while (remainingCount > 0 && (text.length + getDisplay(participants[remainingCount]).title.length + 5) <= maxChars) {
+        text += `, ${participants[remainingCount]}`;
+        remainingCount--;
+    }
+    if (remainingCount === 0) return `${text} are typing`;
+    return `${text}, +${remainingCount} are typing`;
+};
+
+const TypingIndicator = ({
+    maxChars = 30,
+    participants,
+}: {
+    maxChars?: number,
+    participants: ListObject[]
+}) => {
+    const [dots, setDots] = useState("");
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (dots.length < 3) setDots(dots + ".");
+            else setDots("");
+        }, 500);
+
+        return () => clearInterval(interval);
+    }, [dots]);
+
+    const displayText = getTypingIndicatorText(participants, maxChars);
+
+    if (!displayText) return null;
+
+    return <Typography variant="body2" p={1}>{displayText} {dots}</Typography>;
+};
+
 const ChatForm = ({
     context,
     disabled,
@@ -223,9 +262,11 @@ const ChatForm = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const { dimensions, ref: dimRef } = useDimensions();
 
     const [message, setMessage] = useState<string>(context ?? "");
     const isCreate = useMemo(() => existing.id === DUMMY_ID, [existing.id]);
+    const [typing, setTyping] = useState<ChatParticipant[]>([]);
 
     const {
         fetch,
@@ -264,61 +305,108 @@ const ChatForm = ({
             fetch,
             inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values), withoutOtherMessages(existing), isCreate),
             onSuccess: (data) => {
+                console.log("update success!", data);
                 // Update, but make sure messages are in the correct order
                 handleUpdate({
                     ...data,
                     messages: data.messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
                 });
                 setMessage("");
-            }, // Most forms will use handleComplete, but we may still be chatting. So don't close the form.
+            },
             onCompleted: () => { props.setSubmitting(false); },
+            onError: (data) => {
+                PubSub.get().publishSnack({
+                    message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
+                    severity: "Error",
+                    data,
+                });
+            },
         });
     }, [disabled, existing, fetch, handleUpdate, isCreate, props, session, values]);
 
-    // Handle websocket for chat messages (e.g. new message, new reactions, etc.)
+    // Handle websocket connection/disconnection
     useEffect(() => {
         // Only connect to the websocket if the chat exists
         if (!existing?.id || existing.id === DUMMY_ID) return;
         socket.emit("joinRoom", existing.id, (response) => {
             if (response.error) {
-                // handle error
-                console.error(response.error);
+                console.error("Failed to join chat room", response?.error);
             } else {
-                console.log("Joined chat room");
+                console.info("Joined chat room");
             }
         });
-
-        // Define chat-specific event handlers
-        socket.on("message", (message: ChatMessage) => {
-            console.log("GOT MESSAGE", message);
-            // Add message to chat if it's not already there. 
-            // Make sure it is inserted in the correct order, using the created_at field.
-            // Find index to insert message at
-            handleUpdate(c => ({
-                ...c,
-                messages: updateArray(
-                    c.messages,
-                    c.messages.findIndex(m => m.created_at > message.created_at),
-                    message as ChatMessageShape,
-                ),
-            }));
-        });
-
         // Leave the chat room when the component is unmounted
         return () => {
             socket.emit("leaveRoom", existing.id, (response) => {
                 if (response.error) {
-                    // handle error
-                    console.error(response.error);
+                    console.error("Failed to leave chat room", response?.error);
                 } else {
-                    console.log("Left chat room");
+                    console.info("Left chat room");
                 }
             });
-
+        };
+    }, [existing.id]);
+    // Handle websocket events
+    useEffect(() => {
+        // When a message is received, add it to the chat
+        socket.on("message", (message: ChatMessage) => {
+            console.log("chat room GOT MESSAGE", message);
+            // Make sure it's inserted in the correct order, using the created_at field.
+            handleUpdate(c => ({
+                ...c,
+                messages: addToArray(
+                    c.messages,
+                    message as ChatMessageShape,
+                ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+            }));
+        });
+        // When a message is updated, update it in the chat
+        socket.on("editMessage", (message: ChatMessage) => {
+            console.log("chat room GOT MESSAGE UPDATE", message);
+            handleUpdate(c => ({
+                ...c,
+                messages: updateArray(
+                    c.messages,
+                    c.messages.findIndex(m => m.id === message.id),
+                    message as ChatMessageShape,
+                ),
+            }));
+        });
+        // When a message is deleted, remove it from the chat
+        socket.on("deleteMessage", (id: string) => {
+            console.log("chat room GOT MESSAGE DELETE", message);
+            handleUpdate(c => ({
+                ...c,
+                messages: c.messages.filter(m => m.id !== id),
+            }));
+        });
+        // Show the status of users typing
+        socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
+            console.log("chat room GOT TYPING", starting, stopping);
+            // Add every user that's typing
+            const newTyping = [...typing];
+            for (const id of starting ?? []) {
+                // Never add yourself
+                if (id === getCurrentUser(session).id) continue;
+                if (newTyping.some(p => p.user.id === id)) continue;
+                const participant = existing.participants?.find(p => p.user.id === id);
+                if (!participant) continue;
+                newTyping.push(participant);
+            }
+            // Remove every user that stopped typing
+            for (const id of stopping ?? []) {
+                const index = newTyping.findIndex(p => p.user.id === id);
+                if (index === -1) continue;
+                newTyping.splice(index, 1);
+            }
+            setTyping(newTyping);
+        });
+        return () => {
             // Remove chat-specific event handlers
             socket.off("message");
+            socket.off("typing");
         };
-    }, [existing.id, handleUpdate]);
+    }, [existing.participants, handleUpdate, session, typing]);
 
     // Handle translations
     const {
@@ -432,6 +520,7 @@ const ChatForm = ({
                         isDeletable={!(isCreate || disabled)}
                         isEditable={!disabled}
                         language={language}
+                        onClose={onSubmit}
                         onSubmit={onSubmit}
                         titleField="name"
                         subtitleField="description"
@@ -533,21 +622,28 @@ const ChatForm = ({
                         )}
                     />}
                 />
-                <Box sx={{
+                <Box ref={dimRef} sx={{
                     display: "table",
                     margin: "auto",
                     overflowY: "auto",
                     maxHeight: "calc(100vh - 64px)",
                     minHeight: "calc(100vh - 64px)",
-                    minWidth: "min(500px, 100vw)",
+                    minWidth: "min(700px, 100vw)",
                 }}>
                     {existing.messages.map((message: ChatMessageShape, index) => {
                         const isOwn = message.user?.id === getCurrentUser(session).id;
                         return <ChatBubble
                             key={index}
+                            chatWidth={dimensions.width}
                             message={message}
                             index={index}
                             isOwn={isOwn}
+                            onDeleted={(deletedMessage) => {
+                                handleUpdate(c => ({
+                                    ...c,
+                                    messages: c.messages.filter(m => m.id !== deletedMessage.id),
+                                }));
+                            }}
                             onUpdated={(updatedMessage) => {
                                 handleUpdate(c => ({
                                     ...c,
@@ -560,6 +656,7 @@ const ChatForm = ({
                             }}
                         />;
                     })}
+                    <TypingIndicator participants={typing} />
                 </Box>
                 <Resizable
                     id="chat-message-input"

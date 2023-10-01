@@ -2,7 +2,8 @@ import { ChatCreateInput, ChatInviteCreateInput, chatInviteValidation, ChatMessa
 import { readManyHelper } from "../../actions";
 import { shapeHelper } from "../../builders";
 import { chatMessage_findMany } from "../../endpoints";
-import { CustomError, Trigger } from "../../events";
+import { CustomError, logger, Trigger } from "../../events";
+import { io } from "../../io";
 import { SERVER_URL } from "../../server";
 import { bestTranslation } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
@@ -303,10 +304,28 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             }),
         },
         trigger: {
-            afterMutations: async ({ createdIds, deletedIds, updatedIds, preMap, prisma, userData }) => {
-                const messageData = preMap[__typename].messageData;
-                const botData = preMap[__typename].botData;
-                const chatData = preMap[__typename].chatData;
+            beforeDeleted: async ({ beforeDeletedData, deletingIds, prisma }) => {
+                const deleting = await prisma.chat_message.findMany({
+                    where: { id: { in: deletingIds } },
+                    select: {
+                        id: true,
+                        chat: { select: { id: true } },
+                        user: { select: { id: true } },
+                    },
+                });
+                // Add data to beforeDeletedData
+                // const messageData = deleting.map(m => ({ id: m.id, chatId: m.chat?.id, userId: m.user?.id }));
+                const messageData = {};
+                for (const m of deleting) {
+                    messageData[m.id] = { id: m.id, chatId: m.chat?.id, userId: m.user?.id };
+                }
+                if (beforeDeletedData[__typename]) beforeDeletedData[__typename] = { ...beforeDeletedData[__typename], ...messageData };
+                else beforeDeletedData[__typename] = messageData;
+            },
+            afterMutations: async ({ beforeDeletedData, createdIds, deletedIds, updatedIds, preMap, prisma, userData }) => {
+                const botData: Record<string, PreMapBotData> = preMap[__typename]?.botData ?? {};
+                const chatData: Record<string, PreMapChatData> = preMap[__typename]?.chatData ?? {};
+                const messageData: Record<string, PreMapMessageData> = preMap[__typename]?.messageData ?? {};
                 let messages: ChatMessage[] = [];
                 if (createdIds.length > 0 || updatedIds.length > 0) {
                     const paginatedMessages = await readManyHelper({
@@ -354,7 +373,10 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     if (bots.length === 0) continue;
                     // Check condition 4
                     if (bots.length === 1 && chat.participantsCount === 2) {
-                        //TODO
+                        const bot = bots[0];
+                        // Send typing message while bot is responding
+                        io.to(message.chatId as string).emit("typing", { starting: [bot.id] });
+                        //TODO Call OpenAI API
                     }
                     // Check condition 5
                     else {
@@ -393,6 +415,8 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                             // Remove duplicates
                             botsToRespond = [...new Set(botsToRespond)];
                         }
+                        // Send typing indicator while bots are responding
+                        io.to(message.chatId as string).emit("typing", { starting: botsToRespond });
                         // For each bot that should respond, request bot response
                         for (const botId of botsToRespond) {
                             //TODO
@@ -423,10 +447,15 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         objectType: __typename,
                         wasCompleteAndPublic: true, // N/A
                     });
-                    await Trigger(prisma, userData.languages).chatMessageDeleted({
-                        data: messageData[objectId],
-                        messageId: objectId,
-                    });
+                    const messageData = beforeDeletedData[__typename]?.[objectId];
+                    if (messageData) {
+                        await Trigger(prisma, userData.languages).chatMessageDeleted({
+                            data: messageData,
+                            messageId: objectId,
+                        });
+                    } else {
+                        logger.error("Message data not found", { trace: "0067", user: userData.id, message: objectId });
+                    }
                 }
             },
         },

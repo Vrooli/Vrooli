@@ -53,10 +53,11 @@ export const BasicSnack = ({
     const { palette } = useTheme();
 
     const [open, setOpen] = useState<boolean>(true);
+
     // Timout to close the snack, if not persistent
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    // Timeout starts immediately
-    useEffect(() => {
+    const startAutoHideTimeout = () => {
+        // Certain snack types require manual closing
         if (autoHideDuration === "persist") return;
         timeoutRef.current = setTimeout(() => {
             // First set to close
@@ -66,12 +67,26 @@ export const BasicSnack = ({
                 handleClose();
             }, 400);
         }, autoHideDuration ?? 5000);
+    };
+    // Start close timeout automatically
+    useEffect(() => {
+        startAutoHideTimeout();
         return () => {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
         };
-    }, [autoHideDuration, handleClose]);
+    }, [autoHideDuration, handleClose, startAutoHideTimeout]);
+    // Clear timeout when interacting with the snack
+    const handleMouseEnter = () => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+    };
+    // Restart timeout when done interacting with the snack
+    const handleMouseLeave = () => {
+        startAutoHideTimeout();
+    };
 
     useEffect(() => {
         // Log snack errors if in development
@@ -95,20 +110,23 @@ export const BasicSnack = ({
     }, [severity]);
 
     return (
-        <Box sx={{
-            display: "flex",
-            pointerEvents: "auto",
-            justifyContent: "space-between",
-            alignItems: "center",
-            maxWidth: { xs: "100%", sm: "600px" },
-            // Scrolls out of view when closed
-            transform: open ? "translateX(0)" : "translateX(-150%)",
-            transition: "transform 0.4s ease-in-out",
-            padding: 1,
-            borderRadius: 2,
-            boxShadow: 8,
-            ...severityStyle(severity, palette),
-        }}>
+        <Box
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            sx={{
+                display: "flex",
+                pointerEvents: "auto",
+                justifyContent: "space-between",
+                alignItems: "center",
+                maxWidth: { xs: "100%", sm: "600px" },
+                // Scrolls out of view when closed
+                transform: open ? "translateX(0)" : "translateX(-150%)",
+                transition: "transform 0.4s ease-in-out",
+                padding: 1,
+                borderRadius: 2,
+                boxShadow: 8,
+                ...severityStyle(severity, palette),
+            }}>
             {/* Icon */}
             <Icon fill="white" />
             {/* Message */}

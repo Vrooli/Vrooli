@@ -5,9 +5,11 @@ import { SxType } from "types";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 export interface ChatBubbleProps {
+    chatWidth: number;
     message: ChatMessageShape;
     index: number;
     isOwn: boolean;
+    onDeleted: (message: ChatMessageShape) => unknown;
     onUpdated: (message: ChatMessageShape) => unknown;
 }
 

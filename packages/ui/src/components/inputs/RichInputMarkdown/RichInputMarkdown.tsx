@@ -343,7 +343,6 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                     return;
                 }
             }
-            console.log("tag info:", tagData.anchorEl, typeof getTaggableItems, e.key);
             // Handle tag dropdown. Triggered by "@" key press
             if (!tagData.anchorEl && typeof getTaggableItems === "function" && e.key === "@") {
                 console.log("opening dropdown for tags");

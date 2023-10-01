@@ -56,6 +56,11 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     }) => {
         if (message.id && data.chatId) {
             Notify(prisma, languages).pushMessageReceived(message.id, data.userId).toChatParticipants(data.chatId, createdById);
+            // TODO temp: log number of socket listeners
+            const sockets = io.sockets.adapter.rooms.get(data.chatId);
+            console.log("chat message socket size", sockets?.size);
+            const clientsInRoom = io.sockets.adapter.rooms[data.chatId];
+            console.log("clients in room", clientsInRoom);
             io.to(data.chatId).emit("message", message);
         } else {
             logger.error("Could not send notification or socket event for ChatMessage", { trace: "0494", message, data });
@@ -69,7 +74,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         message: ChatMessage,
     }) => {
         if (data.chatId) {
-            io.to(data.chatId).emit("message", message);
+            io.to(data.chatId).emit("editMessage", message);
         } else {
             logger.error("Could not send socket event for ChatMessage", { trace: "0496", message, data });
         }
@@ -313,6 +318,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // asdf
         // // Increase/decrease reputation score of object owner(s), depending on sentiment of currentReaction compared to previousReaction
         // asdfasdf
+        //TODO if reacted on chat message, send io addReaction event. Also make sure ChatCrud handles it
     },
     organizationJoin: async (organizationId: string, userId: string) => {
         // const notification = Notify(prisma, languages).pushOrganizationJoin();

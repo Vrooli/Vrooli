@@ -95,7 +95,7 @@ export async function cudHelper({
         topInputsByType[objectType]![actionType].push({ index, input: input as any });
     }
     // Initialize data for afterMutations trigger
-    const deletedIds: { [key in GqlModelType]?: string[] } = {};
+    const deletedIdsByType: { [key in GqlModelType]?: string[] } = {};
     const beforeDeletedData: { [key in GqlModelType]?: object } = {};
     // Create array to store operations for transaction
     const operations: PrismaPromise<any>[] = [];
@@ -141,7 +141,6 @@ export async function cudHelper({
         // Delete
         if (Delete.length > 0) {
             // Call beforeDeleted
-            const beforeDeletedData: object = [];
             if (mutate.trigger?.beforeDeleted) {
                 await mutate.trigger.beforeDeleted({ beforeDeletedData, deletingIds, prisma, userData });
             }
@@ -152,8 +151,8 @@ export async function cudHelper({
                     where: { [idField]: { in: deletingIds } },
                     select: { id: true },
                 }).then(x => x.map(({ id }) => id));
-                // Update deletedIds
-                deletedIds[objectType] = existingIds;
+                // Update deletedIdsByType
+                deletedIdsByType[objectType] = existingIds;
                 // Add to operations
                 const deleteOperation = delegate(prisma).deleteMany({
                     where: { [idField]: { in: existingIds } },
@@ -182,7 +181,7 @@ export async function cudHelper({
             transactionIndex++;
         }
         if (Delete.length > 0) {
-            const ids = deletedIds[objectType];
+            const ids = deletedIdsByType[objectType];
             for (const id of ids) {
                 const index = inputData.findIndex(({ input }) => input === id);
                 if (index >= 0) result[index] = true;
@@ -193,14 +192,21 @@ export async function cudHelper({
     // Similar to how we grouped inputs, now we need to group outputs
     const outputsByType = cudOutputsToMaps({ idsByAction, inputsById });
     // Call afterMutations function for each type
-    for (const [type, { createInputs, createdIds, updatedIds, updateInputs }] of Object.entries(outputsByType)) {
+    const allTypes = new Set([...Object.keys(outputsByType), ...Object.keys(deletedIdsByType)]);
+    // for (const [type, { createInputs, createdIds, updatedIds, updateInputs }] of Object.entries(outputsByType)) {
+    for (const type of allTypes) {
         const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "afterMutations type");
         if (!mutate.trigger?.afterMutations) continue;
+        const createInputs = outputsByType[type]?.createInputs || [];
+        const createdIds = outputsByType[type]?.createdIds || [];
+        const updatedIds = outputsByType[type]?.updatedIds || [];
+        const updateInputs = outputsByType[type]?.updateInputs || [];
+        const deletedIds = deletedIdsByType[type as GqlModelType] || [];
         await mutate.trigger.afterMutations({
             beforeDeletedData,
             createdIds,
             createInputs,
-            deletedIds: deletedIds[type as GqlModelType] || [],
+            deletedIds,
             preMap,
             prisma,
             updatedIds,

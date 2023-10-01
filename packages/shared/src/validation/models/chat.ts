@@ -32,6 +32,6 @@ export const chatValidation: YupModel = {
         ["labels", ["Connect", "Disconnect"], "many", "opt"],
         ["messages", ["Create", "Update", "Delete"], "many", "opt", chatMessageValidation],
         ["participants", ["Delete"], "many", "opt"],
-        ["translations", ["Create"], "many", "opt", chatTranslationValidation],
+        ["translations", ["Create", "Update", "Delete"], "many", "opt", chatTranslationValidation],
     ], [], d),
 };

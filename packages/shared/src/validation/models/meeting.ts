@@ -37,6 +37,6 @@ export const meetingValidation: YupModel = {
         ["invites", ["Create", "Update", "Delete"], "many", "opt", meetingInviteValidation],
         ["labels", ["Connect", "Disconnect"], "many", "opt"],
         ["schedule", ["Create", "Update"], "one", "opt", scheduleValidation],
-        ["translations", ["Create"], "many", "opt", meetingTranslationValidation],
+        ["translations", ["Create", "Update", "Delete"], "many", "opt", meetingTranslationValidation],
     ], [], d),
 };
