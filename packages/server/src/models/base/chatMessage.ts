@@ -6,7 +6,7 @@ import { CustomError, logger, Trigger } from "../../events";
 import { io } from "../../io";
 import { SERVER_URL } from "../../server";
 import { bestTranslation } from "../../utils";
-import { getLanguageModelService } from "../../utils/llmService";
+import { respondToMessage } from "../../utils/llmService";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { ChatMessageFormat } from "../formats";
@@ -29,7 +29,8 @@ export type PreMapMessageData = {
     userId: string;
 }
 
-type PreMapChatData = {
+/** Information for a message's corresponding chat, collected in mutate.shape.pre */
+export type PreMapChatData = {
     botParticipants?: string[],
     potentialBotIds?: string[],
     participantsDelete?: string[],
@@ -52,8 +53,8 @@ type PreMapChatData = {
  * Fields that we'll use to set up bot context. 
  * Taken by combining parsed bot settings wiht other information 
  * from the user object.
- * */
-type PreMapBotData = {
+ */
+export type PreMapBotData = {
     botSettings: string,
     id: string,
     name: string;
@@ -379,25 +380,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     if (bots.length === 1 && chat.participantsCount === 2) {
                         const bot = bots[0];
                         // Call LLM for bot response
-                        try {
-                            const botSettings = typeof bot.botSettings === "string" ? JSON.parse(bot.botSettings) : {};
-                            const languageModelService = getLanguageModelService(botSettings);
-                            // Send typing message while bot is responding
-                            io.to(message.chatId as string).emit("typing", { starting: [bot.id] });
-                            const responseText = await languageModelService.generateResponse(message.content, botSettings);
-                            console.log("GOT RESPONSE TEXT", responseText);
-                            // await prisma.chat_message.create({
-                            //     data: {
-                            //         content: responseText,
-                            //         chatId: message.chatId as string,
-                            //         userId: bot.id,
-                            //     },
-                            // });
-                        } catch (error) {
-                            logger.error("Error generating response or saving to database:", { trace: "0010", error });
-                        } finally {
-                            io.to(message.chatId as string).emit("typing", { stopping: [bot.id] });
-                        }
+                        await respondToMessage(message, bot, prisma, userData);
                     }
                     // Check condition 5
                     else {
@@ -440,7 +423,8 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         io.to(message.chatId as string).emit("typing", { starting: botsToRespond });
                         // For each bot that should respond, request bot response
                         for (const botId of botsToRespond) {
-                            //TODO
+                            // Call LLM for bot response
+                            await respondToMessage(message, botData[botId], prisma, userData);
                         }
                     }
                 }
