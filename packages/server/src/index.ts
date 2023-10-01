@@ -16,7 +16,7 @@ import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
 import { server, SERVER_URL } from "./server";
-import { setupStripe, setupValyxa } from "./services";
+import { setupStripe } from "./services";
 import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
 import { loadSecrets } from "./utils/loadSecrets";
 import { setupDatabase } from "./utils/setupDatabase";
@@ -111,7 +111,6 @@ const main = async () => {
 
     // Set up external services (including webhooks)
     setupStripe(app);
-    setupValyxa(app);
 
     // Set static folders
     // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));

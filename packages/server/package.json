@@ -52,6 +52,7 @@
         "node-ical": "^0.15.3",
         "nodemailer": "^6.6.0",
         "nodemon": "^2.0.7",
+        "openai": "^4.11.0",
         "redis": "4.4.0",
         "sharp": "^0.32.3",
         "socket.io": "^4.6.2",

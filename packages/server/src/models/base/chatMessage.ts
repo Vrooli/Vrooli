@@ -6,6 +6,7 @@ import { CustomError, logger, Trigger } from "../../events";
 import { io } from "../../io";
 import { SERVER_URL } from "../../server";
 import { bestTranslation } from "../../utils";
+import { getLanguageModelService } from "../../utils/llmService";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { ChatMessageFormat } from "../formats";
@@ -54,6 +55,7 @@ type PreMapChatData = {
  * */
 type PreMapBotData = {
     botSettings: string,
+    id: string,
     name: string;
 } & { [key: string]: string };
 
@@ -194,6 +196,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     allowedBots.forEach(p => {
                         botData[p.user.id] = {
                             botSettings: p.user.botSettings ?? JSON.stringify({}),
+                            id: p.user.id,
                             name: p.user.name,
                         };
                     });
@@ -243,6 +246,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         if (!bot.isPrivate || bot.invitedByUser?.id === userData.id) {
                             botData[bot.id] = {
                                 botSettings: bot.botSettings ?? JSON.stringify({}),
+                                id: bot.id,
                                 name: bot.name,
                             };
                             // Also add to chatData.botParticipants
@@ -374,9 +378,26 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     // Check condition 4
                     if (bots.length === 1 && chat.participantsCount === 2) {
                         const bot = bots[0];
-                        // Send typing message while bot is responding
-                        io.to(message.chatId as string).emit("typing", { starting: [bot.id] });
-                        //TODO Call OpenAI API
+                        // Call LLM for bot response
+                        try {
+                            const botSettings = typeof bot.botSettings === "string" ? JSON.parse(bot.botSettings) : {};
+                            const languageModelService = getLanguageModelService(botSettings);
+                            // Send typing message while bot is responding
+                            io.to(message.chatId as string).emit("typing", { starting: [bot.id] });
+                            const responseText = await languageModelService.generateResponse(message.content, botSettings);
+                            console.log("GOT RESPONSE TEXT", responseText);
+                            // await prisma.chat_message.create({
+                            //     data: {
+                            //         content: responseText,
+                            //         chatId: message.chatId as string,
+                            //         userId: bot.id,
+                            //     },
+                            // });
+                        } catch (error) {
+                            logger.error("Error generating response or saving to database:", { trace: "0010", error });
+                        } finally {
+                            io.to(message.chatId as string).emit("typing", { stopping: [bot.id] });
+                        }
                     }
                     // Check condition 5
                     else {
