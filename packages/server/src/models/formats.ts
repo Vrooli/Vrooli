@@ -213,6 +213,7 @@ export const ChatMessageFormat: Formatter<ChatMessageModelLogic> = {
     gqlRelMap: {
         __typename: "ChatMessage",
         chat: "Chat",
+        fork: "ChatMessage",
         user: "User",
         reactionSummaries: "ReactionSummary",
         reports: "Report",

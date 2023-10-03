@@ -380,7 +380,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     if (bots.length === 1 && chat.participantsCount === 2) {
                         const bot = bots[0];
                         // Call LLM for bot response
-                        await respondToMessage(message, bot, prisma, userData);
+                        await respondToMessage(objectId, message, bot, prisma, userData);
                     }
                     // Check condition 5
                     else {
@@ -424,7 +424,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         // For each bot that should respond, request bot response
                         for (const botId of botsToRespond) {
                             // Call LLM for bot response
-                            await respondToMessage(message, botData[botId], prisma, userData);
+                            await respondToMessage(objectId, message, botData[botId], prisma, userData);
                         }
                     }
                 }

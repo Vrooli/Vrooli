@@ -691,6 +691,7 @@ export type ChatMessage = {
   __typename: 'ChatMessage';
   chat: Chat;
   created_at: Scalars['Date'];
+  fork?: Maybe<ChatMessageFork>;
   id: Scalars['ID'];
   isFork: Scalars['Boolean'];
   reactionSummaries: Array<ReactionSummary>;
@@ -717,6 +718,12 @@ export type ChatMessageEdge = {
   __typename: 'ChatMessageEdge';
   cursor: Scalars['String'];
   node: ChatMessage;
+};
+
+export type ChatMessageFork = {
+  __typename: 'ChatMessageFork';
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
 };
 
 export type ChatMessageSearchInput = {
@@ -8703,7 +8710,7 @@ export type StandardVersionCreateInput = {
   isPrivate: Scalars['Boolean'];
   props: Scalars['String'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-  rootConnect: Scalars['ID'];
+  rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<StandardCreateInput>;
   standardType: Scalars['String'];
   translationsCreate?: InputMaybe<Array<StandardVersionTranslationCreateInput>>;
@@ -9891,6 +9898,7 @@ export type ResolversTypes = {
   ChatMessage: ResolverTypeWrapper<ChatMessage>;
   ChatMessageCreateInput: ChatMessageCreateInput;
   ChatMessageEdge: ResolverTypeWrapper<ChatMessageEdge>;
+  ChatMessageFork: ResolverTypeWrapper<ChatMessageFork>;
   ChatMessageSearchInput: ChatMessageSearchInput;
   ChatMessageSearchResult: ResolverTypeWrapper<ChatMessageSearchResult>;
   ChatMessageSortBy: ChatMessageSortBy;
@@ -10651,6 +10659,7 @@ export type ResolversParentTypes = {
   ChatMessage: ChatMessage;
   ChatMessageCreateInput: ChatMessageCreateInput;
   ChatMessageEdge: ChatMessageEdge;
+  ChatMessageFork: ChatMessageFork;
   ChatMessageSearchInput: ChatMessageSearchInput;
   ChatMessageSearchResult: ChatMessageSearchResult;
   ChatMessageTranslation: ChatMessageTranslation;
@@ -11508,6 +11517,7 @@ export type ChatInviteYouResolvers<ContextType = any, ParentType extends Resolve
 export type ChatMessageResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessage'] = ResolversParentTypes['ChatMessage']> = {
   chat?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  fork?: Resolver<Maybe<ResolversTypes['ChatMessageFork']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isFork?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   reactionSummaries?: Resolver<Array<ResolversTypes['ReactionSummary']>, ParentType, ContextType>;
@@ -11525,6 +11535,12 @@ export type ChatMessageResolvers<ContextType = any, ParentType extends Resolvers
 export type ChatMessageEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageEdge'] = ResolversParentTypes['ChatMessageEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatMessageForkResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageFork'] = ResolversParentTypes['ChatMessageFork']> = {
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14849,6 +14865,7 @@ export type Resolvers<ContextType = any> = {
   ChatInviteYou?: ChatInviteYouResolvers<ContextType>;
   ChatMessage?: ChatMessageResolvers<ContextType>;
   ChatMessageEdge?: ChatMessageEdgeResolvers<ContextType>;
+  ChatMessageFork?: ChatMessageForkResolvers<ContextType>;
   ChatMessageSearchResult?: ChatMessageSearchResultResolvers<ContextType>;
   ChatMessageTranslation?: ChatMessageTranslationResolvers<ContextType>;
   ChatMessageYou?: ChatMessageYouResolvers<ContextType>;

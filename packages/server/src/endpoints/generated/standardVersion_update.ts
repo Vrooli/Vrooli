@@ -50,8 +50,10 @@ export const standardVersion_update = {
         "language": true,
         "description": true,
         "name": true
-      }
-    }
+      },
+      "__typename": "Resource"
+    },
+    "__typename": "ResourceList"
   },
   "root": {
     "parent": {

@@ -70,8 +70,10 @@ export const standard_create = {
           "language": true,
           "description": true,
           "name": true
-        }
-      }
+        },
+        "__typename": "Resource"
+      },
+      "__typename": "ResourceList"
     },
     "translations": {
       "id": true,

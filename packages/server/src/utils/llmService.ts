@@ -8,16 +8,14 @@ import { PreMapBotData, PreMapMessageData } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 
 // Define an interface for a language model service
-interface LanguageModelService<Response> {
+interface LanguageModelService {
     /** Generate a message response */
-    generateResponse(prompt: string, config?: any): Promise<Response>;
+    generateResponse(prompt: string, config?: any): Promise<string>;
     /** Convert a preferred model to an available one */
     getModel(requestedModel: string): string;
-    /** Store and process a message response (i.e. insert into database and call triggers) */
-    processResponse(response: Response, message: PreMapMessageData, bot: PreMapBotData, prisma: PrismaType, userData: SessionUserToken): Promise<void>;
 }
 
-export class OpenAIService implements LanguageModelService<string> {
+export class OpenAIService implements LanguageModelService {
     private openai: OpenAI;
 
     constructor() {
@@ -48,18 +46,43 @@ export class OpenAIService implements LanguageModelService<string> {
         if (requestedModel.startsWith("gpt-4")) return "gpt-4";
         return defaultModel;
     }
+}
 
-    async processResponse(response: string, message: PreMapMessageData, bot: PreMapBotData, prisma: PrismaType, userData: SessionUserToken): Promise<void> {
+export const getLanguageModelService = (_botSettings: Record<string, unknown>): LanguageModelService => {
+    // For now, always return OpenAIService, but you could add logic to return different services based on botSettings
+    return new OpenAIService();
+};
+
+//TODO need to pass all chat's botData to this function. Then if one of the bots is in the previous messages, we 
+// can also include its persona in the system message.
+// TODO should query messages all at once if there are less than k in the chat, otherwise batch. Should select 
+// fork data, fork's fork data, etc. a few times, as a way to locate relevant messages
+// TODO to handle race conditions where multiple messages set the same forkId, we should batch both upwards (see the previous TODO), 
+// and downwards. To query downwards, get all forkIds from upwards query and query for all messages with those forkIds. Then,
+// combine upwards and downwards.
+// TODO create cron job to fix messages with duplicate forkIds, and to fix messages with forkIds that don't exist
+/**
+ * Responds to a chat message, handling response generation and processing, 
+ * websocket events, and any other logic
+ */
+export const respondToMessage = async (messageId: string, message: PreMapMessageData, bot: PreMapBotData, prisma: PrismaType, userData: SessionUserToken): Promise<void> => {
+    try {
+        const botSettings = typeof bot.botSettings === "string" ? JSON.parse(bot.botSettings) : {};
+        const service = getLanguageModelService(botSettings);
+        // Send typing message while bot is responding
+        io.to(message.chatId as string).emit("typing", { starting: [bot.id] });
+        const text = await service.generateResponse(message.content, botSettings);
         const select = selectHelper(chatMessage_findOne);
         const createdData = await prisma.chat_message.create({
             data: {
                 chat: { connect: { id: message.chatId as string } },
                 isFork: false,
+                fork: { connect: { id: messageId } },
                 user: { connect: { id: bot.id } },
                 translations: {
                     create: {
                         language: message.language,
-                        text: response,
+                        text,
                     },
                 },
             },
@@ -80,27 +103,6 @@ export class OpenAIService implements LanguageModelService<string> {
             data: message,
             message: fullMessageData,
         });
-    }
-}
-
-export const getLanguageModelService = (_botSettings: Record<string, unknown>): LanguageModelService<unknown> => {
-    // For now, always return OpenAIService, but you could add logic to return different services based on botSettings
-    return new OpenAIService();
-};
-
-/**
- * Responds to a chat message, handling response generation and processing, 
- * websocket events, and any other logic
- */
-export const respondToMessage = async (message: PreMapMessageData, bot: PreMapBotData, prisma: PrismaType, userData: SessionUserToken): Promise<void> => {
-    try {
-        const botSettings = typeof bot.botSettings === "string" ? JSON.parse(bot.botSettings) : {};
-        const service = getLanguageModelService(botSettings);
-        // Send typing message while bot is responding
-        io.to(message.chatId as string).emit("typing", { starting: [bot.id] });
-        const responseText = await service.generateResponse(message.content, botSettings);
-        await service.processResponse(responseText, message, bot, prisma, userData);
-
     } catch (error) {
         logger.error("Error generating response or saving to database:", { trace: "0010", error });
     } finally {

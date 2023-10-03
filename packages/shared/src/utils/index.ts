@@ -1,4 +1,5 @@
 export * from "./arrays";
+export * from "./buildMessageTree";
 export * from "./casing";
 export * from "./emotions";
 export * from "./exists";

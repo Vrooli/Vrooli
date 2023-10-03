@@ -238,6 +238,11 @@ export const chatMessage_create = {
   "id": true,
   "created_at": true,
   "updated_at": true,
+  "fork": {
+    "id": true,
+    "created_at": true,
+    "__typename": "ChatMessage"
+  },
   "user": {
     "id": true,
     "created_at": true,

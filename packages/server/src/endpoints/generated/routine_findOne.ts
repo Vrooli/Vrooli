@@ -358,11 +358,13 @@ export const routine_findOne = {
     "nodeLinks": {
       "id": true,
       "from": {
-        "id": true
+        "id": true,
+        "__typename": "Node"
       },
       "operation": true,
       "to": {
-        "id": true
+        "id": true,
+        "__typename": "Node"
       },
       "whens": {
         "id": true,
@@ -372,8 +374,10 @@ export const routine_findOne = {
           "language": true,
           "description": true,
           "name": true
-        }
-      }
+        },
+        "__typename": "NodeLinkWhen"
+      },
+      "__typename": "NodeLink"
     },
     "outputs": {
       "id": true,

@@ -34,6 +34,7 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         isFork: Boolean!
+        fork: ChatMessageFork
         chat: Chat!
         user: User!
         reactionSummaries: [ReactionSummary!]!
@@ -43,6 +44,11 @@ export const typeDef = gql`
         translations: [ChatMessageTranslation!]!
         translationsCount: Int!
         you: ChatMessageYou!
+    }
+
+    type ChatMessageFork {
+        id: ID!
+        created_at: Date!
     }
 
     type ChatMessageYou {
