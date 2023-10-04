@@ -238,7 +238,9 @@ export const chatMessage_update = {
   "id": true,
   "created_at": true,
   "updated_at": true,
-  "fork": {
+  "sequence": true,
+  "versionIndex": true,
+  "parent": {
     "id": true,
     "created_at": true,
     "__typename": "ChatMessage"

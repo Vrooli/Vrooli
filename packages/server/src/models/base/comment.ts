@@ -154,8 +154,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             // Determine sort order
             // Make sure sort field is valid
             const orderByField = input.sortBy ?? CommentModel.search.defaultSort;
-            const orderByIsValid = CommentModel.search.sortBy[orderByField] === undefined;
-            const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search.defaultSort] : undefined;
+            const orderBy = orderByField in SortMap ? SortMap[orderByField] : undefined;
             // Find requested search array
             const searchResults = await prisma.comment.findMany({
                 where,

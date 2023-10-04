@@ -1,11 +1,15 @@
-import { ChatCreateInput, ChatInviteCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatCreateInput, ChatInviteCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate, VisibilityType } from "@local/shared";
+import { Request } from "express";
 import { readManyHelper } from "../../actions";
-import { shapeHelper } from "../../builders";
+import { getUser } from "../../auth";
+import { addSupplementalFields, modelToGql, selectHelper, shapeHelper, toPartialGqlInfo, visibilityBuilder } from "../../builders";
+import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
 import { chatMessage_findMany } from "../../endpoints";
 import { CustomError, logger, Trigger } from "../../events";
 import { io } from "../../io";
 import { SERVER_URL } from "../../server";
-import { bestTranslation } from "../../utils";
+import { PrismaType } from "../../types";
+import { bestTranslation, SortMap } from "../../utils";
 import { respondToMessage } from "../../utils/llmService";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
@@ -25,6 +29,8 @@ export type PreMapMessageData = {
     isNew: boolean;
     /** Language code for message content */
     language: string;
+    /** ID of the message which should appear directly before this one */
+    parentId?: string;
     /** ID of the user who sent this message */
     userId: string;
 }
@@ -35,6 +41,8 @@ export type PreMapChatData = {
     potentialBotIds?: string[],
     participantsDelete?: string[],
     isNew: boolean,
+    /** ID of the last message in the chat */
+    lastMessageId?: string,
     /** Total number of participants in the chat, including bots, users, and the current user */
     participantsCount?: number,
     /** Determines configuration to provide for AI responses */
@@ -60,6 +68,14 @@ export type PreMapBotData = {
     name: string;
 } & { [key: string]: string };
 
+export type ChatMessageBeforeDeletedData = {
+    id: string,
+    chatId: string | undefined,
+    userId: string | undefined,
+    parentId: string | undefined,
+    childIds: string[],
+}
+
 const __typename = "ChatMessage" as const;
 const suppFields = ["you"] as const;
 export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFields> = ({
@@ -81,9 +97,8 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
              * Collects bot information, message information, and chat information for AI responses, 
              * notifications, and web socket events.
              * 
-             * NOTE: Updated messages don't trigger AI responses. Instead, you must create a new message where 
-             * "isFork" is true, and "forkId" is the ID of the message you want to update. This means we only need 
-             * to collect the chat ID for updated messages (to emit to web sockets).
+             * NOTE: Updated messages don't trigger AI responses. Instead, you must create a new message 
+             * with versionIndex set to the previous version's index + 1.
              */
             pre: async ({ Create, Update, Delete, prisma, userData, inputsById }) => {
                 // Initialize objects to store bot, message, and chat information
@@ -181,6 +196,14 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                                 },
                             },
                         },
+                        // Find most recent message
+                        messages: {
+                            orderBy: { sequence: "desc" },
+                            take: 1,
+                            select: {
+                                id: true,
+                            },
+                        },
                         // Find number of participants
                         _count: { select: { participants: true } },
                     },
@@ -193,6 +216,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         isNew: false,
                         botParticipants: allowedBots.map(p => p.user.id),
                         participantsCount: chat._count.participants,
+                        lastMessageId: chat.messages.length > 0 ? chat.messages[0].id : undefined,
                     };
                     allowedBots.forEach(p => {
                         botData[p.user.id] = {
@@ -202,6 +226,19 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         };
                     });
                 });
+                const lastParentId: Record<string, string> = {};
+                // Loop through all new messages to find the parent ID of each one
+                for (const [messageId, message] of Object.entries(messageData)) {
+                    if (message.parentId || !message.isNew || !message.chatId) continue;
+                    const chat = chatData[message.chatId];
+                    if (lastParentId[message.chatId]) {
+                        message.parentId = lastParentId[message.chatId];
+                        lastParentId[message.chatId] = messageId;
+                    } else {
+                        message.parentId = chat.lastMessageId;
+                        lastParentId[message.chatId] = messageId;
+                    }
+                }
                 // Parse potential bots and bots being removed
                 const potentialBotIds: string[] = [];
                 const participantsBeingRemovedIds: string[] = [];
@@ -296,33 +333,43 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 // Return data
                 return { botData, chatData, messageData };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isFork: data.isFork,
-                user: { connect: { id: data.userConnect ?? rest.userData.id } }, // Can create messages for bots. This is authenticated in the "pre" function.
-                ...(data.forkId ? { fork: { connect: { id: data.forkId } } } : {}),
-                ...(await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Chat", parentRelationshipName: "messages", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
-            }),
+            create: async ({ data, ...rest }) => {
+                const parentId = rest.preMap[__typename]?.messageData?.[data.id]?.parentId;
+                return {
+                    id: data.id,
+                    user: { connect: { id: data.userConnect ?? rest.userData.id } }, // Can create messages for bots. This is authenticated in the "pre" function.
+                    ...(parentId ? { parent: { connect: { id: parentId } } } : {}),
+                    ...(await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Chat", parentRelationshipName: "messages", data, ...rest })),
+                    ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                };
+            },
             update: async ({ data, ...rest }) => ({
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
         },
         trigger: {
             beforeDeleted: async ({ beforeDeletedData, deletingIds, prisma }) => {
+                // Find the chat user, parent, and children for each message being deleted
                 const deleting = await prisma.chat_message.findMany({
                     where: { id: { in: deletingIds } },
                     select: {
                         id: true,
                         chat: { select: { id: true } },
                         user: { select: { id: true } },
+                        parent: { select: { id: true } },
+                        children: { select: { id: true } },
                     },
                 });
                 // Add data to beforeDeletedData
-                // const messageData = deleting.map(m => ({ id: m.id, chatId: m.chat?.id, userId: m.user?.id }));
-                const messageData = {};
+                const messageData: Record<string, ChatMessageBeforeDeletedData> = {};
                 for (const m of deleting) {
-                    messageData[m.id] = { id: m.id, chatId: m.chat?.id, userId: m.user?.id };
+                    messageData[m.id] = {
+                        id: m.id,
+                        chatId: m.chat?.id,
+                        userId: m.user?.id,
+                        parentId: m.parent?.id,
+                        childIds: m.children.map(c => c.id),
+                    };
                 }
                 if (beforeDeletedData[__typename]) beforeDeletedData[__typename] = { ...beforeDeletedData[__typename], ...messageData };
                 else beforeDeletedData[__typename] = messageData;
@@ -452,8 +499,17 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         objectType: __typename,
                         wasCompleteAndPublic: true, // N/A
                     });
-                    const messageData = beforeDeletedData[__typename]?.[objectId];
+                    const messageData = beforeDeletedData[__typename]?.[objectId] as ChatMessageBeforeDeletedData | undefined;
                     if (messageData) {
+                        // Update the children of each message being deleted
+                        // to point to the parent of the message being deleted. You can think of this as a 
+                        // linked list, where each message has a pointer to the next message.
+                        if (messageData.parentId) {
+                            await prisma.chat_message.updateMany({
+                                where: { id: { in: messageData.childIds ?? [] } },
+                                data: { parentId: messageData.parentId },
+                            });
+                        }
                         await Trigger(prisma, userData.languages).chatMessageDeleted({
                             data: messageData,
                             messageId: objectId,
@@ -465,6 +521,53 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             },
         },
         yup: chatInviteValidation,
+    },
+    query: {
+        /**
+         * Custom search query for chat messages. Starts either at the most recent 
+         * message or specified, and traverses up and down the chat tree to find
+         * surrounding messages.
+         */
+        async searchNested(
+            prisma: PrismaType,
+            req: Request,
+            input: ChatMessageSearchTreeInput,
+            info: GraphQLInfo | PartialGraphQLInfo,
+        ): Promise<ChatMessageSearchTreeResult> {
+            // Partially convert info type
+            const partialInfo = toPartialGqlInfo(info, ChatMessageModel.format.gqlRelMap, req.session.languages, true);
+            // Create query for visibility
+            const visibilityQuery = visibilityBuilder({ objectType: "ChatMessage", userData: getUser(req.session), visibility: VisibilityType.Public });
+            const where = visibilityQuery;
+            // Determine sort order. This is only used if startId is not provided, since the sort is used 
+            // to determine the starting point of the search.
+            const orderByField = input.sortBy ?? ChatMessageModel.search.defaultSort;
+            const orderBy = !input.startId && orderByField in SortMap ? SortMap[orderByField] : undefined;
+            // First, find the total number of messages in the chat
+            const totalInThread = await prisma.chat_message.count({
+                where: { id: { in: input.chatId } },
+            });
+            // If it's less than or equal to the take amount, we can just return all messages. 
+            const take = input.take ?? 50;
+            if (totalInThread <= take) {
+                let messages: any[] = await prisma.chat_message.findMany({
+                    where: { id: { in: input.chatId } },
+                    take,
+                    ...selectHelper(partialInfo),
+                });
+                messages = messages.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
+                messages = await addSupplementalFields(prisma, getUser(req.session), messages, partialInfo);
+                return {
+                    __typename: "ChatMessageSearchTreeResult" as const,
+                    hasMoreDown: false,
+                    hasMoreUp: false,
+                    messages,
+                };
+            }
+            // Otherwise, we need to traverse up and/or down the chat tree to find the messages
+            //TODO
+            return {} as any;
+        },
     },
     search: {
         defaultSort: ChatMessageSortBy.DateCreatedDesc,

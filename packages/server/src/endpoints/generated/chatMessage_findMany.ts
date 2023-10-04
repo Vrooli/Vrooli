@@ -10,7 +10,9 @@ export const chatMessage_findMany = {
       "id": true,
       "created_at": true,
       "updated_at": true,
-      "fork": {
+      "sequence": true,
+      "versionIndex": true,
+      "parent": {
         "id": true,
         "created_at": true
       },

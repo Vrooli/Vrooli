@@ -213,7 +213,7 @@ export const ChatMessageFormat: Formatter<ChatMessageModelLogic> = {
     gqlRelMap: {
         __typename: "ChatMessage",
         chat: "Chat",
-        fork: "ChatMessage",
+        parent: "ChatMessage",
         user: "User",
         reactionSummaries: "ReactionSummary",
         reports: "Report",
@@ -221,7 +221,7 @@ export const ChatMessageFormat: Formatter<ChatMessageModelLogic> = {
     prismaRelMap: {
         __typename: "ChatMessage",
         chat: "Chat",
-        fork: "ChatMessage",
+        parent: "ChatMessage",
         children: "ChatMessage",
         user: "User",
         reactionSummaries: "ReactionSummary",

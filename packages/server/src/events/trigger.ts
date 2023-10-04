@@ -2,7 +2,7 @@ import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, Reacti
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
 import { setupVerificationCode } from "../auth";
 import { io } from "../io";
-import { PreMapMessageData } from "../models/base";
+import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../models/base";
 import { isObjectSubscribable, Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award, objectAwardCategory } from "./awards";
@@ -83,7 +83,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         data,
         messageId,
     }: {
-        data: PreMapMessageData,
+        data: ChatMessageBeforeDeletedData,
         messageId: string,
     }) => {
         if (data.chatId) {

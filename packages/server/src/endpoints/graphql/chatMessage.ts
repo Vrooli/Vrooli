@@ -6,17 +6,12 @@ export const typeDef = gql`
     enum ChatMessageSortBy {
         DateCreatedAsc
         DateCreatedDesc
-        DateUpdatedAsc
-        DateUpdatedDesc
-        ScoreAsc
-        ScoreDesc
     }
 
     input ChatMessageCreateInput {
         id: ID!
         chatConnect: ID!
-        isFork: Boolean!
-        forkId: ID
+        versionOfId: ID
         userConnect: ID!
         translationsCreate: [ChatMessageTranslationCreateInput!]
     }
@@ -33,8 +28,9 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        isFork: Boolean!
-        fork: ChatMessageFork
+        sequence: Int!
+        versionIndex: Int!
+        parent: ChatMessageParent
         chat: Chat!
         user: User!
         reactionSummaries: [ReactionSummary!]!
@@ -46,7 +42,7 @@ export const typeDef = gql`
         you: ChatMessageYou!
     }
 
-    type ChatMessageFork {
+    type ChatMessageParent {
         id: ID!
         created_at: Date!
     }
@@ -76,11 +72,15 @@ export const typeDef = gql`
         text: String!
     }
 
+    # There are two ways to search for chat messages: 
+    # 1. The traditional, cursor-based pagination method. 
+    # The results will not be put into a tree structure - 
+    # and thus can't display version threads
     input ChatMessageSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         minScore: Int
-        chatId: ID
+        chatId: ID!
         userId: ID
         searchString: String
         sortBy: ChatMessageSortBy
@@ -88,20 +88,37 @@ export const typeDef = gql`
         updatedTimeFrame: TimeFrame
         translationLanguages: [String!]
     }
-
     type ChatMessageSearchResult {
         pageInfo: PageInfo!
         edges: [ChatMessageEdge!]!
     }
-
     type ChatMessageEdge {
         cursor: String!
         node: ChatMessage!
+    }
+    # 2. The tree-based method, which supports version threads. 
+    # The best way to use this is to set the startId to the id of the last message 
+    # the user has seen. With excludeUp and excludeDown both false, 
+    # it will return messages above and below the startId. This way, the user doesn't 
+    # lose their place.
+    input ChatMessageSearchTreeInput {
+        chatId: ID!
+        excludeUp: Boolean
+        excludeDown: Boolean
+        sortBy: ChatMessageSortBy
+        startId: ID
+        take: Int
+    }
+    type ChatMessageSearchTreeResult {
+        hasMoreUp: Boolean!
+        hasMoreDown: Boolean!
+        messages: [ChatMessage!]!
     }
 
     extend type Query {
         chatMessage(input: FindByIdInput!): ChatMessage
         chatMessages(input: ChatMessageSearchInput!): ChatMessageSearchResult!
+        chatMessageTree(input: ChatMessageSearchTreeInput!): ChatMessageSearchTreeResult!
     }
 
     extend type Mutation {

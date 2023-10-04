@@ -76,8 +76,7 @@ export const respondToMessage = async (messageId: string, message: PreMapMessage
         const createdData = await prisma.chat_message.create({
             data: {
                 chat: { connect: { id: message.chatId as string } },
-                isFork: false,
-                fork: { connect: { id: messageId } },
+                parent: { connect: { id: messageId } },
                 user: { connect: { id: bot.id } },
                 translations: {
                     create: {

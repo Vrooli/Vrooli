@@ -1,12 +1,14 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageUpdateInput, FindByIdInput } from "@local/shared";
+import { ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput } from "@local/shared";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
 import { rateLimit } from "../../middleware";
+import { ChatMessageModel } from "../../models/base";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsChatMessage = {
     Query: {
         chatMessage: GQLEndpoint<FindByIdInput, FindOneResult<ChatMessage>>;
         chatMessages: GQLEndpoint<ChatMessageSearchInput, FindManyResult<ChatMessage>>;
+        chatMessageTree: GQLEndpoint<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>;
     },
     Mutation: {
         chatMessageCreate: GQLEndpoint<ChatMessageCreateInput, CreateOneResult<ChatMessage>>;
@@ -24,6 +26,10 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
         chatMessages: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req });
+        },
+        chatMessageTree: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ maxUser: 1000, req });
+            return ChatMessageModel.query.searchTree(prisma, req, input, info);
         },
     },
     Mutation: {

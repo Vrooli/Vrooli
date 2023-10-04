@@ -7312,26 +7312,22 @@
             "title": "ChatMessage.created_at",
             "type": "string"
           },
-          "fork": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ChatMessageFork",
-                "title": "ChatMessage.fork"
-              },
-              {
-                "title": "ChatMessage.fork",
-                "nullable": true
-              }
-            ],
-            "title": "ChatMessage.fork"
-          },
           "id": {
             "title": "ChatMessage.id",
             "type": "string"
           },
-          "isFork": {
-            "title": "ChatMessage.isFork",
-            "type": "boolean"
+          "parent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatMessageParent",
+                "title": "ChatMessage.parent"
+              },
+              {
+                "title": "ChatMessage.parent",
+                "nullable": true
+              }
+            ],
+            "title": "ChatMessage.parent"
           },
           "reactionSummaries": {
             "items": {
@@ -7355,6 +7351,10 @@
             "title": "ChatMessage.score",
             "type": "number"
           },
+          "sequence": {
+            "title": "ChatMessage.sequence",
+            "type": "number"
+          },
           "translations": {
             "items": {
               "$ref": "#/components/schemas/ChatMessageTranslation"
@@ -7374,6 +7374,10 @@
             "$ref": "#/components/schemas/User",
             "title": "ChatMessage.user"
           },
+          "versionIndex": {
+            "title": "ChatMessage.versionIndex",
+            "type": "number"
+          },
           "you": {
             "$ref": "#/components/schemas/ChatMessageYou",
             "title": "ChatMessage.you"
@@ -7384,15 +7388,16 @@
           "chat",
           "created_at",
           "id",
-          "isFork",
           "reactionSummaries",
           "reports",
           "reportsCount",
           "score",
+          "sequence",
           "translations",
           "translationsCount",
           "updated_at",
           "user",
+          "versionIndex",
           "you"
         ],
         "additionalProperties": false,
@@ -7405,18 +7410,9 @@
             "title": "ChatMessageCreateInput.chatConnect",
             "type": "string"
           },
-          "forkId": {
-            "title": "ChatMessageCreateInput.forkId",
-            "nullable": true,
-            "type": "string"
-          },
           "id": {
             "title": "ChatMessageCreateInput.id",
             "type": "string"
-          },
-          "isFork": {
-            "title": "ChatMessageCreateInput.isFork",
-            "type": "boolean"
           },
           "translationsCreate": {
             "anyOf": [
@@ -7437,12 +7433,16 @@
           "userConnect": {
             "title": "ChatMessageCreateInput.userConnect",
             "type": "string"
+          },
+          "versionOfId": {
+            "title": "ChatMessageCreateInput.versionOfId",
+            "nullable": true,
+            "type": "string"
           }
         },
         "required": [
           "chatConnect",
           "id",
-          "isFork",
           "userConnect"
         ],
         "additionalProperties": false,
@@ -7476,21 +7476,21 @@
         "title": "ChatMessageEdge",
         "type": "object"
       },
-      "ChatMessageFork": {
+      "ChatMessageParent": {
         "properties": {
           "__typename": {
-            "title": "ChatMessageFork.__typename",
+            "title": "ChatMessageParent.__typename",
             "enum": [
-              "ChatMessageFork"
+              "ChatMessageParent"
             ],
             "type": "string"
           },
           "created_at": {
-            "title": "ChatMessageFork.created_at",
+            "title": "ChatMessageParent.created_at",
             "type": "string"
           },
           "id": {
-            "title": "ChatMessageFork.id",
+            "title": "ChatMessageParent.id",
             "type": "string"
           }
         },
@@ -7500,7 +7500,7 @@
           "id"
         ],
         "additionalProperties": false,
-        "title": "ChatMessageFork",
+        "title": "ChatMessageParent",
         "type": "object"
       },
       "ChatMessageSearchInput": {
@@ -7512,7 +7512,6 @@
           },
           "chatId": {
             "title": "ChatMessageSearchInput.chatId",
-            "nullable": true,
             "type": "string"
           },
           "createdTimeFrame": {
@@ -7543,11 +7542,7 @@
               {
                 "enum": [
                   "DateCreatedAsc",
-                  "DateCreatedDesc",
-                  "DateUpdatedAsc",
-                  "DateUpdatedDesc",
-                  "ScoreAsc",
-                  "ScoreDesc"
+                  "DateCreatedDesc"
                 ],
                 "title": "ChatMessageSearchInput.sortBy",
                 "type": "string"
@@ -7599,6 +7594,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "chatId"
+        ],
         "additionalProperties": false,
         "title": "ChatMessageSearchInput",
         "type": "object"
@@ -7631,6 +7629,92 @@
         ],
         "additionalProperties": false,
         "title": "ChatMessageSearchResult",
+        "type": "object"
+      },
+      "ChatMessageSearchTreeInput": {
+        "properties": {
+          "chatId": {
+            "title": "ChatMessageSearchTreeInput.chatId",
+            "type": "string"
+          },
+          "excludeDown": {
+            "title": "ChatMessageSearchTreeInput.excludeDown",
+            "nullable": true,
+            "type": "boolean"
+          },
+          "excludeUp": {
+            "title": "ChatMessageSearchTreeInput.excludeUp",
+            "nullable": true,
+            "type": "boolean"
+          },
+          "sortBy": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DateCreatedAsc",
+                  "DateCreatedDesc"
+                ],
+                "title": "ChatMessageSearchTreeInput.sortBy",
+                "type": "string"
+              },
+              {
+                "title": "ChatMessageSearchTreeInput.sortBy",
+                "nullable": true
+              }
+            ],
+            "title": "ChatMessageSearchTreeInput.sortBy"
+          },
+          "startId": {
+            "title": "ChatMessageSearchTreeInput.startId",
+            "nullable": true,
+            "type": "string"
+          },
+          "take": {
+            "title": "ChatMessageSearchTreeInput.take",
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "chatId"
+        ],
+        "additionalProperties": false,
+        "title": "ChatMessageSearchTreeInput",
+        "type": "object"
+      },
+      "ChatMessageSearchTreeResult": {
+        "properties": {
+          "__typename": {
+            "title": "ChatMessageSearchTreeResult.__typename",
+            "enum": [
+              "ChatMessageSearchTreeResult"
+            ],
+            "type": "string"
+          },
+          "hasMoreDown": {
+            "title": "ChatMessageSearchTreeResult.hasMoreDown",
+            "type": "boolean"
+          },
+          "hasMoreUp": {
+            "title": "ChatMessageSearchTreeResult.hasMoreUp",
+            "type": "boolean"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "title": "ChatMessageSearchTreeResult.messages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "__typename",
+          "hasMoreDown",
+          "hasMoreUp",
+          "messages"
+        ],
+        "additionalProperties": false,
+        "title": "ChatMessageSearchTreeResult",
         "type": "object"
       },
       "ChatMessageTranslation": {

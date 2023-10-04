@@ -41,6 +41,7 @@ export * from "./chatInvite_accept";
 export * from "./chatInvite_decline";
 export * from "./chatMessage_findOne";
 export * from "./chatMessage_findMany";
+export * from "./chatMessage_findTree";
 export * from "./chatMessage_create";
 export * from "./chatMessage_update";
 export * from "./chatParticipant_findOne";

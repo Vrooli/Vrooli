@@ -691,27 +691,27 @@ export type ChatMessage = {
   __typename: 'ChatMessage';
   chat: Chat;
   created_at: Scalars['Date'];
-  fork?: Maybe<ChatMessageFork>;
   id: Scalars['ID'];
-  isFork: Scalars['Boolean'];
+  parent?: Maybe<ChatMessageParent>;
   reactionSummaries: Array<ReactionSummary>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
+  sequence: Scalars['Int'];
   translations: Array<ChatMessageTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
   user: User;
+  versionIndex: Scalars['Int'];
   you: ChatMessageYou;
 };
 
 export type ChatMessageCreateInput = {
   chatConnect: Scalars['ID'];
-  forkId?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
-  isFork: Scalars['Boolean'];
   translationsCreate?: InputMaybe<Array<ChatMessageTranslationCreateInput>>;
   userConnect: Scalars['ID'];
+  versionOfId?: InputMaybe<Scalars['ID']>;
 };
 
 export type ChatMessageEdge = {
@@ -720,15 +720,15 @@ export type ChatMessageEdge = {
   node: ChatMessage;
 };
 
-export type ChatMessageFork = {
-  __typename: 'ChatMessageFork';
+export type ChatMessageParent = {
+  __typename: 'ChatMessageParent';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
 };
 
 export type ChatMessageSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  chatId?: InputMaybe<Scalars['ID']>;
+  chatId: Scalars['ID'];
   createdTimeFrame?: InputMaybe<TimeFrame>;
   minScore?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -745,13 +745,25 @@ export type ChatMessageSearchResult = {
   pageInfo: PageInfo;
 };
 
+export type ChatMessageSearchTreeInput = {
+  chatId: Scalars['ID'];
+  excludeDown?: InputMaybe<Scalars['Boolean']>;
+  excludeUp?: InputMaybe<Scalars['Boolean']>;
+  sortBy?: InputMaybe<ChatMessageSortBy>;
+  startId?: InputMaybe<Scalars['ID']>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type ChatMessageSearchTreeResult = {
+  __typename: 'ChatMessageSearchTreeResult';
+  hasMoreDown: Scalars['Boolean'];
+  hasMoreUp: Scalars['Boolean'];
+  messages: Array<ChatMessage>;
+};
+
 export enum ChatMessageSortBy {
   DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  ScoreAsc = 'ScoreAsc',
-  ScoreDesc = 'ScoreDesc'
+  DateCreatedDesc = 'DateCreatedDesc'
 }
 
 export type ChatMessageTranslation = {
@@ -4943,6 +4955,7 @@ export type Query = {
   chatInvite?: Maybe<ChatInvite>;
   chatInvites: ChatInviteSearchResult;
   chatMessage?: Maybe<ChatMessage>;
+  chatMessageTree: ChatMessageSearchTreeResult;
   chatMessages: ChatMessageSearchResult;
   chatParticipant?: Maybe<ChatParticipant>;
   chatParticipants: ChatParticipantSearchResult;
@@ -5125,6 +5138,11 @@ export type QueryChatInvitesArgs = {
 
 export type QueryChatMessageArgs = {
   input: FindByIdInput;
+};
+
+
+export type QueryChatMessageTreeArgs = {
+  input: ChatMessageSearchTreeInput;
 };
 
 
@@ -9898,9 +9916,11 @@ export type ResolversTypes = {
   ChatMessage: ResolverTypeWrapper<ChatMessage>;
   ChatMessageCreateInput: ChatMessageCreateInput;
   ChatMessageEdge: ResolverTypeWrapper<ChatMessageEdge>;
-  ChatMessageFork: ResolverTypeWrapper<ChatMessageFork>;
+  ChatMessageParent: ResolverTypeWrapper<ChatMessageParent>;
   ChatMessageSearchInput: ChatMessageSearchInput;
   ChatMessageSearchResult: ResolverTypeWrapper<ChatMessageSearchResult>;
+  ChatMessageSearchTreeInput: ChatMessageSearchTreeInput;
+  ChatMessageSearchTreeResult: ResolverTypeWrapper<ChatMessageSearchTreeResult>;
   ChatMessageSortBy: ChatMessageSortBy;
   ChatMessageTranslation: ResolverTypeWrapper<ChatMessageTranslation>;
   ChatMessageTranslationCreateInput: ChatMessageTranslationCreateInput;
@@ -10659,9 +10679,11 @@ export type ResolversParentTypes = {
   ChatMessage: ChatMessage;
   ChatMessageCreateInput: ChatMessageCreateInput;
   ChatMessageEdge: ChatMessageEdge;
-  ChatMessageFork: ChatMessageFork;
+  ChatMessageParent: ChatMessageParent;
   ChatMessageSearchInput: ChatMessageSearchInput;
   ChatMessageSearchResult: ChatMessageSearchResult;
+  ChatMessageSearchTreeInput: ChatMessageSearchTreeInput;
+  ChatMessageSearchTreeResult: ChatMessageSearchTreeResult;
   ChatMessageTranslation: ChatMessageTranslation;
   ChatMessageTranslationCreateInput: ChatMessageTranslationCreateInput;
   ChatMessageTranslationUpdateInput: ChatMessageTranslationUpdateInput;
@@ -11517,17 +11539,18 @@ export type ChatInviteYouResolvers<ContextType = any, ParentType extends Resolve
 export type ChatMessageResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessage'] = ResolversParentTypes['ChatMessage']> = {
   chat?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  fork?: Resolver<Maybe<ResolversTypes['ChatMessageFork']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isFork?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['ChatMessageParent']>, ParentType, ContextType>;
   reactionSummaries?: Resolver<Array<ResolversTypes['ReactionSummary']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  sequence?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ChatMessageTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['ChatMessageYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11538,7 +11561,7 @@ export type ChatMessageEdgeResolvers<ContextType = any, ParentType extends Resol
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type ChatMessageForkResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageFork'] = ResolversParentTypes['ChatMessageFork']> = {
+export type ChatMessageParentResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageParent'] = ResolversParentTypes['ChatMessageParent']> = {
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11547,6 +11570,13 @@ export type ChatMessageForkResolvers<ContextType = any, ParentType extends Resol
 export type ChatMessageSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageSearchResult'] = ResolversParentTypes['ChatMessageSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['ChatMessageEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatMessageSearchTreeResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageSearchTreeResult'] = ResolversParentTypes['ChatMessageSearchTreeResult']> = {
+  hasMoreDown?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  hasMoreUp?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  messages?: Resolver<Array<ResolversTypes['ChatMessage']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12965,6 +12995,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   chatInvite?: Resolver<Maybe<ResolversTypes['ChatInvite']>, ParentType, ContextType, RequireFields<QueryChatInviteArgs, 'input'>>;
   chatInvites?: Resolver<ResolversTypes['ChatInviteSearchResult'], ParentType, ContextType, RequireFields<QueryChatInvitesArgs, 'input'>>;
   chatMessage?: Resolver<Maybe<ResolversTypes['ChatMessage']>, ParentType, ContextType, RequireFields<QueryChatMessageArgs, 'input'>>;
+  chatMessageTree?: Resolver<ResolversTypes['ChatMessageSearchTreeResult'], ParentType, ContextType, RequireFields<QueryChatMessageTreeArgs, 'input'>>;
   chatMessages?: Resolver<ResolversTypes['ChatMessageSearchResult'], ParentType, ContextType, RequireFields<QueryChatMessagesArgs, 'input'>>;
   chatParticipant?: Resolver<Maybe<ResolversTypes['ChatParticipant']>, ParentType, ContextType, RequireFields<QueryChatParticipantArgs, 'input'>>;
   chatParticipants?: Resolver<ResolversTypes['ChatParticipantSearchResult'], ParentType, ContextType, RequireFields<QueryChatParticipantsArgs, 'input'>>;
@@ -14865,8 +14896,9 @@ export type Resolvers<ContextType = any> = {
   ChatInviteYou?: ChatInviteYouResolvers<ContextType>;
   ChatMessage?: ChatMessageResolvers<ContextType>;
   ChatMessageEdge?: ChatMessageEdgeResolvers<ContextType>;
-  ChatMessageFork?: ChatMessageForkResolvers<ContextType>;
+  ChatMessageParent?: ChatMessageParentResolvers<ContextType>;
   ChatMessageSearchResult?: ChatMessageSearchResultResolvers<ContextType>;
+  ChatMessageSearchTreeResult?: ChatMessageSearchTreeResultResolvers<ContextType>;
   ChatMessageTranslation?: ChatMessageTranslationResolvers<ContextType>;
   ChatMessageYou?: ChatMessageYouResolvers<ContextType>;
   ChatMessageedOn?: ChatMessageedOnResolvers<ContextType>;

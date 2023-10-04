@@ -91,10 +91,11 @@ export const endpoints = {
         };
     },
     chatMessage: async () => {
-        const { chatMessage: chatMessagePartial } = await import("./partial/chatMessage");
+        const { chatMessage: chatMessagePartial, chatMessageSearchTreeResult: chatMessageSearchTreeResultPartial } = await import("./partial/chatMessage");
         return {
             findOne: toQuery("chatMessage", "FindByIdInput", chatMessagePartial, "full"),
             findMany: toQuery("chatMessages", "ChatMessageSearchInput", ...(await toSearch(chatMessagePartial))),
+            findTree: toQuery("chatMessageTree", "ChatMessageSearchTreeInput", chatMessageSearchTreeResultPartial, "full"),
             create: toMutation("chatMessageCreate", "ChatMessageCreateInput", chatMessagePartial, "full"),
             update: toMutation("chatMessageUpdate", "ChatMessageUpdateInput", chatMessagePartial, "full"),
         };

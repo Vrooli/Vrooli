@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatMessage, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Checkbox, IconButton, InputAdornment, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -20,6 +20,7 @@ import { ChatFormProps } from "forms/types";
 import { useDeleter } from "hooks/useDeleter";
 import { useDimensions } from "hooks/useDimensions";
 import { useFormDialog } from "hooks/useFormDialog";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -267,6 +268,9 @@ const ChatForm = ({
     const [message, setMessage] = useState<string>(context ?? "");
     const isCreate = useMemo(() => existing.id === DUMMY_ID, [existing.id]);
     const [typing, setTyping] = useState<ChatParticipant[]>([]);
+
+    // We query messages separate from the chat, since we must traverse the message tree
+    const [getPageData, { data: pageData, loading, errors }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
 
     const {
         fetch,
@@ -628,7 +632,7 @@ const ChatForm = ({
                     overflowY: "auto",
                     maxHeight: "calc(100vh - 64px)",
                     minHeight: "calc(100vh - 64px)",
-                    minWidth: "min(700px, 100vw)",
+                    minWidth: "min(700px, 100%)",
                 }}>
                     {existing.messages.map((message: ChatMessageShape, index) => {
                         const isOwn = message.user?.id === getCurrentUser(session).id;

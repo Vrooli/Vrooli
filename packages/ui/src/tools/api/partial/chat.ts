@@ -45,8 +45,8 @@ export const chat: GqlPartial<Chat> = {
         },
         participants: async () => rel((await import("./chatParticipant")).chatParticipant, "list", { omit: "chat" }),
         invites: async () => rel((await import("./chatInvite")).chatInvite, "list", { omit: "chat" }),
-        messages: async () => rel((await import("./chatMessage")).chatMessage, "list", { omit: "chat" }),
         labels: { __use: 0 },
+        // Messages are omitted here because they are handled by the chatMessageTree query
         translations: () => rel(chatTranslation, "full"),
     },
     list: {

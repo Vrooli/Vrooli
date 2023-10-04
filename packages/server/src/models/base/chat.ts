@@ -1,6 +1,5 @@
-import { ChatSortBy, chatValidation, MaxObjects, User, uuid, uuidValidate } from "@local/shared";
+import { ChatSortBy, chatValidation, MaxObjects, User, uuidValidate } from "@local/shared";
 import { ChatInviteStatus } from "@prisma/client";
-import i18next from "i18next";
 import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
@@ -67,23 +66,6 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                         },
                     ],
                 },
-                // If only chatting with a bot, add start message TODO needs persona of bot
-                ...(data.invitesCreate?.length === 1 && rest.preMap[__typename].bots.some((b) => b.id === data.invitesCreate![0].userConnect) ? {
-                    messages: {
-                        create: [{
-                            id: uuid(),
-                            isFork: false,
-                            translations: {
-                                create: [{
-                                    id: uuid(),
-                                    language: rest.userData.languages[0],
-                                    text: i18next.t(`tasks:${data.task ?? "start"}`, { lng: rest.userData.languages[0], defaultValue: "Hello👋, I'm Valyxa! How can I assist you?" }) as string,
-                                }],
-                            },
-                            user: { connect: { id: data.invitesCreate[0].userConnect } },
-                        }],
-                    },
-                } : {}),
                 ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
                 // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", relation: "labels", data, ...rest })),

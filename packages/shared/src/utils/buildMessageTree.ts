@@ -2,12 +2,11 @@ import { ChatMessage } from "@local/shared";
 
 /** Tree structure for displaying chat messages in the correct order */
 export type MessageNode = {
-    message: ChatMessage;
-    /** When there is more than one child, there are multiple versions of the message */
+    message: any;//ChatMessage;
+    /** When there is more than one child, there are multiple versions (edits) of the message */
     children: MessageNode[];
 };
 
-// TODO parent should be connected automatically
 // TODO should query chat messages from the bottom up, using a query like this:
 // const lastMessage = await prisma.chat_message.findFirst({
 //     where: { chatId: yourChatId },
@@ -18,10 +17,18 @@ export type MessageNode = {
 //     }
 //   });
 // TODO should query messages all at once if there are less than k in the chat, otherwise batch
+// TODO preMap for chat messages should include info needed for creating chats. Since multiple chats
+// can be created in one go, the pre shape function needs to query the latest chat message and create a map 
+// of new chat ids to their parent ids. Also need way for messages with versionOfId set, needs to find parent
+// of versionOfId's parent.
+// TODO need to check validation logic to see if it's correct
+// TODO when multiple bots are responding to a message, they need to set parent IDs correctly
+// TODO UI should store last seen message, and load from there the next time the chat is opened. This way, 
+// the user doesn't lose their place
 
 /**
  * Constructs a hierarchical tree representation of message threads
- * from a flat array of ChatMessage objects, based on their forkId and isFork fields.
+ * from a flat array of ChatMessage objects.
  */
 export class MessageTreeBuilder {
     /** Map of message IDs to nodes */
@@ -32,16 +39,13 @@ export class MessageTreeBuilder {
      */
     private roots: MessageNode[];
 
-    constructor(private messages: ChatMessage[]) {
+    constructor(private messages: any[]) {// ChatMessage[]) {
         // Initialize data structures
         this.messageMap = new Map<string, MessageNode>();
         this.roots = [];
         this.initMessageMap();
         // Build the tree
         this.buildTree();
-        // Go back through the tree and fix any errors, typically caused 
-        // by race conditions where multiple messages set the same forkId (parent).
-        this.processTreeRoots();
     }
 
     private initMessageMap(): void {
@@ -51,15 +55,15 @@ export class MessageTreeBuilder {
     }
 
     /**
-     * 2. Loops through each message and links nodes based on the forkId and isFork fields:
-     *    - If forkId is null, the message is a root message.
-     *    - If forkId points to an existing message and isFork is false, the forkId message is the 
-     *      parent and the current message is added as a child.
-     *    - If forkId points to an existing message and isFork is true, the current message is a 
-     *      sibling of the forkId message. The function finds the parent of the forkId message and 
-     *      adds the current message as a sibling, inserting it in the correct position based on 
-     *      the created_at date.
-     *    - If forkId points to a missing message, the current message is treated as a root message.
+     * Constructs a hierarchical tree representation of the message threads.
+     * 
+     * The method iterates through the array of messages. For each message:
+     * 1. It retrieves the corresponding node from the messageMap.
+     * 2. If the message has a parentId, it finds the parent node and adds the current message node as a child of the parent node.
+     *    All edited versions of a message, having the same parentId, will become siblings in the tree structure.
+     * 3. If the message doesn't have a parentId, it's treated as a root node and added to the roots array.
+     * 
+     * This way, a hierarchical tree structure is built which represents the message threads, including handling multiple versions (edits) of messages.
      */
     private buildTree(): void {
         for (const message of this.messages) {
@@ -68,122 +72,37 @@ export class MessageTreeBuilder {
                 console.error(`Message ${message.id} not found in messageMap`);
                 continue;
             }
-            if (message.fork?.id) {
-                const forkNode = this.messageMap.get(message.fork.id);
-                if (forkNode) {
-                    forkNode.children.push(node);
+            if (message.parentId) {
+                const parentNode = this.messageMap.get(message.parentId);
+                if (parentNode) {
+                    // Since all edited versions have the same parentId and are not nested,
+                    // they will be siblings in the tree structure.
+                    parentNode.children.push(node);
                 } else {
+                    // If no parent node is found, consider it as a root node
                     this.roots.push(node);
                 }
             } else {
+                // If there's no parentId, it's a root node
                 this.roots.push(node);
             }
         }
+        // Sort the children of each node based on the sequence number to ensure
+        // the correct order of message versions.
+        this.sortChildren();
     }
 
-    private processTreeRoots(): void {
+    private sortChildren(): void {
         for (const root of this.roots) {
-            this.processTree(root);
+            this.sortNodeChildren(root);
         }
     }
 
-    /**
-     * Processes a subtree to correct structure, sort children, and handle race conditions.
-     * 
-     * @param node - The root node of the subtree to process.
-     */
-    private processTree(node: MessageNode): void {
-        // Sort children by created_at date.
-        node.children.sort((a, b) => new Date(a.message.created_at).getTime() - new Date(b.message.created_at).getTime());
-
-        const siblings: MessageNode[] = [];
-        const responses: MessageNode[] = [];
-
-        // Separate children into siblings (isFork = true) and responses (isFork = false).
+    private sortNodeChildren(node: MessageNode): void {
+        node.children.sort((a, b) => a.message.sequence - b.message.sequence);
         for (const child of node.children) {
-            if (child.message.isFork) {
-                siblings.push(child);
-            } else {
-                responses.push(child);
-            }
+            this.sortNodeChildren(child);  // Recursive call to sort children of children
         }
-
-        // Handle race condition by re-arranging nodes.
-        // If there are multiple siblings, find their correct parent and move them.
-        for (const sibling of siblings) {
-            const parent = this.findCorrectParent(sibling, node);
-            if (parent !== node) {
-                parent.children.push(sibling);
-            }
-        }
-
-        // Re-assign the children array with the correct structure.
-        node.children = [...responses, ...siblings];
-
-        // Recursively process the children.
-        for (const child of node.children) {
-            this.processTree(child);
-        }
-    }
-
-    /**
-     * Finds the correct parent for a given node, handling race conditions.
-     * 
-     * @param node - The node whose correct parent is to be found.
-     * @param currentNode - The current node being processed.
-     * @returns The correct parent node.
-     */
-    private findCorrectParent(node: MessageNode, currentNode: MessageNode): MessageNode {
-        let correctParent: MessageNode = currentNode;  // Initialize with the current node
-        let parentNode = currentNode;  // Start the traversal at the current node
-
-        while (parentNode) {
-            // Check if the parentNode or any of its siblings are before the given node
-            // and after the given node's current parent.
-            if (new Date(parentNode.message.created_at).getTime() < new Date(node.message.created_at).getTime() &&
-                new Date(parentNode.message.created_at).getTime() > new Date(node.message.fork?.created_at).getTime()) {
-                correctParent = parentNode;
-                break;  // If a valid parent is found, break the loop
-            }
-
-            // Check siblings of the parentNode
-            const siblings = this.getSiblings(parentNode);
-            for (const sibling of siblings) {
-                if (new Date(sibling.message.created_at).getTime() < new Date(node.message.created_at).getTime() &&
-                    new Date(sibling.message.created_at).getTime() > new Date(node.message.fork?.created_at).getTime()) {
-                    correctParent = sibling;
-                    break;  // If a valid parent is found among siblings, break the loop
-                }
-            }
-
-            // Move up the tree to the parent of the parentNode
-            const newParentNode = this.findParentOf(parentNode);
-            if (newParentNode) {
-                parentNode = newParentNode;
-            } else {
-                break;  // If no parent is found, break the loop to prevent an infinite loop
-            }
-        }
-        return correctParent;
-    }
-
-    /**
-     * Gets the siblings of a given node.
-     */
-    private getSiblings(node: MessageNode): MessageNode[] {
-        const parent = this.findParentOf(node);
-        return parent ? parent.children.filter(child => child !== node) : [];
-    }
-
-    /**
-     * Finds the parent of a given node.
-     */
-    private findParentOf(node: MessageNode): MessageNode | null {
-        if (node.message.fork?.id) {
-            const parentNode = this.messageMap.get(node.message.fork.id);
-            return parentNode || null;
-        }
-        return null;
     }
 
     public getRoots(): MessageNode[] {
@@ -194,9 +113,8 @@ export class MessageTreeBuilder {
 // export type ChatMessage = { // For playground
 //     __typename: 'ChatMessage';
 //     created_at: string;
-//     fork?: { id: string, created_at: string };
+//     parent?: { id: string, created_at: string };
 //     id: string;
-//     isFork: boolean;
 //     translations: Array<{ id: string, language: string, text: string }>;
 //   };
 
@@ -205,8 +123,7 @@ export class MessageTreeBuilder {
 const messages1 = [
     {
         id: "3",
-        isFork: false,
-        fork: { id: "2" },
+        parent: { id: "2" },
         translations: [{
             id: "1001",
             language: "en",
@@ -216,8 +133,7 @@ const messages1 = [
     },
     {
         id: "1",
-        isFork: false,
-        fork: null,
+        parent: null,
         translations: [{
             id: "1001",
             language: "en",
@@ -227,8 +143,7 @@ const messages1 = [
     },
     {
         id: "2",
-        isFork: false,
-        fork: { id: "1" },
+        parent: { id: "1" },
         translations: [{
             id: "1001",
             language: "en",
@@ -238,8 +153,7 @@ const messages1 = [
     },
     {
         id: "4",
-        isFork: false,
-        fork: { id: "2" },
+        parent: { id: "2" },
         translations: [{
             id: "1001",
             language: "en",
@@ -249,8 +163,7 @@ const messages1 = [
     },
     {
         id: "5",
-        isFork: false,
-        fork: { id: "4" },
+        parent: { id: "4" },
         translations: [{
             id: "1001",
             language: "en",
@@ -260,9 +173,7 @@ const messages1 = [
     },
     {
         id: "6",
-        // text: "Yes, but I didn't receive the reset email.",
-        isFork: false,
-        fork: { id: "5" },
+        parent: { id: "5" },
         translations: [{
             id: "1001",
             language: "en",
@@ -272,8 +183,7 @@ const messages1 = [
     },
     {
         id: "7",
-        isFork: false,
-        fork: { id: "6" },
+        parent: { id: "6" },
         translations: [{
             id: "1001",
             language: "en",
@@ -283,8 +193,7 @@ const messages1 = [
     },
     {
         id: "8",
-        isFork: false,
-        fork: { id: "7" },
+        parent: { id: "7" },
         translations: [{
             id: "1001",
             language: "en",
@@ -294,8 +203,7 @@ const messages1 = [
     },
     {
         id: "9",
-        isFork: false,
-        fork: { id: "8" },
+        parent: { id: "8" },
         translations: [{
             id: "1001",
             language: "en",
@@ -305,8 +213,7 @@ const messages1 = [
     },
     {
         id: "10",
-        isFork: false,
-        fork: { id: "9" },
+        parent: { id: "9" },
         translations: [{
             id: "1001",
             language: "en",

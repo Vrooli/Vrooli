@@ -1,7 +1,6 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { uuid } from "@local/shared";
 import { fileTypeFromBuffer } from "file-type";
-import convert from "heic-convert";
 import https from "https";
 import sharp from "sharp";
 import { UploadConfig } from "../endpoints";
@@ -34,6 +33,14 @@ interface NSFWCheckResult {
     };
 }
 
+// heic-convert has to defer initialization because (presumably) the wasm file messes up the compiler error logs
+let heicConvert;
+const getHeicConvert = async () => {
+    if (!heicConvert) {
+        heicConvert = (await import("heic-convert")).default;
+    }
+    return heicConvert;
+};
 /** Common configuration for profile images */
 export const profileImageConfig = {
     allowedExtensions: ["png", "jpg", "jpeg", "webp", "svg", "gif", "heic", "heif"], // gif will lose animation
@@ -125,6 +132,7 @@ const resizeImage = async (buffer: Buffer, width: number, height: number, format
 };
 
 const convertHeicToJpeg = async (buffer: Buffer): Promise<Buffer> => {
+    const convert = await getHeicConvert();
     const outputBuffer = await convert({
         buffer,  // the HEIC file buffer
         format: "JPEG", // output format
