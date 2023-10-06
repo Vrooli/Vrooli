@@ -1,10 +1,11 @@
 import { ApiSortBy, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy, VisibilityType } from "@local/shared";
-import { readManyAsFeedHelper } from "../../actions";
-import { assertRequestFrom, getUser } from "../../auth";
-import { addSupplementalFieldsMultiTypes, toPartialGqlInfo } from "../../builders";
+import { readManyAsFeedHelper } from "../../actions/reads";
+import { assertRequestFrom, getUser } from "../../auth/request";
+import { addSupplementalFieldsMultiTypes } from "../../builders/addSupplementalFieldsMultiTypes";
+import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { schedulesWhereInTimeframe } from "../../events";
-import { rateLimit } from "../../middleware";
+import { schedulesWhereInTimeframe } from "../../events/schedule";
+import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint } from "../../types";
 
 export type EndpointsFeed = {

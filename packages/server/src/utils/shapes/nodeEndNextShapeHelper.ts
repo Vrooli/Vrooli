@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders";
+import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
 
 type NodeEndNextShapeHelperProps<

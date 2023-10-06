@@ -1,8 +1,8 @@
 import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, ReactionFor, SubscribableObject } from "@local/shared";
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { setupVerificationCode } from "../auth";
+import { setupVerificationCode } from "../auth/email";
 import { io } from "../io";
-import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../models/base";
+import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../models/base/chatMessage";
 import { isObjectSubscribable, Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award, objectAwardCategory } from "./awards";

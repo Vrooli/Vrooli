@@ -1,6 +1,6 @@
 import { NotificationSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsNotification, NotificationEndpoints } from "../logic";
+import { EndpointsNotification, NotificationEndpoints } from "../logic/notification";
 
 export const typeDef = gql`
     enum NotificationSortBy {

@@ -1,9 +1,14 @@
 import { AccountStatus, COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, emailSignUpFormValidation, EmailSignUpInput, LogOutInput, password as passwordValidation, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
-import { generateNonce, generateSessionJwt, getUser, hashPassword, logIn, randomString, serializedAddressToBech32, sessionUserTokenToUser, setupPasswordReset, toSession, toSessionUser, updateSessionTimeZone, validateCode, validateVerificationCode, verifySignedMessage } from "../../auth";
-import { Award, CustomError, Trigger } from "../../events";
-import { rateLimit } from "../../middleware";
+import { hashPassword, logIn, setupPasswordReset, validateCode, validateVerificationCode } from "../../auth/email";
+import { generateSessionJwt, getUser, updateSessionTimeZone } from "../../auth/request";
+import { sessionUserTokenToUser, toSession, toSessionUser } from "../../auth/session";
+import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from "../../auth/wallet";
+import { Award } from "../../events/awards";
+import { CustomError } from "../../events/error";
+import { Trigger } from "../../events/trigger";
+import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint, RecursivePartial } from "../../types";
-import { hasProfanity } from "../../utils";
+import { hasProfanity } from "../../utils/censor";
 
 export type EndpointsAuth = {
     Mutation: {

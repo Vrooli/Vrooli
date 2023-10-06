@@ -1,6 +1,6 @@
 import { GqlModelType, isOfType } from "@local/shared";
-import { CustomError } from "../events";
-import { ObjectMap } from "../models/base";
+import { CustomError } from "../events/error";
+import { ObjectMapSingleton } from "../models/base";
 import { PrismaType } from "../types";
 
 /**
@@ -28,8 +28,8 @@ export async function getLatestVersion({
     // Create root select query
     const rootSelectQuery = idRoot ? { id: idRoot } : { handle: handleRoot };
     // Get model
-    const model = ObjectMap[objectType];
-    if (!model) throw new CustomError("0373", "InternalError", ["en"], { objectType });
+    const model = ObjectMapSingleton.getInstance().map[objectType];
+    if (!model || Object.keys(model).length <= 0) throw new CustomError("0373", "InternalError", ["en"], { objectType });
     // Handle apis and notes, which don't have an "isComplete" field
     if (isOfType({ __typename: objectType }, "Api", "Note")) {
         const query = {

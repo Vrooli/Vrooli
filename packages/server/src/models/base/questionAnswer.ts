@@ -1,5 +1,5 @@
 import { MaxObjects, QuestionAnswerSortBy, questionAnswerValidation } from "@local/shared";
-import { shapeHelper } from "../../builders";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { QuestionAnswerFormat } from "../formats";

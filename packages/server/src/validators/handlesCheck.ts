@@ -1,5 +1,5 @@
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { getLogic } from "../getters/getLogic";
 import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 

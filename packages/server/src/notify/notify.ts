@@ -1,11 +1,17 @@
 import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, SubscribableObject, Success } from "@local/shared";
 import { Prisma, ReportStatus } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
-import { selectHelper, toPartialGqlInfo } from "../builders";
+import { selectHelper } from "../builders/selectHelper";
+import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-import { CustomError, logger } from "../events";
-import { getLogic } from "../getters";
-import { OrganizationModel, PushDeviceModel, subscribableMapper } from "../models/base";
+import { CustomError } from "../events/error";
+import { logger } from "../events/logger";
+import { subscribableMapper } from "../events/subscriber";
+import { getLogic } from "../getters/getLogic";
+import { ObjectMapSingleton } from "../models/base";
+import { PushDeviceModel } from "../models/base/pushDevice";
+import { OrganizationModelLogic } from "../models/base/types";
+import { ModelLogic } from "../models/types";
 import { withRedis } from "../redisConn";
 import { sendMail, sendPush } from "../tasks";
 import { PrismaType, SessionUserToken } from "../types";
@@ -315,7 +321,7 @@ const NotifyResult = ({
      */
     toOrganization: async (organizationId, excludeUserId) => {
         // Find every admin of the organization, excluding the user who triggered the notification
-        const adminData = await OrganizationModel.query.findAdminInfo(prisma, organizationId, excludeUserId);
+        const adminData = await (ObjectMapSingleton.getInstance().map["OrganizationModel"] as ModelLogic<OrganizationModelLogic, any>).query.findAdminInfo(prisma, organizationId, excludeUserId);
         // Shape and translate the notification for each admin
         const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, adminData.map(({ id, languages }) => ({
             languages,

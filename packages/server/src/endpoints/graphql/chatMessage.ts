@@ -1,6 +1,6 @@
 import { ChatMessageSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { ChatMessageEndpoints, EndpointsChatMessage } from "../logic";
+import { ChatMessageEndpoints, EndpointsChatMessage } from "../logic/chatMessage";
 
 export const typeDef = gql`
     enum ChatMessageSortBy {

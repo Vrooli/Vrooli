@@ -1,6 +1,6 @@
 import { ProjectSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsProject, ProjectEndpoints } from "../logic";
+import { EndpointsProject, ProjectEndpoints } from "../logic/project";
 
 export const typeDef = gql`
     enum ProjectSortBy {

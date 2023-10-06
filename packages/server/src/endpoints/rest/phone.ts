@@ -1,5 +1,5 @@
 import { phone_create } from "../generated";
-import { PhoneEndpoints } from "../logic";
+import { PhoneEndpoints } from "../logic/phone";
 import { setupRoutes } from "./base";
 
 export const PhoneRest = setupRoutes({

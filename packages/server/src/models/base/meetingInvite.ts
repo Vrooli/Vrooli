@@ -1,5 +1,6 @@
 import { MaxObjects, MeetingInviteSortBy, meetingInviteValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { MeetingInviteFormat } from "../formats";

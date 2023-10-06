@@ -1,16 +1,19 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
-import { modelToGql, selectHelper } from "../builders";
+import { modelToGql } from "../builders/modelToGql";
+import { selectHelper } from "../builders/selectHelper";
 import { PartialGraphQLInfo, PrismaCreate, PrismaUpdate } from "../builders/types";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { getLogic } from "../getters/getLogic";
 import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
-import { getAuthenticatedData } from "../utils";
 import { cudInputsToMaps } from "../utils/cudInputsToMaps";
 import { cudOutputsToMaps } from "../utils/cudOutputsToMaps";
+import { getAuthenticatedData } from "../utils/getAuthenticatedData";
 import { CudInputData } from "../utils/types";
-import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
+import { maxObjectsCheck } from "../validators/maxObjectsCheck";
+import { permissionsCheck } from "../validators/permissions";
+import { profanityCheck } from "../validators/profanityCheck";
 
 /**
  * Performs create, update, and delete operations. 

@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
-import { Trigger } from "../../events";
-import { getLogic } from "../../getters";
+import { Trigger } from "../../events/trigger";
+import { getLogic } from "../../getters/getLogic";
 import { PrismaType, SessionUserToken } from "../../types";
 
 /**

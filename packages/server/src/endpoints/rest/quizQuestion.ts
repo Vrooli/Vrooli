@@ -1,5 +1,5 @@
 import { quizQuestion_findMany, quizQuestion_findOne } from "../generated";
-import { QuizQuestionEndpoints } from "../logic";
+import { QuizQuestionEndpoints } from "../logic/quizQuestion";
 import { setupRoutes } from "./base";
 
 export const QuizQuestionRest = setupRoutes({

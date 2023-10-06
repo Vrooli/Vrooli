@@ -1,8 +1,10 @@
 import { VisibilityType } from "@local/shared";
-import { getUser } from "../auth";
-import { combineQueries, timeFrameToPrisma, visibilityBuilder } from "../builders";
+import { getUser } from "../auth/request";
+import { combineQueries } from "../builders/combineQueries";
+import { timeFrameToPrisma } from "../builders/timeFrameToPrisma";
 import { CountInputBase } from "../builders/types";
-import { getLogic } from "../getters";
+import { visibilityBuilder } from "../builders/visibilityBuilder";
+import { getLogic } from "../getters/getLogic";
 import { CountHelperProps } from "./types";
 
 /**

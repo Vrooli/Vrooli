@@ -1,5 +1,5 @@
 import { chatMessage_create, chatMessage_findMany, chatMessage_findOne, chatMessage_findTree, chatMessage_update } from "../generated";
-import { ChatMessageEndpoints } from "../logic";
+import { ChatMessageEndpoints } from "../logic/chatMessage";
 import { setupRoutes } from "./base";
 
 export const ChatMessageRest = setupRoutes({

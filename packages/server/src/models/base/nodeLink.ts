@@ -1,5 +1,6 @@
 import { MaxObjects, nodeLinkValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { NodeLinkFormat } from "../formats";
 import { ModelLogic } from "../types";

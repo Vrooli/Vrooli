@@ -1,5 +1,6 @@
 import { emailValidation, MaxObjects } from "@local/shared";
-import { CustomError, Trigger } from "../../events";
+import { CustomError } from "../../events/error";
+import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
 import { EmailFormat } from "../formats";
 import { ModelLogic } from "../types";

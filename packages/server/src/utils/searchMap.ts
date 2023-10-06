@@ -1,6 +1,7 @@
 import { GqlModelType, InputMaybe, TimeFrame, VisibilityType } from "@local/shared";
 import { PeriodType } from "@prisma/client";
-import { timeFrameToPrisma, visibilityBuilder } from "../builders";
+import { timeFrameToPrisma } from "../builders/timeFrameToPrisma";
+import { visibilityBuilder } from "../builders/visibilityBuilder";
 import { SessionUserToken } from "../types";
 
 type Maybe<T> = InputMaybe<T> | undefined

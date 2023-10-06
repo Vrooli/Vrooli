@@ -1,8 +1,11 @@
 import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType } from "@local/shared";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { assertRequestFrom, focusModeSelect, updateSessionCurrentUser } from "../../auth";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
+import { createHelper } from "../../actions/creates";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateHelper } from "../../actions/updates";
+import { assertRequestFrom, updateSessionCurrentUser } from "../../auth/request";
+import { focusModeSelect } from "../../auth/session";
+import { CustomError } from "../../events/error";
+import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsFocusMode = {

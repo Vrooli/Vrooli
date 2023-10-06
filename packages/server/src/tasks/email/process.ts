@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { logger } from "../../events";
+import { logger } from "../../events/logger";
 
 const HOST = "smtp.gmail.com";
 const PORT = 465;

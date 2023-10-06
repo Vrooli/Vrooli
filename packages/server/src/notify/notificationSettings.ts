@@ -1,6 +1,6 @@
 import { NotificationSettings, NotificationSettingsUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { logger } from "../events";
+import { logger } from "../events/logger";
 import { PrismaType } from "../types";
 import { NotificationCategory } from "./notify";
 

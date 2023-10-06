@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { getLogic } from "../getters";
+import { getLogic } from "../getters/getLogic";
 
 /**
  * Given permissions data and a list of fields and GraphQLModels which have validators, determines if one of the fields is public. 

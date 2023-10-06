@@ -1,7 +1,7 @@
 import { Email, EmailCreateInput, SendVerificationEmailInput, Success } from "@local/shared";
-import { createHelper } from "../../actions";
-import { setupVerificationCode } from "../../auth";
-import { rateLimit } from "../../middleware";
+import { createHelper } from "../../actions/creates";
+import { setupVerificationCode } from "../../auth/email";
+import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, GQLEndpoint } from "../../types";
 
 export type EndpointsEmail = {

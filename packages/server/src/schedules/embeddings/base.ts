@@ -10,7 +10,7 @@
  */
 import { ValueOf } from "@local/shared";
 import { Prisma, RunStatus } from "@prisma/client";
-import { ObjectMap } from "../../models/base";
+import { ObjectMapSingleton } from "../../models/base";
 import { ModelLogic } from "../../models/types";
 import { PrismaType } from "../../types";
 import { FindManyArgs } from "../../utils";
@@ -29,13 +29,13 @@ const API_BATCH_SIZE = 100; // Size set in the API to limit the number of embedd
 /**
  * Helper function to extract sentences from translated embeddable objects
  */
-const extractTranslatedSentences = <T extends { translations: { language: string }[] }>(batch: T[], model: ValueOf<typeof ObjectMap>) => {
+const extractTranslatedSentences = <T extends { translations: { language: string }[] }>(batch: T[], model: ValueOf<typeof ObjectMapSingleton.prototype.map>) => {
     // Initialize array to store sentences
     const sentences: string[] = [];
     // Loop through each object in the batch
     for (const curr of batch) {
         const currLanguages = curr.translations.map(translation => translation.language);
-        const currSentences = currLanguages.map(language => model.display.embed?.get(curr as any, [language]));
+        const currSentences = currLanguages.map(language => model?.display?.embed?.get(curr as any, [language]));
         // Add each sentence to the array
         currSentences.forEach(sentence => {
             if (sentence) {
@@ -77,7 +77,8 @@ const processTranslatedBatchHelper = async (
     prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
 ): Promise<void> => {
-    const model = ObjectMap[objectType];
+    const model = ObjectMapSingleton.getInstance().map[objectType];
+    if (!model || Object.keys(model).length <= 0) return;
     // Extract sentences from the batch
     const sentences = extractTranslatedSentences(batch, model);
     if (sentences.length === 0) return;
@@ -105,7 +106,8 @@ const processUntranslatedBatchHelper = async (
     prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
 ): Promise<void> => {
-    const model = ObjectMap[objectType] as ModelLogic<any, any>;
+    const model = ObjectMapSingleton.getInstance().map[objectType] as ModelLogic<any, any>;
+    if (!model || Object.keys(model).length <= 0) return;
     // Extract sentences from the batch
     const sentences = batch.map(obj => model.display.embed?.get(obj as any, []) ?? "");
     if (sentences.length === 0) return;
@@ -132,7 +134,7 @@ const embeddingBatch = async <T extends FindManyArgs>({
     batchSize: API_BATCH_SIZE,
     objectType,
     processBatch: async (batch, prisma) => await processBatch(batch, prisma, objectType),
-    select: ObjectMap[objectType]!.display.embed!.select(),
+    select: ObjectMapSingleton.getInstance().map[objectType]!.display.embed!.select(),
     trace,
     traceObject,
     ...props,

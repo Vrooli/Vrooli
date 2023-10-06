@@ -1,5 +1,6 @@
 import { MaxObjects, MeetingSortBy, meetingValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";

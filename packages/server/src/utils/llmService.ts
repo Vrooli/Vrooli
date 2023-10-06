@@ -1,10 +1,13 @@
 import { ChatMessage } from "@local/shared";
 import OpenAI from "openai";
-import { addSupplementalFields, modelToGql, selectHelper } from "../builders";
+import { addSupplementalFields } from "../builders/addSupplementalFields";
+import { modelToGql } from "../builders/modelToGql";
+import { selectHelper } from "../builders/selectHelper";
 import { chatMessage_findOne } from "../endpoints";
-import { logger, Trigger } from "../events";
+import { logger } from "../events/logger";
+import { Trigger } from "../events/trigger";
 import { io } from "../io";
-import { PreMapBotData, PreMapMessageData } from "../models/base";
+import { PreMapBotData, PreMapMessageData } from "../models/base/chatMessage";
 import { PrismaType, SessionUserToken } from "../types";
 
 // Define an interface for a language model service

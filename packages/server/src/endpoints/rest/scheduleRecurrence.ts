@@ -1,5 +1,5 @@
 import { scheduleRecurrence_create, scheduleRecurrence_findMany, scheduleRecurrence_findOne, scheduleRecurrence_update } from "../generated";
-import { ScheduleRecurrenceEndpoints } from "../logic";
+import { ScheduleRecurrenceEndpoints } from "../logic/scheduleRecurrence";
 import { setupRoutes } from "./base";
 
 export const ScheduleRecurrenceRest = setupRoutes({

@@ -1,8 +1,8 @@
 import { MaxObjects, RunRoutineInputSortBy, runRoutineInputValidation } from "@local/shared";
-import { RoutineVersionInputModel } from ".";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { RunRoutineInputFormat } from "../formats";
 import { ModelLogic } from "../types";
+import { RoutineVersionInputModel } from "./routineVersionInput";
 import { RunRoutineModel } from "./runRoutine";
 import { RoutineVersionInputModelLogic, RunRoutineInputModelLogic, RunRoutineModelLogic } from "./types";
 

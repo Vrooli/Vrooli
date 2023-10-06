@@ -1,5 +1,5 @@
 import { MaxObjects, pushDeviceValidation } from "@local/shared";
-import { noNull } from "../../builders";
+import { noNull } from "../../builders/noNull";
 import { defaultPermissions } from "../../utils";
 import { PushDeviceFormat } from "../formats";
 import { ModelLogic } from "../types";

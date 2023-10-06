@@ -1,6 +1,6 @@
 import { ReminderSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsReminder, ReminderEndpoints } from "../logic";
+import { EndpointsReminder, ReminderEndpoints } from "../logic/reminder";
 
 export const typeDef = gql`
     enum ReminderSortBy {

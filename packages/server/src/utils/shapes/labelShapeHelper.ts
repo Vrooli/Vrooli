@@ -1,4 +1,4 @@
-import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders";
+import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
 
 // Types of objects which have labels

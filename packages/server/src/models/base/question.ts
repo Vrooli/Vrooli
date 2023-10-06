@@ -1,6 +1,6 @@
 import { MaxObjects, QuestionForType, QuestionSortBy, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull } from "../../builders";
+import { noNull } from "../../builders/noNull";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";

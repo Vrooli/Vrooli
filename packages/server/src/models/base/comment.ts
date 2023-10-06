@@ -1,8 +1,13 @@
 import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
 import { Request } from "express";
-import { getUser } from "../../auth";
-import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../../builders";
+import { getUser } from "../../auth/request";
+import { addSupplementalFields } from "../../builders/addSupplementalFields";
+import { combineQueries } from "../../builders/combineQueries";
+import { modelToGql } from "../../builders/modelToGql";
+import { selectHelper } from "../../builders/selectHelper";
+import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
+import { visibilityBuilder } from "../../builders/visibilityBuilder";
 import { getSearchStringQuery } from "../../getters";
 import { PrismaType, SessionUserToken } from "../../types";
 import { bestTranslation, defaultPermissions, oneIsPublic, SearchMap } from "../../utils";

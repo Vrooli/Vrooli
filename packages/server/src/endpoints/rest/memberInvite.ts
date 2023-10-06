@@ -1,5 +1,5 @@
 import { memberInvite_accept, memberInvite_create, memberInvite_decline, memberInvite_findMany, memberInvite_findOne, memberInvite_update } from "../generated";
-import { MemberInviteEndpoints } from "../logic";
+import { MemberInviteEndpoints } from "../logic/memberInvite";
 import { setupRoutes } from "./base";
 
 export const MemberInviteRest = setupRoutes({

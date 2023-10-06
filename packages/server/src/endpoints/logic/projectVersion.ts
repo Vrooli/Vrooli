@@ -1,7 +1,9 @@
 import { FindVersionInput, ProjectVersion, ProjectVersionContentsSearchInput, ProjectVersionContentsSearchResult, ProjectVersionCreateInput, ProjectVersionSearchInput, ProjectVersionUpdateInput } from "@local/shared";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
+import { createHelper } from "../../actions/creates";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateHelper } from "../../actions/updates";
+import { CustomError } from "../../events/error";
+import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsProjectVersion = {

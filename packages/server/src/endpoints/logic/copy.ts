@@ -1,6 +1,6 @@
 import { CopyInput, CopyResult, lowercaseFirstLetter } from "@local/shared";
-import { copyHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { copyHelper } from "../../actions/copies";
+import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint } from "../../types";
 
 export type EndpointsCopy = {

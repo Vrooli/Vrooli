@@ -1,5 +1,5 @@
 import { lowercaseFirstLetter } from "@local/shared";
-import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders";
+import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 
 type OwnerShapeHelperProps<
     FieldName extends "ownedBy",

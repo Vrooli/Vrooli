@@ -1,6 +1,7 @@
 import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from "@local/shared";
-import { createHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { createHelper } from "../../actions/creates";
+import { updateHelper } from "../../actions/updates";
+import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsReminderList = {

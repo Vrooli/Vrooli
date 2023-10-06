@@ -1,5 +1,5 @@
 import { auth_emailLogIn, auth_emailRequestPasswordChange, auth_emailResetPassword, auth_emailSignUp, auth_guestLogIn, auth_logOut, auth_switchCurrentAccount, auth_validateSession, auth_walletComplete, auth_walletInit } from "../generated";
-import { AuthEndpoints } from "../logic";
+import { AuthEndpoints } from "../logic/auth";
 import { setupRoutes } from "./base";
 
 export const AuthRest = setupRoutes({

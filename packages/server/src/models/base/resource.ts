@@ -1,5 +1,6 @@
 import { MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceFormat } from "../formats";

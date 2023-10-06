@@ -1,8 +1,13 @@
 import { BotCreateInput, BotUpdateInput, FindByIdOrHandleInput, ImportCalendarInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, ProfileUpdateInput, Session, Success, User, UserDeleteInput, UserSearchInput } from "@local/shared";
-import { createHelper, cudHelper, deleteOneHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { assertRequestFrom, hashPassword, logIn, setupPasswordReset } from "../../auth";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
+import { createHelper } from "../../actions/creates";
+import { cudHelper } from "../../actions/cuds";
+import { deleteOneHelper } from "../../actions/deletes";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateHelper } from "../../actions/updates";
+import { hashPassword, logIn, setupPasswordReset } from "../../auth/email";
+import { assertRequestFrom } from "../../auth/request";
+import { CustomError } from "../../events/error";
+import { rateLimit } from "../../middleware/rateLimit";
 import { FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../../types";
 import { parseICalFile } from "../../utils";
 import { AuthEndpoints } from "./auth";

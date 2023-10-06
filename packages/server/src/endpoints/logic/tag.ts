@@ -1,6 +1,8 @@
 import { FindByIdInput, Tag, TagCreateInput, TagSearchInput, TagUpdateInput } from "@local/shared";
-import { createHelper, readManyWithEmbeddingsHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { createHelper } from "../../actions/creates";
+import { readManyWithEmbeddingsHelper, readOneHelper } from "../../actions/reads";
+import { updateHelper } from "../../actions/updates";
+import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsTag = {

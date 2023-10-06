@@ -1,6 +1,6 @@
 import { MaxObjects, walletValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { CustomError } from "../../events";
+import { CustomError } from "../../events/error";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { WalletFormat } from "../formats";
 import { ModelLogic } from "../types";

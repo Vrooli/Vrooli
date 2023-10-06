@@ -1,5 +1,5 @@
 // import { readAssets, writeAssets } from "../generated";
-// import { RootEndpoints } from "../logic";
+// import { RootEndpoints } from "../logic/root";
 // import { setupRoutes } from "./base";
 
 // export const RootRest = setupRoutes({

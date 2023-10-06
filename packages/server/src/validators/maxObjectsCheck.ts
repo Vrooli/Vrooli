@@ -12,11 +12,11 @@
  * the organization's governance structure.
  */
 import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { getLogic } from "../getters/getLogic";
 import { PrismaType, SessionUserToken } from "../types";
-import { AuthDataById } from "../utils";
 import { authDataWithInput } from "../utils/authDataWithInput";
+import { AuthDataById } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
 import { InputsById, QueryAction } from "../utils/types";
 

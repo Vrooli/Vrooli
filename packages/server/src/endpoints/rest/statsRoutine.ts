@@ -1,5 +1,5 @@
 import { statsRoutine_findMany } from "../generated";
-import { StatsRoutineEndpoints } from "../logic";
+import { StatsRoutineEndpoints } from "../logic/statsRoutine";
 import { setupRoutes } from "./base";
 
 export const StatsRoutineRest = setupRoutes({

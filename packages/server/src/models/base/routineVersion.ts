@@ -1,5 +1,10 @@
 import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, routineVersionValidation } from "@local/shared";
-import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
+import { addSupplementalFields } from "../../builders/addSupplementalFields";
+import { modelToGql } from "../../builders/modelToGql";
+import { noNull } from "../../builders/noNull";
+import { selectHelper } from "../../builders/selectHelper";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { PrismaType } from "../../types";
 import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";

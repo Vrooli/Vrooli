@@ -1,5 +1,5 @@
 import { runRoutine_cancel, runRoutine_complete, runRoutine_create, runRoutine_deleteAll, runRoutine_findMany, runRoutine_findOne, runRoutine_update } from "../generated";
-import { RunRoutineEndpoints } from "../logic";
+import { RunRoutineEndpoints } from "../logic/runRoutine";
 import { setupRoutes } from "./base";
 
 export const RunRoutineRest = setupRoutes({

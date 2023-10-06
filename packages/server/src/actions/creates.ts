@@ -1,7 +1,8 @@
 import { assertRequestFrom } from "../auth/request";
-import { addSupplementalFields, toPartialGqlInfo } from "../builders";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { addSupplementalFields } from "../builders/addSupplementalFields";
+import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
+import { CustomError } from "../events/error";
+import { getLogic } from "../getters/getLogic";
 import { RecursivePartial } from "../types";
 import { cudHelper } from "./cuds";
 import { CreateHelperProps } from "./types";

@@ -1,6 +1,6 @@
 import { SmartContractVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsSmartContractVersion, SmartContractVersionEndpoints } from "../logic";
+import { EndpointsSmartContractVersion, SmartContractVersionEndpoints } from "../logic/smartContractVersion";
 
 export const typeDef = gql`
     enum SmartContractVersionSortBy {

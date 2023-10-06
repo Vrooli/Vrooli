@@ -1,6 +1,6 @@
 import { StandardSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsStandard, StandardEndpoints } from "../logic";
+import { EndpointsStandard, StandardEndpoints } from "../logic/standard";
 
 export const typeDef = gql`
     enum StandardSortBy {

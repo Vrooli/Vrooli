@@ -1,5 +1,6 @@
 import { MaxObjects, ProjectSortBy, projectValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";

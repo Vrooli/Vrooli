@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { getLogic } from "../getters/getLogic";
 import { ModelLogicType } from "../models/types";
 import { IdsByAction, InputsById } from "./types";
 

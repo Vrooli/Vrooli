@@ -1,5 +1,5 @@
 import { api_create, api_findMany, api_findOne, api_update } from "../generated";
-import { ApiEndpoints } from "../logic";
+import { ApiEndpoints } from "../logic/api";
 import { setupRoutes } from "./base";
 
 export const ApiRest = setupRoutes({

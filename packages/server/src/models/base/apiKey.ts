@@ -1,6 +1,6 @@
 import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
-import { randomString } from "../../auth";
-import { noNull } from "../../builders";
+import { randomString } from "../../auth/wallet";
+import { noNull } from "../../builders/noNull";
 import { defaultPermissions } from "../../utils";
 import { ApiKeyFormat } from "../formats";
 import { ModelLogic } from "../types";

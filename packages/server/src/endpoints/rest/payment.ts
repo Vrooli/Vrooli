@@ -1,5 +1,5 @@
 // import { payment_findMany, payment_findOne } from "../generated";
-// import { PaymentEndpoints } from "../logic";
+// import { PaymentEndpoints } from "../logic/payment";
 // import { setupRoutes } from "./base";
 
 // export const PaymentRest = setupRoutes({

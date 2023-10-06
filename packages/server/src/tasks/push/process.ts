@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { logger } from "../../events";
+import { logger } from "../../events/logger";
 import { PushPayload, PushSubscription } from "./queue";
 
 let vapidDetailsSet = false;

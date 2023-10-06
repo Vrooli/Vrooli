@@ -1,6 +1,6 @@
 import { ApiSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { ApiEndpoints, EndpointsApi } from "../logic";
+import { ApiEndpoints, EndpointsApi } from "../logic/api";
 
 export const typeDef = gql`
     enum ApiSortBy {

@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { getLogic } from "../getters/getLogic";
 import { Formatter, ModelLogicType } from "../models/types";
 import { PrismaType } from "../types";
 import { getActionFromFieldName } from "./getActionFromFieldName";

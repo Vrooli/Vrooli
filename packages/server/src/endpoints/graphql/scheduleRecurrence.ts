@@ -1,6 +1,6 @@
 import { ScheduleRecurrenceSortBy, ScheduleRecurrenceType } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsScheduleRecurrence, ScheduleRecurrenceEndpoints } from "../logic";
+import { EndpointsScheduleRecurrence, ScheduleRecurrenceEndpoints } from "../logic/scheduleRecurrence";
 
 export const typeDef = gql`
     enum ScheduleRecurrenceSortBy {

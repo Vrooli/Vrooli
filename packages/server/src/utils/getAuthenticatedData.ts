@@ -1,8 +1,9 @@
 import { GqlModelType, uuidValidate } from "@local/shared";
-import { permissionsSelectHelper } from "../builders";
+import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
 import { PrismaSelect } from "../builders/types";
-import { CustomError, logger } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { logger } from "../events/logger";
+import { getLogic } from "../getters/getLogic";
 import { PrismaType, SessionUserToken } from "../types";
 
 export type AuthDataById = { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } };

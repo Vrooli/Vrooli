@@ -1,7 +1,8 @@
 import { GqlModelType, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { findFirstRel, noNull } from "../../builders";
-import { getLogic } from "../../getters";
+import { findFirstRel } from "../../builders/findFirstRel";
+import { noNull } from "../../builders/noNull";
+import { getLogic } from "../../getters/getLogic";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { PullRequestFormat } from "../formats";

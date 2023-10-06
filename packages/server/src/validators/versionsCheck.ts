@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { getLogic } from "../getters/getLogic";
 import { PrismaType, SessionUserToken } from "../types";
 
 const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);

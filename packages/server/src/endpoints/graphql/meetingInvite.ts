@@ -1,6 +1,6 @@
 import { MeetingInviteSortBy, MeetingInviteStatus } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsMeetingInvite, MeetingInviteEndpoints } from "../logic";
+import { EndpointsMeetingInvite, MeetingInviteEndpoints } from "../logic/meetingInvite";
 
 export const typeDef = gql`
     enum MeetingInviteSortBy {

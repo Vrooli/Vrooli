@@ -1,15 +1,27 @@
 import { PageInfo, ViewFor, VisibilityType } from "@local/shared";
-import { getUser } from "../auth";
-import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../builders";
+import { getUser } from "../auth/request";
+import { addSupplementalFields } from "../builders/addSupplementalFields";
+import { combineQueries } from "../builders/combineQueries";
+import { modelToGql } from "../builders/modelToGql";
+import { selectHelper } from "../builders/selectHelper";
+import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
-import { CustomError, logger } from "../events";
-import { getIdFromHandle, getLatestVersion, getLogic, getSearchStringQuery } from "../getters";
-import { ObjectMap, ViewModel } from "../models/base";
-import { Searcher } from "../models/types";
+import { visibilityBuilder } from "../builders/visibilityBuilder";
+import { CustomError } from "../events/error";
+import { logger } from "../events/logger";
+import { getIdFromHandle } from "../getters/getIdFromHandle";
+import { getLatestVersion } from "../getters/getLatestVersion";
+import { getLogic } from "../getters/getLogic";
+import { getSearchStringQuery } from "../getters/getSearchStringQuery";
+import { ObjectMapSingleton } from "../models/base";
+import { ViewModelLogic } from "../models/base/types";
+import { ModelLogic, Searcher } from "../models/types";
 import { RecursivePartial } from "../types";
-import { findTags, getAuthenticatedData, SearchMap } from "../utils";
+import { findTags } from "../utils/embeddings/search/tags";
+import { getAuthenticatedData } from "../utils/getAuthenticatedData";
+import { SearchMap } from "../utils/searchMap";
 import { SortMap } from "../utils/sortMap";
-import { permissionsCheck } from "../validators";
+import { permissionsCheck } from "../validators/permissions";
 import { ReadManyHelperProps, ReadOneHelperProps } from "./types";
 
 const DEFAULT_TAKE = 20;
@@ -37,8 +49,8 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     req,
 }: ReadOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
     const userData = getUser(req.session);
-    const model = ObjectMap[objectType];
-    if (!model) throw new CustomError("0350", "InternalError", req.session.languages, { objectType });
+    const model = ObjectMapSingleton.getInstance().map[objectType];
+    if (!model || Object.keys(model).length <= 0) throw new CustomError("0350", "InternalError", req.session.languages, { objectType });
     // Validate input. This can be of the form FindByIdInput, FindByIdOrHandleInput, or FindVersionInput
     // Between these, the possible fields are id, idRoot, handle, and handleRoot
     if (!input.id && !input.idRoot && !input.handle && !input.handleRoot)
@@ -78,7 +90,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     const formatted = modelToGql(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
-        ViewModel.view(prisma, userData, { forId: object.id, viewFor: objectType as any });
+        (ObjectMapSingleton.getInstance().map["View"] as ModelLogic<ViewModelLogic, []>).view(prisma, userData, { forId: object.id, viewFor: objectType as any });
     }
     const result = (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
     return result;
@@ -102,8 +114,8 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     visibility = VisibilityType.Public,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req.session);
-    const model = ObjectMap[objectType];
-    if (!model) throw new CustomError("0349", "InternalError", req.session.languages, { objectType });
+    const model = ObjectMapSingleton.getInstance().map[objectType];
+    if (!model || Object.keys(model).length <= 0) throw new CustomError("0349", "InternalError", req.session.languages, { objectType });
     // Partially convert info type
     const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
@@ -235,8 +247,8 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     visibility = VisibilityType.Public,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req.session);
-    const model = ObjectMap[objectType];
-    if (!model) throw new CustomError("0487", "InternalError", req.session.languages, { objectType });
+    const model = ObjectMapSingleton.getInstance().map[objectType];
+    if (!model || Object.keys(model).length <= 0) throw new CustomError("0487", "InternalError", req.session.languages, { objectType });
     const desiredTake = getDesiredTake(input.take, req.session.languages, objectType);
     const embedResults = await findTags({ //TODO support more than just tags
         limit: desiredTake,

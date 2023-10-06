@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
-import { assertRequestFrom } from "../auth";
-import { logger } from "../events";
+import { assertRequestFrom } from "../auth/request";
+import { logger } from "../events/logger";
 import { rateLimitSocket } from "../middleware";
 import { withPrisma } from "../utils/withPrisma";
 

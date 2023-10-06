@@ -1,5 +1,5 @@
 import { noteVersion_create, noteVersion_findMany, noteVersion_findOne, noteVersion_update } from "../generated";
-import { NoteVersionEndpoints } from "../logic";
+import { NoteVersionEndpoints } from "../logic/noteVersion";
 import { setupRoutes } from "./base";
 
 export const NoteVersionRest = setupRoutes({

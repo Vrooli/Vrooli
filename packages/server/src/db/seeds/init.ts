@@ -4,7 +4,7 @@
  */
 import { InputType, uuid, VALYXA_ID } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { hashPassword } from "../../auth";
+import { hashPassword } from "../../auth/email";
 import { logger } from "../../events/logger";
 import { PrismaType } from "../../types";
 

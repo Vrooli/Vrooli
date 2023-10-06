@@ -1,5 +1,6 @@
 import { MaxObjects, NoteVersionSortBy, noteVersionValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";

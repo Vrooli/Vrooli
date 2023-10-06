@@ -1,5 +1,5 @@
 import { transfer_accept, transfer_cancel, transfer_deny, transfer_findMany, transfer_findOne, transfer_requestReceive, transfer_requestSend, transfer_update } from "../generated";
-import { TransferEndpoints } from "../logic";
+import { TransferEndpoints } from "../logic/transfer";
 import { setupRoutes } from "./base";
 
 export const TransferRest = setupRoutes({

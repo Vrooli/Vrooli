@@ -1,6 +1,7 @@
 import { ChatParticipant, ChatParticipantSearchInput, ChatParticipantUpdateInput, FindByIdInput } from "@local/shared";
-import { readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateHelper } from "../../actions/updates";
+import { rateLimit } from "../../middleware/rateLimit";
 import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsChatParticipant = {

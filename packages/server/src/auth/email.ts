@@ -2,10 +2,10 @@ import { ErrorKey, Session } from "@local/shared";
 import { AccountStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
-import { CustomError } from "../events";
+import { CustomError } from "../events/error";
 import { UserModelLogic } from "../models/base/types";
-import { Notify } from "../notify";
-import { sendResetPasswordLink, sendVerificationLink } from "../tasks";
+import { Notify } from "../notify/notify";
+import { sendResetPasswordLink, sendVerificationLink } from "../tasks/email/queue";
 import { PrismaType } from "../types";
 import { toSession } from "./session";
 

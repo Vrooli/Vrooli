@@ -1,10 +1,11 @@
 import { ApiSortBy, apiValidation, MaxObjects } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { defaultPermissions } from "../../utils/defaultPermissions";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
-import { afterMutationsRoot } from "../../utils/triggers";
-import { getSingleTypePermissions } from "../../validators";
+import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot";
+import { getSingleTypePermissions } from "../../validators/permissions";
 import { ApiFormat } from "../formats";
 import { ModelLogic } from "../types";
 import { ApiVersionModel } from "./apiVersion";

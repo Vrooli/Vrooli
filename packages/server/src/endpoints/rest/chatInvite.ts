@@ -1,5 +1,5 @@
 import { chatInvite_accept, chatInvite_create, chatInvite_decline, chatInvite_findMany, chatInvite_findOne, chatInvite_update } from "../generated";
-import { ChatInviteEndpoints } from "../logic";
+import { ChatInviteEndpoints } from "../logic/chatInvite";
 import { setupRoutes } from "./base";
 
 export const ChatInviteRest = setupRoutes({

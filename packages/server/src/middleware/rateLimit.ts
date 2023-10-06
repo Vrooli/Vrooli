@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { getUser } from "../auth";
+import { getUser } from "../auth/request";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { initializeRedis } from "../redisConn";

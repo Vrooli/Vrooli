@@ -1,7 +1,7 @@
 import { ViewSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { UnionResolver } from "../../types";
-import { EndpointsView, ViewEndpoints } from "../logic";
+import { EndpointsView, ViewEndpoints } from "../logic/view";
 import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`

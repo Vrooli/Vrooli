@@ -1,5 +1,5 @@
 import { resourceList_create, resourceList_findMany, resourceList_findOne, resourceList_update } from "../generated";
-import { ResourceListEndpoints } from "../logic";
+import { ResourceListEndpoints } from "../logic/resourceList";
 import { setupRoutes } from "./base";
 
 export const ResourceListRest = setupRoutes({

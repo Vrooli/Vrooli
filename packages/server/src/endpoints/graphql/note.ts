@@ -1,6 +1,6 @@
 import { NoteSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsNote, NoteEndpoints } from "../logic";
+import { EndpointsNote, NoteEndpoints } from "../logic/note";
 
 export const typeDef = gql`
     enum NoteSortBy {

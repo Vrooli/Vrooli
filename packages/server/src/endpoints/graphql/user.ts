@@ -1,6 +1,6 @@
 import { UserSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsUser, UserEndpoints } from "../logic";
+import { EndpointsUser, UserEndpoints } from "../logic/user";
 
 export const typeDef = gql`
     enum UserSortBy {

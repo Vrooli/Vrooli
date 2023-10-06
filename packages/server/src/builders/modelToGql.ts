@@ -1,5 +1,5 @@
 import { isObject } from "@local/shared";
-import { ObjectMap } from "../models/base";
+import { ObjectMapSingleton } from "../models/base";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeCountFields } from "./removeCountFields";
 import { removeHiddenFields } from "./removeHiddenFields";
@@ -19,7 +19,7 @@ export function modelToGql<GqlModel extends Record<string, any>>(
 ): GqlModel {
     // Convert data to usable shape
     const type = partialInfo?.__typename;
-    const format = typeof type === "string" ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    const format = typeof type === "string" ? ObjectMapSingleton.getInstance().map[type as keyof typeof ObjectMapSingleton.prototype.map]?.format : undefined;
     if (format) {
         const unionData = constructUnions(data, partialInfo, format.gqlRelMap);
         data = unionData.data;

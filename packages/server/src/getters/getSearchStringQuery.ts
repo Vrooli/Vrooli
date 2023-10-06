@@ -1,8 +1,8 @@
 import { GqlModelType } from "@local/shared";
-import { getLogic } from ".";
-import { isRelationshipObject } from "../builders";
+import { isRelationshipObject } from "../builders/isRelationshipObject";
 import { SearchStringQuery, SearchStringQueryParams } from "../models/types";
-import { SearchStringMap } from "../utils";
+import { SearchStringMap } from "../utils/searchStringMap";
+import { getLogic } from "./getLogic";
 
 /**
  * @param queryParams Data required to replace keys

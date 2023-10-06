@@ -1,5 +1,5 @@
 import { schedule_create, schedule_findMany, schedule_findOne, schedule_update } from "../generated";
-import { ScheduleEndpoints } from "../logic";
+import { ScheduleEndpoints } from "../logic/schedule";
 import { setupRoutes } from "./base";
 
 export const ScheduleRest = setupRoutes({

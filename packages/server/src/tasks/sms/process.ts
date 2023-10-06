@@ -1,4 +1,4 @@
-import { logger } from "../../events";
+import { logger } from "../../events/logger";
 
 let texting_client: any = null;
 

@@ -1,5 +1,6 @@
 import { MaxObjects, nodeEndValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { nodeEndNextShapeHelper } from "../../utils/shapes";
 import { NodeEndFormat } from "../formats";

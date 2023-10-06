@@ -1,5 +1,5 @@
 import { gql } from "apollo-server-express";
-import { EndpointsReminderList, ReminderListEndpoints } from "../logic";
+import { EndpointsReminderList, ReminderListEndpoints } from "../logic/reminderList";
 
 export const typeDef = gql`
     input ReminderListCreateInput {

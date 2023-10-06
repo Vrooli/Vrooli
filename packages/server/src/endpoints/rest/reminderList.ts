@@ -1,5 +1,5 @@
 import { reminderList_create, reminderList_update } from "../generated";
-import { ReminderListEndpoints } from "../logic";
+import { ReminderListEndpoints } from "../logic/reminderList";
 import { setupRoutes } from "./base";
 
 export const ReminderListRest = setupRoutes({

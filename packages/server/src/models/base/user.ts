@@ -1,5 +1,6 @@
 import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, userValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";

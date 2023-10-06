@@ -1,4 +1,4 @@
-import { getLogic } from "../getters";
+import { getLogic } from "../getters/getLogic";
 import { combineQueries } from "./combineQueries";
 import { VisibilityBuilderProps } from "./types";
 

@@ -1,5 +1,5 @@
 import { scheduleException_create, scheduleException_findMany, scheduleException_findOne, scheduleException_update } from "../generated";
-import { ScheduleExceptionEndpoints } from "../logic";
+import { ScheduleExceptionEndpoints } from "../logic/scheduleException";
 import { setupRoutes } from "./base";
 
 export const ScheduleExceptionRest = setupRoutes({

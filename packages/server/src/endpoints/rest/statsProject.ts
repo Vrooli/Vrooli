@@ -1,5 +1,5 @@
 import { statsProject_findMany } from "../generated";
-import { StatsProjectEndpoints } from "../logic";
+import { StatsProjectEndpoints } from "../logic/statsProject";
 import { setupRoutes } from "./base";
 
 export const StatsProjectRest = setupRoutes({

@@ -1,6 +1,7 @@
 import { MaxObjects, QuizQuestionResponseSortBy, quizQuestionResponseValidation } from "@local/shared";
 import i18next from "i18next";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizQuestionResponseFormat } from "../formats";

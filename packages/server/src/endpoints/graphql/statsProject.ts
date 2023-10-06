@@ -1,5 +1,5 @@
 import { gql } from "apollo-server-express";
-import { EndpointsStatsProject, StatsProjectEndpoints } from "../logic";
+import { EndpointsStatsProject, StatsProjectEndpoints } from "../logic/statsProject";
 
 export const typeDef = gql`
     enum StatsProjectSortBy {

@@ -1,6 +1,6 @@
 import { Wallet, WalletUpdateInput } from "@local/shared";
-import { updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { updateHelper } from "../../actions/updates";
+import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsWallet = {

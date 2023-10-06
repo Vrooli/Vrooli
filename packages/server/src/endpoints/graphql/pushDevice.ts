@@ -1,5 +1,5 @@
 import { gql } from "apollo-server-express";
-import { EndpointsPushDevice, PushDeviceEndpoints } from "../logic";
+import { EndpointsPushDevice, PushDeviceEndpoints } from "../logic/pushDevice";
 
 export const typeDef = gql`
     input PushDeviceKeysInput {

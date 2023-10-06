@@ -1,5 +1,5 @@
 import { tag_create, tag_findMany, tag_findOne, tag_update } from "../generated";
-import { TagEndpoints } from "../logic";
+import { TagEndpoints } from "../logic/tag";
 import { setupRoutes } from "./base";
 
 export const TagRest = setupRoutes({

@@ -1,8 +1,26 @@
 import { SubscribableObject } from "@local/shared";
-import { getLogic } from "../getters";
-import { subscribableMapper } from "../models/base";
+import { Prisma } from "@prisma/client";
+import { getLogic } from "../getters/getLogic";
 import { PrismaType, SessionUserToken } from "../types";
 import { CustomError } from "./error";
+
+export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs["create"] } = {
+    Api: "api",
+    Comment: "comment",
+    Issue: "issue",
+    Meeting: "meeting",
+    Note: "note",
+    Organization: "organization",
+    Project: "project",
+    PullRequest: "pullRequest",
+    Question: "question",
+    Quiz: "quiz",
+    Report: "report",
+    Routine: "routine",
+    Schedule: "schedule",
+    SmartContract: "smartContract",
+    Standard: "standard",
+};
 
 /**
  * Handles notifying users of new activity on object they're subscribed to. 

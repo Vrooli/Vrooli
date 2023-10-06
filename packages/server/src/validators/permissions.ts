@@ -1,9 +1,9 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
-import { permissionsSelectHelper } from "../builders";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
+import { CustomError } from "../events/error";
+import { getLogic } from "../getters/getLogic";
 import { PrismaType, SessionUserToken } from "../types";
-import { AuthDataById } from "../utils";
+import { AuthDataById } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
 import { InputsById, QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";

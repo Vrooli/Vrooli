@@ -1,6 +1,6 @@
 import { GqlModelType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
-import { CustomError } from "../events";
-import { ObjectMap } from "../models/base";
+import { CustomError } from "../events/error";
+import { ObjectMapSingleton } from "../models/base";
 import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
 import { IdsCreateToConnect } from "../utils/types";
@@ -251,7 +251,7 @@ export const shapeHelper = async<
         delete result.delete;
     }
     // Perform nested shapes for create and update
-    const mutate = ObjectMap[objectType]?.mutate;
+    const mutate = ObjectMapSingleton.getInstance().map[objectType]?.mutate;
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {

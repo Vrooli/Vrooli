@@ -1,5 +1,6 @@
 import { MaxObjects, QuizSortBy, quizValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";

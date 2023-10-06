@@ -1,5 +1,5 @@
 import { routineVersion_create, routineVersion_findMany, routineVersion_findOne, routineVersion_update } from "../generated";
-import { RoutineVersionEndpoints } from "../logic";
+import { RoutineVersionEndpoints } from "../logic/routineVersion";
 import { setupRoutes } from "./base";
 
 export const RoutineVersionRest = setupRoutes({

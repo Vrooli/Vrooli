@@ -1,8 +1,8 @@
 import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
 import fs from "fs";
 import zlib from "zlib";
-import { logger } from "../../events";
-import { getLogic } from "../../getters";
+import { logger } from "../../events/logger";
+import { getLogic } from "../../getters/getLogic";
 import { PrismaType } from "../../types";
 import { withPrisma } from "../../utils/withPrisma";
 

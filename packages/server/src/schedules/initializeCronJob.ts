@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { logger } from "../events";
+import { logger } from "../events/logger";
 
 /**
  * Initializes a cron job with error handling and logging.

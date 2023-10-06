@@ -4,7 +4,7 @@
  * 
  * A cron job is triggered to run this every day at 4:43am (UTC).
  */
-import { logger } from "../../events";
+import { logger } from "../../events/logger";
 import { cronTimes } from "../cronTimes";
 import { initializeCronJob } from "../initializeCronJob";
 import { genSitemap, genSitemapIfNotExists } from "./genSitemap";

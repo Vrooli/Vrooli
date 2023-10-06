@@ -1,6 +1,6 @@
 import { MaxObjects, ReportFor, ReportSortBy, reportValidation } from "@local/shared";
 import { Prisma, ReportStatus } from "@prisma/client";
-import { CustomError } from "../../events";
+import { CustomError } from "../../events/error";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportFormat } from "../formats";
 import { ModelLogic } from "../types";

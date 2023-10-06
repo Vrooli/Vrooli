@@ -1,7 +1,7 @@
 import { ErrorKey } from "@local/shared";
 import { ApolloError } from "apollo-server-express";
 import i18next from "i18next";
-import { randomString } from "../auth";
+import { randomString } from "../auth/wallet";
 import { logger } from "./logger";
 
 export type ErrorTrace = Record<string, any>;

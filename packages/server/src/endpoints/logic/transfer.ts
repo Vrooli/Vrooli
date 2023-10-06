@@ -1,9 +1,10 @@
 import { FindByIdInput, Transfer, TransferDenyInput, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferUpdateInput } from "@local/shared";
-import { readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { assertRequestFrom } from "../../auth";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
-import { TransferModel } from "../../models/base";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateHelper } from "../../actions/updates";
+import { assertRequestFrom } from "../../auth/request";
+import { CustomError } from "../../events/error";
+import { rateLimit } from "../../middleware/rateLimit";
+import { TransferModel } from "../../models/base/transfer";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsTransfer = {

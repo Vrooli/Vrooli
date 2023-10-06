@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { ObjectMap } from "../models/base";
+import { ObjectMapSingleton } from "../models/base";
 import { PrismaType } from "../types";
 
 export const DEFAULT_BATCH_SIZE = 100;
@@ -30,7 +30,7 @@ export const batchCollect = async <T extends FindManyArgs>({
     select,
     where,
 }: BatchCollectProps<T>) => {
-    const delegate = ObjectMap[objectType].delegate(prisma);
+    const delegate = ObjectMapSingleton.getInstance().map[objectType].delegate!(prisma);
     let skip = 0;
     let currentBatchSize = 0;
 

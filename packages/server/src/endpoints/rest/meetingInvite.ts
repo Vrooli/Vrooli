@@ -1,5 +1,5 @@
 import { meetingInvite_accept, meetingInvite_create, meetingInvite_decline, meetingInvite_findMany, meetingInvite_findOne, meetingInvite_update } from "../generated";
-import { MeetingInviteEndpoints } from "../logic";
+import { MeetingInviteEndpoints } from "../logic/meetingInvite";
 import { setupRoutes } from "./base";
 
 export const MeetingInviteRest = setupRoutes({

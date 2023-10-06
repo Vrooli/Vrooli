@@ -1,5 +1,6 @@
 import { MaxObjects, NoteSortBy, noteValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";

@@ -1,5 +1,6 @@
 import { MaxObjects, StandardCreateInput, StandardSortBy, standardValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
 import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions, oneIsPublic } from "../../utils";

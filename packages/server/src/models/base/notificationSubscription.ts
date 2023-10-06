@@ -1,6 +1,6 @@
-import { MaxObjects, NotificationSubscriptionSortBy, notificationSubscriptionValidation, SubscribableObject } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { noNull } from "../../builders";
+import { MaxObjects, NotificationSubscriptionSortBy, notificationSubscriptionValidation } from "@local/shared";
+import { noNull } from "../../builders/noNull";
+import { subscribableMapper } from "../../events/subscriber";
 import { defaultPermissions } from "../../utils";
 import { NotificationSubscriptionFormat } from "../formats";
 import { ModelLogic } from "../types";
@@ -20,24 +20,6 @@ import { ScheduleModel } from "./schedule";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { ApiModelLogic, CommentModelLogic, IssueModelLogic, MeetingModelLogic, NoteModelLogic, NotificationSubscriptionModelLogic, OrganizationModelLogic, ProjectModelLogic, PullRequestModelLogic, QuestionModelLogic, QuizModelLogic, ReportModelLogic, RoutineModelLogic, ScheduleModelLogic, SmartContractModelLogic, StandardModelLogic } from "./types";
-
-export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs["create"] } = {
-    Api: "api",
-    Comment: "comment",
-    Issue: "issue",
-    Meeting: "meeting",
-    Note: "note",
-    Organization: "organization",
-    Project: "project",
-    PullRequest: "pullRequest",
-    Question: "question",
-    Quiz: "quiz",
-    Report: "report",
-    Routine: "routine",
-    Schedule: "schedule",
-    SmartContract: "smartContract",
-    Standard: "standard",
-};
 
 const __typename = "NotificationSubscription" as const;
 const suppFields = [] as const;

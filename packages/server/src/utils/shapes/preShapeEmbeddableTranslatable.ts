@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { getLogic } from "../../getters";
+import { getLogic } from "../../getters/getLogic";
 import { WithIdField } from "../../types";
 
 /**

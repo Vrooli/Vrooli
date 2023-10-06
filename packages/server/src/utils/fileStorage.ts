@@ -4,7 +4,8 @@ import { fileTypeFromBuffer } from "file-type";
 import https from "https";
 import sharp from "sharp";
 import { UploadConfig } from "../endpoints";
-import { CustomError, logger } from "../events";
+import { CustomError } from "../events/error";
+import { logger } from "../events/logger";
 import { SessionUserToken } from "../types";
 
 // Global S3 client variable

@@ -1,7 +1,8 @@
 import { GqlModelType, MaxObjects, ResourceListFor, ResourceListSortBy, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { findFirstRel, shapeHelper } from "../../builders";
-import { getLogic } from "../../getters";
+import { findFirstRel } from "../../builders/findFirstRel";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { getLogic } from "../../getters/getLogic";
 import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceListFormat } from "../formats";

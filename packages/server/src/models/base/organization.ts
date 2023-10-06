@@ -1,6 +1,8 @@
 import { exists, MaxObjects, OrganizationSortBy, organizationValidation, uuid } from "@local/shared";
 import { role } from "@prisma/client";
-import { noNull, onlyValidIds, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { onlyValidIds } from "../../builders/onlyValidIds";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
 import { PrismaType } from "../../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";

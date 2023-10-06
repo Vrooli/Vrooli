@@ -1,8 +1,8 @@
 import { exists, isObject } from "@local/shared";
 import fs from "fs";
 import pkg from "lodash";
-import { logger } from "../events";
 import { CustomError } from "../events/error";
+import { logger } from "../events/logger";
 
 const { flatten } = pkg;
 

@@ -1,7 +1,9 @@
 import { GqlModelType, MaxObjects, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
 import i18next from "i18next";
-import { findFirstRel, noNull, shapeHelper } from "../../builders";
-import { getLogic } from "../../getters";
+import { findFirstRel } from "../../builders/findFirstRel";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { getLogic } from "../../getters/getLogic";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { ScheduleFormat } from "../formats";
 import { ModelLogic } from "../types";

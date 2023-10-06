@@ -1,7 +1,7 @@
 import { GqlModelType } from "@local/shared";
 import { PrismaDelegate } from "../builders/types";
-import { CustomError } from "../events";
-import { ObjectMap } from "../models/base";
+import { CustomError } from "../events/error";
+import { ObjectMapSingleton } from "../models/base";
 import { Displayer, Duplicator, Formatter, Mutater, Searcher, Validator } from "../models/types";
 import { PrismaType } from "../types";
 
@@ -37,8 +37,7 @@ export function getLogic<
     errorTrace: string,
     throwErrorIfNotFound: ThrowError = true as ThrowError,
 ): ThrowError extends true ? GetLogicReturn<Logic[number]> : Undefinable<GetLogicReturn<Logic[number]>> {
-    // Make sure object exists in map
-    const object = ObjectMap[objectType];
+    const object = ObjectMapSingleton.getInstance().map[objectType];
     // Loop through requested types to validate that all requested types exist
     for (const field of props) {
         // Get logic function

@@ -1,11 +1,12 @@
 import { GqlModelType } from "@local/shared";
-import { isRelationshipArray, isRelationshipObject } from "../builders";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
-import { ObjectMap } from "../models/base";
-import { AuthDataById } from "../utils";
+import { isRelationshipArray } from "../builders/isRelationshipArray";
+import { isRelationshipObject } from "../builders/isRelationshipObject";
+import { CustomError } from "../events/error";
+import { getLogic } from "../getters/getLogic";
+import { ObjectMapSingleton } from "../models/base";
 import { authDataWithInput } from "../utils/authDataWithInput";
 import { hasProfanity } from "../utils/censor";
+import { AuthDataById } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
 import { CudInputData, InputsById } from "../utils/types";
 
@@ -29,8 +30,8 @@ const collectProfanities = (
     const result: Record<string, string[]> = {};
     // Handle base case
     // Get current object's formatter and validator
-    const format = objectType ? ObjectMap[objectType]?.format : undefined;
-    const validate = objectType ? ObjectMap[objectType]?.validate : undefined;
+    const format = objectType ? ObjectMapSingleton.getInstance().map[objectType]?.format : undefined;
+    const validate = objectType ? ObjectMapSingleton.getInstance().map[objectType]?.validate : undefined;
     // If validator specifies profanityFields, add them to the result
     if (validate?.profanityFields) {
         for (const field of validate.profanityFields) {

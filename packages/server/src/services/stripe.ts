@@ -2,7 +2,7 @@ import { HttpStatus, PaymentType } from "@local/shared";
 import { PaymentStatus } from "@prisma/client";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
-import { logger } from "../events";
+import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
 import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled } from "../tasks";
 import { PrismaType } from "../types";

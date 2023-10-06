@@ -1,5 +1,6 @@
 import { BookmarkListSortBy, bookmarkListValidation, MaxObjects } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { BookmarkListFormat } from "../formats";
 import { ModelLogic } from "../types";

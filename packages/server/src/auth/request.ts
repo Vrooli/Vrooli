@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { ApiToken, BasicToken, RecursivePartial, SessionData, SessionToken, SessionUserToken } from "../types";
-import { isSafeOrigin } from "../utils";
+import { isSafeOrigin } from "../utils/origin";
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 

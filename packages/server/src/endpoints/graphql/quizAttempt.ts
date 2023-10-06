@@ -1,6 +1,6 @@
 import { QuizAttemptStatus, QuizSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsQuizAttempt, QuizAttemptEndpoints } from "../logic";
+import { EndpointsQuizAttempt, QuizAttemptEndpoints } from "../logic/quizAttempt";
 
 export const typeDef = gql`
     enum QuizAttemptSortBy {

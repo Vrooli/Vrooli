@@ -1,6 +1,6 @@
 import { CopyType } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { CopyEndpoints, EndpointsCopy } from "../logic";
+import { CopyEndpoints, EndpointsCopy } from "../logic/copy";
 
 export const typeDef = gql`
     enum CopyType {

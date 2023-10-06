@@ -1,4 +1,4 @@
-import { logger } from "../../events";
+import { logger } from "../../events/logger";
 
 export async function exportProcess(job: any) {
     try {

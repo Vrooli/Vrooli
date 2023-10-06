@@ -1,5 +1,5 @@
 import { focusModeFilterValidation, MaxObjects } from "@local/shared";
-import { shapeHelper } from "../../builders";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { FocusModeFilterFormat } from "../formats";
 import { ModelLogic } from "../types";

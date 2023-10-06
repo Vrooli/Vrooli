@@ -1,6 +1,6 @@
 import { QuestionAnswerSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsQuestionAnswer, QuestionAnswerEndpoints } from "../logic";
+import { EndpointsQuestionAnswer, QuestionAnswerEndpoints } from "../logic/questionAnswer";
 
 export const typeDef = gql`
     enum QuestionAnswerSortBy {

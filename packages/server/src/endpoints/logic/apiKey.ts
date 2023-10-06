@@ -1,8 +1,10 @@
 import { ApiKey, ApiKeyCreateInput, ApiKeyDeleteOneInput, ApiKeyUpdateInput, ApiKeyValidateInput, COOKIE, Success } from "@local/shared";
-import { createHelper, deleteOneHelper, updateHelper } from "../../actions";
-import { assertRequestFrom } from "../../auth";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
+import { createHelper } from "../../actions/creates";
+import { deleteOneHelper } from "../../actions/deletes";
+import { updateHelper } from "../../actions/updates";
+import { assertRequestFrom } from "../../auth/request";
+import { CustomError } from "../../events/error";
+import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsApiKey = {

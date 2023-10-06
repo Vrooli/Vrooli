@@ -1,5 +1,5 @@
 import { MaxObjects, reminderListValidation } from "@local/shared";
-import { shapeHelper } from "../../builders";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { ReminderListFormat } from "../formats";
 import { ModelLogic } from "../types";

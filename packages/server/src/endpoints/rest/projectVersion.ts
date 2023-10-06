@@ -1,5 +1,5 @@
 import { projectVersion_create, projectVersion_findMany, projectVersion_findOne, projectVersion_update } from "../generated";
-import { ProjectVersionEndpoints } from "../logic";
+import { ProjectVersionEndpoints } from "../logic/projectVersion";
 import { setupRoutes } from "./base";
 
 export const ProjectVersionRest = setupRoutes({

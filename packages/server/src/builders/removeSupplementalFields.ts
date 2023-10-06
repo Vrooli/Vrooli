@@ -1,6 +1,6 @@
 import { GqlModelType, omit } from "@local/shared";
 import pkg from "lodash";
-import { ObjectMap } from "../models/base";
+import { ObjectMapSingleton } from "../models/base";
 import { SupplementalConverter } from "../models/types";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
 
@@ -16,7 +16,7 @@ const { merge } = pkg;
  */
 export const removeSupplementalFields = (objectType: `${GqlModelType}`, partial: PartialGraphQLInfo | PartialPrismaSelect) => {
     // Get supplemental info for object
-    const supplementer: SupplementalConverter<any> | undefined = ObjectMap[objectType]?.search?.supplemental;
+    const supplementer: SupplementalConverter<any> | undefined = ObjectMapSingleton.getInstance().map[objectType]?.search?.supplemental;
     if (!supplementer) return partial;
     // Remove graphQL supplemental fields
     const withoutGqlSupp = omit(partial, supplementer.graphqlFields);

@@ -1,6 +1,6 @@
 import { RunRoutineSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsRunRoutine, RunRoutineEndpoints } from "../logic";
+import { EndpointsRunRoutine, RunRoutineEndpoints } from "../logic/runRoutine";
 
 export const typeDef = gql`
     enum RunRoutineSortBy {

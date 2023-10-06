@@ -1,5 +1,5 @@
 import { standard_create, standard_findMany, standard_findOne, standard_update } from "../generated";
-import { StandardEndpoints } from "../logic";
+import { StandardEndpoints } from "../logic/standard";
 import { setupRoutes } from "./base";
 
 export const StandardRest = setupRoutes({

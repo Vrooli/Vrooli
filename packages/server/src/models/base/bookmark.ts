@@ -1,21 +1,31 @@
 import { BookmarkFor, BookmarkSortBy, bookmarkValidation, exists, GqlModelType, lowercaseFirstLetter, MaxObjects, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
-import { findFirstRel, onlyValidIds, shapeHelper } from "../../builders";
-import { Trigger } from "../../events";
-import { getLogic } from "../../getters";
+import { findFirstRel } from "../../builders/findFirstRel";
+import { onlyValidIds } from "../../builders/onlyValidIds";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { Trigger } from "../../events/trigger";
+import { getLogic } from "../../getters/getLogic";
 import { PrismaType } from "../../types";
 import { defaultPermissions } from "../../utils";
 import { BookmarkFormat } from "../formats";
 import { ModelLogic } from "../types";
+import { ApiModel } from "./api";
+import { BookmarkListModel } from "./bookmarkList";
 import { CommentModel } from "./comment";
+import { IssueModel } from "./issue";
 import { NoteModel } from "./note";
 import { OrganizationModel } from "./organization";
+import { PostModel } from "./post";
 import { ProjectModel } from "./project";
+import { QuestionModel } from "./question";
+import { QuestionAnswerModel } from "./questionAnswer";
+import { QuizModel } from "./quiz";
 import { RoutineModel } from "./routine";
+import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { ApiModelLogic, BookmarkListModelLogic, BookmarkModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, OrganizationModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TagModelLogic, UserModelLogic } from "./types";
+import { UserModel } from "./user";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Api: "api",

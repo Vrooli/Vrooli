@@ -1,5 +1,5 @@
 import { view_findMany } from "../generated";
-import { ViewEndpoints } from "../logic";
+import { ViewEndpoints } from "../logic/view";
 import { setupRoutes } from "./base";
 
 export const ViewRest = setupRoutes({

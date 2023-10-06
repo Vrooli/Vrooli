@@ -1,6 +1,6 @@
 import { ChatInviteSortBy, ChatInviteStatus } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { ChatInviteEndpoints, EndpointsChatInvite } from "../logic";
+import { ChatInviteEndpoints, EndpointsChatInvite } from "../logic/chatInvite";
 
 export const typeDef = gql`
     enum ChatInviteSortBy {

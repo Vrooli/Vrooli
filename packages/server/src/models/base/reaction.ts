@@ -1,11 +1,24 @@
 import { exists, getReactionScore, lowercaseFirstLetter, ReactInput, ReactionFor, removeModifiers } from "@local/shared";
 import { reaction_summary } from "@prisma/client";
-import { ApiModel, ChatMessageModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
-import { onlyValidIds } from "../../builders";
-import { CustomError, Trigger } from "../../events";
+import { onlyValidIds } from "../../builders/onlyValidIds";
+import { CustomError } from "../../events/error";
+import { Trigger } from "../../events/trigger";
 import { PrismaType, SessionUserToken } from "../../types";
 import { ReactionFormat } from "../formats";
 import { ModelLogic } from "../types";
+import { ApiModel } from "./api";
+import { ChatMessageModel } from "./chatMessage";
+import { CommentModel } from "./comment";
+import { IssueModel } from "./issue";
+import { NoteModel } from "./note";
+import { PostModel } from "./post";
+import { ProjectModel } from "./project";
+import { QuestionModel } from "./question";
+import { QuestionAnswerModel } from "./questionAnswer";
+import { QuizModel } from "./quiz";
+import { RoutineModel } from "./routine";
+import { SmartContractModel } from "./smartContract";
+import { StandardModel } from "./standard";
 import { ApiModelLogic, ChatMessageModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, ReactionModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic } from "./types";
 
 const forMapper: { [key in ReactionFor]: string } = {

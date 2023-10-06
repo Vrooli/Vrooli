@@ -1,7 +1,9 @@
 import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentUpdateInput, FindByIdInput } from "@local/shared";
-import { createHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CommentModel } from "../../models/base";
+import { createHelper } from "../../actions/creates";
+import { readOneHelper } from "../../actions/reads";
+import { updateHelper } from "../../actions/updates";
+import { rateLimit } from "../../middleware/rateLimit";
+import { CommentModel } from "../../models/base/comment";
 import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 

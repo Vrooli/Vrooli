@@ -1,5 +1,5 @@
 import { statsSite_findMany } from "../generated";
-import { StatsSiteEndpoints } from "../logic";
+import { StatsSiteEndpoints } from "../logic/statsSite";
 import { setupRoutes } from "./base";
 
 export const StatsSiteRest = setupRoutes({

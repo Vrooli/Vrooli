@@ -1,5 +1,6 @@
 import { LabelSortBy, labelValidation, MaxObjects } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
