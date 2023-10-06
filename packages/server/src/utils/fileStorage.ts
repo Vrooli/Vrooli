@@ -3,7 +3,7 @@ import { uuid } from "@local/shared";
 import { fileTypeFromBuffer } from "file-type";
 import https from "https";
 import sharp from "sharp";
-import { UploadConfig } from "../endpoints";
+import { UploadConfig } from "../endpoints/rest";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { SessionUserToken } from "../types";

@@ -3,11 +3,11 @@ import { NextFunction, Request, Response, Router } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
 import multer, { Options as MulterOptions } from "multer";
-import { getUser } from "../../auth";
+import { getUser } from "../../auth/request";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { context, Context } from "../../middleware";
 import { GQLEndpoint, IWrap, SessionUserToken } from "../../types";
-import { processAndStoreFiles } from "../../utils";
+import { processAndStoreFiles } from "../../utils/fileStorage";
 
 export type EndpointFunction<TInput extends object | undefined, TResult extends object> = (
     parent: undefined,

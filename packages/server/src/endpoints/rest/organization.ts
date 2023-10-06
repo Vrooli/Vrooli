@@ -1,7 +1,8 @@
+import { OrganizationCreateInput, OrganizationUpdateInput } from "@local/shared";
 import { bannerImageConfig, profileImageConfig } from "../../utils";
 import { organization_create, organization_findMany, organization_findOne, organization_update } from "../generated";
 import { OrganizationEndpoints } from "../logic/organization";
-import { setupRoutes } from "./base";
+import { setupRoutes, UploadConfig } from "./base";
 
 const imagesConfig: UploadConfig<OrganizationCreateInput | OrganizationUpdateInput> = {
     acceptsFiles: true,

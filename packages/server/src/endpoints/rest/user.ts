@@ -1,7 +1,8 @@
+import { BotCreateInput, BotUpdateInput } from "@local/shared";
 import { bannerImageConfig, profileImageConfig } from "../../utils";
 import { user_botCreate, user_botUpdate, user_deleteOne, user_findMany, user_findOne, user_profile, user_profileEmailUpdate, user_profileUpdate } from "../generated";
 import { UserEndpoints } from "../logic/user";
-import { setupRoutes } from "./base";
+import { setupRoutes, UploadConfig } from "./base";
 
 const botImagesConfig: UploadConfig<BotCreateInput | BotUpdateInput> = {
     acceptsFiles: true,
