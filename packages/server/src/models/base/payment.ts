@@ -1,13 +1,11 @@
 import { MaxObjects, PaymentSortBy } from "@local/shared";
+import { ModelMap } from ".";
 import { defaultPermissions } from "../../utils";
 import { PaymentFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { PaymentModelLogic } from "./types";
+import { OrganizationModelLogic, PaymentModelLogic } from "./types";
 
 const __typename = "Payment" as const;
-const suppFields = [] as const;
-export const PaymentModel: ModelLogic<PaymentModelLogic, typeof suppFields> = ({
+export const PaymentModel: PaymentModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.payment,
     display: {
@@ -57,7 +55,7 @@ export const PaymentModel: ModelLogic<PaymentModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

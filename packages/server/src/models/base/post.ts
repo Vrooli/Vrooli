@@ -1,17 +1,15 @@
 import { MaxObjects, PostSortBy, postValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { PostFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { PostModelLogic } from "./types";
+import { OrganizationModelLogic, PostModelLogic } from "./types";
 
 const __typename = "Post" as const;
-const suppFields = [] as const;
-export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
+export const PostModel: PostModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.post,
     display: {
@@ -116,7 +114,7 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

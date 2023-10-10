@@ -2,12 +2,10 @@ import { StatsSiteSortBy } from "@local/shared";
 import i18next from "i18next";
 import { defaultPermissions } from "../../utils";
 import { StatsSiteFormat } from "../formats";
-import { ModelLogic } from "../types";
 import { StatsSiteModelLogic } from "./types";
 
 const __typename = "StatsSite" as const;
-const suppFields = [] as const;
-export const StatsSiteModel: ModelLogic<StatsSiteModelLogic, typeof suppFields> = ({
+export const StatsSiteModel: StatsSiteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_site,
     display: {

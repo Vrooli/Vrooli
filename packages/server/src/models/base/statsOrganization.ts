@@ -1,22 +1,20 @@
 import { StatsOrganizationSortBy } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsOrganizationFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { OrganizationModelLogic, StatsOrganizationModelLogic } from "./types";
+import { OrganizationModelInfo, OrganizationModelLogic, StatsOrganizationModelInfo, StatsOrganizationModelLogic } from "./types";
 
 const __typename = "StatsOrganization" as const;
-const suppFields = [] as const;
-export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typeof suppFields> = ({
+export const StatsOrganizationModel: StatsOrganizationModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_organization,
     display: {
         label: {
-            select: () => ({ id: true, organization: { select: OrganizationModel.display.label.select() } }),
+            select: () => ({ id: true, organization: { select: ModelMap.get<OrganizationModelLogic>("Organization").display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: OrganizationModel.display.label.get(select.organization as OrganizationModelLogic["PrismaModel"], languages),
+                objectName: ModelMap.get<OrganizationModelLogic>("Organization").display.label.get(select.organization as OrganizationModelInfo["PrismaModel"], languages),
             }),
         },
     },
@@ -28,7 +26,7 @@ export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typ
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ organization: OrganizationModel.search.searchStringQuery() }),
+        searchStringQuery: () => ({ organization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -38,13 +36,13 @@ export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typ
             organization: "Organization",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate.owner(data?.organization as OrganizationModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<OrganizationModelLogic>("Organization").validate.owner(data?.organization as OrganizationModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsOrganizationModelLogic["PrismaSelect"]>([["organization", "Organization"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsOrganizationModelInfo["PrismaSelect"]>([["organization", "Organization"]], ...rest),
         visibility: {
-            private: { organization: OrganizationModel.validate.visibility.private },
-            public: { organization: OrganizationModel.validate.visibility.public },
-            owner: (userId) => ({ organization: OrganizationModel.validate.visibility.owner(userId) }),
+            private: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.private },
+            public: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.public },
+            owner: (userId) => ({ organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.owner(userId) }),
         },
     },
 });

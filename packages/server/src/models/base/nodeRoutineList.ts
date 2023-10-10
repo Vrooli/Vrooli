@@ -1,21 +1,19 @@
 import { MaxObjects, nodeRoutineListValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { NodeRoutineListFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { NodeModel } from "./node";
-import { NodeModelLogic, NodeRoutineListModelLogic } from "./types";
+import { NodeModelInfo, NodeModelLogic, NodeRoutineListModelInfo, NodeRoutineListModelLogic } from "./types";
 
 const __typename = "NodeRoutineList" as const;
-const suppFields = [] as const;
-export const NodeRoutineListModel: ModelLogic<NodeRoutineListModelLogic, typeof suppFields> = ({
+export const NodeRoutineListModel: NodeRoutineListModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node_routine_list,
     display: {
         label: {
-            select: () => ({ id: true, node: { select: NodeModel.display.label.select() } }),
-            get: (select, languages) => NodeModel.display.label.get(select.node as NodeModelLogic["PrismaModel"], languages),
+            select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display.label.select() } }),
+            get: (select, languages) => ModelMap.get<NodeModelLogic>("Node").display.label.get(select.node as NodeModelInfo["PrismaModel"], languages),
         },
     },
     format: NodeRoutineListFormat,
@@ -42,13 +40,13 @@ export const NodeRoutineListModel: ModelLogic<NodeRoutineListModelLogic, typeof 
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeModel.validate.owner(data?.node as NodeModelLogic["PrismaModel"], userId),
-        isDeleted: (data, languages) => NodeModel.validate.isDeleted(data.node as NodeModelLogic["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeRoutineListModelLogic["PrismaSelect"]>([["node", "Node"]], ...rest),
+        owner: (data, userId) => ModelMap.get<NodeModelLogic>("Node").validate.owner(data?.node as NodeModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate.isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeRoutineListModelInfo["PrismaSelect"]>([["node", "Node"]], ...rest),
         visibility: {
-            private: { node: NodeModel.validate.visibility.private },
-            public: { node: NodeModel.validate.visibility.public },
-            owner: (userId) => ({ node: NodeModel.validate.visibility.owner(userId) }),
+            private: { node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.private },
+            public: { node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.public },
+            owner: (userId) => ({ node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.owner(userId) }),
         },
     },
 });

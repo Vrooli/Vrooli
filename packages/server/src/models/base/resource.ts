@@ -1,16 +1,14 @@
 import { MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ResourceListModel } from "./resourceList";
-import { ResourceListModelLogic, ResourceModelLogic } from "./types";
+import { ResourceListModelInfo, ResourceListModelLogic, ResourceModelInfo, ResourceModelLogic } from "./types";
 
 const __typename = "Resource" as const;
-const suppFields = [] as const;
-export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = ({
+export const ResourceModel: ResourceModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.resource,
     display: {
@@ -64,14 +62,14 @@ export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = 
             id: true,
             list: "ResourceList",
         }),
-        permissionResolvers: (params) => ResourceListModel.validate.permissionResolvers({ ...params, data: params.data.list as any }),
-        owner: (data, userId) => ResourceListModel.validate.owner(data?.list as ResourceListModelLogic["PrismaModel"], userId),
+        permissionResolvers: (params) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate.permissionResolvers({ ...params, data: params.data.list as any }),
+        owner: (data, userId) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate.owner(data?.list as ResourceListModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ResourceModelLogic["PrismaSelect"]>([["list", "ResourceList"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<ResourceModelInfo["PrismaSelect"]>([["list", "ResourceList"]], ...rest),
         visibility: {
             private: {},
             public: {},
-            owner: (userId) => ({ list: ResourceListModel.validate.visibility.owner(userId) }),
+            owner: (userId) => ({ list: ModelMap.get<ResourceListModelLogic>("ResourceList").validate.visibility.owner(userId) }),
         },
     },
 });

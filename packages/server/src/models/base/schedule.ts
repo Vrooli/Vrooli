@@ -1,37 +1,31 @@
 import { GqlModelType, MaxObjects, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { getLogic } from "../../getters/getLogic";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { ScheduleFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { FocusModeModel } from "./focusMode";
-import { MeetingModel } from "./meeting";
-import { RunProjectModel } from "./runProject";
-import { RunRoutineModel } from "./runRoutine";
-import { FocusModeModelLogic, MeetingModelLogic, RunProjectModelLogic, RunRoutineModelLogic, ScheduleModelLogic } from "./types";
+import { FocusModeModelInfo, FocusModeModelLogic, MeetingModelInfo, MeetingModelLogic, RunProjectModelInfo, RunProjectModelLogic, RunRoutineModelInfo, RunRoutineModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types";
 
 const __typename = "Schedule" as const;
-const suppFields = [] as const;
-export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = ({
+export const ScheduleModel: ScheduleModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.schedule,
     display: {
         label: {
             select: () => ({
                 id: true,
-                focusModes: { select: FocusModeModel.display.label.select() },
-                meetings: { select: MeetingModel.display.label.select() },
-                runProjects: { select: RunProjectModel.display.label.select() },
-                runRoutines: { select: RunRoutineModel.display.label.select() },
+                focusModes: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display.label.select() },
+                meetings: { select: ModelMap.get<MeetingModelLogic>("Meeting").display.label.select() },
+                runProjects: { select: ModelMap.get<RunProjectModelLogic>("RunProject").display.label.select() },
+                runRoutines: { select: ModelMap.get<RunRoutineModelLogic>("RunRoutine").display.label.select() },
             }),
             get: (select, languages) => {
-                if (select.focusModes && select.focusModes.length > 0) return FocusModeModel.display.label.get(select.focusModes[0] as FocusModeModelLogic["PrismaModel"], languages);
-                if (select.meetings && select.meetings.length > 0) return MeetingModel.display.label.get(select.meetings[0] as MeetingModelLogic["PrismaModel"], languages);
-                if (select.runProjects && select.runProjects.length > 0) return RunProjectModel.display.label.get(select.runProjects[0] as RunProjectModelLogic["PrismaModel"], languages);
-                if (select.runRoutines && select.runRoutines.length > 0) return RunRoutineModel.display.label.get(select.runRoutines[0] as RunRoutineModelLogic["PrismaModel"], languages);
+                if (select.focusModes && select.focusModes.length > 0) return ModelMap.get<FocusModeModelLogic>("FocusMode").display.label.get(select.focusModes[0] as FocusModeModelInfo["PrismaModel"], languages);
+                if (select.meetings && select.meetings.length > 0) return ModelMap.get<MeetingModelLogic>("Meeting").display.label.get(select.meetings[0] as MeetingModelInfo["PrismaModel"], languages);
+                if (select.runProjects && select.runProjects.length > 0) return ModelMap.get<RunProjectModelLogic>("RunProject").display.label.get(select.runProjects[0] as RunProjectModelInfo["PrismaModel"], languages);
+                if (select.runRoutines && select.runRoutines.length > 0) return ModelMap.get<RunRoutineModelLogic>("RunRoutine").display.label.get(select.runRoutines[0] as RunRoutineModelInfo["PrismaModel"], languages);
                 return i18next.t("common:Schedule", { lng: languages[0] });
             },
         },
@@ -89,16 +83,16 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
         },
         searchStringQuery: () => ({
             OR: [
-                { focusModes: { some: FocusModeModel.search.searchStringQuery() } },
-                { meetings: { some: MeetingModel.search.searchStringQuery() } },
-                { runProjects: { some: RunProjectModel.search.searchStringQuery() } },
-                { runRoutines: { some: RunRoutineModel.search.searchStringQuery() } },
+                { focusModes: { some: ModelMap.get<FocusModeModelLogic>("FocusMode").search.searchStringQuery() } },
+                { meetings: { some: ModelMap.get<MeetingModelLogic>("Meeting").search.searchStringQuery() } },
+                { runProjects: { some: ModelMap.get<RunProjectModelLogic>("RunProject").search.searchStringQuery() } },
+                { runRoutines: { some: ModelMap.get<RunRoutineModelLogic>("RunRoutine").search.searchStringQuery() } },
             ],
         }),
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ScheduleModelLogic["PrismaSelect"]>([
+        isPublic: (...rest) => oneIsPublic<ScheduleModelInfo["PrismaSelect"]>([
             ["focusModes", "FocusMode"],
             ["meetings", "Meeting"],
             ["runProjects", "RunProject"],
@@ -117,10 +111,10 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
             ]);
             if (!onField || !onData) return {};
             const onType = uppercaseFirstLetter(onField.slice(0, -1)) as GqlModelType;
-            const { validate } = getLogic(["validate"], onType, ["en"], "ScheduleModel.validate.owner");
-            return Array.isArray(onData) && onData.length > 0 ?
-                validate.owner(onData[0], userId)
-                : {};
+            const canValidate = Array.isArray(onData) && onData.length > 0;
+            if (!canValidate) return {};
+            const validate = ModelMap.get(onType).validate;
+            return validate.owner(onData[0], userId);
         },
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
@@ -135,10 +129,10 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
             public: {},
             owner: (userId) => ({
                 OR: [
-                    { focusModes: { some: FocusModeModel.validate.visibility.owner(userId) } },
-                    { meetings: { some: MeetingModel.validate.visibility.owner(userId) } },
-                    { runProjects: { some: RunProjectModel.validate.visibility.owner(userId) } },
-                    { runRoutines: { some: RunRoutineModel.validate.visibility.owner(userId) } },
+                    { focusModes: { some: ModelMap.get<FocusModeModelLogic>("FocusMode").validate.visibility.owner(userId) } },
+                    { meetings: { some: ModelMap.get<MeetingModelLogic>("Meeting").validate.visibility.owner(userId) } },
+                    { runProjects: { some: ModelMap.get<RunProjectModelLogic>("RunProject").validate.visibility.owner(userId) } },
+                    { runRoutines: { some: ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate.visibility.owner(userId) } },
                 ],
             }),
         },

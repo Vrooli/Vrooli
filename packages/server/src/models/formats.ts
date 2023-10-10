@@ -1,8 +1,8 @@
 import { GqlModelType } from "@local/shared";
-import { ApiKeyModelLogic, ApiModelLogic, ApiVersionModelLogic, AwardModelLogic, BookmarkListModelLogic, BookmarkModelLogic, ChatInviteModelLogic, ChatMessageModelLogic, ChatModelLogic, ChatParticipantModelLogic, CommentModelLogic, EmailModelLogic, FocusModeFilterModelLogic, FocusModeModelLogic, IssueModelLogic, LabelModelLogic, MeetingInviteModelLogic, MeetingModelLogic, MemberInviteModelLogic, MemberModelLogic, NodeEndModelLogic, NodeLinkModelLogic, NodeLinkWhenModelLogic, NodeLoopModelLogic, NodeLoopWhileModelLogic, NodeModelLogic, NodeRoutineListItemModelLogic, NodeRoutineListModelLogic, NoteModelLogic, NoteVersionModelLogic, NotificationModelLogic, NotificationSubscriptionModelLogic, OrganizationModelLogic, PaymentModelLogic, PhoneModelLogic, PostModelLogic, PremiumModelLogic, ProjectModelLogic, ProjectVersionDirectoryModelLogic, ProjectVersionModelLogic, PullRequestModelLogic, PushDeviceModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizAttemptModelLogic, QuizModelLogic, QuizQuestionModelLogic, QuizQuestionResponseModelLogic, ReactionModelLogic, ReactionSummaryModelLogic, ReminderItemModelLogic, ReminderListModelLogic, ReminderModelLogic, ReportModelLogic, ReportResponseModelLogic, ResourceListModelLogic, ResourceModelLogic, RoleModelLogic, RoutineModelLogic, RoutineVersionInputModelLogic, RoutineVersionModelLogic, RoutineVersionOutputModelLogic, RunProjectModelLogic, RunProjectStepModelLogic, RunRoutineInputModelLogic, RunRoutineModelLogic, RunRoutineStepModelLogic, ScheduleExceptionModelLogic, ScheduleModelLogic, ScheduleRecurrenceModelLogic, SmartContractModelLogic, SmartContractVersionModelLogic, StandardModelLogic, StandardVersionModelLogic, StatsApiModelLogic, StatsOrganizationModelLogic, StatsProjectModelLogic, StatsQuizModelLogic, StatsRoutineModelLogic, StatsSiteModelLogic, StatsSmartContractModelLogic, StatsStandardModelLogic, StatsUserModelLogic, TagModelLogic, TransferModelLogic, UserModelLogic, ViewModelLogic, WalletModelLogic } from "./base/types";
+import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NodeEndModelInfo, NodeLinkModelInfo, NodeLinkWhenModelInfo, NodeLoopModelInfo, NodeLoopWhileModelInfo, NodeModelInfo, NodeRoutineListItemModelInfo, NodeRoutineListModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, OrganizationModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineInputModelInfo, RunRoutineModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SmartContractModelInfo, SmartContractVersionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsOrganizationModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsSmartContractModelInfo, StatsStandardModelInfo, StatsUserModelInfo, TagModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types";
 import { Formatter } from "./types";
 
-export const ApiFormat: Formatter<ApiModelLogic> = {
+export const ApiFormat: Formatter<ApiModelInfo> = {
     gqlRelMap: {
         __typename: "Api",
         createdBy: "User",
@@ -52,7 +52,7 @@ export const ApiFormat: Formatter<ApiModelLogic> = {
     },
 };
 
-export const ApiKeyFormat: Formatter<ApiKeyModelLogic> = {
+export const ApiKeyFormat: Formatter<ApiKeyModelInfo> = {
     gqlRelMap: {
         __typename: "ApiKey",
     },
@@ -62,7 +62,7 @@ export const ApiKeyFormat: Formatter<ApiKeyModelLogic> = {
     countFields: {},
 };
 
-export const ApiVersionFormat: Formatter<ApiVersionModelLogic> = {
+export const ApiVersionFormat: Formatter<ApiVersionModelInfo> = {
     gqlRelMap: {
         __typename: "ApiVersion",
         comments: "Comment",
@@ -92,7 +92,7 @@ export const ApiVersionFormat: Formatter<ApiVersionModelLogic> = {
     },
 };
 
-export const AwardFormat: Formatter<AwardModelLogic> = {
+export const AwardFormat: Formatter<AwardModelInfo> = {
     gqlRelMap: {
         __typename: "Award",
     },
@@ -103,7 +103,7 @@ export const AwardFormat: Formatter<AwardModelLogic> = {
     countFields: {},
 };
 
-export const BookmarkFormat: Formatter<BookmarkModelLogic> = {
+export const BookmarkFormat: Formatter<BookmarkModelInfo> = {
     gqlRelMap: {
         __typename: "Bookmark",
         by: "User",
@@ -151,7 +151,7 @@ export const BookmarkFormat: Formatter<BookmarkModelLogic> = {
     countFields: {},
 };
 
-export const BookmarkListFormat: Formatter<BookmarkListModelLogic> = {
+export const BookmarkListFormat: Formatter<BookmarkListModelInfo> = {
     gqlRelMap: {
         __typename: "BookmarkList",
         bookmarks: "Bookmark",
@@ -165,7 +165,7 @@ export const BookmarkListFormat: Formatter<BookmarkListModelLogic> = {
     },
 };
 
-export const ChatFormat: Formatter<ChatModelLogic> = {
+export const ChatFormat: Formatter<ChatModelInfo> = {
     gqlRelMap: {
         __typename: "Chat",
         organization: "Organization",
@@ -194,7 +194,7 @@ export const ChatFormat: Formatter<ChatModelLogic> = {
     },
 };
 
-export const ChatInviteFormat: Formatter<ChatInviteModelLogic> = {
+export const ChatInviteFormat: Formatter<ChatInviteModelInfo> = {
     gqlRelMap: {
         __typename: "ChatInvite",
         chat: "Chat",
@@ -209,7 +209,7 @@ export const ChatInviteFormat: Formatter<ChatInviteModelLogic> = {
     countFields: {},
 };
 
-export const ChatMessageFormat: Formatter<ChatMessageModelLogic> = {
+export const ChatMessageFormat: Formatter<ChatMessageModelInfo> = {
     gqlRelMap: {
         __typename: "ChatMessage",
         chat: "Chat",
@@ -234,7 +234,7 @@ export const ChatMessageFormat: Formatter<ChatMessageModelLogic> = {
     },
 };
 
-export const ChatParticipantFormat: Formatter<ChatParticipantModelLogic> = {
+export const ChatParticipantFormat: Formatter<ChatParticipantModelInfo> = {
     gqlRelMap: {
         __typename: "ChatParticipant",
         chat: "Chat",
@@ -249,7 +249,7 @@ export const ChatParticipantFormat: Formatter<ChatParticipantModelLogic> = {
     countFields: {},
 };
 
-export const CommentFormat: Formatter<CommentModelLogic> = {
+export const CommentFormat: Formatter<CommentModelInfo> = {
     gqlRelMap: {
         __typename: "Comment",
         owner: {
@@ -304,7 +304,7 @@ export const CommentFormat: Formatter<CommentModelLogic> = {
     },
 };
 
-export const EmailFormat: Formatter<EmailModelLogic> = {
+export const EmailFormat: Formatter<EmailModelInfo> = {
     gqlRelMap: {
         __typename: "Email",
     },
@@ -315,7 +315,7 @@ export const EmailFormat: Formatter<EmailModelLogic> = {
     countFields: {},
 };
 
-export const FocusModeFormat: Formatter<FocusModeModelLogic> = {
+export const FocusModeFormat: Formatter<FocusModeModelInfo> = {
     gqlRelMap: {
         __typename: "FocusMode",
         filters: "FocusModeFilter",
@@ -336,7 +336,7 @@ export const FocusModeFormat: Formatter<FocusModeModelLogic> = {
     joinMap: { labels: "label" },
 };
 
-export const FocusModeFilterFormat: Formatter<FocusModeFilterModelLogic> = {
+export const FocusModeFilterFormat: Formatter<FocusModeFilterModelInfo> = {
     gqlRelMap: {
         __typename: "FocusModeFilter",
         focusMode: "FocusMode",
@@ -350,7 +350,7 @@ export const FocusModeFilterFormat: Formatter<FocusModeFilterModelLogic> = {
     countFields: {},
 };
 
-export const IssueFormat: Formatter<IssueModelLogic> = {
+export const IssueFormat: Formatter<IssueModelInfo> = {
     gqlRelMap: {
         __typename: "Issue",
         closedBy: "User",
@@ -398,7 +398,7 @@ export const IssueFormat: Formatter<IssueModelLogic> = {
     },
 };
 
-export const LabelFormat: Formatter<LabelModelLogic> = {
+export const LabelFormat: Formatter<LabelModelInfo> = {
     gqlRelMap: {
         __typename: "Label",
         apis: "Api",
@@ -455,7 +455,7 @@ export const LabelFormat: Formatter<LabelModelLogic> = {
     },
 };
 
-export const MeetingFormat: Formatter<MeetingModelLogic> = {
+export const MeetingFormat: Formatter<MeetingModelInfo> = {
     gqlRelMap: {
         __typename: "Meeting",
         attendees: "User",
@@ -487,7 +487,7 @@ export const MeetingFormat: Formatter<MeetingModelLogic> = {
     },
 };
 
-export const MeetingInviteFormat: Formatter<MeetingInviteModelLogic> = {
+export const MeetingInviteFormat: Formatter<MeetingInviteModelInfo> = {
     gqlRelMap: {
         __typename: "MeetingInvite",
         meeting: "Meeting",
@@ -501,7 +501,7 @@ export const MeetingInviteFormat: Formatter<MeetingInviteModelLogic> = {
     countFields: {},
 };
 
-export const MemberFormat: Formatter<MemberModelLogic> = {
+export const MemberFormat: Formatter<MemberModelInfo> = {
     gqlRelMap: {
         __typename: "Member",
         organization: "Organization",
@@ -517,7 +517,7 @@ export const MemberFormat: Formatter<MemberModelLogic> = {
     countFields: {},
 };
 
-export const MemberInviteFormat: Formatter<MemberInviteModelLogic> = {
+export const MemberInviteFormat: Formatter<MemberInviteModelInfo> = {
     gqlRelMap: {
         __typename: "MemberInvite",
         organization: "Organization",
@@ -531,7 +531,7 @@ export const MemberInviteFormat: Formatter<MemberInviteModelLogic> = {
     countFields: {},
 };
 
-export const NodeFormat: Formatter<NodeModelLogic> = {
+export const NodeFormat: Formatter<NodeModelInfo> = {
     gqlRelMap: {
         __typename: "Node",
         end: "NodeEnd",
@@ -552,7 +552,7 @@ export const NodeFormat: Formatter<NodeModelLogic> = {
     countFields: {},
 };
 
-export const NodeEndFormat: Formatter<NodeEndModelLogic> = {
+export const NodeEndFormat: Formatter<NodeEndModelInfo> = {
     gqlRelMap: {
         __typename: "NodeEnd",
         node: "Node",
@@ -567,7 +567,7 @@ export const NodeEndFormat: Formatter<NodeEndModelLogic> = {
     countFields: {},
 };
 
-export const NodeLinkFormat: Formatter<NodeLinkModelLogic> = {
+export const NodeLinkFormat: Formatter<NodeLinkModelInfo> = {
     gqlRelMap: {
         __typename: "NodeLink",
         from: "Node",
@@ -585,7 +585,7 @@ export const NodeLinkFormat: Formatter<NodeLinkModelLogic> = {
     countFields: {},
 };
 
-export const NodeLinkWhenFormat: Formatter<NodeLinkWhenModelLogic> = {
+export const NodeLinkWhenFormat: Formatter<NodeLinkWhenModelInfo> = {
     gqlRelMap: {
         __typename: "NodeLinkWhen",
     },
@@ -596,7 +596,7 @@ export const NodeLinkWhenFormat: Formatter<NodeLinkWhenModelLogic> = {
     countFields: {},
 };
 
-export const NodeLoopFormat: Formatter<NodeLoopModelLogic> = {
+export const NodeLoopFormat: Formatter<NodeLoopModelInfo> = {
     gqlRelMap: {
         __typename: "NodeLoop",
         whiles: "NodeLoopWhile",
@@ -609,7 +609,7 @@ export const NodeLoopFormat: Formatter<NodeLoopModelLogic> = {
     countFields: {},
 };
 
-export const NodeLoopWhileFormat: Formatter<NodeLoopWhileModelLogic> = {
+export const NodeLoopWhileFormat: Formatter<NodeLoopWhileModelInfo> = {
     gqlRelMap: {
         __typename: "NodeLoopWhile",
     },
@@ -620,7 +620,7 @@ export const NodeLoopWhileFormat: Formatter<NodeLoopWhileModelLogic> = {
     countFields: {},
 };
 
-export const NodeRoutineListFormat: Formatter<NodeRoutineListModelLogic> = {
+export const NodeRoutineListFormat: Formatter<NodeRoutineListModelInfo> = {
     gqlRelMap: {
         __typename: "NodeRoutineList",
         items: "NodeRoutineListItem",
@@ -634,7 +634,7 @@ export const NodeRoutineListFormat: Formatter<NodeRoutineListModelLogic> = {
     countFields: {},
 };
 
-export const NodeRoutineListItemFormat: Formatter<NodeRoutineListItemModelLogic> = {
+export const NodeRoutineListItemFormat: Formatter<NodeRoutineListItemModelInfo> = {
     gqlRelMap: {
         __typename: "NodeRoutineListItem",
         list: "NodeRoutineList",
@@ -648,7 +648,7 @@ export const NodeRoutineListItemFormat: Formatter<NodeRoutineListItemModelLogic>
     countFields: {},
 };
 
-export const NoteFormat: Formatter<NoteModelLogic> = {
+export const NoteFormat: Formatter<NoteModelInfo> = {
     gqlRelMap: {
         __typename: "Note",
         createdBy: "User",
@@ -694,7 +694,7 @@ export const NoteFormat: Formatter<NoteModelLogic> = {
     },
 };
 
-export const NoteVersionFormat: Formatter<NoteVersionModelLogic> = {
+export const NoteVersionFormat: Formatter<NoteVersionModelInfo> = {
     gqlRelMap: {
         __typename: "NoteVersion",
         comments: "Comment",
@@ -721,7 +721,7 @@ export const NoteVersionFormat: Formatter<NoteVersionModelLogic> = {
     },
 };
 
-export const NotificationFormat: Formatter<NotificationModelLogic> = {
+export const NotificationFormat: Formatter<NotificationModelInfo> = {
     gqlRelMap: {
         __typename: "Notification",
     },
@@ -731,7 +731,7 @@ export const NotificationFormat: Formatter<NotificationModelLogic> = {
     countFields: {},
 };
 
-export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionModelLogic> = {
+export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionModelInfo> = {
     gqlRelMap: {
         __typename: "NotificationSubscription",
         object: {
@@ -777,7 +777,7 @@ export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionM
     countFields: {},
 };
 
-export const OrganizationFormat: Formatter<OrganizationModelLogic> = {
+export const OrganizationFormat: Formatter<OrganizationModelInfo> = {
     gqlRelMap: {
         __typename: "Organization",
         apis: "Api",
@@ -858,7 +858,7 @@ export const OrganizationFormat: Formatter<OrganizationModelLogic> = {
     },
 };
 
-export const PaymentFormat: Formatter<PaymentModelLogic> = {
+export const PaymentFormat: Formatter<PaymentModelInfo> = {
     gqlRelMap: {
         __typename: "Payment",
         organization: "Organization",
@@ -872,7 +872,7 @@ export const PaymentFormat: Formatter<PaymentModelLogic> = {
     countFields: {},
 };
 
-export const PhoneFormat: Formatter<PhoneModelLogic> = {
+export const PhoneFormat: Formatter<PhoneModelInfo> = {
     gqlRelMap: {
         __typename: "Phone",
     },
@@ -883,7 +883,7 @@ export const PhoneFormat: Formatter<PhoneModelLogic> = {
     countFields: {},
 };
 
-export const PostFormat: Formatter<PostModelLogic> = {
+export const PostFormat: Formatter<PostModelInfo> = {
     gqlRelMap: {
         __typename: "Post",
         comments: "Comment",
@@ -921,7 +921,7 @@ export const PostFormat: Formatter<PostModelLogic> = {
     },
 };
 
-export const PremiumFormat: Formatter<PremiumModelLogic> = {
+export const PremiumFormat: Formatter<PremiumModelInfo> = {
     gqlRelMap: {
         __typename: "Premium",
     },
@@ -933,7 +933,7 @@ export const PremiumFormat: Formatter<PremiumModelLogic> = {
     countFields: {},
 };
 
-export const ProjectFormat: Formatter<ProjectModelLogic> = {
+export const ProjectFormat: Formatter<ProjectModelInfo> = {
     gqlRelMap: {
         __typename: "Project",
         createdBy: "User",
@@ -984,7 +984,7 @@ export const ProjectFormat: Formatter<ProjectModelLogic> = {
     },
 };
 
-export const ProjectVersionFormat: Formatter<ProjectVersionModelLogic> = {
+export const ProjectVersionFormat: Formatter<ProjectVersionModelInfo> = {
     gqlRelMap: {
         __typename: "ProjectVersion",
         comments: "Comment",
@@ -1023,7 +1023,7 @@ export const ProjectVersionFormat: Formatter<ProjectVersionModelLogic> = {
     },
 };
 
-export const ProjectVersionDirectoryFormat: Formatter<ProjectVersionDirectoryModelLogic> = {
+export const ProjectVersionDirectoryFormat: Formatter<ProjectVersionDirectoryModelInfo> = {
     gqlRelMap: {
         __typename: "ProjectVersionDirectory",
         parentDirectory: "ProjectVersionDirectory",
@@ -1055,7 +1055,7 @@ export const ProjectVersionDirectoryFormat: Formatter<ProjectVersionDirectoryMod
     countFields: {},
 };
 
-export const PullRequestFormat: Formatter<PullRequestModelLogic> = {
+export const PullRequestFormat: Formatter<PullRequestModelInfo> = {
     gqlRelMap: {
         __typename: "PullRequest",
         createdBy: "User",
@@ -1104,7 +1104,7 @@ export const PullRequestFormat: Formatter<PullRequestModelLogic> = {
     },
 };
 
-export const PushDeviceFormat: Formatter<PushDeviceModelLogic> = {
+export const PushDeviceFormat: Formatter<PushDeviceModelInfo> = {
     gqlRelMap: {
         __typename: "PushDevice",
     },
@@ -1115,7 +1115,7 @@ export const PushDeviceFormat: Formatter<PushDeviceModelLogic> = {
     countFields: {},
 };
 
-export const QuestionFormat: Formatter<QuestionModelLogic> = {
+export const QuestionFormat: Formatter<QuestionModelInfo> = {
     gqlRelMap: {
         __typename: "Question",
         createdBy: "User",
@@ -1164,7 +1164,7 @@ export const QuestionFormat: Formatter<QuestionModelLogic> = {
     },
 };
 
-export const QuestionAnswerFormat: Formatter<QuestionAnswerModelLogic> = {
+export const QuestionAnswerFormat: Formatter<QuestionAnswerModelInfo> = {
     gqlRelMap: {
         __typename: "QuestionAnswer",
         bookmarkedBy: "User",
@@ -1186,7 +1186,7 @@ export const QuestionAnswerFormat: Formatter<QuestionAnswerModelLogic> = {
     joinMap: { bookmarkedBy: "user" },
 };
 
-export const QuizFormat: Formatter<QuizModelLogic> = {
+export const QuizFormat: Formatter<QuizModelInfo> = {
     gqlRelMap: {
         __typename: "Quiz",
         attempts: "QuizAttempt",
@@ -1212,7 +1212,7 @@ export const QuizFormat: Formatter<QuizModelLogic> = {
     },
 };
 
-export const QuizAttemptFormat: Formatter<QuizAttemptModelLogic> = {
+export const QuizAttemptFormat: Formatter<QuizAttemptModelInfo> = {
     gqlRelMap: {
         __typename: "QuizAttempt",
         quiz: "Quiz",
@@ -1230,7 +1230,7 @@ export const QuizAttemptFormat: Formatter<QuizAttemptModelLogic> = {
     },
 };
 
-export const QuizQuestionFormat: Formatter<QuizQuestionModelLogic> = {
+export const QuizQuestionFormat: Formatter<QuizQuestionModelInfo> = {
     gqlRelMap: {
         __typename: "QuizQuestion",
         quiz: "Quiz",
@@ -1248,7 +1248,7 @@ export const QuizQuestionFormat: Formatter<QuizQuestionModelLogic> = {
     },
 };
 
-export const QuizQuestionResponseFormat: Formatter<QuizQuestionResponseModelLogic> = {
+export const QuizQuestionResponseFormat: Formatter<QuizQuestionResponseModelInfo> = {
     gqlRelMap: {
         __typename: "QuizQuestionResponse",
         quizAttempt: "QuizAttempt",
@@ -1262,7 +1262,7 @@ export const QuizQuestionResponseFormat: Formatter<QuizQuestionResponseModelLogi
     countFields: {},
 };
 
-export const ReactionFormat: Formatter<ReactionModelLogic> = {
+export const ReactionFormat: Formatter<ReactionModelInfo> = {
     gqlRelMap: {
         __typename: "Reaction",
         by: "User",
@@ -1305,7 +1305,7 @@ export const ReactionFormat: Formatter<ReactionModelLogic> = {
     countFields: {},
 };
 
-export const ReactionSummaryFormat: Formatter<ReactionSummaryModelLogic> = {
+export const ReactionSummaryFormat: Formatter<ReactionSummaryModelInfo> = {
     gqlRelMap: {
         __typename: "ReactionSummary",
     },
@@ -1315,7 +1315,7 @@ export const ReactionSummaryFormat: Formatter<ReactionSummaryModelLogic> = {
     countFields: {},
 };
 
-export const ReminderFormat: Formatter<ReminderModelLogic> = {
+export const ReminderFormat: Formatter<ReminderModelInfo> = {
     gqlRelMap: {
         __typename: "Reminder",
         reminderItems: "ReminderItem",
@@ -1329,7 +1329,7 @@ export const ReminderFormat: Formatter<ReminderModelLogic> = {
     countFields: {},
 };
 
-export const ReminderItemFormat: Formatter<ReminderItemModelLogic> = {
+export const ReminderItemFormat: Formatter<ReminderItemModelInfo> = {
     gqlRelMap: {
         __typename: "ReminderItem",
         reminder: "Reminder",
@@ -1341,7 +1341,7 @@ export const ReminderItemFormat: Formatter<ReminderItemModelLogic> = {
     countFields: {},
 };
 
-export const ReminderListFormat: Formatter<ReminderListModelLogic> = {
+export const ReminderListFormat: Formatter<ReminderListModelInfo> = {
     gqlRelMap: {
         __typename: "ReminderList",
         focusMode: "FocusMode",
@@ -1355,7 +1355,7 @@ export const ReminderListFormat: Formatter<ReminderListModelLogic> = {
     countFields: {},
 };
 
-export const ReportFormat: Formatter<ReportModelLogic> = {
+export const ReportFormat: Formatter<ReportModelInfo> = {
     gqlRelMap: {
         __typename: "Report",
         responses: "ReportResponse",
@@ -1370,7 +1370,7 @@ export const ReportFormat: Formatter<ReportModelLogic> = {
     },
 };
 
-export const ReportResponseFormat: Formatter<ReportResponseModelLogic> = {
+export const ReportResponseFormat: Formatter<ReportResponseModelInfo> = {
     gqlRelMap: {
         __typename: "ReportResponse",
         report: "Report",
@@ -1385,7 +1385,7 @@ export const ReportResponseFormat: Formatter<ReportResponseModelLogic> = {
     },
 };
 
-export const ResourceFormat: Formatter<ResourceModelLogic> = {
+export const ResourceFormat: Formatter<ResourceModelInfo> = {
     gqlRelMap: {
         __typename: "Resource",
         list: "ResourceList",
@@ -1397,7 +1397,7 @@ export const ResourceFormat: Formatter<ResourceModelLogic> = {
     countFields: {},
 };
 
-export const ResourceListFormat: Formatter<ResourceListModelLogic> = {
+export const ResourceListFormat: Formatter<ResourceListModelInfo> = {
     gqlRelMap: {
         __typename: "ResourceList",
         resources: "Resource",
@@ -1430,7 +1430,7 @@ export const ResourceListFormat: Formatter<ResourceListModelLogic> = {
     countFields: {},
 };
 
-export const RoleFormat: Formatter<RoleModelLogic> = {
+export const RoleFormat: Formatter<RoleModelInfo> = {
     gqlRelMap: {
         __typename: "Role",
         members: "Member",
@@ -1447,7 +1447,7 @@ export const RoleFormat: Formatter<RoleModelLogic> = {
     },
 };
 
-export const RoutineFormat: Formatter<RoutineModelLogic> = {
+export const RoutineFormat: Formatter<RoutineModelInfo> = {
     gqlRelMap: {
         __typename: "Routine",
         createdBy: "User",
@@ -1496,7 +1496,7 @@ export const RoutineFormat: Formatter<RoutineModelLogic> = {
     },
 };
 
-export const RoutineVersionFormat: Formatter<RoutineVersionModelLogic> = {
+export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
     gqlRelMap: {
         __typename: "RoutineVersion",
         apiVersion: "ApiVersion",
@@ -1551,7 +1551,7 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelLogic> = {
     },
 };
 
-export const RoutineVersionInputFormat: Formatter<RoutineVersionInputModelLogic> = {
+export const RoutineVersionInputFormat: Formatter<RoutineVersionInputModelInfo> = {
     gqlRelMap: {
         __typename: "RoutineVersionInput",
         routineVersion: "RoutineVersion",
@@ -1566,7 +1566,7 @@ export const RoutineVersionInputFormat: Formatter<RoutineVersionInputModelLogic>
     countFields: {},
 };
 
-export const RoutineVersionOutputFormat: Formatter<RoutineVersionOutputModelLogic> = {
+export const RoutineVersionOutputFormat: Formatter<RoutineVersionOutputModelInfo> = {
     gqlRelMap: {
         __typename: "RoutineVersionOutput",
         routineVersion: "RoutineVersion",
@@ -1580,7 +1580,7 @@ export const RoutineVersionOutputFormat: Formatter<RoutineVersionOutputModelLogi
     countFields: {},
 };
 
-export const RunProjectFormat: Formatter<RunProjectModelLogic> = {
+export const RunProjectFormat: Formatter<RunProjectModelInfo> = {
     gqlRelMap: {
         __typename: "RunProject",
         projectVersion: "ProjectVersion",
@@ -1602,7 +1602,7 @@ export const RunProjectFormat: Formatter<RunProjectModelLogic> = {
     },
 };
 
-export const RunProjectStepFormat: Formatter<RunProjectStepModelLogic> = {
+export const RunProjectStepFormat: Formatter<RunProjectStepModelInfo> = {
     gqlRelMap: {
         __typename: "RunProjectStep",
         directory: "ProjectVersionDirectory",
@@ -1616,7 +1616,7 @@ export const RunProjectStepFormat: Formatter<RunProjectStepModelLogic> = {
     countFields: {},
 };
 
-export const RunRoutineFormat: Formatter<RunRoutineModelLogic> = {
+export const RunRoutineFormat: Formatter<RunRoutineModelInfo> = {
     gqlRelMap: {
         __typename: "RunRoutine",
         inputs: "RunRoutineInput",
@@ -1643,7 +1643,7 @@ export const RunRoutineFormat: Formatter<RunRoutineModelLogic> = {
     },
 };
 
-export const RunRoutineInputFormat: Formatter<RunRoutineInputModelLogic> = {
+export const RunRoutineInputFormat: Formatter<RunRoutineInputModelInfo> = {
     gqlRelMap: {
         __typename: "RunRoutineInput",
         input: "RoutineVersionInput",
@@ -1657,7 +1657,7 @@ export const RunRoutineInputFormat: Formatter<RunRoutineInputModelLogic> = {
     countFields: {},
 };
 
-export const RunRoutineStepFormat: Formatter<RunRoutineStepModelLogic> = {
+export const RunRoutineStepFormat: Formatter<RunRoutineStepModelInfo> = {
     gqlRelMap: {
         __typename: "RunRoutineStep",
         run: "RunRoutine",
@@ -1673,7 +1673,7 @@ export const RunRoutineStepFormat: Formatter<RunRoutineStepModelLogic> = {
     countFields: {},
 };
 
-export const ScheduleFormat: Formatter<ScheduleModelLogic> = {
+export const ScheduleFormat: Formatter<ScheduleModelInfo> = {
     gqlRelMap: {
         __typename: "Schedule",
         exceptions: "ScheduleException",
@@ -1698,7 +1698,7 @@ export const ScheduleFormat: Formatter<ScheduleModelLogic> = {
     countFields: {},
 };
 
-export const ScheduleExceptionFormat: Formatter<ScheduleExceptionModelLogic> = {
+export const ScheduleExceptionFormat: Formatter<ScheduleExceptionModelInfo> = {
     gqlRelMap: {
         __typename: "ScheduleException",
         schedule: "Schedule",
@@ -1710,7 +1710,7 @@ export const ScheduleExceptionFormat: Formatter<ScheduleExceptionModelLogic> = {
     countFields: {},
 };
 
-export const ScheduleRecurrenceFormat: Formatter<ScheduleRecurrenceModelLogic> = {
+export const ScheduleRecurrenceFormat: Formatter<ScheduleRecurrenceModelInfo> = {
     gqlRelMap: {
         __typename: "ScheduleRecurrence",
         schedule: "Schedule",
@@ -1722,7 +1722,7 @@ export const ScheduleRecurrenceFormat: Formatter<ScheduleRecurrenceModelLogic> =
     countFields: {},
 };
 
-export const SmartContractFormat: Formatter<SmartContractModelLogic> = {
+export const SmartContractFormat: Formatter<SmartContractModelInfo> = {
     gqlRelMap: {
         __typename: "SmartContract",
         createdBy: "User",
@@ -1768,7 +1768,7 @@ export const SmartContractFormat: Formatter<SmartContractModelLogic> = {
     },
 };
 
-export const SmartContractVersionFormat: Formatter<SmartContractVersionModelLogic> = {
+export const SmartContractVersionFormat: Formatter<SmartContractVersionModelInfo> = {
     gqlRelMap: {
         __typename: "SmartContractVersion",
         comments: "Comment",
@@ -1796,7 +1796,7 @@ export const SmartContractVersionFormat: Formatter<SmartContractVersionModelLogi
     },
 };
 
-export const StandardFormat: Formatter<StandardModelLogic> = {
+export const StandardFormat: Formatter<StandardModelInfo> = {
     gqlRelMap: {
         __typename: "Standard",
         createdBy: "User",
@@ -1844,7 +1844,7 @@ export const StandardFormat: Formatter<StandardModelLogic> = {
     },
 };
 
-export const StandardVersionFormat: Formatter<StandardVersionModelLogic> = {
+export const StandardVersionFormat: Formatter<StandardVersionModelInfo> = {
     gqlRelMap: {
         __typename: "StandardVersion",
         comments: "Comment",
@@ -1874,7 +1874,7 @@ export const StandardVersionFormat: Formatter<StandardVersionModelLogic> = {
     },
 };
 
-export const StatsApiFormat: Formatter<StatsApiModelLogic> = {
+export const StatsApiFormat: Formatter<StatsApiModelInfo> = {
     gqlRelMap: {
         __typename: "StatsApi",
     },
@@ -1885,7 +1885,7 @@ export const StatsApiFormat: Formatter<StatsApiModelLogic> = {
     countFields: {},
 };
 
-export const StatsOrganizationFormat: Formatter<StatsOrganizationModelLogic> = {
+export const StatsOrganizationFormat: Formatter<StatsOrganizationModelInfo> = {
     gqlRelMap: {
         __typename: "StatsOrganization",
     },
@@ -1896,7 +1896,7 @@ export const StatsOrganizationFormat: Formatter<StatsOrganizationModelLogic> = {
     countFields: {},
 };
 
-export const StatsProjectFormat: Formatter<StatsProjectModelLogic> = {
+export const StatsProjectFormat: Formatter<StatsProjectModelInfo> = {
     gqlRelMap: {
         __typename: "StatsProject",
     },
@@ -1907,7 +1907,7 @@ export const StatsProjectFormat: Formatter<StatsProjectModelLogic> = {
     countFields: {},
 };
 
-export const StatsQuizFormat: Formatter<StatsQuizModelLogic> = {
+export const StatsQuizFormat: Formatter<StatsQuizModelInfo> = {
     gqlRelMap: {
         __typename: "StatsQuiz",
     },
@@ -1918,7 +1918,7 @@ export const StatsQuizFormat: Formatter<StatsQuizModelLogic> = {
     countFields: {},
 };
 
-export const StatsRoutineFormat: Formatter<StatsRoutineModelLogic> = {
+export const StatsRoutineFormat: Formatter<StatsRoutineModelInfo> = {
     gqlRelMap: {
         __typename: "StatsRoutine",
     },
@@ -1929,7 +1929,7 @@ export const StatsRoutineFormat: Formatter<StatsRoutineModelLogic> = {
     countFields: {},
 };
 
-export const StatsSiteFormat: Formatter<StatsSiteModelLogic> = {
+export const StatsSiteFormat: Formatter<StatsSiteModelInfo> = {
     gqlRelMap: {
         __typename: "StatsSite",
     },
@@ -1939,7 +1939,7 @@ export const StatsSiteFormat: Formatter<StatsSiteModelLogic> = {
     countFields: {},
 };
 
-export const StatsSmartContractFormat: Formatter<StatsSmartContractModelLogic> = {
+export const StatsSmartContractFormat: Formatter<StatsSmartContractModelInfo> = {
     gqlRelMap: {
         __typename: "StatsSmartContract",
     },
@@ -1950,7 +1950,7 @@ export const StatsSmartContractFormat: Formatter<StatsSmartContractModelLogic> =
     countFields: {},
 };
 
-export const StatsStandardFormat: Formatter<StatsStandardModelLogic> = {
+export const StatsStandardFormat: Formatter<StatsStandardModelInfo> = {
     gqlRelMap: {
         __typename: "StatsStandard",
     },
@@ -1961,7 +1961,7 @@ export const StatsStandardFormat: Formatter<StatsStandardModelLogic> = {
     countFields: {},
 };
 
-export const StatsUserFormat: Formatter<StatsUserModelLogic> = {
+export const StatsUserFormat: Formatter<StatsUserModelInfo> = {
     gqlRelMap: {
         __typename: "StatsUser",
     },
@@ -1972,7 +1972,7 @@ export const StatsUserFormat: Formatter<StatsUserModelLogic> = {
     countFields: {},
 };
 
-export const TagFormat: Formatter<TagModelLogic> = {
+export const TagFormat: Formatter<TagModelInfo> = {
     gqlRelMap: {
         __typename: "Tag",
         apis: "Api",
@@ -2016,7 +2016,7 @@ export const TagFormat: Formatter<TagModelLogic> = {
     countFields: {},
 };
 
-export const TransferFormat: Formatter<TransferModelLogic> = {
+export const TransferFormat: Formatter<TransferModelInfo> = {
     gqlRelMap: {
         __typename: "Transfer",
         fromOwner: {
@@ -2057,7 +2057,7 @@ export const TransferFormat: Formatter<TransferModelLogic> = {
     countFields: {},
 };
 
-export const UserFormat: Formatter<UserModelLogic> = {
+export const UserFormat: Formatter<UserModelInfo> = {
     gqlRelMap: {
         __typename: "User",
         comments: "Comment",
@@ -2136,7 +2136,7 @@ export const UserFormat: Formatter<UserModelLogic> = {
     },
 };
 
-export const ViewFormat: Formatter<ViewModelLogic> = {
+export const ViewFormat: Formatter<ViewModelInfo> = {
     gqlRelMap: {
         __typename: "View",
         by: "User",
@@ -2173,7 +2173,7 @@ export const ViewFormat: Formatter<ViewModelLogic> = {
     countFields: {},
 };
 
-export const WalletFormat: Formatter<WalletModelLogic> = {
+export const WalletFormat: Formatter<WalletModelInfo> = {
     gqlRelMap: {
         __typename: "Wallet",
         user: "User",

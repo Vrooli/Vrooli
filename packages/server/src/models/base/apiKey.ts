@@ -1,15 +1,13 @@
 import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
+import { ModelMap } from ".";
 import { randomString } from "../../auth/wallet";
 import { noNull } from "../../builders/noNull";
 import { defaultPermissions } from "../../utils";
 import { ApiKeyFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { ApiKeyModelLogic } from "./types";
+import { ApiKeyModelLogic, OrganizationModelLogic } from "./types";
 
 const __typename = "ApiKey" as const;
-const suppFields = [] as const;
-export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
+export const ApiKeyModel: ApiKeyModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.api_key,
     display: {
@@ -67,7 +65,7 @@ export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

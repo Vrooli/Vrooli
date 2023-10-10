@@ -1,17 +1,16 @@
 import { MaxObjects, NoteVersionSortBy, noteVersionValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { NoteVersionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { NoteModel } from "./note";
-import { NoteModelLogic, NoteVersionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { NoteModelInfo, NoteModelLogic, NoteVersionModelInfo, NoteVersionModelLogic } from "./types";
 
 const __typename = "NoteVersion" as const;
-const suppFields = ["you"] as const;
-export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFields> = ({
+export const NoteVersionModel: NoteVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.note_version,
     display: {
@@ -141,7 +140,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -154,10 +153,10 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
-            oneIsPublic<NoteVersionModelLogic["PrismaSelect"]>([["root", "Note"]], data, ...rest),
+            oneIsPublic<NoteVersionModelInfo["PrismaSelect"]>([["root", "Note"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => NoteModel.validate.owner(data?.root as NoteModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<NoteModelLogic>("Note").validate.owner(data?.root as NoteModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -183,7 +182,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                 ],
             },
             owner: (userId) => ({
-                root: NoteModel.validate.visibility.owner(userId),
+                root: ModelMap.get<NoteModelLogic>("Note").validate.visibility.owner(userId),
             }),
         },
     },

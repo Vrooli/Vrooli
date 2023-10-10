@@ -1,17 +1,16 @@
 import { LabelSortBy, labelValidation, MaxObjects } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { LabelFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { LabelModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { LabelModelInfo, LabelModelLogic, OrganizationModelLogic } from "./types";
 
 const __typename = "Label" as const;
-const suppFields = ["you"] as const;
-export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
+export const LabelModel: LabelModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.label,
     display: {
@@ -67,7 +66,7 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -91,7 +90,7 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<LabelModelLogic["PrismaSelect"]>([
+        isPublic: (...rest) => oneIsPublic<LabelModelInfo["PrismaSelect"]>([
             ["ownedByOrganization", "Organization"],
             ["ownedByUser", "User"],
         ], ...rest),
@@ -101,7 +100,7 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

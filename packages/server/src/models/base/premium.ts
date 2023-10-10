@@ -1,14 +1,12 @@
 import { MaxObjects } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { defaultPermissions } from "../../utils";
 import { PremiumFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { PremiumModelLogic } from "./types";
+import { OrganizationModelLogic, PremiumModelLogic } from "./types";
 
 const __typename = "Premium" as const;
-const suppFields = [] as const;
-export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
+export const PremiumModel: PremiumModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.payment,
     display: {
@@ -44,7 +42,7 @@ export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

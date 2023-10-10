@@ -2,8 +2,7 @@ import { GqlModelType } from "@local/shared";
 import { isRelationshipArray } from "../builders/isRelationshipArray";
 import { isRelationshipObject } from "../builders/isRelationshipObject";
 import { CustomError } from "../events/error";
-import { getLogic } from "../getters/getLogic";
-import { ObjectMapSingleton } from "../models/base";
+import { ModelMap } from "../models/base";
 import { authDataWithInput } from "../utils/authDataWithInput";
 import { hasProfanity } from "../utils/censor";
 import { AuthDataById } from "../utils/getAuthenticatedData";
@@ -30,8 +29,8 @@ const collectProfanities = (
     const result: Record<string, string[]> = {};
     // Handle base case
     // Get current object's formatter and validator
-    const format = objectType ? ObjectMapSingleton.getInstance().map[objectType]?.format : undefined;
-    const validate = objectType ? ObjectMapSingleton.getInstance().map[objectType]?.validate : undefined;
+    const format = ModelMap.get(objectType, false)?.format;
+    const validate = ModelMap.get(objectType, false)?.validate;
     // If validator specifies profanityFields, add them to the result
     if (validate?.profanityFields) {
         for (const field of validate.profanityFields) {
@@ -114,7 +113,7 @@ export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById
         // Only check for objects which are not private. 
         // NOTE: This means that a user could create a private object with profanity in it, and then change it to public. 
         // We'll have to rely on the reporting and reputation system to handle this.
-        const { idField, validate } = getLogic(["idField", "validate"], item.objectType, languages, "profanityCheck");
+        const { idField, validate } = ModelMap.getLogic(["idField", "validate"], item.objectType);
         const existingData = authDataById[item.input[idField]];
         const input = item.input as object;
         const combinedData = authDataWithInput(input, existingData ?? {}, inputsById, authDataById);

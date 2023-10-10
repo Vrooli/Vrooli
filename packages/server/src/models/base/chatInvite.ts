@@ -1,24 +1,22 @@
 import { ChatInviteSortBy, chatInviteValidation, MaxObjects, uuidValidate } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ChatInviteFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ChatModel } from "./chat";
-import { ChatInviteModelLogic, ChatModelLogic, UserModelLogic } from "./types";
-import { UserModel } from "./user";
+import { SuppFields } from "../suppFields";
+import { ChatInviteModelLogic, ChatModelInfo, ChatModelLogic, UserModelInfo, UserModelLogic } from "./types";
 
 const __typename = "ChatInvite" as const;
-const suppFields = ["you"] as const;
-export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields> = ({
+export const ChatInviteModel: ChatInviteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.chat_invite,
     display: {
         // Label is the user label
         label: {
-            select: () => ({ id: true, user: { select: UserModel.display.label.select() } }),
-            get: (select, languages) => UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages),
+            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display.label.select() } }),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display.label.get(select.user as UserModelInfo["PrismaModel"], languages),
         },
     },
     format: ChatInviteFormat,
@@ -56,12 +54,12 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
         searchStringQuery: () => ({
             OR: [
                 "message",
-                { chat: ChatModel.search.searchStringQuery() },
-                { user: UserModel.search.searchStringQuery() },
+                { chat: ModelMap.get<ChatModelLogic>("Chat").search.searchStringQuery() },
+                { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -77,8 +75,8 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data?.chat as ChatModelLogic["PrismaModel"])?.organization,
-            User: (data?.chat as ChatModelLogic["PrismaModel"])?.creator,
+            Organization: (data?.chat as ChatModelInfo["PrismaModel"])?.organization,
+            User: (data?.chat as ChatModelInfo["PrismaModel"])?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isYourInvite = uuidValidate(userId) && data.userId === userId;
@@ -96,7 +94,7 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ChatModel.validate.visibility.owner(userId),
+                chat: ModelMap.get<ChatModelLogic>("Chat").validate.visibility.owner(userId),
             }),
         },
     },

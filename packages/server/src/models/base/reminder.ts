@@ -1,15 +1,13 @@
 import { MaxObjects, ReminderSortBy, reminderValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { ReminderFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ReminderListModel } from "./reminderList";
-import { ReminderListModelLogic, ReminderModelLogic } from "./types";
+import { ReminderListModelInfo, ReminderListModelLogic, ReminderModelInfo, ReminderModelLogic } from "./types";
 
 const __typename = "Reminder" as const;
-const suppFields = [] as const;
-export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = ({
+export const ReminderModel: ReminderModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.reminder,
     display: {
@@ -67,10 +65,10 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ReminderModelLogic["PrismaSelect"]>([["reminderList", "ReminderList"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<ReminderModelInfo["PrismaSelect"]>([["reminderList", "ReminderList"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderListModel.validate.owner(data?.reminderList as ReminderListModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ReminderListModelLogic>("ReminderList").validate.owner(data?.reminderList as ReminderListModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -80,7 +78,7 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
             private: {},
             public: {},
             owner: (userId) => ({
-                reminderList: ReminderListModel.validate.visibility.owner(userId),
+                reminderList: ModelMap.get<ReminderListModelLogic>("ReminderList").validate.visibility.owner(userId),
             }),
         },
     },

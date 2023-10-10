@@ -1,4 +1,5 @@
 import { MaxObjects, StandardCreateInput, StandardSortBy, standardValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
@@ -9,20 +10,14 @@ import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { StandardFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { OrganizationModel } from "./organization";
-import { ReactionModel } from "./reaction";
-import { StandardVersionModel } from "./standardVersion";
-import { StandardModelLogic } from "./types";
-import { ViewModel } from "./view";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, ViewModelLogic } from "./types";
 
 const __typename = "Standard" as const;
-const suppFields = ["you", "translatedName"] as const;
-export const StandardModel: ModelLogic<StandardModelLogic, typeof suppFields> = ({
+export const StandardModel: StandardModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.standard,
-    display: rootObjectDisplay(StandardVersionModel),
+    display: rootObjectDisplay(ModelMap.get<StandardVersionModelLogic>("StandardVersion")),
     format: StandardFormat,
     mutate: {
         shape: {
@@ -191,14 +186,14 @@ export const StandardModel: ModelLogic<StandardModelLogic, typeof suppFields> = 
          */
         customQueryData: () => ({ isInternal: true }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                     "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
                 };
@@ -211,7 +206,7 @@ export const StandardModel: ModelLogic<StandardModelLogic, typeof suppFields> = 
         isDeleted: (data) => data.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<StandardModelLogic["PrismaSelect"]>([
+            oneIsPublic<StandardModelInfo["PrismaSelect"]>([
                 ["ownedByOrganization", "Organization"],
                 ["ownedByUser", "User"],
             ], data, ...rest),
@@ -239,7 +234,7 @@ export const StandardModel: ModelLogic<StandardModelLogic, typeof suppFields> = 
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

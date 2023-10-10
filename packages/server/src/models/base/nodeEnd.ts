@@ -1,22 +1,20 @@
 import { MaxObjects, nodeEndValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { nodeEndNextShapeHelper } from "../../utils/shapes";
 import { NodeEndFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { NodeModel } from "./node";
-import { NodeEndModelLogic, NodeModelLogic } from "./types";
+import { NodeEndModelInfo, NodeEndModelLogic, NodeModelInfo, NodeModelLogic } from "./types";
 
 const __typename = "NodeEnd" as const;
-const suppFields = [] as const;
-export const NodeEndModel: ModelLogic<NodeEndModelLogic, typeof suppFields> = ({
+export const NodeEndModel: NodeEndModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node_end,
     display: {
         label: {
-            select: () => ({ id: true, node: { select: NodeModel.display.label.select() } }),
-            get: (select, languages) => NodeModel.display.label.get(select.node as NodeModelLogic["PrismaModel"], languages),
+            select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display.label.select() } }),
+            get: (select, languages) => ModelMap.get<NodeModelLogic>("Node").display.label.get(select.node as NodeModelInfo["PrismaModel"], languages),
         },
     },
     format: NodeEndFormat,
@@ -45,13 +43,13 @@ export const NodeEndModel: ModelLogic<NodeEndModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeModel.validate.owner(data?.node as NodeModelLogic["PrismaModel"], userId),
-        isDeleted: (data, languages) => NodeModel.validate.isDeleted(data.node as NodeModelLogic["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeEndModelLogic["PrismaSelect"]>([["node", "Node"]], ...rest),
+        owner: (data, userId) => ModelMap.get<NodeModelLogic>("Node").validate.owner(data?.node as NodeModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate.isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeEndModelInfo["PrismaSelect"]>([["node", "Node"]], ...rest),
         visibility: {
-            private: { node: NodeModel.validate.visibility.private },
-            public: { node: NodeModel.validate.visibility.public },
-            owner: (userId) => ({ node: NodeModel.validate.visibility.owner(userId) }),
+            private: { node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.private },
+            public: { node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.public },
+            owner: (userId) => ({ node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.owner(userId) }),
         },
     },
 });

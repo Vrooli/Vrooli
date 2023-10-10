@@ -1,13 +1,12 @@
 import { IssueFor, IssueSortBy, issueValidation, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
+import { ModelMap } from ".";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { IssueFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { ReactionModel } from "./reaction";
-import { IssueModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, IssueModelInfo, IssueModelLogic, ReactionModelLogic } from "./types";
 
 const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } = {
     Api: "api",
@@ -20,8 +19,7 @@ const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } =
 };
 
 const __typename = "Issue" as const;
-const suppFields = ["you"] as const;
-export const IssueModel: ModelLogic<IssueModelLogic, typeof suppFields> = ({
+export const IssueModel: IssueModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.issue,
     display: {
@@ -85,13 +83,13 @@ export const IssueModel: ModelLogic<IssueModelLogic, typeof suppFields> = ({
         },
         searchStringQuery: () => ({ OR: ["transDescriptionWrapped", "transNameWrapped"] }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
@@ -99,7 +97,7 @@ export const IssueModel: ModelLogic<IssueModelLogic, typeof suppFields> = ({
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<IssueModelLogic["PrismaSelect"]>([
+        isPublic: (...rest) => oneIsPublic<IssueModelInfo["PrismaSelect"]>([
             ["api", "Api"],
             ["organization", "Organization"],
             ["note", "Note"],

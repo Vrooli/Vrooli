@@ -1,16 +1,14 @@
 import { MaxObjects, projectVersionDirectoryValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ProjectVersionDirectoryFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ProjectVersionModel } from "./projectVersion";
-import { ProjectVersionDirectoryModelLogic, ProjectVersionModelLogic } from "./types";
+import { ProjectVersionDirectoryModelInfo, ProjectVersionDirectoryModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types";
 
 const __typename = "ProjectVersionDirectory" as const;
-const suppFields = [] as const;
-export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryModelLogic, typeof suppFields> = ({
+export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.project_version_directory,
     display: {
@@ -58,10 +56,10 @@ export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryMod
     search: {} as any,
     validate: {
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ProjectVersionDirectoryModelLogic["PrismaSelect"]>([["projectVersion", "ProjectVersion"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<ProjectVersionDirectoryModelInfo["PrismaSelect"]>([["projectVersion", "ProjectVersion"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ProjectVersionModel.validate.owner(data?.projectVersion as ProjectVersionModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate.owner(data?.projectVersion as ProjectVersionModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -71,7 +69,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryMod
             private: {},
             public: {},
             owner: (userId) => ({
-                projectVersion: ProjectVersionModel.validate.visibility.owner(userId),
+                projectVersion: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate.visibility.owner(userId),
             }),
         },
     },

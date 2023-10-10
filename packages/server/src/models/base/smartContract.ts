@@ -1,4 +1,5 @@
 import { MaxObjects, SmartContractSortBy, smartContractValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
@@ -8,20 +9,14 @@ import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { SmartContractFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { OrganizationModel } from "./organization";
-import { ReactionModel } from "./reaction";
-import { SmartContractVersionModel } from "./smartContractVersion";
-import { SmartContractModelLogic } from "./types";
-import { ViewModel } from "./view";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, SmartContractModelInfo, SmartContractModelLogic, SmartContractVersionModelLogic, ViewModelLogic } from "./types";
 
 const __typename = "SmartContract" as const;
-const suppFields = ["you", "translatedName"] as const;
-export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof suppFields> = ({
+export const SmartContractModel: SmartContractModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.smart_contract,
-    display: rootObjectDisplay(SmartContractVersionModel),
+    display: rootObjectDisplay(ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion")),
     format: SmartContractFormat,
     mutate: {
         shape: {
@@ -91,14 +86,14 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                     "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "smartContract.translatedName"),
                 };
@@ -111,7 +106,7 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
         isDeleted: (data) => data.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<SmartContractModelLogic["PrismaSelect"]>([
+            oneIsPublic<SmartContractModelInfo["PrismaSelect"]>([
                 ["ownedByOrganization", "Organization"],
                 ["ownedByUser", "User"],
             ], data, ...rest),
@@ -139,7 +134,7 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

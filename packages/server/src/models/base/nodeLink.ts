@@ -1,28 +1,25 @@
 import { MaxObjects, nodeLinkValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { NodeLinkFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { NodeModel } from "./node";
-import { RoutineVersionModel } from "./routineVersion";
-import { NodeLinkModelLogic, NodeModelLogic, RoutineVersionModelLogic } from "./types";
+import { NodeLinkModelInfo, NodeLinkModelLogic, NodeModelInfo, NodeModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
 
 const __typename = "NodeLink" as const;
-const suppFields = [] as const;
-export const NodeLinkModel: ModelLogic<NodeLinkModelLogic, typeof suppFields> = ({
+export const NodeLinkModel: NodeLinkModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node_link,
     display: {
         label: {
             select: () => ({
                 id: true,
-                from: { select: NodeModel.display.label.select() },
-                to: { select: NodeModel.display.label.select() },
+                from: { select: ModelMap.get<NodeModelLogic>("Node").display.label.select() },
+                to: { select: ModelMap.get<NodeModelLogic>("Node").display.label.select() },
             }),
             // Label combines from and to labels
             get: (select, languages) => {
-                return `${NodeModel.display.label.get(select.from as NodeModelLogic["PrismaModel"], languages)} -> ${NodeModel.display.label.get(select.to as NodeModelLogic["PrismaModel"], languages)}`;
+                return `${ModelMap.get<NodeModelLogic>("Node").display.label.get(select.from as NodeModelInfo["PrismaModel"], languages)} -> ${ModelMap.get<NodeModelLogic>("Node").display.label.get(select.to as NodeModelInfo["PrismaModel"], languages)}`;
             },
         },
     },
@@ -53,13 +50,13 @@ export const NodeLinkModel: ModelLogic<NodeLinkModelLogic, typeof suppFields> = 
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
-        isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeLinkModelLogic["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.isDeleted(data.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeLinkModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
-            private: { routineVersion: RoutineVersionModel.validate.visibility.private },
-            public: { routineVersion: RoutineVersionModel.validate.visibility.public },
-            owner: (userId) => ({ routineVersion: RoutineVersionModel.validate.visibility.owner(userId) }),
+            private: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.private },
+            public: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.public },
+            owner: (userId) => ({ routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.owner(userId) }),
         },
     },
 });

@@ -1,5 +1,6 @@
 import { exists, MaxObjects, OrganizationSortBy, organizationValidation, uuid } from "@local/shared";
 import { role } from "@prisma/client";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { shapeHelper } from "../../builders/shapeHelper";
@@ -9,14 +10,11 @@ import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../
 import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
 import { OrganizationFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { OrganizationModelLogic } from "./types";
-import { ViewModel } from "./view";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, OrganizationModelLogic, ViewModelLogic } from "./types";
 
 const __typename = "Organization" as const;
-const suppFields = ["you", "translatedName"] as const;
-export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFields> = ({
+export const OrganizationModel: OrganizationModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.organization,
     display: {
@@ -157,13 +155,13 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
                     },
                     translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "organization.translatedName"),
                 };
@@ -292,7 +290,7 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
-            owner: (userId) => OrganizationModel.query.hasRoleQuery(userId),
+            owner: (userId) => ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId),
         },
     },
 });

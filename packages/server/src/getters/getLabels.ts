@@ -1,7 +1,7 @@
 import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
-import { ObjectMapSingleton } from "../models/base";
+import { ModelMap } from "../models/base";
 import { PrismaType } from "../types";
 
 /**
@@ -21,10 +21,7 @@ export async function getLabels(
     languages: string[],
     errorTrace: string,
 ): Promise<string[]> {
-    const model = ObjectMapSingleton.getInstance().map[objectType];
-    if (!model || Object.keys(model).length <= 0) {
-        throw new CustomError("0347", "InvalidArgs", languages, { errorTrace, objectType });
-    }
+    const model = ModelMap.get(objectType, true, errorTrace);
     if (objects.length <= 0) return [];
     const objectsWithLanguages = typeof objects[0] === "string" ? objects.map(id => ({ id, languages })) : objects;
     // Query for labels data

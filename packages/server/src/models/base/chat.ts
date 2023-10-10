@@ -6,12 +6,11 @@ import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../
 import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { ChatFormat } from "../formats";
-import { ModelLogic } from "../types";
+import { SuppFields } from "../suppFields";
 import { ChatModelLogic } from "./types";
 
 const __typename = "Chat" as const;
-const suppFields = ["you"] as const;
-export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
+export const ChatModel: ChatModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.chat,
     display: {
@@ -135,12 +134,12 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        // hasUnread: await ChatModel.query.getHasUnread(prisma, userData?.id, ids, __typename),
+                        // hasUnread: await ModelMap.get<ChatModelLogic>("Chat").query.getHasUnread(prisma, userData?.id, ids, __typename),
                     },
                 };
             },

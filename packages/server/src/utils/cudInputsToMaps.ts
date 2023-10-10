@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events/error";
-import { getLogic } from "../getters/getLogic";
+import { ModelMap } from "../models/base";
 import { Formatter, ModelLogicType } from "../models/types";
 import { PrismaType } from "../types";
 import { getActionFromFieldName } from "./getActionFromFieldName";
@@ -34,7 +34,7 @@ const convertPlaceholders = async ({
         const [objectType, path] = placeholder.split("|", 2);
         const [rootId, ...relations] = path.split(".");
 
-        const { delegate } = getLogic(["delegate"], objectType as GqlModelType, languages, "convertPlaceholders");
+        const { delegate } = ModelMap.getLogic(["delegate"], objectType as GqlModelType);
         const queryResult = await delegate(prisma).findUnique({
             where: { id: rootId },
             select: relations.reduce((selectObj, relation) => {
@@ -230,7 +230,7 @@ export const cudInputsToMaps = async ({
                     throw new CustomError("0525", "InternalError", ["en"], { field });
                 }
             }
-            const { format: childFormat, idField: childIdField } = getLogic(["format", "idField"], __typename, languages, "buildHierarchicalMap loop");
+            const { format: childFormat, idField: childIdField } = ModelMap.getLogic(["format", "idField"], __typename, true, "cudInputsToMaps buildTree");
 
             const processObject = (childInput: object) => {
                 // Recursively build child nodes for Create and Update actions
@@ -314,7 +314,7 @@ export const cudInputsToMaps = async ({
         }
         // Otherwise, recursively build the tree and other maps 
         else {
-            const { format, idField } = getLogic(["format", "idField"], objectType, languages, "getAuthenticatedIds");
+            const { format, idField } = ModelMap.getLogic(["format", "idField"], objectType, true, "cudInputsToMaps 2");
             buildTree(actionType as QueryAction, input, format, languages, idField);
         }
     }
@@ -326,7 +326,7 @@ export const cudInputsToMaps = async ({
     // perform the correct checks when shaping the inputs.
     for (const type in inputsByType) {
         // Check if the type can be converted to a connect
-        const { mutate } = getLogic(["mutate"], type as GqlModelType, languages, "cudInputsToMaps - connect check");
+        const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudInputsToMaps connect check");
         if (!mutate?.shape?.findConnects) continue;
         // Collect all IDs of this type being created
         const createIds = inputsByType[type].Create.map(({ node }) => node.id);

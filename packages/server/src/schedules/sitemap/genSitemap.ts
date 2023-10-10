@@ -2,7 +2,7 @@ import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } fro
 import fs from "fs";
 import zlib from "zlib";
 import { logger } from "../../events/logger";
-import { getLogic } from "../../getters/getLogic";
+import { ModelMap } from "../../models/base";
 import { PrismaType } from "../../types";
 import { withPrisma } from "../../utils/withPrisma";
 
@@ -86,7 +86,7 @@ const genSitemapForObject = async (
         let estimatedFileSize = 0;
         do {
             // Find all public objects
-            const { delegate, validate } = getLogic(["delegate", "validate"], objectType, ["en"], "batchCollectEntries");
+            const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], objectType);
             const batch = await delegate(prisma).findMany({
                 where: {
                     ...validate.visibility.public,

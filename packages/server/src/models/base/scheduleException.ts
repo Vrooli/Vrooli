@@ -1,21 +1,19 @@
 import { scheduleExceptionValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { ScheduleExceptionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ScheduleModel } from "./schedule";
-import { ScheduleExceptionModelLogic, ScheduleModelLogic } from "./types";
+import { ScheduleExceptionModelInfo, ScheduleExceptionModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types";
 
 const __typename = "ScheduleException" as const;
-const suppFields = [] as const;
-export const ScheduleExceptionModel: ModelLogic<ScheduleExceptionModelLogic, typeof suppFields> = ({
+export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.schedule_exception,
     display: {
         label: {
-            select: () => ({ id: true, schedule: { select: ScheduleModel.display.label.select() } }),
-            get: (select, languages) => ScheduleModel.display.label.get(select.schedule as ScheduleModelLogic["PrismaModel"], languages),
+            select: () => ({ id: true, schedule: { select: ModelMap.get<ScheduleModelLogic>("Schedule").display.label.select() } }),
+            get: (select, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").display.label.get(select.schedule as ScheduleModelInfo["PrismaModel"], languages),
         },
     },
     format: ScheduleExceptionFormat,
@@ -46,13 +44,13 @@ export const ScheduleExceptionModel: ModelLogic<ScheduleExceptionModelLogic, typ
         maxObjects: 100000,
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ScheduleModel.validate.owner(data?.schedule as ScheduleModelLogic["PrismaModel"], userId),
-        isDeleted: (data, languages) => ScheduleModel.validate.isDeleted(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<ScheduleExceptionModelLogic["PrismaSelect"]>([["schedule", "Schedule"]], ...rest),
+        owner: (data, userId) => ModelMap.get<ScheduleModelLogic>("Schedule").validate.owner(data?.schedule as ScheduleModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").validate.isDeleted(data.schedule as ScheduleModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ScheduleExceptionModelInfo["PrismaSelect"]>([["schedule", "Schedule"]], ...rest),
         visibility: {
-            private: { schedule: ScheduleModel.validate.visibility.private },
-            public: { schedule: ScheduleModel.validate.visibility.public },
-            owner: (userId) => ({ schedule: ScheduleModel.validate.visibility.owner(userId) }),
+            private: { schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate.visibility.private },
+            public: { schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate.visibility.public },
+            owner: (userId) => ({ schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate.visibility.owner(userId) }),
         },
     },
 });

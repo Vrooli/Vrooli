@@ -4,12 +4,10 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { labelShapeHelper } from "../../utils/shapes";
 import { FocusModeFormat } from "../formats";
-import { ModelLogic } from "../types";
 import { FocusModeModelLogic } from "./types";
 
 const __typename = "FocusMode" as const;
-const suppFields = [] as const;
-export const FocusModeModel: ModelLogic<FocusModeModelLogic, typeof suppFields> = ({
+export const FocusModeModel: FocusModeModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.focus_mode,
     display: {

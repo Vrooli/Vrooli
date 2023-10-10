@@ -13,7 +13,7 @@ import * as restRoutes from "./endpoints/rest";
 import { logger } from "./events/logger";
 import { io } from "./io";
 import { context, depthLimit } from "./middleware";
-import { ObjectMapSingleton } from "./models/base";
+import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
 import { server, SERVER_URL } from "./server";
@@ -58,7 +58,7 @@ const main = async () => {
     await i18next.init(i18nConfig(debug));
 
     // Initialize singletons
-    await ObjectMapSingleton.init();
+    await ModelMap.init();
 
     // Setup databases
     // Prisma

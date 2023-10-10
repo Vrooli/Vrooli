@@ -7,11 +7,9 @@ import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { subscribableMapper } from "../events/subscriber";
-import { getLogic } from "../getters/getLogic";
-import { ObjectMapSingleton } from "../models/base";
+import { ModelMap } from "../models/base";
 import { PushDeviceModel } from "../models/base/pushDevice";
 import { OrganizationModelLogic } from "../models/base/types";
-import { ModelLogic } from "../models/types";
 import { withRedis } from "../redisConn";
 import { sendMail, sendPush } from "../tasks";
 import { PrismaType, SessionUserToken } from "../types";
@@ -218,7 +216,7 @@ const replaceLabels = async (
     const findTranslations = async (objectType: `${GqlModelType}`, objectId: string) => {
         // Ignore if already translated
         if (Object.keys(labelTranslations).length > 0) return;
-        const { delegate, display } = getLogic(["delegate", "display"], objectType, languages, "replaceLabels");
+        const { delegate, display } = ModelMap.getLogic(["delegate", "display"], objectType, true, "replaceLabels 1");
         const labels = await delegate(prisma).findUnique({
             where: { id: objectId },
             select: display.label.select(),
@@ -237,7 +235,7 @@ const replaceLabels = async (
                     // Find label translations
                     await findTranslations(match[1] as GqlModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = getLogic(["display"], match[1] as GqlModelType, languages, "replaceLabels");
+                    const { display } = ModelMap.getLogic(["display"], match[1] as GqlModelType, true, "replaceLabels 2");
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display.label.get(labelTranslations, result[i].languages));
                     }
@@ -257,7 +255,7 @@ const replaceLabels = async (
                     // Find label translations
                     await findTranslations(match[1] as GqlModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = getLogic(["display"], match[1] as GqlModelType, languages, "replaceLabels");
+                    const { display } = ModelMap.getLogic(["display"], match[1] as GqlModelType, true, "replaceLabels 3");
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display.label.get(labelTranslations, result[i].languages));
                     }
@@ -321,7 +319,7 @@ const NotifyResult = ({
      */
     toOrganization: async (organizationId, excludeUserId) => {
         // Find every admin of the organization, excluding the user who triggered the notification
-        const adminData = await (ObjectMapSingleton.getInstance().map["OrganizationModel"] as ModelLogic<OrganizationModelLogic, any>).query.findAdminInfo(prisma, organizationId, excludeUserId);
+        const adminData = await ModelMap.get<OrganizationModelLogic>("Organization").query.findAdminInfo(prisma, organizationId, excludeUserId);
         // Shape and translate the notification for each admin
         const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, adminData.map(({ id, languages }) => ({
             languages,

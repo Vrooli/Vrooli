@@ -1,5 +1,6 @@
 import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
 import { RunStatus, run_routine } from "@prisma/client";
+import { ModelMap } from ".";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
 import { modelToGql } from "../../builders/modelToGql";
 import { noNull } from "../../builders/noNull";
@@ -13,14 +14,11 @@ import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { RunRoutineFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { RoutineVersionModel } from "./routineVersion";
-import { RunRoutineModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { OrganizationModelLogic, RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types";
 
 const __typename = "RunRoutine" as const;
-const suppFields = ["you"] as const;
-export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields> = ({
+export const RunRoutineModel: RunRoutineModelLogic = ({
     __typename,
     danger: {
         /**
@@ -142,7 +140,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
          */
         async complete(prisma: PrismaType, userData: SessionUserToken, input: RunRoutineCompleteInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
-            const partial = toPartialGqlInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
+            const partial = toPartialGqlInfo(info, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true);
             let run: run_routine | null;
             // Check if run is being created or updated
             if (input.exists) {
@@ -235,7 +233,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
          */
         async cancel(prisma: PrismaType, userData: SessionUserToken, input: RunRoutineCancelInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
-            const partial = toPartialGqlInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
+            const partial = toPartialGqlInfo(info, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true);
             // Find in database
             const object = await prisma.run_routine.findFirst({
                 where: {
@@ -280,13 +278,13 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { routineVersion: RoutineVersionModel.search.searchStringQuery() },
+                { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").search.searchStringQuery() },
             ],
         }),
         supplemental: {
             // Add fields needed for notifications when a run is started/completed
             dbFields: ["name"],
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -312,7 +310,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunRoutineModelLogic["PrismaSelect"]>([
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunRoutineModelInfo["PrismaSelect"]>([
             ["organization", "Organization"],
             ["user", "User"],
         ], data, ...rest),
@@ -323,7 +321,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

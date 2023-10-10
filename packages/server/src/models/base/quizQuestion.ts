@@ -1,17 +1,16 @@
 import { MaxObjects, QuizQuestionSortBy, quizQuestionValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizQuestionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { QuizModel } from "./quiz";
-import { QuizModelLogic, QuizQuestionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { QuizModelInfo, QuizModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic } from "./types";
 
 const __typename = "QuizQuestion" as const;
-const suppFields = ["you"] as const;
-export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFields> = ({
+export const QuizQuestionModel: QuizQuestionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.quiz_question,
     display: {
@@ -58,7 +57,7 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -70,10 +69,10 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<QuizQuestionModelLogic["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<QuizQuestionModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => QuizModel.validate.owner(data?.quiz as QuizModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate.owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -83,7 +82,7 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
             private: {},
             public: {},
             owner: (userId) => ({
-                quiz: QuizModel.validate.visibility.owner(userId),
+                quiz: ModelMap.get<QuizModelLogic>("Quiz").validate.visibility.owner(userId),
             }),
         },
     },

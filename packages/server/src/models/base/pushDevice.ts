@@ -2,12 +2,10 @@ import { MaxObjects, pushDeviceValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull";
 import { defaultPermissions } from "../../utils";
 import { PushDeviceFormat } from "../formats";
-import { ModelLogic } from "../types";
 import { PushDeviceModelLogic } from "./types";
 
 const __typename = "PushDevice" as const;
-const suppFields = [] as const;
-export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields> = ({
+export const PushDeviceModel: PushDeviceModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.push_device,
     display: {

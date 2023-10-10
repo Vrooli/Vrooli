@@ -1,13 +1,11 @@
 import { runProjectStepValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { RunProjectStepFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { RunProjectModel } from "./runProject";
-import { RunProjectModelLogic, RunProjectStepModelLogic } from "./types";
+import { RunProjectModelInfo, RunProjectModelLogic, RunProjectStepModelInfo, RunProjectStepModelLogic } from "./types";
 
 const __typename = "RunProjectStep" as const;
-const suppFields = [] as const;
-export const RunProjectStepModel: ModelLogic<RunProjectStepModelLogic, typeof suppFields> = ({
+export const RunProjectStepModel: RunProjectStepModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.run_project_step,
     display: {
@@ -33,16 +31,16 @@ export const RunProjectStepModel: ModelLogic<RunProjectStepModelLogic, typeof su
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RunProjectStepModelLogic["PrismaSelect"]>([["runProject", "RunProject"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RunProjectStepModelInfo["PrismaSelect"]>([["runProject", "RunProject"]], ...rest),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => RunProjectModel.validate.owner(data?.runProject as RunProjectModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunProjectModelLogic>("RunProject").validate.owner(data?.runProject as RunProjectModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, runProject: "RunProject" }),
         visibility: {
             private: {},
             public: {},
-            owner: (userId) => ({ runProject: RunProjectModel.validate.visibility.owner(userId) }),
+            owner: (userId) => ({ runProject: ModelMap.get<RunProjectModelLogic>("RunProject").validate.visibility.owner(userId) }),
         },
     },
 });

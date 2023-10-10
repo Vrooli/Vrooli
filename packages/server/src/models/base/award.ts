@@ -2,12 +2,11 @@ import { AwardKey, awardNames, AwardSortBy, MaxObjects } from "@local/shared";
 import i18next from "i18next";
 import { defaultPermissions } from "../../utils";
 import { AwardFormat } from "../formats";
-import { ModelLogic } from "../types";
 import { AwardModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
 
 const __typename = "Award" as const;
-const suppFields = ["title", "description"] as const;
-export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
+export const AwardModel: AwardModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.award,
     display: {
@@ -36,7 +35,7 @@ export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
         customQueryData: (_, user) => ({ user: { id: user!.id } }),
         supplemental: {
             dbFields: ["category", "progress"],
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, objects, prisma, userData }) => {
                 // Find name and description of highest tier achieved
                 const titles: (string | null)[] = [];

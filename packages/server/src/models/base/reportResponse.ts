@@ -2,27 +2,26 @@
 // they created or own the object of
 import { ReportResponseSortBy, reportResponseValidation } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportResponseFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ReportModel } from "./report";
-import { ReportModelLogic, ReportResponseModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { ReportModelInfo, ReportModelLogic, ReportResponseModelInfo, ReportResponseModelLogic } from "./types";
 
 const __typename = "ReportResponse" as const;
-const suppFields = ["you"] as const;
-export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof suppFields> = ({
+export const ReportResponseModel: ReportResponseModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.report_response,
     display: {
         label: {
             select: () => ({
                 id: true,
-                report: { select: ReportModel.display.label.select() },
+                report: { select: ModelMap.get<ReportModelLogic>("Report").display.label.select() },
             }),
-            get: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ReportModel.display.label.get(select.report as ReportModelLogic["PrismaModel"], languages) }),
+            get: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ModelMap.get<ReportModelLogic>("Report").display.label.get(select.report as ReportModelInfo["PrismaModel"], languages) }),
         },
     },
     format: ReportResponseFormat,
@@ -57,11 +56,11 @@ export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof su
         searchStringQuery: () => ({
             OR: [
                 "detailsWrapped",
-                { report: ReportModel.search.searchStringQuery() },
+                { report: ModelMap.get<ReportModelLogic>("Report").search.searchStringQuery() },
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             dbFields: ["createdById"],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
@@ -77,13 +76,13 @@ export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof su
         maxObjects: 100000,
         permissionsSelect: () => ({ id: true, report: "Report" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ReportModel.validate.owner(data?.report as ReportModelLogic["PrismaModel"], userId),
-        isDeleted: (data, languages) => ReportModel.validate.isDeleted(data.report as ReportModelLogic["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<ReportResponseModelLogic["PrismaSelect"]>([["report", "Report"]], ...rest),
+        owner: (data, userId) => ModelMap.get<ReportModelLogic>("Report").validate.owner(data?.report as ReportModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<ReportModelLogic>("Report").validate.isDeleted(data.report as ReportModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ReportResponseModelInfo["PrismaSelect"]>([["report", "Report"]], ...rest),
         visibility: {
-            private: { report: ReportModel.validate.visibility.private },
-            public: { report: ReportModel.validate.visibility.public },
-            owner: (userId) => ({ report: ReportModel.validate.visibility.owner(userId) }),
+            private: { report: ModelMap.get<ReportModelLogic>("Report").validate.visibility.private },
+            public: { report: ModelMap.get<ReportModelLogic>("Report").validate.visibility.public },
+            owner: (userId) => ({ report: ModelMap.get<ReportModelLogic>("Report").validate.visibility.owner(userId) }),
         },
     },
 });

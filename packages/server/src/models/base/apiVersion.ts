@@ -1,17 +1,16 @@
 import { ApiVersionSortBy, apiVersionValidation, MaxObjects } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ApiVersionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ApiModel } from "./api";
-import { ApiModelLogic, ApiVersionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { ApiModelInfo, ApiModelLogic, ApiVersionModelInfo, ApiVersionModelLogic } from "./types";
 
 const __typename = "ApiVersion" as const;
-const suppFields = ["you"] as const;
-export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields> = ({
+export const ApiVersionModel: ApiVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.api_version,
     display: {
@@ -121,7 +120,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -135,10 +134,10 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<ApiVersionModelLogic["PrismaSelect"]>([["root", "Api"]], data, ...rest),
+            oneIsPublic<ApiVersionModelInfo["PrismaSelect"]>([["root", "Api"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ApiModel.validate.owner(data?.root as ApiModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate.owner(data?.root as ApiModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -164,7 +163,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                 ],
             },
             owner: (userId) => ({
-                root: ApiModel.validate.visibility.owner(userId),
+                root: ModelMap.get<ApiModelLogic>("Api").validate.visibility.owner(userId),
             }),
         },
     },

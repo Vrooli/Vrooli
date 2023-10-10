@@ -1,4 +1,5 @@
 import { MaxObjects, QuizSortBy, quizValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
@@ -6,16 +7,11 @@ import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../ut
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { ProjectModel } from "./project";
-import { ReactionModel } from "./reaction";
-import { RoutineModel } from "./routine";
-import { QuizModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, ProjectModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic, RoutineModelLogic } from "./types";
 
 const __typename = "Quiz" as const;
-const suppFields = ["you"] as const;
-export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
+export const QuizModel: QuizModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.quiz,
     display: {
@@ -103,14 +99,14 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
@@ -118,7 +114,7 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<QuizModelLogic["PrismaSelect"]>([
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<QuizModelInfo["PrismaSelect"]>([
             ["project", "Project"],
             ["routine", "Routine"],
         ], data, ...rest),
@@ -139,15 +135,15 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
             private: {
                 OR: [
                     { isPrivate: true },
-                    { project: ProjectModel.validate.visibility.private },
-                    { routine: RoutineModel.validate.visibility.private },
+                    { project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.private },
+                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate.visibility.private },
                 ],
             },
             public: {
                 AND: [
                     { isPrivate: false },
-                    { project: ProjectModel.validate.visibility.public },
-                    { routine: RoutineModel.validate.visibility.public },
+                    { project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.public },
+                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate.visibility.public },
                 ],
             },
             owner: (userId) => ({ createdBy: { id: userId } }),

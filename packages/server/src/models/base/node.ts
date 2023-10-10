@@ -1,18 +1,16 @@
 import { MaxObjects, nodeValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { CustomError } from "../../events/error";
 import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { RoutineVersionModel } from "./routineVersion";
-import { NodeModelLogic, RoutineVersionModelLogic } from "./types";
+import { NodeModelInfo, NodeModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
 
 const __typename = "Node" as const;
 const MAX_NODES_IN_ROUTINE = 100;
-const suppFields = [] as const;
-export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
+export const NodeModel: NodeModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node,
     display: {
@@ -70,13 +68,13 @@ export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
-        isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeModelLogic["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.isDeleted(data.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
-            private: { routineVersion: RoutineVersionModel.validate.visibility.private },
-            public: { routineVersion: RoutineVersionModel.validate.visibility.public },
-            owner: (userId) => ({ routineVersion: RoutineVersionModel.validate.visibility.owner(userId) }),
+            private: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.private },
+            public: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.public },
+            owner: (userId) => ({ routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.owner(userId) }),
         },
     },
 });

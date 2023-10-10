@@ -1,4 +1,4 @@
-import { getLogic } from "../getters/getLogic";
+import { ModelMap } from "../models/base";
 import { combineQueries } from "./combineQueries";
 import { VisibilityBuilderProps } from "./types";
 
@@ -11,7 +11,7 @@ export function visibilityBuilder({
     visibility,
 }: VisibilityBuilderProps): { [x: string]: any } {
     // Get validator for object type
-    const { validate } = getLogic(["validate"], objectType, userData?.languages ?? ["en"], "visibilityBuilder");
+    const validate = ModelMap.get(objectType).validate;
     // If visibility is set to public or not defined, 
     // or user is not logged in, or model does not have 
     // the correct data to query for ownership

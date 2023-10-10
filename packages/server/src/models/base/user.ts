@@ -1,19 +1,18 @@
 import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, userValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { UserFormat } from "../formats";
-import { ModelLogic, Mutater } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { UserModelLogic } from "./types";
-import { ViewModel } from "./view";
+import { SuppFields } from "../suppFields";
+import { Mutater } from "../types";
+import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types";
 
 const __typename = "User" as const;
-const suppFields = ["you"] as const;
 
-const updateProfile: Mutater<UserModelLogic & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
+const updateProfile: Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
     bannerImage: data.bannerImage,
     handle: data.handle ?? null,
     name: noNull(data.name),
@@ -44,7 +43,7 @@ const updateProfile: Mutater<UserModelLogic & { GqlUpdate: ProfileUpdateInput }>
     ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
 });
 
-const updateBot: Mutater<UserModelLogic & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
+const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
     bannerImage: data.bannerImage,
     botSettings: noNull(data.botSettings),
     handle: data.handle ?? null,
@@ -54,7 +53,7 @@ const updateBot: Mutater<UserModelLogic & { GqlUpdate: BotUpdateInput }>["shape"
     ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
 });
 
-export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
+export const UserModel: UserModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.user,
     display: {
@@ -126,13 +125,13 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
                     },
                 };
             },

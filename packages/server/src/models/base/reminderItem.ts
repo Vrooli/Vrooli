@@ -1,15 +1,13 @@
 import { MaxObjects, reminderItemValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { ReminderItemFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ReminderModel } from "./reminder";
-import { ReminderItemModelLogic, ReminderModelLogic } from "./types";
+import { ReminderItemModelInfo, ReminderItemModelLogic, ReminderModelInfo, ReminderModelLogic } from "./types";
 
 const __typename = "ReminderItem" as const;
-const suppFields = [] as const;
-export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFields> = ({
+export const ReminderItemModel: ReminderItemModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.reminder_item,
     display: {
@@ -43,10 +41,10 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ReminderItemModelLogic["PrismaSelect"]>([["reminder", "Reminder"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<ReminderItemModelInfo["PrismaSelect"]>([["reminder", "Reminder"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderModel.validate.owner(data?.reminder as ReminderModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ReminderModelLogic>("Reminder").validate.owner(data?.reminder as ReminderModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -56,7 +54,7 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
             private: {},
             public: {},
             owner: (userId) => ({
-                reminder: ReminderModel.validate.visibility.owner(userId),
+                reminder: ModelMap.get<ReminderModelLogic>("Reminder").validate.visibility.owner(userId),
             }),
         },
     },

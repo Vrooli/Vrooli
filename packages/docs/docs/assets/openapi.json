@@ -616,6 +616,20 @@
         }
       }
     },
+    "/chatMessageTree": {
+      "get": {
+        "operationId": "endpointGetChatMessageTree",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
     "/chatMessage": {
       "post": {
         "operationId": "endpointPostChatMessage",

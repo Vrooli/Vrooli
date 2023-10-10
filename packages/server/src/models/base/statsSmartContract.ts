@@ -1,22 +1,20 @@
 import { StatsSmartContractSortBy } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsSmartContractFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { SmartContractModel } from "./smartContract";
-import { SmartContractModelLogic, StatsSmartContractModelLogic } from "./types";
+import { SmartContractModelInfo, SmartContractModelLogic, StatsSmartContractModelInfo, StatsSmartContractModelLogic } from "./types";
 
 const __typename = "StatsSmartContract" as const;
-const suppFields = [] as const;
-export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, typeof suppFields> = ({
+export const StatsSmartContractModel: StatsSmartContractModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_smart_contract,
     display: {
         label: {
-            select: () => ({ id: true, smartContract: { select: SmartContractModel.display.label.select() } }),
+            select: () => ({ id: true, smartContract: { select: ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages),
+                objectName: ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.get(select.smartContract as SmartContractModelInfo["PrismaModel"], languages),
             }),
         },
     },
@@ -28,7 +26,7 @@ export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, t
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ smartContract: SmartContractModel.search.searchStringQuery() }),
+        searchStringQuery: () => ({ smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -38,13 +36,13 @@ export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, t
             smartContract: "SmartContract",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => SmartContractModel.validate.owner(data?.smartContract as SmartContractModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<SmartContractModelLogic>("SmartContract").validate.owner(data?.smartContract as SmartContractModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsSmartContractModelLogic["PrismaSelect"]>([["smartContract", "SmartContract"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsSmartContractModelInfo["PrismaSelect"]>([["smartContract", "SmartContract"]], ...rest),
         visibility: {
-            private: { smartContract: SmartContractModel.validate.visibility.private },
-            public: { smartContract: SmartContractModel.validate.visibility.public },
-            owner: (userId) => ({ smartContract: SmartContractModel.validate.visibility.owner(userId) }),
+            private: { smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").validate.visibility.private },
+            public: { smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").validate.visibility.public },
+            owner: (userId) => ({ smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").validate.visibility.owner(userId) }),
         },
     },
 });

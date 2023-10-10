@@ -3,12 +3,10 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { QuestionAnswerFormat } from "../formats";
-import { ModelLogic } from "../types";
 import { QuestionAnswerModelLogic } from "./types";
 
 const __typename = "QuestionAnswer" as const;
-const suppFields = [] as const;
-export const QuestionAnswerModel: ModelLogic<QuestionAnswerModelLogic, typeof suppFields> = ({
+export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.question_answer,
     display: {

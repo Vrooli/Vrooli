@@ -3,6 +3,8 @@ import { createHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateHelper } from "../../actions/updates";
 import { rateLimit } from "../../middleware/rateLimit";
+import { ModelMap } from "../../models/base";
+import { ChatMessageModelLogic } from "../../models/base/types";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsChatMessage = {
@@ -30,7 +32,7 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
         },
         chatMessageTree: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return ChatMessageModel.query.searchTree(prisma, req, input, info);
+            return ModelMap.get<ChatMessageModelLogic>("ChatMessage").query.searchTree(prisma, req, input, info);
         },
     },
     Mutation: {

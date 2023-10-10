@@ -4,7 +4,7 @@ import { modelToGql } from "../builders/modelToGql";
 import { selectHelper } from "../builders/selectHelper";
 import { PartialGraphQLInfo, PrismaCreate, PrismaUpdate } from "../builders/types";
 import { CustomError } from "../events/error";
-import { getLogic } from "../getters/getLogic";
+import { ModelMap } from "../models/base";
 import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
 import { cudInputsToMaps } from "../utils/cudInputsToMaps";
@@ -49,11 +49,11 @@ export async function cudHelper({
     for (let i = 0; i < inputData.length; i++) {
         const { actionType, input, objectType } = inputData[i];
         if (actionType === "Create") {
-            const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper create");
+            const { mutate } = ModelMap.getLogic(["mutate"], objectType, true, "cudHelper cast create");
             const transformedInput = mutate.yup.create && mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
             inputData[i].input = transformedInput;
         } else if (actionType === "Update") {
-            const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper update");
+            const { mutate } = ModelMap.getLogic(["mutate"], objectType, true, "cudHelper cast update");
             const transformedInput = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
             inputData[i].input = transformedInput;
         }
@@ -71,7 +71,7 @@ export async function cudHelper({
     for (const [type, inputs] of Object.entries(inputsByType)) {
         // Initialize type as empty object
         preMap[type] = {};
-        const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "preshape type");
+        const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudHelper preshape type");
         if (mutate.shape.pre) {
             const preResult = await mutate.shape.pre({ ...inputs, prisma, userData, inputsById });
             preMap[type] = preResult;
@@ -104,7 +104,7 @@ export async function cudHelper({
     const operations: PrismaPromise<any>[] = [];
     // Loop through each type to populate operations array
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
-        const { delegate, idField, mutate } = getLogic(["delegate", "idField", "mutate"], objectType as GqlModelType, userData.languages, "cudHelper.createOne");
+        const { delegate, idField, mutate } = ModelMap.getLogic(["delegate", "idField", "mutate"], objectType as GqlModelType, true, "cudHelper loop");
         const deletingIds = Delete.map(({ input }) => input);
         // Create
         if (Create.length > 0) {
@@ -196,9 +196,8 @@ export async function cudHelper({
     const outputsByType = cudOutputsToMaps({ idsByAction, inputsById });
     // Call afterMutations function for each type
     const allTypes = new Set([...Object.keys(outputsByType), ...Object.keys(deletedIdsByType)]);
-    // for (const [type, { createInputs, createdIds, updatedIds, updateInputs }] of Object.entries(outputsByType)) {
     for (const type of allTypes) {
-        const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "afterMutations type");
+        const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudHelper afterMutations type");
         if (!mutate.trigger?.afterMutations) continue;
         const createInputs = outputsByType[type]?.createInputs || [];
         const createdIds = outputsByType[type]?.createdIds || [];

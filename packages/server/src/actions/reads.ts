@@ -11,11 +11,10 @@ import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { getIdFromHandle } from "../getters/getIdFromHandle";
 import { getLatestVersion } from "../getters/getLatestVersion";
-import { getLogic } from "../getters/getLogic";
 import { getSearchStringQuery } from "../getters/getSearchStringQuery";
-import { ObjectMapSingleton } from "../models/base";
+import { ModelMap } from "../models/base";
 import { ViewModelLogic } from "../models/base/types";
-import { ModelLogic, Searcher } from "../models/types";
+import { Searcher } from "../models/types";
 import { RecursivePartial } from "../types";
 import { findTags } from "../utils/embeddings/search/tags";
 import { getAuthenticatedData } from "../utils/getAuthenticatedData";
@@ -49,8 +48,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     req,
 }: ReadOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
     const userData = getUser(req.session);
-    const model = ObjectMapSingleton.getInstance().map[objectType];
-    if (!model || Object.keys(model).length <= 0) throw new CustomError("0350", "InternalError", req.session.languages, { objectType });
+    const model = ModelMap.get(objectType);
     // Validate input. This can be of the form FindByIdInput, FindByIdOrHandleInput, or FindVersionInput
     // Between these, the possible fields are id, idRoot, handle, and handleRoot
     if (!input.id && !input.idRoot && !input.handle && !input.handleRoot)
@@ -90,7 +88,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     const formatted = modelToGql(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
-        (ObjectMapSingleton.getInstance().map["View"] as ModelLogic<ViewModelLogic, []>).view(prisma, userData, { forId: object.id, viewFor: objectType as any });
+        ModelMap.get<ViewModelLogic>(objectType).view(prisma, userData, { forId: object.id, viewFor: objectType as ViewFor });
     }
     const result = (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
     return result;
@@ -114,8 +112,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     visibility = VisibilityType.Public,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req.session);
-    const model = ObjectMapSingleton.getInstance().map[objectType];
-    if (!model || Object.keys(model).length <= 0) throw new CustomError("0349", "InternalError", req.session.languages, { objectType });
+    const model = ModelMap.get(objectType);
     // Partially convert info type
     const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
@@ -221,7 +218,7 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
         prisma,
         req,
     });
-    const { format } = getLogic(["format"], objectType, req.session.languages, "readManyAsFeedHelper");
+    const format = ModelMap.get(objectType).format;
     const nodes = readManyResult.edges.map(({ node }: any) =>
         modelToGql(node, toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true))) as any[];
     return {
@@ -247,8 +244,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     visibility = VisibilityType.Public,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req.session);
-    const model = ObjectMapSingleton.getInstance().map[objectType];
-    if (!model || Object.keys(model).length <= 0) throw new CustomError("0487", "InternalError", req.session.languages, { objectType });
+    const model = ModelMap.get(objectType);
     const desiredTake = getDesiredTake(input.take, req.session.languages, objectType);
     const embedResults = await findTags({ //TODO support more than just tags
         limit: desiredTake,

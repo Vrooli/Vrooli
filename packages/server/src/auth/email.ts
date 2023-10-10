@@ -3,7 +3,7 @@ import { AccountStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
 import { CustomError } from "../events/error";
-import { UserModelLogic } from "../models/base/types";
+import { UserModelInfo } from "../models/base/types";
 import { Notify } from "../notify/notify";
 import { sendResetPasswordLink, sendVerificationLink } from "../tasks/email/queue";
 import { PrismaType } from "../types";
@@ -58,7 +58,7 @@ const statusToError = (status: AccountStatus): ErrorKey | null => {
  * @param languages Preferred languages to display error messages in
  * @returns Boolean indicating if the password is valid
  */
-export const validatePassword = (plaintext: string, user: Pick<UserModelLogic["PrismaModel"], "status" | "password">, languages: string[]): boolean => {
+export const validatePassword = (plaintext: string, user: Pick<UserModelInfo["PrismaModel"], "status" | "password">, languages: string[]): boolean => {
     if (!user.password) return false;
     // A password is only valid if the user is:
     // 1. Not deleted
@@ -80,7 +80,7 @@ export const validatePassword = (plaintext: string, user: Pick<UserModelLogic["P
  */
 export const logIn = async (
     password: string,
-    user: Pick<UserModelLogic["PrismaModel"], "id" | "lastLoginAttempt" | "logInAttempts" | "status" | "password">,
+    user: Pick<UserModelInfo["PrismaModel"], "id" | "lastLoginAttempt" | "logInAttempts" | "status" | "password">,
     prisma: PrismaType,
     req: Request,
 ): Promise<Session | null> => {

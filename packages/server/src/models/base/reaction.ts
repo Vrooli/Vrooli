@@ -1,25 +1,12 @@
 import { exists, getReactionScore, lowercaseFirstLetter, ReactInput, ReactionFor, removeModifiers } from "@local/shared";
 import { reaction_summary } from "@prisma/client";
+import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { PrismaType, SessionUserToken } from "../../types";
 import { ReactionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ApiModel } from "./api";
-import { ChatMessageModel } from "./chatMessage";
-import { CommentModel } from "./comment";
-import { IssueModel } from "./issue";
-import { NoteModel } from "./note";
-import { PostModel } from "./post";
-import { ProjectModel } from "./project";
-import { QuestionModel } from "./question";
-import { QuestionAnswerModel } from "./questionAnswer";
-import { QuizModel } from "./quiz";
-import { RoutineModel } from "./routine";
-import { SmartContractModel } from "./smartContract";
-import { StandardModel } from "./standard";
-import { ApiModelLogic, ChatMessageModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, ReactionModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic } from "./types";
+import { ApiModelInfo, ApiModelLogic, ChatMessageModelInfo, ChatMessageModelLogic, CommentModelInfo, CommentModelLogic, IssueModelInfo, IssueModelLogic, NoteModelInfo, NoteModelLogic, PostModelInfo, PostModelLogic, ProjectModelInfo, ProjectModelLogic, QuestionAnswerModelInfo, QuestionAnswerModelLogic, QuestionModelInfo, QuestionModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, SmartContractModelInfo, SmartContractModelLogic, StandardModelInfo, StandardModelLogic } from "./types";
 
 const forMapper: { [key in ReactionFor]: string } = {
     Api: "api",
@@ -38,42 +25,41 @@ const forMapper: { [key in ReactionFor]: string } = {
 };
 
 const __typename = "Reaction" as const;
-const suppFields = [] as const;
-export const ReactionModel: ModelLogic<ReactionModelLogic, typeof suppFields> = ({
+export const ReactionModel: ReactionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.reaction,
     display: {
         label: {
             select: () => ({
                 id: true,
-                api: { select: ApiModel.display.label.select() },
-                chatMessage: { select: ChatMessageModel.display.label.select() },
-                comment: { select: CommentModel.display.label.select() },
-                issue: { select: IssueModel.display.label.select() },
-                note: { select: NoteModel.display.label.select() },
-                post: { select: PostModel.display.label.select() },
-                project: { select: ProjectModel.display.label.select() },
-                question: { select: QuestionModel.display.label.select() },
-                questionAnswer: { select: QuestionAnswerModel.display.label.select() },
-                quiz: { select: QuizModel.display.label.select() },
-                routine: { select: RoutineModel.display.label.select() },
-                smartContract: { select: SmartContractModel.display.label.select() },
-                standard: { select: StandardModel.display.label.select() },
+                api: { select: ModelMap.get<ApiModelLogic>("Api").display.label.select() },
+                chatMessage: { select: ModelMap.get<ChatMessageModelLogic>("ChatMessage").display.label.select() },
+                comment: { select: ModelMap.get<CommentModelLogic>("Comment").display.label.select() },
+                issue: { select: ModelMap.get<IssueModelLogic>("Issue").display.label.select() },
+                note: { select: ModelMap.get<NoteModelLogic>("Note").display.label.select() },
+                post: { select: ModelMap.get<PostModelLogic>("Post").display.label.select() },
+                project: { select: ModelMap.get<ProjectModelLogic>("Project").display.label.select() },
+                question: { select: ModelMap.get<QuestionModelLogic>("Question").display.label.select() },
+                questionAnswer: { select: ModelMap.get<QuestionAnswerModelLogic>("QuestionAnswer").display.label.select() },
+                quiz: { select: ModelMap.get<QuizModelLogic>("Quiz").display.label.select() },
+                routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display.label.select() },
+                smartContract: { select: ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.select() },
+                standard: { select: ModelMap.get<StandardModelLogic>("Standard").display.label.select() },
             }),
             get: (select, languages) => {
-                if (select.api) return ApiModel.display.label.get(select.api as ApiModelLogic["PrismaModel"], languages);
-                if (select.chatMessage) return ChatMessageModel.display.label.get(select.chatMessage as ChatMessageModelLogic["PrismaModel"], languages);
-                if (select.comment) return CommentModel.display.label.get(select.comment as CommentModelLogic["PrismaModel"], languages);
-                if (select.issue) return IssueModel.display.label.get(select.issue as IssueModelLogic["PrismaModel"], languages);
-                if (select.note) return NoteModel.display.label.get(select.note as NoteModelLogic["PrismaModel"], languages);
-                if (select.post) return PostModel.display.label.get(select.post as PostModelLogic["PrismaModel"], languages);
-                if (select.project) return ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages);
-                if (select.question) return QuestionModel.display.label.get(select.question as QuestionModelLogic["PrismaModel"], languages);
-                if (select.questionAnswer) return QuestionAnswerModel.display.label.get(select.questionAnswer as QuestionAnswerModelLogic["PrismaModel"], languages);
-                if (select.quiz) return QuizModel.display.label.get(select.quiz as QuizModelLogic["PrismaModel"], languages);
-                if (select.routine) return RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages);
-                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages);
-                if (select.standard) return StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages);
+                if (select.api) return ModelMap.get<ApiModelLogic>("Api").display.label.get(select.api as ApiModelInfo["PrismaModel"], languages);
+                if (select.chatMessage) return ModelMap.get<ChatMessageModelLogic>("ChatMessage").display.label.get(select.chatMessage as ChatMessageModelInfo["PrismaModel"], languages);
+                if (select.comment) return ModelMap.get<CommentModelLogic>("Comment").display.label.get(select.comment as CommentModelInfo["PrismaModel"], languages);
+                if (select.issue) return ModelMap.get<IssueModelLogic>("Issue").display.label.get(select.issue as IssueModelInfo["PrismaModel"], languages);
+                if (select.note) return ModelMap.get<NoteModelLogic>("Note").display.label.get(select.note as NoteModelInfo["PrismaModel"], languages);
+                if (select.post) return ModelMap.get<PostModelLogic>("Post").display.label.get(select.post as PostModelInfo["PrismaModel"], languages);
+                if (select.project) return ModelMap.get<ProjectModelLogic>("Project").display.label.get(select.project as ProjectModelInfo["PrismaModel"], languages);
+                if (select.question) return ModelMap.get<QuestionModelLogic>("Question").display.label.get(select.question as QuestionModelInfo["PrismaModel"], languages);
+                if (select.questionAnswer) return ModelMap.get<QuestionAnswerModelLogic>("QuestionAnswer").display.label.get(select.questionAnswer as QuestionAnswerModelInfo["PrismaModel"], languages);
+                if (select.quiz) return ModelMap.get<QuizModelLogic>("Quiz").display.label.get(select.quiz as QuizModelInfo["PrismaModel"], languages);
+                if (select.routine) return ModelMap.get<RoutineModelLogic>("Routine").display.label.get(select.routine as RoutineModelInfo["PrismaModel"], languages);
+                if (select.smartContract) return ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.get(select.smartContract as SmartContractModelInfo["PrismaModel"], languages);
+                if (select.standard) return ModelMap.get<StandardModelLogic>("Standard").display.label.get(select.standard as StandardModelInfo["PrismaModel"], languages);
                 return "";
             },
         },

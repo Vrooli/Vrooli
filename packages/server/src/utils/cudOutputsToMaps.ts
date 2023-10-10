@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events/error";
-import { getLogic } from "../getters/getLogic";
+import { ModelMap } from "../models/base";
 import { ModelLogicType } from "../models/types";
 import { IdsByAction, InputsById } from "./types";
 
@@ -67,7 +67,7 @@ export const cudOutputsToMaps = <Model extends {
     }
     // Generate createdIds and updatedIds
     for (const type of Object.keys(result) as GqlModelType[]) {
-        const { idField } = getLogic(["idField"], type, ["en"], "cudOutputsToMaps");
+        const { idField } = ModelMap.getLogic(["idField"], type);
         for (const createInput of result[type]!.createInputs) {
             result[type]!.createdIds.push((createInput as { [key in typeof idField]: string })[idField]);
         }

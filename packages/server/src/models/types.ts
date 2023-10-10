@@ -39,7 +39,7 @@ export type ModelLogicType = {
 
 /**
 * Basic structure of an object's business layer. 
-* Properties are often accessed using `getLogic()`.
+* Often accessed using `ModelMap`.
 */
 export type ModelLogic<
     Model extends ModelLogicType,

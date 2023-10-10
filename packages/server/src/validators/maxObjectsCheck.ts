@@ -13,7 +13,7 @@
  */
 import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
 import { CustomError } from "../events/error";
-import { getLogic } from "../getters/getLogic";
+import { ModelMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 import { authDataWithInput } from "../utils/authDataWithInput";
 import { AuthDataById } from "../utils/getAuthenticatedData";
@@ -139,7 +139,7 @@ export async function maxObjectsCheck(
         for (const id of idsByAction.Create) {
             const typename = inputsById[id].node.__typename;
             // Get validator
-            const { validate } = getLogic(["validate"], typename, userData.languages, "maxObjectsCheck-create");
+            const { validate } = ModelMap.getLogic(["validate"], typename, true, "maxObjectsCheck 1");
             // Creates shouldn't have authData, so we'll only use the input data. 
             // We still need to pass this through authDataWithInput to convert relationships to the correct shape
             const combinedData = authDataWithInput(inputsById[id].input as object, {}, inputsById, authDataById);
@@ -163,7 +163,7 @@ export async function maxObjectsCheck(
             // Get auth data
             const authData = authDataById[id];
             // Get validator
-            const { validate } = getLogic(["validate"], authData.__typename, userData.languages, "maxObjectsCheck-delete");
+            const { validate } = ModelMap.getLogic(["validate"], authData.__typename, true, "maxObjectsCheck 2");
             // Find owner and object type
             const owners = validate.owner(authData, userData.id);
             // Decrement count for owner
@@ -182,7 +182,7 @@ export async function maxObjectsCheck(
     // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
         // Get delegate and validate functions for the object type
-        const { delegate, validate } = getLogic(["delegate", "validate"], objectType as GqlModelType, userData.languages, "maxObjectsCheck-existing");
+        const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], objectType as GqlModelType, true, "maxObjectsCheck 3");
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner

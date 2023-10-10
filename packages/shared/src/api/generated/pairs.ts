@@ -262,6 +262,12 @@ export const endpointGetChatMessages = {
     tag: "chatMessage",
 } as const;
 
+export const endpointGetChatMessageTree = {
+    endpoint: "/chatMessageTree",
+    method: "GET",
+    tag: "chatMessage",
+} as const;
+
 export const endpointPostChatMessage = {
     endpoint: "/chatMessage",
     method: "POST",

@@ -1,15 +1,14 @@
 import { MaxObjects, QuestionForType, QuestionSortBy, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuestionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { ReactionModel } from "./reaction";
-import { QuestionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, QuestionModelLogic, ReactionModelLogic } from "./types";
 
 const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["create"] } = {
     Api: "api",
@@ -22,8 +21,7 @@ const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["cr
 };
 
 const __typename = "Question" as const;
-const suppFields = ["you"] as const;
-export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = ({
+export const QuestionModel: QuestionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.question,
     display: {
@@ -112,13 +110,13 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 };
             },

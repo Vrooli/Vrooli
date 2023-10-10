@@ -2,7 +2,7 @@ import { assertRequestFrom } from "../auth/request";
 import { addSupplementalFields } from "../builders/addSupplementalFields";
 import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
 import { CustomError } from "../events/error";
-import { getLogic } from "../getters/getLogic";
+import { ModelMap } from "../models/base";
 import { RecursivePartial } from "../types";
 import { cudHelper } from "./cuds";
 import { UpdateHelperProps } from "./types";
@@ -20,7 +20,7 @@ export async function updateHelper<GraphQLModel>({
 }: UpdateHelperProps): Promise<RecursivePartial<GraphQLModel>> {
     const userData = assertRequestFrom(req, { isUser: true });
     // Get formatter and id field
-    const { format } = getLogic(["format"], objectType, userData?.languages ?? ["en"], "updateHelper");
+    const format = ModelMap.get(objectType).format;
     // Partially convert info type
     const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
     // Create objects. cudHelper will check permissions

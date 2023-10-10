@@ -1,16 +1,14 @@
 import { routineVersionInputValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { RoutineVersionInputFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { RoutineVersionModel } from "./routineVersion";
-import { RoutineVersionInputModelLogic, RoutineVersionModelLogic } from "./types";
+import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
 
 const __typename = "RoutineVersionInput" as const;
-const suppFields = [] as const;
-export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic, typeof suppFields> = ({
+export const RoutineVersionInputModel: RoutineVersionInputModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.routine_version_input,
     display: {
@@ -18,9 +16,9 @@ export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic,
             select: () => ({
                 id: true,
                 name: true,
-                routineVersion: { select: RoutineVersionModel.display.label.select() },
+                routineVersion: { select: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display.label.select() },
             }),
-            get: (select, languages) => select.name ?? RoutineVersionModel.display.label.get(select.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
+            get: (select, languages) => select.name ?? ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display.label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
         },
     },
     format: RoutineVersionInputFormat,
@@ -48,16 +46,16 @@ export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic,
     search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RoutineVersionInputModelLogic["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RoutineVersionInputModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         visibility: {
             private: {},
             public: {},
-            owner: (userId) => ({ routineVersion: RoutineVersionModel.validate.visibility.owner(userId) }),
+            owner: (userId) => ({ routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.owner(userId) }),
         },
     },
 });

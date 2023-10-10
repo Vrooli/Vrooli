@@ -1,5 +1,6 @@
 import { ChatCreateInput, ChatInviteCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate, VisibilityType } from "@local/shared";
 import { Request } from "express";
+import { ModelMap } from ".";
 import { readManyHelper } from "../../actions/reads";
 import { getUser } from "../../auth/request";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
@@ -21,11 +22,8 @@ import { respondToMessage } from "../../utils/llmService";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { ChatMessageFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ChatModel } from "./chat";
-import { ReactionModel } from "./reaction";
-import { ChatMessageModelLogic, ChatModelLogic } from "./types";
-import { UserModel } from "./user";
+import { SuppFields } from "../suppFields";
+import { ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types";
 
 /** Information for a message, collected in mutate.shape.pre */
 export type PreMapMessageData = {
@@ -84,8 +82,7 @@ export type ChatMessageBeforeDeletedData = {
 }
 
 const __typename = "ChatMessage" as const;
-const suppFields = ["you"] as const;
-export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFields> = ({
+export const ChatMessageModel: ChatMessageModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.chat_message,
     display: {
@@ -542,13 +539,13 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             info: GraphQLInfo | PartialGraphQLInfo,
         ): Promise<ChatMessageSearchTreeResult> {
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, ChatMessageModel.format.gqlRelMap, req.session.languages, true);
+            const partialInfo = toPartialGqlInfo(info, ModelMap.get<ChatMessageModelLogic>("ChatMessage").format.gqlRelMap, req.session.languages, true);
             // Create query for visibility
             const visibilityQuery = visibilityBuilder({ objectType: "ChatMessage", userData: getUser(req.session), visibility: VisibilityType.Public });
             const where = visibilityQuery;
             // Determine sort order. This is only used if startId is not provided, since the sort is used 
             // to determine the starting point of the search.
-            const orderByField = input.sortBy ?? ChatMessageModel.search.defaultSort;
+            const orderByField = input.sortBy ?? ModelMap.get<ChatMessageModelLogic>("ChatMessage").search.defaultSort;
             const orderBy = !input.startId && orderByField in SortMap ? SortMap[orderByField] : undefined;
             // First, find the total number of messages in the chat
             const totalInThread = await prisma.chat_message.count({
@@ -590,16 +587,16 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
         searchStringQuery: () => ({
             OR: [
                 "transTextWrapped",
-                { user: UserModel.search.searchStringQuery() },
+                { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
@@ -614,8 +611,8 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             User: data?.user,
         }),
         permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, userId }) => {
-            const isChatAdmin = userId ? isOwnerAdminCheck(ChatModel.validate.owner(data.chat as ChatModelLogic["PrismaModel"], userId), userId) : false;
-            const isParticipant = uuidValidate(userId) && (data.chat as ChatModelLogic["PrismaModel"]).participants?.some((p) => p.userId === userId);
+            const isChatAdmin = userId ? isOwnerAdminCheck(ModelMap.get<ChatModelLogic>("Chat").validate.owner(data.chat as ChatModelInfo["PrismaModel"], userId), userId) : false;
+            const isParticipant = uuidValidate(userId) && (data.chat as ChatModelInfo["PrismaModel"]).participants?.some((p) => p.userId === userId);
             return {
                 canConnect: () => isLoggedIn && !isDeleted && isParticipant,
                 canDelete: () => isLoggedIn && !isDeleted && (isMessageOwner || isChatAdmin),
@@ -636,7 +633,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ChatModel.validate.visibility.owner(userId),
+                chat: ModelMap.get<ChatModelLogic>("Chat").validate.visibility.owner(userId),
             }),
         },
     },

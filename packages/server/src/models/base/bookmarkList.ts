@@ -3,12 +3,10 @@ import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { BookmarkListFormat } from "../formats";
-import { ModelLogic } from "../types";
 import { BookmarkListModelLogic } from "./types";
 
 const __typename = "BookmarkList" as const;
-const suppFields = [] as const;
-export const BookmarkListModel: ModelLogic<BookmarkListModelLogic, typeof suppFields> = ({
+export const BookmarkListModel: BookmarkListModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.bookmark_list,
     display: {

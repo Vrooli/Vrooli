@@ -1,28 +1,19 @@
 import { TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { CustomError } from "../../events/error";
-import { getLogic } from "../../getters/getLogic";
 import { Notify } from "../../notify";
 import { PrismaType, SessionUserToken } from "../../types";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { TransferFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ApiModel } from "./api";
-import { NoteModel } from "./note";
-import { OrganizationModel } from "./organization";
-import { ProjectModel } from "./project";
-import { RoutineModel } from "./routine";
-import { SmartContractModel } from "./smartContract";
-import { StandardModel } from "./standard";
-import { ApiModelLogic, NoteModelLogic, ProjectModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TransferModelLogic } from "./types";
-import { UserModel } from "./user";
+import { SuppFields } from "../suppFields";
+import { ApiModelInfo, ApiModelLogic, NoteModelInfo, NoteModelLogic, OrganizationModelLogic, ProjectModelInfo, ProjectModelLogic, RoutineModelInfo, RoutineModelLogic, SmartContractModelInfo, SmartContractModelLogic, StandardModelInfo, StandardModelLogic, TransferModelLogic, UserModelLogic } from "./types";
 
 const __typename = "Transfer" as const;
-const suppFields = [] as const;
 
 /**
  * Maps a transferable object type to its field name in the database
@@ -60,7 +51,7 @@ export const transfer = (prisma: PrismaType) => ({
         // Grab all create organization IDs
         const orgIds = owners.filter(o => o.__typename === "Organization").map(o => o.id);
         // Check if user is an admin of each organization
-        const isAdmins: boolean[] = await OrganizationModel.query.hasRole(prisma, userData.id, orgIds);
+        const isAdmins: boolean[] = await ModelMap.get<OrganizationModelLogic>("Organization").query.hasRole(prisma, userData.id, orgIds);
         // Create return list
         const requiresTransferRequest: boolean[] = owners.map((o, i) => {
             // If owner is a user, transfer is required if user is not the same as the session user
@@ -81,7 +72,7 @@ export const transfer = (prisma: PrismaType) => ({
     ): Promise<string> => {
         // Find the object and its owner
         const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
-        const { delegate, validate } = getLogic(["delegate", "validate"], object.__typename, userData.languages, "Transfer.request-object");
+        const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], object.__typename);
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
             select: validate.permissionsSelect,
@@ -150,7 +141,7 @@ export const transfer = (prisma: PrismaType) => ({
             throw new CustomError("0295", "TransferAlreadyRejected", userData.languages);
         // Make sure user is the owner of the transfer request
         if (transfer.fromOrganizationId) {
-            const { validate } = getLogic(["validate"], "Organization", userData.languages, "Transfer.cancel");
+            const { validate } = ModelMap.getLogic(["validate"], "Organization");
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.fromOrganizationId },
                 select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
@@ -184,7 +175,7 @@ export const transfer = (prisma: PrismaType) => ({
             throw new CustomError("0289", "TransferAlreadyRejected", userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const { validate } = getLogic(["validate"], "Organization", userData.languages, "Transfer.accept");
+            const { validate } = ModelMap.getLogic(["validate"], "Organization");
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
                 select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
@@ -238,7 +229,7 @@ export const transfer = (prisma: PrismaType) => ({
             throw new CustomError("0292", "TransferAlreadyRejected", userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const { validate } = getLogic(["validate"], "Organization", userData.languages, "Transfer.reject");
+            const { validate } = ModelMap.getLogic(["validate"], "Organization");
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
                 select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
@@ -268,27 +259,27 @@ export const transfer = (prisma: PrismaType) => ({
     },
 });
 
-export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = ({
+export const TransferModel: TransferModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.transfer,
     display: {
         label: {
             select: () => ({
                 id: true,
-                api: { select: ApiModel.display.label.select() },
-                note: { select: NoteModel.display.label.select() },
-                project: { select: ProjectModel.display.label.select() },
-                routine: { select: RoutineModel.display.label.select() },
-                smartContract: { select: SmartContractModel.display.label.select() },
-                standard: { select: StandardModel.display.label.select() },
+                api: { select: ModelMap.get<ApiModelLogic>("Api").display.label.select() },
+                note: { select: ModelMap.get<NoteModelLogic>("Note").display.label.select() },
+                project: { select: ModelMap.get<ProjectModelLogic>("Project").display.label.select() },
+                routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display.label.select() },
+                smartContract: { select: ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.select() },
+                standard: { select: ModelMap.get<StandardModelLogic>("Standard").display.label.select() },
             }),
             get: (select, languages) => {
-                if (select.api) return ApiModel.display.label.get(select.api as ApiModelLogic["PrismaModel"], languages);
-                if (select.note) return NoteModel.display.label.get(select.note as NoteModelLogic["PrismaModel"], languages);
-                if (select.project) return ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages);
-                if (select.routine) return RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages);
-                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages);
-                if (select.standard) return StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages);
+                if (select.api) return ModelMap.get<ApiModelLogic>("Api").display.label.get(select.api as ApiModelInfo["PrismaModel"], languages);
+                if (select.note) return ModelMap.get<NoteModelLogic>("Note").display.label.get(select.note as NoteModelInfo["PrismaModel"], languages);
+                if (select.project) return ModelMap.get<ProjectModelLogic>("Project").display.label.get(select.project as ProjectModelInfo["PrismaModel"], languages);
+                if (select.routine) return ModelMap.get<RoutineModelLogic>("Routine").display.label.get(select.routine as RoutineModelInfo["PrismaModel"], languages);
+                if (select.smartContract) return ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.get(select.smartContract as SmartContractModelInfo["PrismaModel"], languages);
+                if (select.standard) return ModelMap.get<StandardModelLogic>("Standard").display.label.get(select.standard as StandardModelInfo["PrismaModel"], languages);
                 return i18next.t("common:Transfer", { lng: languages[0] });
             },
         },
@@ -321,20 +312,20 @@ export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = 
         },
         searchStringQuery: () => ({
             OR: [
-                { fromUser: UserModel.search.searchStringQuery() },
-                { fromOrganization: OrganizationModel.search.searchStringQuery() },
-                { toUser: UserModel.search.searchStringQuery() },
-                { toOrganization: OrganizationModel.search.searchStringQuery() },
-                { api: ApiModel.search.searchStringQuery() },
-                { note: NoteModel.search.searchStringQuery() },
-                { project: ProjectModel.search.searchStringQuery() },
-                { routine: RoutineModel.search.searchStringQuery() },
-                { smartContract: SmartContractModel.search.searchStringQuery() },
-                { standard: StandardModel.search.searchStringQuery() },
+                { fromUser: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
+                { fromOrganization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
+                { toUser: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
+                { toOrganization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
+                { api: ModelMap.get<ApiModelLogic>("Api").search.searchStringQuery() },
+                { note: ModelMap.get<NoteModelLogic>("Note").search.searchStringQuery() },
+                { project: ModelMap.get<ProjectModelLogic>("Project").search.searchStringQuery() },
+                { routine: ModelMap.get<RoutineModelLogic>("Routine").search.searchStringQuery() },
+                { smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").search.searchStringQuery() },
+                { standard: ModelMap.get<StandardModelLogic>("Standard").search.searchStringQuery() },
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {

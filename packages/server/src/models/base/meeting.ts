@@ -1,4 +1,5 @@
 import { MaxObjects, MeetingSortBy, meetingValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
@@ -6,13 +7,11 @@ import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelpe
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { MeetingFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { MeetingModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { MeetingModelLogic, OrganizationModelLogic } from "./types";
 
 const __typename = "Meeting" as const;
-const suppFields = ["you"] as const;
-export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
+export const MeetingModel: MeetingModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.meeting,
     display: {
@@ -109,7 +108,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
         }),
         supplemental: {
             dbFields: ["organizationId"],
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -150,7 +149,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
                 ],
             },
             owner: (userId) => ({
-                organization: OrganizationModel.query.hasRoleQuery(userId),
+                organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId),
             }),
         },
     },

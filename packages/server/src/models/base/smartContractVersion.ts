@@ -1,17 +1,16 @@
 import { MaxObjects, SmartContractVersionSortBy, smartContractVersionValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { SmartContractVersionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { SmartContractModel } from "./smartContract";
-import { SmartContractModelLogic, SmartContractVersionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { SmartContractModelInfo, SmartContractModelLogic, SmartContractVersionModelInfo, SmartContractVersionModelLogic } from "./types";
 
 const __typename = "SmartContractVersion" as const;
-const suppFields = ["you"] as const;
-export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogic, typeof suppFields> = ({
+export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.smart_contract_version,
     display: {
@@ -119,7 +118,7 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -133,10 +132,10 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<SmartContractVersionModelLogic["PrismaSelect"]>([["root", "SmartContract"]], data, ...rest),
+            oneIsPublic<SmartContractVersionModelInfo["PrismaSelect"]>([["root", "SmartContract"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => SmartContractModel.validate.owner(data?.root as SmartContractModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<SmartContractModelLogic>("SmartContract").validate.owner(data?.root as SmartContractModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -162,7 +161,7 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
                 ],
             },
             owner: (userId) => ({
-                root: SmartContractModel.validate.visibility.owner(userId),
+                root: ModelMap.get<SmartContractModelLogic>("SmartContract").validate.visibility.owner(userId),
             }),
         },
     },

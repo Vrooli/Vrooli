@@ -3,12 +3,10 @@ import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
 import { EmailFormat } from "../formats";
-import { ModelLogic } from "../types";
 import { EmailModelLogic } from "./types";
 
 const __typename = "Email" as const;
-const suppFields = [] as const;
-export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
+export const EmailModel: EmailModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.email,
     display: {

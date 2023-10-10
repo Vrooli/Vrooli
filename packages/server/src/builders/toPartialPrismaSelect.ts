@@ -1,4 +1,4 @@
-import { ObjectMapSingleton } from "../models/base";
+import { ModelMap } from "../models/base";
 import { addCountFields } from "./addCountFields";
 import { addJoinTables } from "./addJoinTables";
 import { isRelationshipObject } from "./isRelationshipObject";
@@ -30,7 +30,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     }
     // Handle base case}
     const type = partial.__typename;
-    const format = typeof type === "string" ? ObjectMapSingleton.getInstance().map[type as keyof typeof ObjectMapSingleton.prototype.map]?.format : undefined;
+    const format = ModelMap.get(type, false)?.format;
     if (type && format) {
         result = removeSupplementalFields(type, result);
         result = deconstructUnions(result, format.gqlRelMap);

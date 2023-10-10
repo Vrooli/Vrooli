@@ -1,25 +1,13 @@
 import { GqlModelType, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
+import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
 import { noNull } from "../../builders/noNull";
-import { getLogic } from "../../getters/getLogic";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { PullRequestFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ApiModel } from "./api";
-import { ApiVersionModel } from "./apiVersion";
-import { NoteModel } from "./note";
-import { NoteVersionModel } from "./noteVersion";
-import { ProjectModel } from "./project";
-import { ProjectVersionModel } from "./projectVersion";
-import { RoutineModel } from "./routine";
-import { RoutineVersionModel } from "./routineVersion";
-import { SmartContractModel } from "./smartContract";
-import { SmartContractVersionModel } from "./smartContractVersion";
-import { StandardModel } from "./standard";
-import { StandardVersionModel } from "./standardVersion";
-import { ApiModelLogic, ApiVersionModelLogic, NoteModelLogic, NoteVersionModelLogic, ProjectModelLogic, ProjectVersionModelLogic, PullRequestModelLogic, RoutineModelLogic, RoutineVersionModelLogic, SmartContractModelLogic, SmartContractVersionModelLogic, StandardModelLogic, StandardVersionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { ApiModelInfo, ApiModelLogic, ApiVersionModelInfo, ApiVersionModelLogic, NoteModelInfo, NoteModelLogic, NoteVersionModelInfo, NoteVersionModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic, PullRequestModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic, SmartContractModelInfo, SmartContractModelLogic, SmartContractVersionModelInfo, SmartContractVersionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, StandardVersionModelLogic } from "./types";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ApiVersion: "fromApiVersion",
@@ -40,42 +28,41 @@ const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUps
 };
 
 const __typename = "PullRequest" as const;
-const suppFields = ["you"] as const;
-export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFields> = ({
+export const PullRequestModel: PullRequestModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.pull_request,
     display: {
         label: {
             select: () => ({
                 id: true,
-                toApi: { select: ApiModel.display.label.select() },
-                fromApiVersion: { select: ApiVersionModel.display.label.select() },
-                toNote: { select: NoteModel.display.label.select() },
-                fromNoteVersion: { select: NoteVersionModel.display.label.select() },
-                toProject: { select: ProjectModel.display.label.select() },
-                fromProjectVersion: { select: ProjectVersionModel.display.label.select() },
-                toRoutine: { select: RoutineModel.display.label.select() },
-                fromRoutineVersion: { select: RoutineVersionModel.display.label.select() },
-                toSmartContract: { select: SmartContractModel.display.label.select() },
-                fromSmartContractVersion: { select: SmartContractVersionModel.display.label.select() },
-                toStandard: { select: StandardModel.display.label.select() },
-                fromStandardVersion: { select: StandardVersionModel.display.label.select() },
+                toApi: { select: ModelMap.get<ApiModelLogic>("Api").display.label.select() },
+                fromApiVersion: { select: ModelMap.get<ApiVersionModelLogic>("ApiVersion").display.label.select() },
+                toNote: { select: ModelMap.get<NoteModelLogic>("Note").display.label.select() },
+                fromNoteVersion: { select: ModelMap.get<NoteVersionModelLogic>("NoteVersion").display.label.select() },
+                toProject: { select: ModelMap.get<ProjectModelLogic>("Project").display.label.select() },
+                fromProjectVersion: { select: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").display.label.select() },
+                toRoutine: { select: ModelMap.get<RoutineModelLogic>("Routine").display.label.select() },
+                fromRoutineVersion: { select: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display.label.select() },
+                toSmartContract: { select: ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.select() },
+                fromSmartContractVersion: { select: ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion").display.label.select() },
+                toStandard: { select: ModelMap.get<StandardModelLogic>("Standard").display.label.select() },
+                fromStandardVersion: { select: ModelMap.get<StandardVersionModelLogic>("StandardVersion").display.label.select() },
             }),
             // Label is from -> to
             get: (select, languages) => {
-                const from = select.fromApiVersion ? ApiVersionModel.display.label.get(select.fromApiVersion as ApiVersionModelLogic["PrismaModel"], languages) :
-                    select.fromNoteVersion ? NoteVersionModel.display.label.get(select.fromNoteVersion as NoteVersionModelLogic["PrismaModel"], languages) :
-                        select.fromProjectVersion ? ProjectVersionModel.display.label.get(select.fromProjectVersion as ProjectVersionModelLogic["PrismaModel"], languages) :
-                            select.fromRoutineVersion ? RoutineVersionModel.display.label.get(select.fromRoutineVersion as RoutineVersionModelLogic["PrismaModel"], languages) :
-                                select.fromSmartContractVersion ? SmartContractVersionModel.display.label.get(select.fromSmartContractVersion as SmartContractVersionModelLogic["PrismaModel"], languages) :
-                                    select.fromStandardVersion ? StandardVersionModel.display.label.get(select.fromStandardVersion as StandardVersionModelLogic["PrismaModel"], languages) :
+                const from = select.fromApiVersion ? ModelMap.get<ApiVersionModelLogic>("ApiVersion").display.label.get(select.fromApiVersion as ApiVersionModelInfo["PrismaModel"], languages) :
+                    select.fromNoteVersion ? ModelMap.get<NoteVersionModelLogic>("NoteVersion").display.label.get(select.fromNoteVersion as NoteVersionModelInfo["PrismaModel"], languages) :
+                        select.fromProjectVersion ? ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").display.label.get(select.fromProjectVersion as ProjectVersionModelInfo["PrismaModel"], languages) :
+                            select.fromRoutineVersion ? ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display.label.get(select.fromRoutineVersion as RoutineVersionModelInfo["PrismaModel"], languages) :
+                                select.fromSmartContractVersion ? ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion").display.label.get(select.fromSmartContractVersion as SmartContractVersionModelInfo["PrismaModel"], languages) :
+                                    select.fromStandardVersion ? ModelMap.get<StandardVersionModelLogic>("StandardVersion").display.label.get(select.fromStandardVersion as StandardVersionModelInfo["PrismaModel"], languages) :
                                         "";
-                const to = select.toApi ? ApiModel.display.label.get(select.toApi as ApiModelLogic["PrismaModel"], languages) :
-                    select.toNote ? NoteModel.display.label.get(select.toNote as NoteModelLogic["PrismaModel"], languages) :
-                        select.toProject ? ProjectModel.display.label.get(select.toProject as ProjectModelLogic["PrismaModel"], languages) :
-                            select.toRoutine ? RoutineModel.display.label.get(select.toRoutine as RoutineModelLogic["PrismaModel"], languages) :
-                                select.toSmartContract ? SmartContractModel.display.label.get(select.toSmartContract as SmartContractModelLogic["PrismaModel"], languages) :
-                                    select.toStandard ? StandardModel.display.label.get(select.toStandard as StandardModelLogic["PrismaModel"], languages) :
+                const to = select.toApi ? ModelMap.get<ApiModelLogic>("Api").display.label.get(select.toApi as ApiModelInfo["PrismaModel"], languages) :
+                    select.toNote ? ModelMap.get<NoteModelLogic>("Note").display.label.get(select.toNote as NoteModelInfo["PrismaModel"], languages) :
+                        select.toProject ? ModelMap.get<ProjectModelLogic>("Project").display.label.get(select.toProject as ProjectModelInfo["PrismaModel"], languages) :
+                            select.toRoutine ? ModelMap.get<RoutineModelLogic>("Routine").display.label.get(select.toRoutine as RoutineModelInfo["PrismaModel"], languages) :
+                                select.toSmartContract ? ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.get(select.toSmartContract as SmartContractModelInfo["PrismaModel"], languages) :
+                                    select.toStandard ? ModelMap.get<StandardModelLogic>("Standard").display.label.get(select.toStandard as StandardModelInfo["PrismaModel"], languages) :
                                         "";
                 return `${from} -> ${to}`;
             },
@@ -120,7 +107,7 @@ export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFiel
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -155,7 +142,7 @@ export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFiel
             if (!onField || !onData) return {};
             // Object type is field without the 'to' prefix
             const onType = onField.slice(2) as GqlModelType;
-            const { validate } = getLogic(["validate"], onType, ["en"], "ResourceListModel.validate.owner");
+            const validate = ModelMap.get(onType).validate;
             return validate.owner(onData, userId);
         },
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic }) => ({

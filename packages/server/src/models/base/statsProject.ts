@@ -1,22 +1,20 @@
 import { StatsProjectSortBy } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsProjectFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ProjectModel } from "./project";
-import { ProjectModelLogic, StatsProjectModelLogic } from "./types";
+import { ProjectModelInfo, ProjectModelLogic, StatsProjectModelInfo, StatsProjectModelLogic } from "./types";
 
 const __typename = "StatsProject" as const;
-const suppFields = [] as const;
-export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFields> = ({
+export const StatsProjectModel: StatsProjectModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_project,
     display: {
         label: {
-            select: () => ({ id: true, project: { select: ProjectModel.display.label.select() } }),
+            select: () => ({ id: true, project: { select: ModelMap.get<ProjectModelLogic>("Project").display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages),
+                objectName: ModelMap.get<ProjectModelLogic>("Project").display.label.get(select.project as ProjectModelInfo["PrismaModel"], languages),
             }),
         },
     },
@@ -28,7 +26,7 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ project: ProjectModel.search.searchStringQuery() }),
+        searchStringQuery: () => ({ project: ModelMap.get<ProjectModelLogic>("Project").search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -38,13 +36,13 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
             project: "Project",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ProjectModel.validate.owner(data?.project as ProjectModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate.owner(data?.project as ProjectModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsProjectModelLogic["PrismaSelect"]>([["project", "Project"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsProjectModelInfo["PrismaSelect"]>([["project", "Project"]], ...rest),
         visibility: {
-            private: { project: ProjectModel.validate.visibility.private },
-            public: { project: ProjectModel.validate.visibility.public },
-            owner: (userId) => ({ project: ProjectModel.validate.visibility.owner(userId) }),
+            private: { project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.private },
+            public: { project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.public },
+            owner: (userId) => ({ project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.owner(userId) }),
         },
     },
 });

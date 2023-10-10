@@ -1,16 +1,14 @@
 import { MaxObjects, RoleSortBy, roleValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { RoleFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { OrganizationModelLogic, RoleModelLogic } from "./types";
+import { OrganizationModelInfo, OrganizationModelLogic, RoleModelInfo, RoleModelLogic } from "./types";
 
 const __typename = "Role" as const;
-const suppFields = [] as const;
-export const RoleModel: ModelLogic<RoleModelLogic, typeof suppFields> = ({
+export const RoleModel: RoleModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.role,
     display: {
@@ -70,13 +68,13 @@ export const RoleModel: ModelLogic<RoleModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, organization: "Organization" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate.owner(data?.organization as OrganizationModelLogic["PrismaModel"], userId),
-        isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as OrganizationModelLogic["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<RoleModelLogic["PrismaSelect"]>([["organization", "Organization"]], ...rest),
+        owner: (data, userId) => ModelMap.get<OrganizationModelLogic>("Organization").validate.owner(data?.organization as OrganizationModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<OrganizationModelLogic>("Organization").validate.isDeleted(data.organization as OrganizationModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<RoleModelInfo["PrismaSelect"]>([["organization", "Organization"]], ...rest),
         visibility: {
-            private: { organization: OrganizationModel.validate.visibility.private },
-            public: { organization: OrganizationModel.validate.visibility.public },
-            owner: (userId) => ({ organization: OrganizationModel.validate.visibility.owner(userId) }),
+            private: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.private },
+            public: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.public },
+            owner: (userId) => ({ organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.owner(userId) }),
         },
     },
 });

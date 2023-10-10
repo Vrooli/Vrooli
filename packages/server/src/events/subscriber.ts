@@ -1,6 +1,6 @@
 import { SubscribableObject } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { getLogic } from "../getters/getLogic";
+import { ModelMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 import { CustomError } from "./error";
 
@@ -46,7 +46,7 @@ export const Subscriber = (prisma: PrismaType) => ({
         silent?: boolean,
     ) => {
         // Find the object and its owner
-        const { delegate, validate } = getLogic(["delegate", "validate"], object.__typename, userData.languages, "Transfer.request-object");
+        const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], object.__typename);
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
             select: validate.permissionsSelect,

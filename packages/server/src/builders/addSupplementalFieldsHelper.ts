@@ -1,6 +1,5 @@
 import { getDotNotationValue, GqlModelType, setDotNotationValue } from "@local/shared";
-import { ObjectMapSingleton } from "../models/base";
-import { SupplementalConverter } from "../models/types";
+import { ModelMap } from "../models/base";
 import { PrismaType, RecursivePartial, SessionUserToken } from "../types";
 import { PartialGraphQLInfo } from "./types";
 
@@ -43,7 +42,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
 }): Promise<RecursivePartial<GraphQLModel>[]> => {
     if (!objects || objects.length === 0) return [];
     // Get supplemental info for object
-    const supplementer: SupplementalConverter<any> | undefined = ObjectMapSingleton.getInstance().map[objectType]?.search?.supplemental;
+    const supplementer = ModelMap.get(objectType, false)?.search?.supplemental;
     if (!supplementer) return objects;
     // Get IDs from objects
     const ids = objects.map(({ id }) => id);

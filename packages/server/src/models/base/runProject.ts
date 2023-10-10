@@ -1,17 +1,15 @@
 import { MaxObjects, RunProjectSortBy, runProjectValidation, RunStatus } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { RunProjectFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { ProjectVersionModel } from "./projectVersion";
-import { RunProjectModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { OrganizationModelLogic, ProjectVersionModelLogic, RunProjectModelInfo, RunProjectModelLogic } from "./types";
 
 const __typename = "RunProject" as const;
-const suppFields = ["you"] as const;
-export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields> = ({
+export const RunProjectModel: RunProjectModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.run_project,
     display: {
@@ -81,11 +79,11 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { projectVersion: ProjectVersionModel.search.searchStringQuery() },
+                { projectVersion: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").search.searchStringQuery() },
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -111,7 +109,7 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunProjectModelLogic["PrismaSelect"]>([
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunProjectModelInfo["PrismaSelect"]>([
             ["organization", "Organization"],
             ["user", "User"],
         ], data, ...rest),
@@ -122,7 +120,7 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

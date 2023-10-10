@@ -1,4 +1,5 @@
 import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, routineVersionValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
 import { modelToGql } from "../../builders/modelToGql";
 import { noNull } from "../../builders/noNull";
@@ -11,10 +12,8 @@ import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddable
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { RoutineVersionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { RoutineModel } from "./routine";
-import { RunRoutineModel } from "./runRoutine";
-import { RoutineModelLogic, RoutineVersionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic, RunRoutineModelLogic } from "./types";
 
 /**
  * Validates node positions
@@ -37,8 +36,7 @@ const validateNodePositions = async (
 };
 
 const __typename = "RoutineVersion" as const;
-const suppFields = ["you"] as const;
-export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof suppFields> = ({
+export const RoutineVersionModel: RoutineVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.routine_version,
     display: {
@@ -196,14 +194,14 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
                 const runs = async () => {
                     if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add routineVersionId, so we 
                     // can associate runs with their routine
                     const runPartial: PartialGraphQLInfo = {
-                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.gqlRelMap, userData.languages, true),
+                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true),
                         routineVersionId: true,
                     };
                     // Query runs made by user
@@ -237,10 +235,10 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<RoutineVersionModelLogic["PrismaSelect"]>([["root", "Routine"]], data, ...rest),
+            oneIsPublic<RoutineVersionModelInfo["PrismaSelect"]>([["root", "Routine"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => RoutineModel.validate.owner(data?.root as RoutineModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate.owner(data?.root as RoutineModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -266,7 +264,7 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
                 ],
             },
             owner: (userId) => ({
-                root: RoutineModel.validate.visibility.owner(userId),
+                root: ModelMap.get<RoutineModelLogic>("Routine").validate.visibility.owner(userId),
             }),
         },
     },

@@ -1,21 +1,19 @@
 import { MaxObjects, reminderListValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { ReminderListFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { FocusModeModel } from "./focusMode";
-import { FocusModeModelLogic, ReminderListModelLogic } from "./types";
+import { FocusModeModelInfo, FocusModeModelLogic, ReminderListModelLogic } from "./types";
 
 const __typename = "ReminderList" as const;
-const suppFields = [] as const;
-export const ReminderListModel: ModelLogic<ReminderListModelLogic, typeof suppFields> = ({
+export const ReminderListModel: ReminderListModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.reminder_list,
     display: {
         label: {
-            select: () => ({ id: true, focusMode: { select: FocusModeModel.display.label.select() } }),
+            select: () => ({ id: true, focusMode: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display.label.select() } }),
             // Label is schedule's label
-            get: (select, languages) => FocusModeModel.display.label.get(select.focusMode as FocusModeModelLogic["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<FocusModeModelLogic>("FocusMode").display.label.get(select.focusMode as FocusModeModelInfo["PrismaModel"], languages),
         },
     },
     format: ReminderListFormat,
@@ -42,14 +40,14 @@ export const ReminderListModel: ModelLogic<ReminderListModelLogic, typeof suppFi
             focusMode: "FocusMode",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => FocusModeModel.validate.owner(data?.focusMode as FocusModeModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate.owner(data?.focusMode as FocusModeModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                focusMode: FocusModeModel.validate.visibility.owner(userId),
+                focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate.visibility.owner(userId),
             }),
         },
     },

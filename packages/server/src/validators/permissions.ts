@@ -1,7 +1,7 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
 import { CustomError } from "../events/error";
-import { getLogic } from "../getters/getLogic";
+import { ModelMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 import { AuthDataById } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
@@ -235,7 +235,7 @@ export async function getMultiTypePermissions(
     // Loop through each ID and calculate permissions
     for (const [id, authData] of Object.entries(authDataById)) {
         // Get permissions object for this ID
-        const { validate } = getLogic(["validate"], authData.__typename, userData?.languages ?? ["en"], "getMultiplePermissions");
+        const { validate } = ModelMap.getLogic(["validate"], authData.__typename);
         const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authData, userData.id), userData.id) : false;
         const isDeleted = validate.isDeleted(authData, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
@@ -270,7 +270,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
-    const { delegate, validate } = getLogic(["delegate", "validate"], type, userData?.languages ?? ["en"], "getSingleTypePermissions");
+    const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], type);
     // Get auth data for all objects
     let select: any;
     let dataById: Record<string, object>;

@@ -1,4 +1,5 @@
 import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, standardVersionValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { randomString } from "../../auth/wallet";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
@@ -8,9 +9,8 @@ import { sortify } from "../../utils/objectTools";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { StandardVersionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { StandardModel } from "./standard";
-import { StandardModelLogic, StandardVersionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, StandardVersionModelLogic } from "./types";
 
 //     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
@@ -90,8 +90,7 @@ const querier = () => ({
 });
 
 const __typename = "StandardVersion" as const;
-const suppFields = ["you"] as const;
-export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof suppFields> = ({
+export const StandardVersionModel: StandardVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.standard_version,
     display: {
@@ -237,7 +236,7 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
          */
         customQueryData: () => ({ root: { isInternal: true } }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -251,10 +250,10 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<StandardVersionModelLogic["PrismaSelect"]>([["root", "Standard"]], data, ...rest),
+            oneIsPublic<StandardVersionModelInfo["PrismaSelect"]>([["root", "Standard"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => StandardModel.validate.owner(data?.root as StandardModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate.owner(data?.root as StandardModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -280,7 +279,7 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                 ],
             },
             owner: (userId) => ({
-                root: StandardModel.validate.visibility.owner(userId),
+                root: ModelMap.get<StandardModelLogic>("Standard").validate.visibility.owner(userId),
             }),
         },
     },

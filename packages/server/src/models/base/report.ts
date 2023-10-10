@@ -1,23 +1,11 @@
 import { MaxObjects, ReportFor, ReportSortBy, reportValidation } from "@local/shared";
 import { Prisma, ReportStatus } from "@prisma/client";
+import { ModelMap } from ".";
 import { CustomError } from "../../events/error";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ApiVersionModel } from "./apiVersion";
-import { ChatMessageModel } from "./chatMessage";
-import { CommentModel } from "./comment";
-import { IssueModel } from "./issue";
-import { NoteVersionModel } from "./noteVersion";
-import { OrganizationModel } from "./organization";
-import { PostModel } from "./post";
-import { ProjectVersionModel } from "./projectVersion";
-import { RoutineVersionModel } from "./routineVersion";
-import { SmartContractVersionModel } from "./smartContractVersion";
-import { StandardVersionModel } from "./standardVersion";
-import { TagModel } from "./tag";
-import { ApiVersionModelLogic, ChatMessageModelLogic, CommentModelLogic, IssueModelLogic, NoteVersionModelLogic, OrganizationModelLogic, PostModelLogic, ProjectVersionModelLogic, ReportModelLogic, RoutineVersionModelLogic, SmartContractVersionModelLogic, StandardVersionModelLogic, TagModelLogic, UserModelLogic } from "./types";
-import { UserModel } from "./user";
+import { SuppFields } from "../suppFields";
+import { ApiVersionModelInfo, ApiVersionModelLogic, ChatMessageModelInfo, ChatMessageModelLogic, CommentModelInfo, CommentModelLogic, IssueModelInfo, IssueModelLogic, NoteVersionModelInfo, NoteVersionModelLogic, OrganizationModelInfo, OrganizationModelLogic, PostModelInfo, PostModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic, ReportModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic, SmartContractVersionModelInfo, SmartContractVersionModelLogic, StandardVersionModelInfo, StandardVersionModelLogic, TagModelInfo, TagModelLogic, UserModelInfo, UserModelLogic } from "./types";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
@@ -36,42 +24,41 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] }
 };
 
 const __typename = "Report" as const;
-const suppFields = ["you"] as const;
-export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
+export const ReportModel: ReportModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.report,
     display: {
         label: {
             select: () => ({
                 id: true,
-                apiVersion: { select: ApiVersionModel.display.label.select() },
-                chatMessage: { select: ChatMessageModel.display.label.select() },
-                comment: { select: CommentModel.display.label.select() },
-                issue: { select: IssueModel.display.label.select() },
-                noteVersion: { select: NoteVersionModel.display.label.select() },
-                organization: { select: OrganizationModel.display.label.select() },
-                post: { select: PostModel.display.label.select() },
-                projectVersion: { select: ProjectVersionModel.display.label.select() },
-                routineVersion: { select: RoutineVersionModel.display.label.select() },
-                smartContractVersion: { select: SmartContractVersionModel.display.label.select() },
-                standardVersion: { select: StandardVersionModel.display.label.select() },
-                tag: { select: TagModel.display.label.select() },
-                user: { select: UserModel.display.label.select() },
+                apiVersion: { select: ModelMap.get<ApiVersionModelLogic>("ApiVersion").display.label.select() },
+                chatMessage: { select: ModelMap.get<ChatMessageModelLogic>("ChatMessage").display.label.select() },
+                comment: { select: ModelMap.get<CommentModelLogic>("Comment").display.label.select() },
+                issue: { select: ModelMap.get<IssueModelLogic>("Issue").display.label.select() },
+                noteVersion: { select: ModelMap.get<NoteVersionModelLogic>("NoteVersion").display.label.select() },
+                organization: { select: ModelMap.get<OrganizationModelLogic>("Organization").display.label.select() },
+                post: { select: ModelMap.get<PostModelLogic>("Post").display.label.select() },
+                projectVersion: { select: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").display.label.select() },
+                routineVersion: { select: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display.label.select() },
+                smartContractVersion: { select: ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion").display.label.select() },
+                standardVersion: { select: ModelMap.get<StandardVersionModelLogic>("StandardVersion").display.label.select() },
+                tag: { select: ModelMap.get<TagModelLogic>("Tag").display.label.select() },
+                user: { select: ModelMap.get<UserModelLogic>("User").display.label.select() },
             }),
             get: (select, languages) => {
-                if (select.apiVersion) return ApiVersionModel.display.label.get(select.apiVersion as ApiVersionModelLogic["PrismaModel"], languages);
-                if (select.chatMessage) return ChatMessageModel.display.label.get(select.chatMessage as ChatMessageModelLogic["PrismaModel"], languages);
-                if (select.comment) return CommentModel.display.label.get(select.comment as CommentModelLogic["PrismaModel"], languages);
-                if (select.issue) return IssueModel.display.label.get(select.issue as IssueModelLogic["PrismaModel"], languages);
-                if (select.noteVersion) return NoteVersionModel.display.label.get(select.noteVersion as NoteVersionModelLogic["PrismaModel"], languages);
-                if (select.organization) return OrganizationModel.display.label.get(select.organization as OrganizationModelLogic["PrismaModel"], languages);
-                if (select.post) return PostModel.display.label.get(select.post as PostModelLogic["PrismaModel"], languages);
-                if (select.projectVersion) return ProjectVersionModel.display.label.get(select.projectVersion as ProjectVersionModelLogic["PrismaModel"], languages);
-                if (select.routineVersion) return RoutineVersionModel.display.label.get(select.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages);
-                if (select.smartContractVersion) return SmartContractVersionModel.display.label.get(select.smartContractVersion as SmartContractVersionModelLogic["PrismaModel"], languages);
-                if (select.standardVersion) return StandardVersionModel.display.label.get(select.standardVersion as StandardVersionModelLogic["PrismaModel"], languages);
-                if (select.tag) return TagModel.display.label.get(select.tag as TagModelLogic["PrismaModel"], languages);
-                if (select.user) return UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages);
+                if (select.apiVersion) return ModelMap.get<ApiVersionModelLogic>("ApiVersion").display.label.get(select.apiVersion as ApiVersionModelInfo["PrismaModel"], languages);
+                if (select.chatMessage) return ModelMap.get<ChatMessageModelLogic>("ChatMessage").display.label.get(select.chatMessage as ChatMessageModelInfo["PrismaModel"], languages);
+                if (select.comment) return ModelMap.get<CommentModelLogic>("Comment").display.label.get(select.comment as CommentModelInfo["PrismaModel"], languages);
+                if (select.issue) return ModelMap.get<IssueModelLogic>("Issue").display.label.get(select.issue as IssueModelInfo["PrismaModel"], languages);
+                if (select.noteVersion) return ModelMap.get<NoteVersionModelLogic>("NoteVersion").display.label.get(select.noteVersion as NoteVersionModelInfo["PrismaModel"], languages);
+                if (select.organization) return ModelMap.get<OrganizationModelLogic>("Organization").display.label.get(select.organization as OrganizationModelInfo["PrismaModel"], languages);
+                if (select.post) return ModelMap.get<PostModelLogic>("Post").display.label.get(select.post as PostModelInfo["PrismaModel"], languages);
+                if (select.projectVersion) return ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").display.label.get(select.projectVersion as ProjectVersionModelInfo["PrismaModel"], languages);
+                if (select.routineVersion) return ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display.label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages);
+                if (select.smartContractVersion) return ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion").display.label.get(select.smartContractVersion as SmartContractVersionModelInfo["PrismaModel"], languages);
+                if (select.standardVersion) return ModelMap.get<StandardVersionModelLogic>("StandardVersion").display.label.get(select.standardVersion as StandardVersionModelInfo["PrismaModel"], languages);
+                if (select.tag) return ModelMap.get<TagModelLogic>("Tag").display.label.get(select.tag as TagModelInfo["PrismaModel"], languages);
+                if (select.user) return ModelMap.get<UserModelLogic>("User").display.label.get(select.user as UserModelInfo["PrismaModel"], languages);
                 return "";
             },
         },
@@ -153,7 +140,7 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {

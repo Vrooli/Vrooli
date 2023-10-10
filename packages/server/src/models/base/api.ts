@@ -1,4 +1,5 @@
 import { ApiSortBy, apiValidation, MaxObjects } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils/defaultPermissions";
@@ -7,20 +8,14 @@ import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from
 import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot";
 import { getSingleTypePermissions } from "../../validators/permissions";
 import { ApiFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ApiVersionModel } from "./apiVersion";
-import { BookmarkModel } from "./bookmark";
-import { OrganizationModel } from "./organization";
-import { ReactionModel } from "./reaction";
-import { ApiModelLogic } from "./types";
-import { ViewModel } from "./view";
+import { SuppFields } from "../suppFields";
+import { ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, ViewModelLogic } from "./types";
 
 const __typename = "Api" as const;
-const suppFields = ["you"] as const;
-export const ApiModel: ModelLogic<ApiModelLogic, typeof suppFields> = ({
+export const ApiModel: ApiModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.api,
-    display: rootObjectDisplay(ApiVersionModel),
+    display: rootObjectDisplay(ModelMap.get<ApiVersionModelLogic>("ApiVersion")),
     format: ApiFormat,
     mutate: {
         shape: {
@@ -90,14 +85,14 @@ export const ApiModel: ModelLogic<ApiModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
@@ -132,7 +127,7 @@ export const ApiModel: ModelLogic<ApiModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

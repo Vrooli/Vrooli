@@ -1,23 +1,22 @@
 import { MaxObjects, MeetingInviteSortBy, meetingInviteValidation } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { MeetingInviteFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { MeetingModel } from "./meeting";
-import { MeetingInviteModelLogic, MeetingModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { MeetingInviteModelInfo, MeetingInviteModelLogic, MeetingModelInfo, MeetingModelLogic } from "./types";
 
 const __typename = "MeetingInvite" as const;
-const suppFields = ["you"] as const;
-export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof suppFields> = ({
+export const MeetingInviteModel: MeetingInviteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.meeting_invite,
     display: {
         // Label is the meeting label
         label: {
-            select: () => ({ id: true, meeting: { select: MeetingModel.display.label.select() } }),
-            get: (select, languages) => MeetingModel.display.label.get(select.meeting as MeetingModelLogic["PrismaModel"], languages),
+            select: () => ({ id: true, meeting: { select: ModelMap.get<MeetingModelLogic>("Meeting").display.label.select() } }),
+            get: (select, languages) => ModelMap.get<MeetingModelLogic>("Meeting").display.label.get(select.meeting as MeetingModelInfo["PrismaModel"], languages),
         },
     },
     format: MeetingInviteFormat,
@@ -49,11 +48,11 @@ export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof supp
         searchStringQuery: () => ({
             OR: [
                 "messageWrapped",
-                { meeting: MeetingModel.search.searchStringQuery() },
+                { meeting: ModelMap.get<MeetingModelLogic>("Meeting").search.searchStringQuery() },
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -73,15 +72,15 @@ export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof supp
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: (data?.meeting as MeetingModelLogic["PrismaModel"])?.organization,
+            Organization: (data?.meeting as MeetingModelInfo["PrismaModel"])?.organization,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<MeetingInviteModelLogic["PrismaSelect"]>([["meeting", "Meeting"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<MeetingInviteModelInfo["PrismaSelect"]>([["meeting", "Meeting"]], ...rest),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                meeting: MeetingModel.validate.visibility.owner(userId),
+                meeting: ModelMap.get<MeetingModelLogic>("Meeting").validate.visibility.owner(userId),
             }),
         },
     },

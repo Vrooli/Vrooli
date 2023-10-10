@@ -3,7 +3,7 @@ import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
 import { PrismaSelect } from "../builders/types";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
-import { getLogic } from "../getters/getLogic";
+import { ModelMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 
 export type AuthDataById = { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } };
@@ -22,7 +22,7 @@ export const getAuthenticatedData = async (
     // For every type of object which needs to be authenticated, query for all data required to perform authentication
     for (const type of Object.keys(idsByType) as GqlModelType[]) {
         // Find validator and prisma delegate for this object type
-        const { delegate, idField, validate } = getLogic(["delegate", "idField", "validate"], type, userData?.languages ?? ["en"], "getAuthenticatedData");
+        const { delegate, idField, validate } = ModelMap.getLogic(["delegate", "idField", "validate"], type);
         const ids = idsByType[type] ?? [];
         // Build "where" clause
         let where: any = {};

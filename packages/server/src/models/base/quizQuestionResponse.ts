@@ -1,26 +1,24 @@
 import { MaxObjects, QuizQuestionResponseSortBy, quizQuestionResponseValidation } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizQuestionResponseFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { QuizAttemptModel } from "./quizAttempt";
-import { QuizQuestionModel } from "./quizQuestion";
-import { QuizAttemptModelLogic, QuizQuestionModelLogic, QuizQuestionResponseModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic, QuizQuestionResponseModelInfo, QuizQuestionResponseModelLogic } from "./types";
 
 const __typename = "QuizQuestionResponse" as const;
-const suppFields = ["you"] as const;
-export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogic, typeof suppFields> = ({
+export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.quiz_question_response,
     display: {
         label: {
-            select: () => ({ id: true, quizQuestion: { select: QuizQuestionModel.display.label.select() } }),
+            select: () => ({ id: true, quizQuestion: { select: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display.label.select() } }),
             get: (select, languages) => i18next.t("common:QuizQuestionResponseLabel", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                questionLabel: QuizQuestionModel.display.label.get(select.quizQuestion as QuizQuestionModelLogic["PrismaModel"], languages),
+                questionLabel: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display.label.get(select.quizQuestion as QuizQuestionModelInfo["PrismaModel"], languages),
             }),
         },
     },
@@ -54,7 +52,7 @@ export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogi
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -66,10 +64,10 @@ export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogi
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<QuizQuestionResponseModelLogic["PrismaSelect"]>([["quizAttempt", "QuizAttempt"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<QuizQuestionResponseModelInfo["PrismaSelect"]>([["quizAttempt", "QuizAttempt"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => QuizAttemptModel.validate.owner(data?.quizAttempt as QuizAttemptModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate.owner(data?.quizAttempt as QuizAttemptModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -79,7 +77,7 @@ export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogi
             private: {},
             public: {},
             owner: (userId) => ({
-                quizAttempt: QuizAttemptModel.validate.visibility.owner(userId),
+                quizAttempt: ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate.visibility.owner(userId),
             }),
         },
     },
