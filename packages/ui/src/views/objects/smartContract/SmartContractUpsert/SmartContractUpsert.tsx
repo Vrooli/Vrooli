@@ -47,6 +47,10 @@ const smartContractInitialValues = (
     resourceList: {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
+        listFor: {
+            __typename: "SmartContractVersion" as const,
+            id: DUMMY_ID,
+        },
     },
     versionLabel: "1.0.0",
     ...existing,

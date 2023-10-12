@@ -12,9 +12,9 @@ export type ChatMessageShape = Pick<ChatMessage, "id"> & {
     created_at: string; // Only used by the UI
     updated_at: string; // Only used by the UI
     chat?: { id: string } | ChatShape;
-    isFork: boolean;
     isUnsent?: boolean; // Only used by the UI
-    fork?: { id: string } | ChatMessageShape;
+    versionOfId?: string;
+    parent?: { id: string } | ChatMessageShape | null;
     reactionSummaries: ReactionSummary[]; // Only used by the UI
     translations: ChatMessageTranslationShape[];
     user?: Partial<User> & { id: string };
@@ -28,9 +28,8 @@ export const shapeChatMessageTranslation: ShapeModel<ChatMessageTranslationShape
 
 export const shapeChatMessage: ShapeModel<ChatMessageShape, ChatMessageCreateInput, ChatMessageUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "isFork"),
+        ...createPrims(d, "id", "versionOfId"),
         ...createRel(d, "chat", ["Connect"], "one"),
-        ...createRel(d, "fork", ["Connect"], "one"),
         ...createRel(d, "translations", ["Create"], "many", shapeChatMessageTranslation),
         ...createRel(d, "user", ["Connect"], "one"),
     }),

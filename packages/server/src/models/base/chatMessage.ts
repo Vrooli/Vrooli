@@ -627,7 +627,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         },
         permissionsSelect: () => ({
             id: true,
-            chat: ["Chat", ["invites"]],
+            chat: ["Chat", ["messages"]],
             user: "User",
         }),
         visibility: {

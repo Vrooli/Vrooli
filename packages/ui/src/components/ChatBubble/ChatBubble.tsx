@@ -1,5 +1,5 @@
 import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPostReact, endpointPutChatMessage, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
-import { Avatar, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
 import IconButton from "@mui/material/IconButton";
@@ -17,6 +17,7 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
 import { AddIcon, BotIcon, DeleteIcon, EditIcon, ErrorIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getDisplay, ListObject } from "utils/display/listTools";
@@ -147,6 +148,7 @@ const ChatBubbleReactions = ({
     reactions: ReactionSummary[],
 }) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const handleEmojiMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -212,6 +214,7 @@ const ChatBubbleReactions = ({
                 />
             </Stack>
             {isBot && <Stack direction="row">
+                <Button variant="text">{t("Reply")}</Button>
                 <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
             </Stack>}
         </Box>
@@ -258,7 +261,7 @@ export const ChatBubble = ({
             shouldRetry.current = false;
             fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
                 fetch: createMessage,
-                inputs: shapeChatMessage.create({ ...message, isFork: false }),
+                inputs: shapeChatMessage.create({ ...message, versionOfId: message.id }),
                 successCondition: (data) => data !== null,
                 onSuccess: (data) => {
                     setEditingText(undefined);

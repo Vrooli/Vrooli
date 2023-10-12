@@ -3,10 +3,9 @@ import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } fr
 import { RelationshipType } from "../../builders/types";
 
 type TranslationShapeHelperProps<
-    Input extends ShapeHelperInput<false, IsRequired, Types[number], "translations">,
-    IsRequired extends boolean,
+    Input extends ShapeHelperInput<false, Types[number], "translations">,
     Types extends readonly RelationshipType[],
-> = Omit<ShapeHelperProps<Input, false, IsRequired, Types, "translations", "id", false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete"> & {
+> = Omit<ShapeHelperProps<Input, false, Types, "translations", "id", false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete"> & {
     embeddingNeedsUpdate?: Record<string, { [language in string]: boolean }>,
 }
 
@@ -14,15 +13,14 @@ type TranslationShapeHelperProps<
 * Add, update, or remove translation data for an object.
 */
 export const translationShapeHelper = async <
-    Input extends ShapeHelperInput<false, IsRequired, Types[number], "translations">,
-    IsRequired extends boolean,
+    Input extends ShapeHelperInput<false, Types[number], "translations">,
     Types extends readonly RelationshipType[],
 >({
     data,
     embeddingNeedsUpdate = {}, // Only used for embeddable translations 
     ...rest
-}: TranslationShapeHelperProps<Input, IsRequired, Types>):
-    Promise<ShapeHelperOutput<false, IsRequired, Types[number], "translations", "id">> => {
+}: TranslationShapeHelperProps<Input, Types>):
+    Promise<ShapeHelperOutput<false, Types[number], "translations", "id">> => {
     return shapeHelper({
         data: {
             translationsCreate: (data as any).translationsCreate?.map(({ language, ...rest }) => ({

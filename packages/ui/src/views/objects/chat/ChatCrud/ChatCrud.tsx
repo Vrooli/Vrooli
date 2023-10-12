@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, MessageTree, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Checkbox, IconButton, InputAdornment, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -271,6 +271,35 @@ const ChatForm = ({
 
     // We query messages separate from the chat, since we must traverse the message tree
     const [getPageData, { data: pageData, loading, errors }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+    const [allMessages, setAllMessages] = useState<ChatMessageShape[]>([]);
+    useEffect(() => {
+        if (!existing.id || existing.id === DUMMY_ID) return;
+        getPageData({ chatId: existing.id });
+    }, [existing.id, getPageData]);
+    useEffect(() => {
+        if (!pageData || pageData.messages.length === 0) return;
+        console.log("got page data", pageData);
+        // Add to all messages, making sure to only add messages that aren't already there
+        setAllMessages(curr => {
+            const hash = {};
+            // Create hash from curr data
+            for (const item of curr) {
+                hash[item.id] = item;
+            }
+            // Add unique items from parsedData
+            for (const item of pageData.messages) {
+                if (!hash[item.id]) {
+                    hash[item.id] = item;
+                }
+            }
+            return Object.values(hash);
+        });
+    }, [pageData]);
+    useEffect(() => {
+        // Build message tree
+        const temp = new MessageTree(allMessages);
+        console.log("building tree", temp, allMessages);
+    }, [allMessages]);
 
     const {
         fetch,

@@ -35,31 +35,50 @@ export type NewResourceShape = Partial<Omit<Resource, "list">> & {
 export const resourceInitialValues = (
     session: Session | undefined,
     existing: NewResourceShape,
-): ResourceShape => ({
-    __typename: "Resource" as const,
-    id: DUMMY_ID,
-    link: "",
-    usedFor: ResourceUsedFor.Context,
-    ...existing,
-    list: {
-        __typename: "ResourceList" as const,
-        ...existing.list,
-        id: existing.list?.id ?? DUMMY_ID,
-    },
-    translations: orDefault(existing.translations, [{
-        __typename: "ResourceTranslation" as const,
+): ResourceShape => {
+    let listFor: { __typename: ResourceListFor, id: string };
+    if ("listForId" in existing.list && "listForType" in existing.list) {
+        listFor = {
+            __typename: existing.list.listForType as ResourceListFor,
+            id: existing.list.listForId,
+        };
+    } else if ("listFor" in existing.list) {
+        listFor = existing.list.listFor as { __typename: ResourceListFor, id: string };
+    } else {
+        listFor = {
+            __typename: "RoutineVersion" as ResourceListFor,
+            id: DUMMY_ID,
+        };
+    }
+    return {
+        __typename: "Resource" as const,
         id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        description: "",
-        name: "",
-    }]),
-});
+        link: "",
+        usedFor: ResourceUsedFor.Context,
+        ...existing,
+        list: {
+            __typename: "ResourceList" as const,
+            id: DUMMY_ID,
+            ...existing.list,
+            listFor,
+        },
+        translations: orDefault(existing.translations, [{
+            __typename: "ResourceTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            name: "",
+        }]),
+    };
+};
 
 export const transformResourceValues = (values: ResourceShape, existing: ResourceShape, isCreate: boolean) =>
     isCreate ? shapeResource.create(values) : shapeResource.update(existing, values);
 
 export const validateResourceValues = async (values: ResourceShape, existing: ResourceShape, isCreate: boolean) => {
     const transformedValues = transformResourceValues(values, existing, isCreate);
+    console.log("validateResourceValues: values", values);
+    console.log("validateResourceValues: transformedValues", transformedValues);
     const validationSchema = resourceValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;

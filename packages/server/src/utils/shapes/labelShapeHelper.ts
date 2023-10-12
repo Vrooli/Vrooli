@@ -21,20 +21,20 @@ const parentMapper: { [key in LabelledObjectType]: string } = {
 };
 
 type LabelShapeHelperProps<
-    Input extends ShapeHelperInput<false, false, Types[number], FieldName>,
+    Input extends ShapeHelperInput<false, Types[number], FieldName>,
     Types extends readonly RelationshipType[],
     FieldName extends string,
 > = {
     parentType: LabelledObjectType;
     relation: FieldName;
-} & Omit<ShapeHelperProps<Input, false, false, Types, FieldName, "id", false>, "isRequired" | "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
+} & Omit<ShapeHelperProps<Input, false, Types, FieldName, "id", false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
 
 /**
 * Add, update, or remove label data for an object.
 */
 export const labelShapeHelper = async <
     Types extends readonly RelationshipType[],
-    Input extends ShapeHelperInput<false, false, Types[number], FieldName>,
+    Input extends ShapeHelperInput<false, Types[number], FieldName>,
     FieldName extends string,
 >({
     data,
@@ -43,7 +43,7 @@ export const labelShapeHelper = async <
     relation,
     ...rest
 }: LabelShapeHelperProps<Input, Types, FieldName>):
-    Promise<ShapeHelperOutput<false, false, Types[number], FieldName, "id">> => {
+    Promise<ShapeHelperOutput<false, Types[number], FieldName, "id">> => {
     // Labels get special logic because they are treated as strings in GraphQL, 
     // instead of a normal relationship object
     // If any label creates/connects, make sure they exist/not exist
@@ -77,7 +77,6 @@ export const labelShapeHelper = async <
     return shapeHelper({
         data,
         isOneToOne: false,
-        isRequired: false,
         joinData: {
             fieldName: "label",
             uniqueFieldName: parentMapper[parentType],

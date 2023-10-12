@@ -30,7 +30,7 @@ export type MessageNode = {
  * Constructs a hierarchical tree representation of message threads
  * from a flat array of ChatMessage objects.
  */
-export class MessageTreeBuilder {
+export class MessageTree {
     /** Map of message IDs to nodes */
     private messageMap: Map<string, MessageNode>;
     /** 
@@ -222,5 +222,5 @@ const messages1 = [
         created_at: "2021-10-01T09:00:00Z",
     },
 ] as ChatMessage[];
-const builder1 = new MessageTreeBuilder(messages1);
+const builder1 = new MessageTree(messages1);
 const roots1 = builder1.getRoots();

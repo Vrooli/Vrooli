@@ -18,6 +18,7 @@ export const typeDef = gql`
         Chat
         ChatInvite
         ChatMessage
+        ChatMessageSearchTreeResult
         ChatParticipant
         Comment
         Copy

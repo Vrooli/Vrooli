@@ -49,6 +49,10 @@ export const standardInitialValues = (
     resourceList: {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
+        listFor: {
+            __typename: "StandardVersion" as const,
+            id: DUMMY_ID,
+        },
     },
     versionLabel: "1.0.0",
     ...existing,

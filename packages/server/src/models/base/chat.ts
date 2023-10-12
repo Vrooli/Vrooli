@@ -41,37 +41,76 @@ export const ChatModel: ChatModelLogic = ({
                 const embeddingMaps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...embeddingMaps, bots };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
-                creator: { connect: { id: rest.userData.id } },
-                // Create invite for non-bots and not yourself
-                invites: {
-                    create: data.invitesCreate?.filter((u) => !rest.preMap[__typename].bots.includes(u.userConnect) && u.userConnect !== rest.userData.id).map((u) => ({
-                        id: u.id,
-                        user: { connect: { id: u.userConnect } },
-                        status: rest.preMap[__typename].bots.some((b: User) => b.id === u.userConnect) ? ChatInviteStatus.Accepted : ChatInviteStatus.Pending,
-                        message: noNull(u.message),
-                    })),
-                },
-                // Handle participants
-                participants: {
-                    // Automatically accept bots, and add yourself
-                    create: [
-                        ...(rest.preMap[__typename].bots.map((u: User) => ({
-                            user: { connect: { id: u.id } },
-                        }))),
-                        {
-                            user: { connect: { id: rest.userData.id } },
-                        },
-                    ],
-                },
-                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
-                // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false,   objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", relation: "labels", data, ...rest })),
-                ...(await shapeHelper({ relation: "messages", relTypes: ["Create"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
+            create: async ({ data, ...rest }) => {
+                // Due to the way Prisma handles connections, we must be careful with how messages are inserted. 
+                // When a message has a "parentConnect" relation pointing to a new message (i.e. is also in the "create" array), 
+                // we must convert it to a "parentCreate", and remove the parent message from the array. Otherwise, Prisma will 
+                // throw an error about not being able to find the parent message.
+                let messages = await shapeHelper({ relation: "messages", relTypes: ["Create"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest });
+                if (Object.prototype.hasOwnProperty.call(messages, "messages") && Array.isArray(messages.messages.create)) {
+                    let newMessages: unknown[] = [];
+                    const parentIdsToRemove: string[] = [];
+                    for (const message of messages.messages.create) {
+                        if (!Object.prototype.hasOwnProperty.call(message, "parent") || !Object.prototype.hasOwnProperty.call(message.parent, "connect")) {
+                            newMessages.push(message);
+                            continue;
+                        }
+                        // Check if the parent message is in the create array
+                        const parentMessage = messages.messages.create.find((m) => m.id === message.parent.connect.id);
+                        // If it is, convert the parentConnect to a parentCreate
+                        if (parentMessage) {
+                            newMessages.push({
+                                ...message,
+                                parent: {
+                                    create: {
+                                        ...parentMessage,
+                                        chat: { connect: { id: data.id } },
+                                    },
+                                },
+                            });
+                            parentIdsToRemove.push(parentMessage.id);
+                            continue;
+                        }
+                        // Otherwise, leave it as a parentConnect
+                        newMessages.push(message);
+                    }
+                    // Remove the parent messages from the create array
+                    newMessages = newMessages.filter((m) => !parentIdsToRemove.includes((m as { id: string }).id));
+                    // Replace the old messages with the new ones
+                    messages = { ...messages, messages: { ...messages.messages, create: newMessages } };
+                }
+                return {
+                    id: data.id,
+                    openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
+                    creator: { connect: { id: rest.userData.id } },
+                    // Create invite for non-bots and not yourself
+                    invites: {
+                        create: data.invitesCreate?.filter((u) => !rest.preMap[__typename].bots.includes(u.userConnect) && u.userConnect !== rest.userData.id).map((u) => ({
+                            id: u.id,
+                            user: { connect: { id: u.userConnect } },
+                            status: rest.preMap[__typename].bots.some((b: User) => b.id === u.userConnect) ? ChatInviteStatus.Accepted : ChatInviteStatus.Pending,
+                            message: noNull(u.message),
+                        })),
+                    },
+                    // Handle participants
+                    participants: {
+                        // Automatically accept bots, and add yourself
+                        create: [
+                            ...(rest.preMap[__typename].bots.map((u: User) => ({
+                                user: { connect: { id: u.id } },
+                            }))),
+                            {
+                                user: { connect: { id: rest.userData.id } },
+                            },
+                        ],
+                    },
+                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
+                    // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false,   objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
+                    ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", relation: "labels", data, ...rest })),
+                    ...messages,
+                    ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                };
+            },
             update: async ({ data, ...rest }) => ({
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 // Handle invites

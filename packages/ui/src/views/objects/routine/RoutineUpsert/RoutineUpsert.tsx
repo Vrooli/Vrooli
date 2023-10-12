@@ -68,6 +68,10 @@ export const routineInitialValues = (
     resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
+        listFor: {
+            __typename: "RoutineVersion" as const,
+            id: DUMMY_ID,
+        },
     }),
     translations: orDefault(existing?.translations, [{
         __typename: "RoutineVersionTranslation" as const,

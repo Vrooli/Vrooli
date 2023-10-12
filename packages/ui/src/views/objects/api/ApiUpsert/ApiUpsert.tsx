@@ -46,6 +46,10 @@ const apiInitialValues = (
     resourceList: {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
+        listFor: {
+            __typename: "ApiVersion" as const,
+            id: DUMMY_ID,
+        },
     },
     versionLabel: "1.0.0",
     ...existing,

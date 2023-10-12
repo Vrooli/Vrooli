@@ -1,4 +1,4 @@
-import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
+import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
 import { Box, IconButton, useTheme } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
@@ -13,7 +13,7 @@ import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useFetch } from "hooks/useFetch";
 import { useReactSearch } from "hooks/useReactSearch";
 import { PageTab } from "hooks/useTabs";
-import { AddIcon, ListIcon, MonthIcon, NoteIcon, OpenInNewIcon, ReminderIcon, SearchIcon } from "icons";
+import { AddIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SearchIcon } from "icons";
 import { Dispatch, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -232,27 +232,6 @@ export const DashboardView = ({
         }
     }, []);
 
-    const [notes, setNotes] = useState<Note[]>([]);
-    useEffect(() => {
-        if (data?.notes) {
-            setNotes(data.notes);
-        }
-    }, [data]);
-    const onNoteAction = useCallback((action: keyof ObjectListActions<Note>, ...data: unknown[]) => {
-        switch (action) {
-            case "Deleted": {
-                const id = data[0] as string;
-                setNotes(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
-                break;
-            }
-            case "Updated": {
-                const updated = data[0] as Note;
-                setNotes(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
-                break;
-            }
-        }
-    }, []);
-
     // Calculate upcoming events using schedules 
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     useEffect(() => {
@@ -303,6 +282,14 @@ export const DashboardView = ({
         }
     }, [upcomingEvents]);
 
+    const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: true }); }, []);
+    const closeSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: false }); }, []);
+    useEffect(() => {
+        return () => {
+            closeSideMenu();
+        };
+    }, [closeSideMenu]);
+
     return (
         <>
             {/* Main content */}
@@ -311,7 +298,7 @@ export const DashboardView = ({
                 onClose={onClose}
                 startComponent={<IconButton
                     aria-label="Open chat menu"
-                    onClick={() => { }}
+                    onClick={openSideMenu}
                     sx={{
                         width: "48px",
                         height: "48px",
@@ -334,39 +321,25 @@ export const DashboardView = ({
                     />
                 )}
             />
-            {/* Prompt stack */}
-            {/* <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: "5vh", sm: "20vh" } }}>
-                <HomePrompt />
-                <SiteSearchBar
-                    id="main-search"
-                    placeholder='SearchHome'
-                    options={autocompleteOptions}
-                    loading={loading}
-                    value={searchString}
-                    onChange={updateSearch}
-                    onInputChange={onInputSelect}
-                    showSecondaryLabel={true}
-                    sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                />
-            </Stack> */}
-            {/* Result feeds */}
             <Box sx={{
                 display: "flex",
                 flexDirection: "column",
                 margin: "auto",
-                gap: 4,
+                gap: 2,
             }}>
                 {/* Resources */}
-                <ResourceListHorizontal
-                    id="main-resource-list"
-                    list={resourceList}
-                    canUpdate={true}
-                    handleUpdate={setResourceList}
-                    hideIcons={true}
-                    loading={loading}
-                    mutate={true}
-                    parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
-                />
+                <Box p={1}>
+                    <ResourceListHorizontal
+                        id="main-resource-list"
+                        list={resourceList}
+                        canUpdate={true}
+                        handleUpdate={setResourceList}
+                        loading={loading}
+                        mutate={true}
+                        parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
+                        title={t("Resource", { count: 2 })}
+                    />
+                </Box>
                 {/* Events */}
                 <ListTitleContainer
                     Icon={MonthIcon}
@@ -409,30 +382,6 @@ export const DashboardView = ({
                         keyPrefix="reminder-list-item"
                         loading={loading}
                         onAction={onReminderAction}
-                    />
-                </ListTitleContainer>
-                {/* Notes */}
-                <ListTitleContainer
-                    Icon={NoteIcon}
-                    id="main-note-list"
-                    isEmpty={notes.length === 0 && !loading}
-                    title={t("Note", { count: 2 })}
-                    options={[{
-                        Icon: OpenInNewIcon,
-                        label: t("SeeAll"),
-                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Note}`); },
-                    }, {
-                        Icon: AddIcon,
-                        label: t("Create"),
-                        onClick: () => { setLocation(`${LINKS.Note}/add`); },
-                    }]}
-                >
-                    <ObjectList
-                        dummyItems={new Array(5).fill("Note")}
-                        items={notes}
-                        keyPrefix="note-list-item"
-                        loading={loading}
-                        onAction={onNoteAction}
                     />
                 </ListTitleContainer>
             </Box>
