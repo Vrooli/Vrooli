@@ -1321,6 +1321,7 @@ export enum GqlModelType {
   Chat = 'Chat',
   ChatInvite = 'ChatInvite',
   ChatMessage = 'ChatMessage',
+  ChatMessageSearchTreeResult = 'ChatMessageSearchTreeResult',
   ChatParticipant = 'ChatParticipant',
   Comment = 'Comment',
   Copy = 'Copy',

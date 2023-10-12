@@ -35,12 +35,12 @@ export const ResourceListModel: ResourceListModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 [forMapper[data.listForType]]: { connect: { id: data.listForConnect } },
-                ...(await shapeHelper({ relation: "resources", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "resources", relTypes: ["Create"], isOneToOne: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await shapeHelper({ relation: "resources", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "resources", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         yup: resourceListValidation,

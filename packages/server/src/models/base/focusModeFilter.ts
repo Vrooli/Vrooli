@@ -21,9 +21,9 @@ export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 filterType: data.filterType,
-                // ...(await shapeHelper({ relation: "focusMode", relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'FocusMode', parentRelationshipName: 'filters', data, ...rest })),
+                // ...(await shapeHelper({ relation: "focusMode", relTypes: ['Connect'], isOneToOne: true,   objectType: 'FocusMode', parentRelationshipName: 'filters', data, ...rest })),
                 // Can't use tagShapeHelper because in this case there isn't a join table between them
-                ...(await shapeHelper({ relation: "tag", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Tag", parentRelationshipName: "scheduleFilters", data, ...rest })),
+                ...(await shapeHelper({ relation: "tag", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Tag", parentRelationshipName: "scheduleFilters", data, ...rest })),
             }) as any,
         },
         yup: focusModeFilterValidation,

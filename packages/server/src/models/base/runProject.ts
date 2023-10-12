@@ -39,10 +39,10 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
                     ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
                     ...(data.organizationConnect ? {} : { user: { connect: { id: rest.userData.id } } }),
-                    ...(await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "ProjectVersion", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersion", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -54,8 +54,8 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     timeElapsed: noNull(data.timeElapsed),
                     ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
                     ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
                 };
             },
         },

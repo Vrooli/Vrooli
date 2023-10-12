@@ -28,8 +28,8 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 response: data.response,
-                ...(await shapeHelper({ relation: "quizAttempt", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "QuizAttempt", parentRelationshipName: "responses", data, ...rest })),
-                ...(await shapeHelper({ relation: "quizQuestion", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "QuizQuestion", parentRelationshipName: "responses", data, ...rest })),
+                ...(await shapeHelper({ relation: "quizAttempt", relTypes: ["Connect"], isOneToOne: true, objectType: "QuizAttempt", parentRelationshipName: "responses", data, ...rest })),
+                ...(await shapeHelper({ relation: "quizQuestion", relTypes: ["Connect"], isOneToOne: true, objectType: "QuizQuestion", parentRelationshipName: "responses", data, ...rest })),
             }),
             update: async ({ data }) => ({
                 response: noNull(data.response),

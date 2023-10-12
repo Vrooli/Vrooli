@@ -24,7 +24,7 @@ export const NodeEndModel: NodeEndModelLogic = ({
                 return {
                     id: data.id,
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Node", parentRelationshipName: "end", data, ...rest })),
+                    ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "end", data, ...rest })),
                     ...(await nodeEndNextShapeHelper({ relTypes: ["Connect"], data, ...rest })),
                 };
             },

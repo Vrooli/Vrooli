@@ -1,4 +1,4 @@
-import { ChatCreateInput, ChatInviteCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate, VisibilityType } from "@local/shared";
+import { ChatCreateInput, ChatInviteCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate } from "@local/shared";
 import { Request } from "express";
 import { ModelMap } from ".";
 import { readManyHelper } from "../../actions/reads";
@@ -9,7 +9,6 @@ import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
-import { visibilityBuilder } from "../../builders/visibilityBuilder";
 import { chatMessage_findMany } from "../../endpoints";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
@@ -343,12 +342,12 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     id: data.id,
                     user: { connect: { id: data.userConnect ?? rest.userData.id } }, // Can create messages for bots. This is authenticated in the "pre" function.
                     ...(parentId ? { parent: { connect: { id: parentId } } } : {}),
-                    ...(await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Chat", parentRelationshipName: "messages", data, ...rest })),
-                    ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                    ...(await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, objectType: "Chat", parentRelationshipName: "messages", data, ...rest })),
+                    ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
                 };
             },
             update: async ({ data, ...rest }) => ({
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         trigger: {
@@ -532,35 +531,37 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
          * message or specified, and traverses up and down the chat tree to find
          * surrounding messages.
          */
-        async searchNested(
+        async searchTree(
             prisma: PrismaType,
             req: Request,
             input: ChatMessageSearchTreeInput,
             info: GraphQLInfo | PartialGraphQLInfo,
         ): Promise<ChatMessageSearchTreeResult> {
+            if (!input.chatId) throw new CustomError("0531", "InvalidArgs", getUser(req.session)?.languages ?? ["en"], { input });
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, ModelMap.get<ChatMessageModelLogic>("ChatMessage").format.gqlRelMap, req.session.languages, true);
-            // Create query for visibility
-            const visibilityQuery = visibilityBuilder({ objectType: "ChatMessage", userData: getUser(req.session), visibility: VisibilityType.Public });
-            const where = visibilityQuery;
+            const partial = toPartialGqlInfo(info, {
+                __typename: "ChatMessageSearchTreeResult",
+                messages: "ChatMessage",
+            }, req.session.languages, true);
             // Determine sort order. This is only used if startId is not provided, since the sort is used 
             // to determine the starting point of the search.
             const orderByField = input.sortBy ?? ModelMap.get<ChatMessageModelLogic>("ChatMessage").search.defaultSort;
             const orderBy = !input.startId && orderByField in SortMap ? SortMap[orderByField] : undefined;
             // First, find the total number of messages in the chat
             const totalInThread = await prisma.chat_message.count({
-                where: { id: { in: input.chatId } },
+                where: { chatId: input.chatId },
             });
             // If it's less than or equal to the take amount, we can just return all messages. 
             const take = input.take ?? 50;
             if (totalInThread <= take) {
                 let messages: any[] = await prisma.chat_message.findMany({
-                    where: { id: { in: input.chatId } },
+                    where: { chatId: input.chatId },
+                    orderBy,
                     take,
-                    ...selectHelper(partialInfo),
+                    ...selectHelper(partial.messages as PartialGraphQLInfo),
                 });
-                messages = messages.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
-                messages = await addSupplementalFields(prisma, getUser(req.session), messages, partialInfo);
+                messages = messages.map((c: any) => modelToGql(c, partial.messages as PartialGraphQLInfo));
+                messages = await addSupplementalFields(prisma, getUser(req.session), messages, partial.messages as PartialGraphQLInfo);
                 return {
                     __typename: "ChatMessageSearchTreeResult" as const,
                     hasMoreDown: false,

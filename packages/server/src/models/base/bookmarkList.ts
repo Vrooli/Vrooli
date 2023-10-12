@@ -23,11 +23,11 @@ export const BookmarkListModel: BookmarkListModelLogic = ({
                 index: -1, //TODO
                 label: data.label,
                 user: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create"], isOneToOne: false, isRequired: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
+                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create"], isOneToOne: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 label: noNull(data.label),
-                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
+                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create", "Update", "Delete"], isOneToOne: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
             }),
         },
         yup: bookmarkListValidation,

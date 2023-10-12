@@ -44,11 +44,11 @@ export const TagModel: TagModelLogic = ({
                 id: data.id,
                 tag: data.tag,
                 createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 ...(data.anonymous ? { createdBy: { disconnect: true } } : {}),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest })),
             }),
         },
         yup: tagValidation,

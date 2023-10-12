@@ -24,13 +24,13 @@ export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 condition: data.condition,
-                ...(await shapeHelper({ relation: "link", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "NodeLink", parentRelationshipName: "link", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "link", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLink", parentRelationshipName: "link", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 condition: noNull(data.condition),
-                ...(await shapeHelper({ relation: "link", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "NodeLink", parentRelationshipName: "link", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "link", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLink", parentRelationshipName: "link", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         yup: nodeLinkWhenValidation,

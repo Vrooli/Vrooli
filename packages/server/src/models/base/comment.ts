@@ -37,10 +37,10 @@ export const CommentModel: CommentModelLogic = ({
                 id: data.id,
                 ownedByUser: { connect: { id: rest.userData.id } },
                 [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         trigger: {

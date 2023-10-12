@@ -67,14 +67,14 @@ export const PullRequestModel: PullRequestModelLogic = ({
                 createdBy: { connect: { id: rest.userData.id } },
                 [fromMapper[data.fromObjectType]]: { connect: { id: data.fromConnect } },
                 [toMapper[data.toObjectType]]: { connect: { id: data.toConnect } },
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             // NOTE: Pull request creator can only set status to 'Canceled'. 
             // Owner of object that pull request is on can set status to anything but 'Canceled'
             // TODO need to update params for shape to account for this (probably). Then need to update this function
             update: async ({ data, ...rest }) => ({
                 status: noNull(data.status),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         yup: pullRequestValidation,
