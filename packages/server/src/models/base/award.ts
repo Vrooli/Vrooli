@@ -2,14 +2,14 @@ import { AwardKey, awardNames, AwardSortBy, MaxObjects } from "@local/shared";
 import i18next from "i18next";
 import { defaultPermissions } from "../../utils";
 import { AwardFormat } from "../formats";
-import { AwardModelLogic } from "./types";
 import { SuppFields } from "../suppFields";
+import { AwardModelLogic } from "./types";
 
 const __typename = "Award" as const;
 export const AwardModel: AwardModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.award,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, category: true, progress: true }),
             get: (select, languages) => {
@@ -20,7 +20,7 @@ export const AwardModel: AwardModelLogic = ({
                 return i18next.t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) });
             },
         },
-    },
+    }),
     format: AwardFormat,
     search: {
         defaultSort: AwardSortBy.DateUpdatedDesc,
@@ -54,7 +54,7 @@ export const AwardModel: AwardModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -74,5 +74,5 @@ export const AwardModel: AwardModelLogic = ({
                 user: { id: userId },
             }),
         },
-    },
+    }),
 });

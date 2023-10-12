@@ -22,7 +22,7 @@ const __typename = "Issue" as const;
 export const IssueModel: IssueModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.issue,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -37,7 +37,7 @@ export const IssueModel: IssueModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: IssueFormat,
     mutate: {
         shape: {
@@ -95,7 +95,7 @@ export const IssueModel: IssueModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<IssueModelInfo["PrismaSelect"]>([
             ["api", "Api"],
@@ -128,5 +128,5 @@ export const IssueModel: IssueModelLogic = ({
             public: {},
             owner: (userId) => ({ createdBy: { id: userId } }),
         },
-    },
+    }),
 });

@@ -12,13 +12,13 @@ const __typename = "MemberInvite" as const;
 export const MemberInviteModel: MemberInviteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.member_invite,
-    display: {
+    display: () => ({
         // Label is the member label
         label: {
-            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display.label.select() } }),
-            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display.label.get(select.user as UserModelInfo["PrismaModel"], languages),
+            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: MemberInviteFormat,
     mutate: {
         shape: {
@@ -67,7 +67,7 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -92,5 +92,5 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
                 organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId),
             }),
         },
-    },
+    }),
 });

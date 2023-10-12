@@ -6,16 +6,16 @@ const __typename = "ReactionSummary" as const;
 export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_api,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, emoji: true, count: true }),
             get: (select) => `${select.emoji} (${select.count})`,
         },
-    },
+    }),
     format: ReactionSummaryFormat,
     search: undefined,
     // Never queried directly, so should be fine without validation
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({}),
@@ -31,5 +31,5 @@ export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
             public: {},
             owner: () => ({}),
         },
-    },
+    }),
 });

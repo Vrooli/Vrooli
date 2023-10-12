@@ -16,7 +16,7 @@ const __typename = "SmartContract" as const;
 export const SmartContractModel: SmartContractModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.smart_contract,
-    display: rootObjectDisplay(ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion")),
+    display: () => rootObjectDisplay(ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion")),
     format: SmartContractFormat,
     mutate: {
         shape: {
@@ -100,7 +100,7 @@ export const SmartContractModel: SmartContractModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
@@ -138,5 +138,5 @@ export const SmartContractModel: SmartContractModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

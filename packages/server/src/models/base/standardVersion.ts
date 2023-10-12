@@ -93,7 +93,7 @@ const __typename = "StandardVersion" as const;
 export const StandardVersionModel: StandardVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.standard_version,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -113,7 +113,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: StandardVersionFormat,
     mutate: {
         shape: {
@@ -246,14 +246,14 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
             oneIsPublic<StandardVersionModelInfo["PrismaSelect"]>([["root", "Standard"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate.owner(data?.root as StandardModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate().owner(data?.root as StandardModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -279,8 +279,8 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 ],
             },
             owner: (userId) => ({
-                root: ModelMap.get<StandardModelLogic>("Standard").validate.visibility.owner(userId),
+                root: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

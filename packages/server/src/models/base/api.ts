@@ -15,7 +15,7 @@ const __typename = "Api" as const;
 export const ApiModel: ApiModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.api,
-    display: rootObjectDisplay(ModelMap.get<ApiVersionModelLogic>("ApiVersion")),
+    display: () => rootObjectDisplay(ModelMap.get<ApiVersionModelLogic>("ApiVersion")),
     format: ApiFormat,
     mutate: {
         shape: {
@@ -98,7 +98,7 @@ export const ApiModel: ApiModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted === false,
@@ -131,5 +131,5 @@ export const ApiModel: ApiModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

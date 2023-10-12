@@ -39,7 +39,7 @@ const __typename = "RoutineVersion" as const;
 export const RoutineVersionModel: RoutineVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.routine_version,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -59,7 +59,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: RoutineVersionFormat,
     mutate: {
         shape: {
@@ -231,14 +231,14 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
             oneIsPublic<RoutineVersionModelInfo["PrismaSelect"]>([["root", "Routine"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate.owner(data?.root as RoutineModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.root as RoutineModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -264,9 +264,9 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                 ],
             },
             owner: (userId) => ({
-                root: ModelMap.get<RoutineModelLogic>("Routine").validate.visibility.owner(userId),
+                root: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
     validateNodePositions,
 });

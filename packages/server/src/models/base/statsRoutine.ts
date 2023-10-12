@@ -9,15 +9,15 @@ const __typename = "StatsRoutine" as const;
 export const StatsRoutineModel: StatsRoutineModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_routine,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display.label.select() } }),
+            select: () => ({ id: true, routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: ModelMap.get<RoutineModelLogic>("Routine").display.label.get(select.routine as RoutineModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<RoutineModelLogic>("Routine").display().label.get(select.routine as RoutineModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsRoutineFormat,
     search: {
         defaultSort: StatsRoutineSortBy.PeriodStartAsc,
@@ -28,7 +28,7 @@ export const StatsRoutineModel: StatsRoutineModelLogic = ({
         },
         searchStringQuery: () => ({ routine: ModelMap.get<RoutineModelLogic>("Routine").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -36,13 +36,13 @@ export const StatsRoutineModel: StatsRoutineModelLogic = ({
             routine: "Routine",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate.owner(data?.routine as RoutineModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.routine as RoutineModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsRoutineModelInfo["PrismaSelect"]>([["routine", "Routine"]], ...rest),
         visibility: {
-            private: { routine: ModelMap.get<RoutineModelLogic>("Routine").validate.visibility.private },
-            public: { routine: ModelMap.get<RoutineModelLogic>("Routine").validate.visibility.public },
-            owner: (userId) => ({ routine: ModelMap.get<RoutineModelLogic>("Routine").validate.visibility.owner(userId) }),
+            private: { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private },
+            public: { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public },
+            owner: (userId) => ({ routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

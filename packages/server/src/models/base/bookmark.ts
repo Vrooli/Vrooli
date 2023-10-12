@@ -8,7 +8,7 @@ import { Trigger } from "../../events/trigger";
 import { PrismaType } from "../../types";
 import { defaultPermissions } from "../../utils";
 import { BookmarkFormat } from "../formats";
-import { ApiModelInfo, ApiModelLogic, BookmarkListModelInfo, BookmarkListModelLogic, BookmarkModelLogic, CommentModelInfo, CommentModelLogic, IssueModelInfo, IssueModelLogic, NoteModelInfo, NoteModelLogic, OrganizationModelInfo, OrganizationModelLogic, PostModelInfo, PostModelLogic, ProjectModelInfo, ProjectModelLogic, QuestionAnswerModelInfo, QuestionAnswerModelLogic, QuestionModelInfo, QuestionModelLogic, QuizModelInfo, QuizModelLogic, RoutineModelInfo, RoutineModelLogic, SmartContractModelInfo, SmartContractModelLogic, StandardModelInfo, StandardModelLogic, TagModelInfo, TagModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { BookmarkListModelInfo, BookmarkListModelLogic, BookmarkModelLogic } from "./types";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Api: "api",
@@ -32,46 +32,21 @@ const __typename = "Bookmark" as const;
 export const BookmarkModel: BookmarkModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.bookmark,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                api: { select: ModelMap.get<ApiModelLogic>("Api").display.label.select() },
-                comment: { select: ModelMap.get<CommentModelLogic>("Comment").display.label.select() },
-                issue: { select: ModelMap.get<IssueModelLogic>("Issue").display.label.select() },
-                note: { select: ModelMap.get<NoteModelLogic>("Note").display.label.select() },
-                organization: { select: ModelMap.get<OrganizationModelLogic>("Organization").display.label.select() },
-                post: { select: ModelMap.get<PostModelLogic>("Post").display.label.select() },
-                project: { select: ModelMap.get<ProjectModelLogic>("Project").display.label.select() },
-                question: { select: ModelMap.get<QuestionModelLogic>("Question").display.label.select() },
-                questionAnswer: { select: ModelMap.get<QuestionAnswerModelLogic>("QuestionAnswer").display.label.select() },
-                quiz: { select: ModelMap.get<QuizModelLogic>("Quiz").display.label.select() },
-                routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display.label.select() },
-                smartContract: { select: ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.select() },
-                standard: { select: ModelMap.get<StandardModelLogic>("Standard").display.label.select() },
-                tag: { select: ModelMap.get<TagModelLogic>("Tag").display.label.select() },
-                user: { select: ModelMap.get<UserModelLogic>("User").display.label.select() },
+                ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) =>
+                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
-                if (select.api) return ModelMap.get<ApiModelLogic>("Api").display.label.get(select.api as ApiModelInfo["PrismaModel"], languages);
-                if (select.comment) return ModelMap.get<CommentModelLogic>("Comment").display.label.get(select.comment as CommentModelInfo["PrismaModel"], languages);
-                if (select.issue) return ModelMap.get<IssueModelLogic>("Issue").display.label.get(select.issue as IssueModelInfo["PrismaModel"], languages);
-                if (select.note) return ModelMap.get<NoteModelLogic>("Note").display.label.get(select.note as NoteModelInfo["PrismaModel"], languages);
-                if (select.organization) return ModelMap.get<OrganizationModelLogic>("Organization").display.label.get(select.organization as OrganizationModelInfo["PrismaModel"], languages);
-                if (select.post) return ModelMap.get<PostModelLogic>("Post").display.label.get(select.post as PostModelInfo["PrismaModel"], languages);
-                if (select.project) return ModelMap.get<ProjectModelLogic>("Project").display.label.get(select.project as ProjectModelInfo["PrismaModel"], languages);
-                if (select.question) return ModelMap.get<QuestionModelLogic>("Question").display.label.get(select.question as QuestionModelInfo["PrismaModel"], languages);
-                if (select.questionAnswer) return ModelMap.get<QuestionAnswerModelLogic>("QuestionAnswer").display.label.get(select.questionAnswer as QuestionAnswerModelInfo["PrismaModel"], languages);
-                if (select.quiz) return ModelMap.get<QuizModelLogic>("Quiz").display.label.get(select.quiz as QuizModelInfo["PrismaModel"], languages);
-                if (select.routine) return ModelMap.get<RoutineModelLogic>("Routine").display.label.get(select.routine as RoutineModelInfo["PrismaModel"], languages);
-                if (select.smartContract) return ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.get(select.smartContract as SmartContractModelInfo["PrismaModel"], languages);
-                if (select.standard) return ModelMap.get<StandardModelLogic>("Standard").display.label.get(select.standard as StandardModelInfo["PrismaModel"], languages);
-                if (select.tag) return ModelMap.get<TagModelLogic>("Tag").display.label.get(select.tag as TagModelInfo["PrismaModel"], languages);
-                if (select.user) return ModelMap.get<UserModelLogic>("User").display.label.get(select.user as UserModelInfo["PrismaModel"], languages);
+                for (const [key, value] of Object.entries(forMapper)) {
+                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                }
                 return "";
             },
         },
-    },
+    }),
     format: BookmarkFormat,
     mutate: {
         shape: {
@@ -186,21 +161,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 { list: ModelMap.get<BookmarkListModelLogic>("BookmarkList").search.searchStringQuery() },
-                { api: ModelMap.get<ApiModelLogic>("Api").search.searchStringQuery() },
-                { comment: ModelMap.get<CommentModelLogic>("Comment").search.searchStringQuery() },
-                { issue: ModelMap.get<IssueModelLogic>("Issue").search.searchStringQuery() },
-                { note: ModelMap.get<NoteModelLogic>("Note").search.searchStringQuery() },
-                { organization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
-                { post: ModelMap.get<PostModelLogic>("Post").search.searchStringQuery() },
-                { project: ModelMap.get<ProjectModelLogic>("Project").search.searchStringQuery() },
-                { question: ModelMap.get<QuestionModelLogic>("Question").search.searchStringQuery() },
-                { questionAnswer: ModelMap.get<QuestionAnswerModelLogic>("QuestionAnswer").search.searchStringQuery() },
-                { quiz: ModelMap.get<QuizModelLogic>("Quiz").search.searchStringQuery() },
-                { routine: ModelMap.get<RoutineModelLogic>("Routine").search.searchStringQuery() },
-                { smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").search.searchStringQuery() },
-                { standard: ModelMap.get<StandardModelLogic>("Standard").search.searchStringQuery() },
-                { tag: ModelMap.get<TagModelLogic>("Tag").search.searchStringQuery() },
-                { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
+                ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
             ],
         }),
         supplemental: {
@@ -227,38 +188,24 @@ export const BookmarkModel: BookmarkModelLogic = ({
             toGraphQL: async () => ({}),
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<BookmarkListModelLogic>("BookmarkList").validate.owner(data?.list as BookmarkListModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<BookmarkListModelLogic>("BookmarkList").validate().owner(data?.list as BookmarkListModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            api: "Api",
-            comment: "Comment",
-            issue: "Issue",
             list: "BookmarkList",
-            note: "Note",
-            organization: "Organization",
-            post: "Post",
-            project: "Project",
-            question: "Question",
-            questionAnswer: "QuestionAnswer",
-            quiz: "Quiz",
-            routine: "Routine",
-            smartContract: "SmartContract",
-            standard: "Standard",
-            tag: "Tag",
-            user: "User",
+            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                list: ModelMap.get<BookmarkListModelLogic>("BookmarkList").validate.visibility.owner(userId),
+                list: ModelMap.get<BookmarkListModelLogic>("BookmarkList").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

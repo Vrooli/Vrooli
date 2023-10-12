@@ -301,7 +301,7 @@ export type Validator<
         IsTransferable: Exclude<ModelLogicType["IsTransferable"], undefined>,
         IsVersioned: Exclude<ModelLogicType["IsVersioned"], undefined>,
     }
-> = {
+> = () => ({
     /**
      * The maximum number of objects that can be created by a single user/organization.
      * This depends on if the owner is a user or organization, if the owner 
@@ -386,7 +386,7 @@ export type Validator<
             /** Determines if there is a completed version of the object */
             hasCompleteVersion: (data: Model["PrismaModel"]) => boolean;
         } : object
-    )
+    ))
 
 /**
  * Describes shape of component that can be duplicated
@@ -532,7 +532,7 @@ export type Displayer<
         PrismaSelect: ModelLogicType["PrismaSelect"],
         PrismaModel: ModelLogicType["PrismaModel"],
     }
-> = {
+> = () => ({
     /** Display the object for push notifications, etc. */
     label: {
         /** Prisma selection for the label */
@@ -547,7 +547,7 @@ export type Displayer<
         /** Converts the selection to a string */
         get: (select: Model["PrismaModel"], languages: string[]) => string,
     }
-}
+})
 
 /**
  * Mapper for associating a model's many-to-many relationship names with

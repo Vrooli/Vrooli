@@ -10,7 +10,7 @@ const __typename = "ApiKey" as const;
 export const ApiKeyModel: ApiKeyModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.api_key,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, key: true }),
             // Of the form "1234...5678"
@@ -21,7 +21,7 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
                 return select.key.slice(0, 4) + "..." + select.key.slice(-4);
             },
         },
-    },
+    }),
     format: ApiKeyFormat,
     mutate: {
         shape: {
@@ -44,7 +44,7 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
         yup: apiKeyValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -69,5 +69,5 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

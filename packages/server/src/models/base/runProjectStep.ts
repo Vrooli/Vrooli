@@ -8,12 +8,12 @@ const __typename = "RunProjectStep" as const;
 export const RunProjectStepModel: RunProjectStepModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.run_project_step,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
-    },
+    }),
     format: RunProjectStepFormat,
     mutate: {
         shape: {
@@ -29,18 +29,18 @@ export const RunProjectStepModel: RunProjectStepModelLogic = ({
         yup: runProjectStepValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<RunProjectStepModelInfo["PrismaSelect"]>([["runProject", "RunProject"]], ...rest),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => ModelMap.get<RunProjectModelLogic>("RunProject").validate.owner(data?.runProject as RunProjectModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunProjectModelLogic>("RunProject").validate().owner(data?.runProject as RunProjectModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, runProject: "RunProject" }),
         visibility: {
             private: {},
             public: {},
-            owner: (userId) => ({ runProject: ModelMap.get<RunProjectModelLogic>("RunProject").validate.visibility.owner(userId) }),
+            owner: (userId) => ({ runProject: ModelMap.get<RunProjectModelLogic>("RunProject").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

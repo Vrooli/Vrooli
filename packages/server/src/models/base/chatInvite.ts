@@ -12,13 +12,13 @@ const __typename = "ChatInvite" as const;
 export const ChatInviteModel: ChatInviteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.chat_invite,
-    display: {
+    display: () => ({
         // Label is the user label
         label: {
-            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display.label.select() } }),
-            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display.label.get(select.user as UserModelInfo["PrismaModel"], languages),
+            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: ChatInviteFormat,
     mutate: {
         shape: {
@@ -69,7 +69,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -94,8 +94,8 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ModelMap.get<ChatModelLogic>("Chat").validate.visibility.owner(userId),
+                chat: ModelMap.get<ChatModelLogic>("Chat").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

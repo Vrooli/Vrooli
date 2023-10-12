@@ -56,7 +56,7 @@ const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]
 export const UserModel: UserModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.user,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name ?? "",
@@ -72,7 +72,7 @@ export const UserModel: UserModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: UserFormat,
     mutate: {
         shape: {
@@ -137,7 +137,7 @@ export const UserModel: UserModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -163,5 +163,5 @@ export const UserModel: UserModelLogic = ({
             }),
         },
         // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
-    },
+    }),
 });

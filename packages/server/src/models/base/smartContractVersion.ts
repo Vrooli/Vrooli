@@ -13,7 +13,7 @@ const __typename = "SmartContractVersion" as const;
 export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.smart_contract_version,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -33,7 +33,7 @@ export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: SmartContractVersionFormat,
     mutate: {
         shape: {
@@ -128,14 +128,14 @@ export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
             oneIsPublic<SmartContractVersionModelInfo["PrismaSelect"]>([["root", "SmartContract"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<SmartContractModelLogic>("SmartContract").validate.owner(data?.root as SmartContractModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<SmartContractModelLogic>("SmartContract").validate().owner(data?.root as SmartContractModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -161,8 +161,8 @@ export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
                 ],
             },
             owner: (userId) => ({
-                root: ModelMap.get<SmartContractModelLogic>("SmartContract").validate.visibility.owner(userId),
+                root: ModelMap.get<SmartContractModelLogic>("SmartContract").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

@@ -8,13 +8,13 @@ const __typename = "ChatParticipant" as const;
 export const ChatParticipantModel: ChatParticipantModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.chat_participants,
-    display: {
+    display: () => ({
         // Label is the user's label
         label: {
-            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display.label.select() } }),
-            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display.label.get(select.user as UserModelInfo["PrismaModel"], languages),
+            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: ChatParticipantFormat,
     mutate: {
         shape: {
@@ -38,7 +38,7 @@ export const ChatParticipantModel: ChatParticipantModelLogic = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -57,8 +57,8 @@ export const ChatParticipantModel: ChatParticipantModelLogic = ({
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ModelMap.get<ChatModelLogic>("Chat").validate.visibility.owner(userId),
+                chat: ModelMap.get<ChatModelLogic>("Chat").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

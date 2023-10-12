@@ -12,7 +12,7 @@ const __typename = "Post" as const;
 export const PostModel: PostModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.post,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -27,7 +27,7 @@ export const PostModel: PostModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: PostFormat,
     mutate: {
         shape: {
@@ -91,7 +91,7 @@ export const PostModel: PostModelLogic = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted === true,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: false,
@@ -118,5 +118,5 @@ export const PostModel: PostModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

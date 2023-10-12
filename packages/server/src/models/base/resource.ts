@@ -11,12 +11,12 @@ const __typename = "Resource" as const;
 export const ResourceModel: ResourceModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.resource,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
-    },
+    }),
     format: ResourceFormat,
     mutate: {
         shape: {
@@ -55,21 +55,21 @@ export const ResourceModel: ResourceModelLogic = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             list: "ResourceList",
         }),
-        permissionResolvers: (params) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate.permissionResolvers({ ...params, data: params.data.list as any }),
-        owner: (data, userId) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate.owner(data?.list as ResourceListModelInfo["PrismaModel"], userId),
+        permissionResolvers: (params) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate().permissionResolvers({ ...params, data: params.data.list as any }),
+        owner: (data, userId) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate().owner(data?.list as ResourceListModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<ResourceModelInfo["PrismaSelect"]>([["list", "ResourceList"]], ...rest),
         visibility: {
             private: {},
             public: {},
-            owner: (userId) => ({ list: ModelMap.get<ResourceListModelLogic>("ResourceList").validate.visibility.owner(userId) }),
+            owner: (userId) => ({ list: ModelMap.get<ResourceListModelLogic>("ResourceList").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

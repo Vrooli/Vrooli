@@ -17,7 +17,7 @@ export const oneIsPublic = <PrismaSelect extends { [x: string]: any }>(
         // Get the validator for this type
         const { idField, validate } = ModelMap.getLogic(["idField", "validate"], type);
         // Use validator to determine if this field is public
-        if (permissionsData[field] && validate.isPublic(permissionsData[field] ?? getParentInfo(permissionsData.id ?? permissionsData[idField], type), getParentInfo, languages)) {
+        if (permissionsData[field] && validate().isPublic(permissionsData[field] ?? getParentInfo(permissionsData.id ?? permissionsData[idField], type), getParentInfo, languages)) {
             return true;
         }
     }

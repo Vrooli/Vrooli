@@ -30,6 +30,7 @@ export enum ViewFor {
     Note = "Note",
     NoteVersion = "NoteVersion",
     Organization = "Organization",
+    Post = "Post",
     Project = "Project",
     ProjectVersion = "ProjectVersion",
     Question = "Question",

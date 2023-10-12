@@ -37,12 +37,12 @@ export const rootObjectDisplay = <
     VersionSuppFields extends readonly DotNotation<VersionModel["GqlModel"]>[]
 >(
     versionModelLogic: ModelLogic<VersionModel, VersionSuppFields>,
-): Displayer<RootModel> => ({
+): ReturnType<Displayer<RootModel>> => ({
     label: {
         select: () => ({
             versions: {
                 select: {
-                    ...versionModelLogic.display.label.select(),
+                    ...versionModelLogic.display().label.select(),
                     isLatest: true,
                     isPrivate: true,
                     versionIndex: true,
@@ -52,7 +52,7 @@ export const rootObjectDisplay = <
         get: (select, languages) => {
             const version = findBestVersion(select.versions);
             if (!version) return "";
-            return versionModelLogic.display.label.get(version, languages);
+            return versionModelLogic.display().label.get(version, languages);
         },
     },
 });

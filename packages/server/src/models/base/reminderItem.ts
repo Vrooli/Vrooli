@@ -10,12 +10,12 @@ const __typename = "ReminderItem" as const;
 export const ReminderItemModel: ReminderItemModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.reminder_item,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
-    },
+    }),
     format: ReminderItemFormat,
     mutate: {
         shape: {
@@ -39,12 +39,12 @@ export const ReminderItemModel: ReminderItemModelLogic = ({
         yup: reminderItemValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<ReminderItemModelInfo["PrismaSelect"]>([["reminder", "Reminder"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ReminderModelLogic>("Reminder").validate.owner(data?.reminder as ReminderModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ReminderModelLogic>("Reminder").validate().owner(data?.reminder as ReminderModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -54,8 +54,8 @@ export const ReminderItemModel: ReminderItemModelLogic = ({
             private: {},
             public: {},
             owner: (userId) => ({
-                reminder: ModelMap.get<ReminderModelLogic>("Reminder").validate.visibility.owner(userId),
+                reminder: ModelMap.get<ReminderModelLogic>("Reminder").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

@@ -9,13 +9,13 @@ const __typename = "ReminderList" as const;
 export const ReminderListModel: ReminderListModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.reminder_list,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, focusMode: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display.label.select() } }),
+            select: () => ({ id: true, focusMode: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.select() } }),
             // Label is schedule's label
-            get: (select, languages) => ModelMap.get<FocusModeModelLogic>("FocusMode").display.label.get(select.focusMode as FocusModeModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.get(select.focusMode as FocusModeModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: ReminderListFormat,
     mutate: {
         shape: {
@@ -32,7 +32,7 @@ export const ReminderListModel: ReminderListModelLogic = ({
         yup: reminderListValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -40,15 +40,15 @@ export const ReminderListModel: ReminderListModelLogic = ({
             focusMode: "FocusMode",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate.owner(data?.focusMode as FocusModeModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate().owner(data?.focusMode as FocusModeModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate.visibility.owner(userId),
+                focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

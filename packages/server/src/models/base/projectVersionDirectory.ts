@@ -11,12 +11,12 @@ const __typename = "ProjectVersionDirectory" as const;
 export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.project_version_directory,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
-    },
+    }),
     format: ProjectVersionDirectoryFormat,
     mutate: {
         shape: {
@@ -54,12 +54,12 @@ export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = (
         yup: projectVersionDirectoryValidation,
     },
     search: {} as any,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<ProjectVersionDirectoryModelInfo["PrismaSelect"]>([["projectVersion", "ProjectVersion"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate.owner(data?.projectVersion as ProjectVersionModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate().owner(data?.projectVersion as ProjectVersionModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -69,8 +69,8 @@ export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = (
             private: {},
             public: {},
             owner: (userId) => ({
-                projectVersion: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate.visibility.owner(userId),
+                projectVersion: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

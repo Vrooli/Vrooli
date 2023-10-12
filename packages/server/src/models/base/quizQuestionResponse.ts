@@ -13,15 +13,15 @@ const __typename = "QuizQuestionResponse" as const;
 export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.quiz_question_response,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, quizQuestion: { select: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display.label.select() } }),
+            select: () => ({ id: true, quizQuestion: { select: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display().label.select() } }),
             get: (select, languages) => i18next.t("common:QuizQuestionResponseLabel", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                questionLabel: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display.label.get(select.quizQuestion as QuizQuestionModelInfo["PrismaModel"], languages),
+                questionLabel: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display().label.get(select.quizQuestion as QuizQuestionModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: QuizQuestionResponseFormat,
     mutate: {
         shape: {
@@ -62,12 +62,12 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<QuizQuestionResponseModelInfo["PrismaSelect"]>([["quizAttempt", "QuizAttempt"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate.owner(data?.quizAttempt as QuizAttemptModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate().owner(data?.quizAttempt as QuizAttemptModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -77,8 +77,8 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
             private: {},
             public: {},
             owner: (userId) => ({
-                quizAttempt: ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate.visibility.owner(userId),
+                quizAttempt: ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

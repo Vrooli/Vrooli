@@ -10,12 +10,12 @@ const __typename = "FocusMode" as const;
 export const FocusModeModel: FocusModeModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.focus_mode,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
-    },
+    }),
     format: FocusModeFormat,
     mutate: {
         shape: {
@@ -61,7 +61,7 @@ export const FocusModeModel: FocusModeModelLogic = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -81,5 +81,5 @@ export const FocusModeModel: FocusModeModelLogic = ({
                 user: { id: userId },
             }),
         },
-    },
+    }),
 });

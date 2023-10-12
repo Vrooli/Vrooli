@@ -9,12 +9,12 @@ const __typename = "FocusModeFilter" as const;
 export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.focus_mode_filter,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, tag: { select: ModelMap.get<TagModelLogic>("Tag").display.label.select() } }),
-            get: (select, languages) => select.tag ? ModelMap.get<TagModelLogic>("Tag").display.label.get(select.tag as TagModelInfo["PrismaModel"], languages) : "",
+            select: () => ({ id: true, tag: { select: ModelMap.get<TagModelLogic>("Tag").display().label.select() } }),
+            get: (select, languages) => select.tag ? ModelMap.get<TagModelLogic>("Tag").display().label.get(select.tag as TagModelInfo["PrismaModel"], languages) : "",
         },
-    },
+    }),
     format: FocusModeFilterFormat,
     mutate: {
         shape: {
@@ -29,12 +29,12 @@ export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
         yup: focusModeFilterValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate.owner(data?.focusMode as FocusModeModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate().owner(data?.focusMode as FocusModeModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -44,8 +44,8 @@ export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
             private: {},
             public: {},
             owner: (userId) => ({
-                focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate.visibility.owner(userId),
+                focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

@@ -12,12 +12,12 @@ export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node_link,
     // Doesn't make sense to have a displayer for this model
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true }),
             get: () => "",
         },
-    },
+    }),
     format: NodeLinkWhenFormat,
     mutate: {
         shape: {
@@ -36,18 +36,18 @@ export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
         yup: nodeLinkWhenValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, link: "NodeLink" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate.owner(data?.link as NodeLinkModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate.isDeleted(data.link as NodeLinkModelInfo["PrismaModel"], languages),
+        owner: (data, userId) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().owner(data?.link as NodeLinkModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().isDeleted(data.link as NodeLinkModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeLinkWhenModelInfo["PrismaSelect"]>([["link", "NodeLink"]], ...rest),
         visibility: {
-            private: { link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate.visibility.private },
-            public: { link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate.visibility.public },
-            owner: (userId) => ({ link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate.visibility.owner(userId) }),
+            private: { link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.private },
+            public: { link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.public },
+            owner: (userId) => ({ link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

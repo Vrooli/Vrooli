@@ -9,15 +9,15 @@ const __typename = "StatsUser" as const;
 export const StatsUserModel: StatsUserModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_user,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display.label.select() } }),
+            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: ModelMap.get<UserModelLogic>("User").display.label.get(select.user as UserModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsUserFormat,
     search: {
         defaultSort: StatsUserSortBy.PeriodStartAsc,
@@ -28,7 +28,7 @@ export const StatsUserModel: StatsUserModelLogic = ({
         },
         searchStringQuery: () => ({ user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -36,13 +36,13 @@ export const StatsUserModel: StatsUserModelLogic = ({
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<UserModelLogic>("User").validate.owner(data?.user as UserModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<UserModelLogic>("User").validate().owner(data?.user as UserModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsUserModelInfo["PrismaSelect"]>([["user", "User"]], ...rest),
         visibility: {
-            private: { user: ModelMap.get<UserModelLogic>("User").validate.visibility.private },
-            public: { user: ModelMap.get<UserModelLogic>("User").validate.visibility.public },
-            owner: (userId) => ({ user: ModelMap.get<UserModelLogic>("User").validate.visibility.owner(userId) }),
+            private: { user: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+            public: { user: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+            owner: (userId) => ({ user: ModelMap.get<UserModelLogic>("User").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

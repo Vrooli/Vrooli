@@ -9,15 +9,15 @@ const __typename = "StatsApi" as const;
 export const StatsApiModel: StatsApiModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_api,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, api: { select: ModelMap.get<ApiModelLogic>("Api").display.label.select() } }),
+            select: () => ({ id: true, api: { select: ModelMap.get<ApiModelLogic>("Api").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: ModelMap.get<ApiModelLogic>("Api").display.label.get(select.api as ApiModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<ApiModelLogic>("Api").display().label.get(select.api as ApiModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsApiFormat,
     search: {
         defaultSort: StatsApiSortBy.PeriodStartAsc,
@@ -28,7 +28,7 @@ export const StatsApiModel: StatsApiModelLogic = ({
         },
         searchStringQuery: () => ({ api: ModelMap.get<ApiModelLogic>("Api").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -36,13 +36,13 @@ export const StatsApiModel: StatsApiModelLogic = ({
             api: "Api",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate.owner(data?.api as ApiModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate().owner(data?.api as ApiModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsApiModelInfo["PrismaSelect"]>([["api", "Api"]], ...rest),
         visibility: {
-            private: { api: ModelMap.get<ApiModelLogic>("Api").validate.visibility.private },
-            public: { api: ModelMap.get<ApiModelLogic>("Api").validate.visibility.public },
-            owner: (userId) => ({ api: ModelMap.get<ApiModelLogic>("Api").validate.visibility.owner(userId) }),
+            private: { api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.private },
+            public: { api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.public },
+            owner: (userId) => ({ api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

@@ -8,13 +8,13 @@ const __typename = "Payment" as const;
 export const PaymentModel: PaymentModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.payment,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, description: true }),
             // Cut off the description at 20 characters TODO should do this for every label
             get: (select) => select.description.length > 20 ? select.description.slice(0, 20) + "..." : select.description,
         },
-    },
+    }),
     format: PaymentFormat,
     search: {
         defaultSort: PaymentSortBy.DateCreatedDesc,
@@ -34,7 +34,7 @@ export const PaymentModel: PaymentModelLogic = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -59,5 +59,5 @@ export const PaymentModel: PaymentModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

@@ -13,7 +13,7 @@ const __typename = "Chat" as const;
 export const ChatModel: ChatModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.chat,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: ({ translations }, languages) => bestTranslation(translations, languages)?.name ?? "",
@@ -28,7 +28,7 @@ export const ChatModel: ChatModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: ChatFormat,
     mutate: {
         shape: {
@@ -145,7 +145,7 @@ export const ChatModel: ChatModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -193,5 +193,5 @@ export const ChatModel: ChatModelLogic = ({
                 creator: { id: userId },
             }),
         },
-    },
+    }),
 });

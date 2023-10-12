@@ -14,7 +14,7 @@ const __typename = "Meeting" as const;
 export const MeetingModel: MeetingModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.meeting,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -29,7 +29,7 @@ export const MeetingModel: MeetingModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: MeetingFormat,
     mutate: {
         shape: {
@@ -118,7 +118,7 @@ export const MeetingModel: MeetingModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -152,5 +152,5 @@ export const MeetingModel: MeetingModelLogic = ({
                 organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId),
             }),
         },
-    },
+    }),
 });

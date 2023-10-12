@@ -12,21 +12,21 @@ const __typename = "QuizAttempt" as const;
 export const QuizAttemptModel: QuizAttemptModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.quiz_attempt,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
                 created_at: true,
-                quiz: { select: ModelMap.get<QuizModelLogic>("Quiz").display.label.select() },
+                quiz: { select: ModelMap.get<QuizModelLogic>("Quiz").display().label.select() },
             }),
             // Label is quiz name + created_at date
             get: (select, languages) => {
-                const quizName = ModelMap.get<QuizModelLogic>("Quiz").display.label.get(select.quiz as QuizModelInfo["PrismaModel"], languages);
+                const quizName = ModelMap.get<QuizModelLogic>("Quiz").display().label.get(select.quiz as QuizModelInfo["PrismaModel"], languages);
                 const date = new Date(select.created_at).toLocaleDateString();
                 return `${quizName} - ${date}`;
             },
         },
-    },
+    }),
     format: QuizAttemptFormat,
     mutate: {
         shape: {
@@ -72,20 +72,20 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<QuizAttemptModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate.owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, quiz: "Quiz" }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                quiz: ModelMap.get<QuizModelLogic>("Quiz").validate.visibility.owner(userId),
+                quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

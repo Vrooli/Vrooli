@@ -11,7 +11,7 @@ const __typename = "Role" as const;
 export const RoleModel: RoleModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.role,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
@@ -25,7 +25,7 @@ export const RoleModel: RoleModelLogic = ({
                 return select.name;
             },
         },
-    },
+    }),
     format: RoleFormat,
     mutate: {
         shape: {
@@ -63,18 +63,18 @@ export const RoleModel: RoleModelLogic = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, organization: "Organization" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<OrganizationModelLogic>("Organization").validate.owner(data?.organization as OrganizationModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<OrganizationModelLogic>("Organization").validate.isDeleted(data.organization as OrganizationModelInfo["PrismaModel"], languages),
+        owner: (data, userId) => ModelMap.get<OrganizationModelLogic>("Organization").validate().owner(data?.organization as OrganizationModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<OrganizationModelLogic>("Organization").validate().isDeleted(data.organization as OrganizationModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<RoleModelInfo["PrismaSelect"]>([["organization", "Organization"]], ...rest),
         visibility: {
-            private: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.private },
-            public: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.public },
-            owner: (userId) => ({ organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.owner(userId) }),
+            private: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.private },
+            public: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.public },
+            owner: (userId) => ({ organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

@@ -18,7 +18,7 @@ const __typename = "ProjectVersion" as const;
 export const ProjectVersionModel: ProjectVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.project_version,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -38,7 +38,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: ProjectVersionFormat,
     mutate: {
         shape: {
@@ -271,14 +271,14 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
             oneIsPublic<ProjectVersionModelInfo["PrismaSelect"]>([["root", "Project"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate.owner(data?.root as ProjectModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.root as ProjectModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -304,8 +304,8 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                 ],
             },
             owner: (userId) => ({
-                root: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.owner(userId),
+                root: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

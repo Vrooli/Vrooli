@@ -33,7 +33,7 @@ const extractTranslatedSentences = <T extends { translations: { language: string
     // Loop through each object in the batch
     for (const curr of batch) {
         const currLanguages = curr.translations.map(translation => translation.language);
-        const currSentences = currLanguages.map(language => model?.display?.embed?.get(curr as any, [language]));
+        const currSentences = currLanguages.map(language => model?.display?.().embed?.get(curr as any, [language]));
         // Add each sentence to the array
         currSentences.forEach(sentence => {
             if (sentence) {
@@ -107,7 +107,7 @@ const processUntranslatedBatchHelper = async (
     if (!ModelMap.isModel(objectType)) return;
     const model = ModelMap.get(objectType);
     // Extract sentences from the batch
-    const sentences = batch.map(obj => model.display.embed?.get(obj as any, []) ?? "");
+    const sentences = batch.map(obj => model.display().embed?.get(obj as any, []) ?? "");
     if (sentences.length === 0) return;
     // Find embeddings for all objects in the batch
     const { data: embeddings } = await getEmbeddings(objectType, sentences);
@@ -132,7 +132,7 @@ const embeddingBatch = async <T extends FindManyArgs>({
     batchSize: API_BATCH_SIZE,
     objectType,
     processBatch: async (batch, prisma) => await processBatch(batch, prisma, objectType),
-    select: ModelMap.get(objectType).display.embed!.select(),
+    select: ModelMap.get(objectType).display().embed!.select(),
     trace,
     traceObject,
     ...props,

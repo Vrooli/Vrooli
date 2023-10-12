@@ -10,7 +10,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 export type FocusModeShape = Pick<FocusMode, "id" | "name" | "description"> & {
     __typename: "FocusMode",
     reminderList?: ReminderListShape | null,
-    resourceList?: Omit<ResourceListShape, "listFor"> | null;
+    resourceList?: ResourceListShape | null;
     labels?: LabelShape[] | null,
     filters?: FocusModeFilterShape[] | null,
     schedule?: ScheduleShape | null,

@@ -1,4 +1,5 @@
-import { GqlModelType, MaxObjects, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
+import { GqlModelType, MaxObjects, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
+import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
@@ -6,30 +7,34 @@ import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { ScheduleFormat } from "../formats";
-import { FocusModeModelInfo, FocusModeModelLogic, MeetingModelInfo, MeetingModelLogic, RunProjectModelInfo, RunProjectModelLogic, RunRoutineModelInfo, RunRoutineModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types";
+import { ScheduleModelInfo, ScheduleModelLogic } from "./types";
+
+const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create"] } = {
+    FocusMode: "focusModes",
+    Meeting: "meetings",
+    RunProject: "runProjects",
+    RunRoutine: "runRoutines",
+};
 
 const __typename = "Schedule" as const;
 export const ScheduleModel: ScheduleModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.schedule,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                focusModes: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display.label.select() },
-                meetings: { select: ModelMap.get<MeetingModelLogic>("Meeting").display.label.select() },
-                runProjects: { select: ModelMap.get<RunProjectModelLogic>("RunProject").display.label.select() },
-                runRoutines: { select: ModelMap.get<RunRoutineModelLogic>("RunRoutine").display.label.select() },
+                ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) =>
+                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
-                if (select.focusModes && select.focusModes.length > 0) return ModelMap.get<FocusModeModelLogic>("FocusMode").display.label.get(select.focusModes[0] as FocusModeModelInfo["PrismaModel"], languages);
-                if (select.meetings && select.meetings.length > 0) return ModelMap.get<MeetingModelLogic>("Meeting").display.label.get(select.meetings[0] as MeetingModelInfo["PrismaModel"], languages);
-                if (select.runProjects && select.runProjects.length > 0) return ModelMap.get<RunProjectModelLogic>("RunProject").display.label.get(select.runProjects[0] as RunProjectModelInfo["PrismaModel"], languages);
-                if (select.runRoutines && select.runRoutines.length > 0) return ModelMap.get<RunRoutineModelLogic>("RunRoutine").display.label.get(select.runRoutines[0] as RunRoutineModelInfo["PrismaModel"], languages);
-                return i18next.t("common:Schedule", { lng: languages[0] });
+                for (const [key, value] of Object.entries(forMapper)) {
+                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                }
+                return i18next.t("common:Schedule", { lng: languages[0], count: 1 });
             },
         },
-    },
+    }),
     format: ScheduleFormat,
     mutate: {
         shape: {
@@ -83,58 +88,38 @@ export const ScheduleModel: ScheduleModelLogic = ({
         },
         searchStringQuery: () => ({
             OR: [
-                { focusModes: { some: ModelMap.get<FocusModeModelLogic>("FocusMode").search.searchStringQuery() } },
-                { meetings: { some: ModelMap.get<MeetingModelLogic>("Meeting").search.searchStringQuery() } },
-                { runProjects: { some: ModelMap.get<RunProjectModelLogic>("RunProject").search.searchStringQuery() } },
-                { runRoutines: { some: ModelMap.get<RunRoutineModelLogic>("RunRoutine").search.searchStringQuery() } },
+                ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ScheduleModelInfo["PrismaSelect"]>([
-            ["focusModes", "FocusMode"],
-            ["meetings", "Meeting"],
-            ["runProjects", "RunProject"],
-            ["runRoutines", "RunRoutine"],
-        ], ...rest),
+        isPublic: (...rest) => oneIsPublic<ScheduleModelInfo["PrismaSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType]), ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => {
             if (!data) return {};
             // Find owner from the object that has the pull request
-            const [onField, onData] = findFirstRel(data, [
-                "focusModes",
-                "meetings",
-                "runProjects",
-                "runRoutines",
-            ]);
+            const [onField, onData] = findFirstRel(data, Object.values(forMapper));
             if (!onField || !onData) return {};
             const onType = uppercaseFirstLetter(onField.slice(0, -1)) as GqlModelType;
             const canValidate = Array.isArray(onData) && onData.length > 0;
             if (!canValidate) return {};
-            const validate = ModelMap.get(onType).validate;
-            return validate.owner(onData[0], userId);
+            return ModelMap.get(onType).validate().owner(onData[0], userId);
         },
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            focusModes: "FocusMode",
-            meetings: "Meeting",
-            runProjects: "RunProject",
-            runRoutines: "RunRoutine",
+            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
                 OR: [
-                    { focusModes: { some: ModelMap.get<FocusModeModelLogic>("FocusMode").validate.visibility.owner(userId) } },
-                    { meetings: { some: ModelMap.get<MeetingModelLogic>("Meeting").validate.visibility.owner(userId) } },
-                    { runProjects: { some: ModelMap.get<RunProjectModelLogic>("RunProject").validate.visibility.owner(userId) } },
-                    { runRoutines: { some: ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate.visibility.owner(userId) } },
+                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.owner(userId) })),
                 ],
             }),
         },
-    },
+    }),
 });

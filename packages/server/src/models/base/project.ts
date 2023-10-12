@@ -16,7 +16,7 @@ const __typename = "Project" as const;
 export const ProjectModel: ProjectModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.project,
-    display: rootObjectDisplay(ModelMap.get<ProjectVersionModelLogic>("ProjectVersion")),
+    display: () => rootObjectDisplay(ModelMap.get<ProjectVersionModelLogic>("ProjectVersion")),
     format: ProjectFormat,
     mutate: {
         shape: {
@@ -103,7 +103,7 @@ export const ProjectModel: ProjectModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
@@ -141,5 +141,5 @@ export const ProjectModel: ProjectModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

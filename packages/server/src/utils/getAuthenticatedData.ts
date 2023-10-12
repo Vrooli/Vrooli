@@ -43,7 +43,7 @@ export const getAuthenticatedData = async (
         let select: PrismaSelect | undefined;
         let data: any[];
         try {
-            select = permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
+            select = permissionsSelectHelper(validate().permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
             data = await delegate(prisma).findMany({ where, select });
         } catch (error) {
             logger.error("getAuthenticatedData: findMany failed", { trace: "0453", error, type, select, where });

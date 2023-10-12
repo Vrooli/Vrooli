@@ -12,13 +12,13 @@ const __typename = "MeetingInvite" as const;
 export const MeetingInviteModel: MeetingInviteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.meeting_invite,
-    display: {
+    display: () => ({
         // Label is the meeting label
         label: {
-            select: () => ({ id: true, meeting: { select: ModelMap.get<MeetingModelLogic>("Meeting").display.label.select() } }),
-            get: (select, languages) => ModelMap.get<MeetingModelLogic>("Meeting").display.label.get(select.meeting as MeetingModelInfo["PrismaModel"], languages),
+            select: () => ({ id: true, meeting: { select: ModelMap.get<MeetingModelLogic>("Meeting").display().label.select() } }),
+            get: (select, languages) => ModelMap.get<MeetingModelLogic>("Meeting").display().label.get(select.meeting as MeetingModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: MeetingInviteFormat,
     mutate: {
         shape: {
@@ -62,7 +62,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -80,8 +80,8 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             private: {},
             public: {},
             owner: (userId) => ({
-                meeting: ModelMap.get<MeetingModelLogic>("Meeting").validate.visibility.owner(userId),
+                meeting: ModelMap.get<MeetingModelLogic>("Meeting").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

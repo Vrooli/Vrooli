@@ -10,12 +10,12 @@ const __typename = "Wallet" as const;
 export const WalletModel: WalletModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.wallet,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name ?? "",
         },
-    },
+    }),
     format: WalletFormat,
     mutate: {
         shape: {
@@ -39,7 +39,7 @@ export const WalletModel: WalletModelLogic = ({
         yup: walletValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -67,5 +67,5 @@ export const WalletModel: WalletModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

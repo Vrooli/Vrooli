@@ -16,12 +16,12 @@ const __typename = "RunRoutineStep" as const;
 export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.run_routine_step,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
-    },
+    }),
     format: RunRoutineStepFormat,
     mutate: {
         shape: {
@@ -46,7 +46,7 @@ export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
         yup: runRoutineStepValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -55,13 +55,13 @@ export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["name"],
-        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate.owner(data?.runRoutine as RunRoutineModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<RunRoutineStepModelInfo["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
             private: { runRoutine: { isPrivate: true } },
             public: { runRoutine: { isPrivate: false } },
-            owner: (userId) => ({ runRoutine: ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate.visibility.owner(userId) }),
+            owner: (userId) => ({ runRoutine: ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

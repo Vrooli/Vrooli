@@ -9,12 +9,12 @@ const __typename = "Email" as const;
 export const EmailModel: EmailModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.email,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, emailAddress: true }),
             get: (select) => select.emailAddress,
         },
-    },
+    }),
     format: EmailFormat,
     mutate: {
         shape: {
@@ -63,7 +63,7 @@ export const EmailModel: EmailModelLogic = ({
         yup: emailValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -82,5 +82,5 @@ export const EmailModel: EmailModelLogic = ({
             public: {},
             owner: (userId) => ({ user: { id: userId } }),
         },
-    },
+    }),
 });

@@ -11,12 +11,12 @@ export const NodeLoopModel: NodeLoopModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node_loop,
     // Doesn't make sense to have a displayer for this model
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true }),
             get: () => "",
         },
-    },
+    }),
     format: NodeLoopFormat,
     mutate: {
         shape: {
@@ -39,18 +39,18 @@ export const NodeLoopModel: NodeLoopModelLogic = ({
         yup: nodeLoopValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<NodeModelLogic>("Node").validate.owner(data?.node as NodeModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate.isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
+        owner: (data, userId) => ModelMap.get<NodeModelLogic>("Node").validate().owner(data?.node as NodeModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate().isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeLoopModelInfo["PrismaSelect"]>([["node", "Node"]], ...rest),
         visibility: {
-            private: { node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.private },
-            public: { node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.public },
-            owner: (userId) => ({ node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.owner(userId) }),
+            private: { node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.private },
+            public: { node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.public },
+            owner: (userId) => ({ node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

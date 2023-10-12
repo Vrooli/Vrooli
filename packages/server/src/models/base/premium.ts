@@ -9,7 +9,7 @@ const __typename = "Premium" as const;
 export const PremiumModel: PremiumModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.payment,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, customPlan: true }),
             get: (select, languages) => {
@@ -18,10 +18,10 @@ export const PremiumModel: PremiumModelLogic = ({
                 return i18next.t("common:PaymentPlanBasic", { lng });
             },
         },
-    },
+    }),
     format: PremiumFormat,
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
@@ -46,5 +46,5 @@ export const PremiumModel: PremiumModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

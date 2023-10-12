@@ -49,10 +49,10 @@ export const Subscriber = (prisma: PrismaType) => ({
         const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], object.__typename);
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
-            select: validate.permissionsSelect,
+            select: validate().permissionsSelect,
         });
-        const isPublic = permissionData && validate.isPublic(permissionData, () => undefined, userData.languages);
-        const isDeleted = permissionData && validate.isDeleted(permissionData, userData.languages);
+        const isPublic = permissionData && validate().isPublic(permissionData, () => undefined, userData.languages);
+        const isDeleted = permissionData && validate().isDeleted(permissionData, userData.languages);
         // Don't subscribe if object is private or deleted
         if (!isPublic || isDeleted)
             throw new CustomError("0332", "Unauthorized", userData.languages);

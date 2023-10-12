@@ -15,7 +15,7 @@ const __typename = "Note" as const;
 export const NoteModel: NoteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.note,
-    display: rootObjectDisplay(ModelMap.get<NoteVersionModelLogic>("NoteVersion")),
+    display: () => rootObjectDisplay(ModelMap.get<NoteVersionModelLogic>("NoteVersion")),
     format: NoteFormat,
     mutate: {
         shape: {
@@ -91,7 +91,7 @@ export const NoteModel: NoteModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         hasCompleteVersion: () => true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted === true,
@@ -123,5 +123,5 @@ export const NoteModel: NoteModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

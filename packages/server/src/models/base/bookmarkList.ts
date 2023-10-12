@@ -9,12 +9,12 @@ const __typename = "BookmarkList" as const;
 export const BookmarkListModel: BookmarkListModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.bookmark_list,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, label: true }),
             get: (select) => select.label,
         },
-    },
+    }),
     format: BookmarkListFormat,
     mutate: {
         shape: {
@@ -43,7 +43,7 @@ export const BookmarkListModel: BookmarkListModelLogic = ({
             label: "label",
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -63,5 +63,5 @@ export const BookmarkListModel: BookmarkListModelLogic = ({
                 user: { id: userId },
             }),
         },
-    },
+    }),
 });

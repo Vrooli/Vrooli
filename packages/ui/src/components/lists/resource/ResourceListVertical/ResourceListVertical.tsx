@@ -101,7 +101,7 @@ export const ResourceListVertical = ({
                 { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
                 resourceInitialValues(undefined, {
                     index: 0,
-                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
+                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listForType: parent.__typename, listForId: parent.id },
                 }) as NewResourceShape}
         />;
     }, [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id]);

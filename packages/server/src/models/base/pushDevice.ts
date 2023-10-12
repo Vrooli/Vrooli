@@ -8,7 +8,7 @@ const __typename = "PushDevice" as const;
 export const PushDeviceModel: PushDeviceModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.push_device,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true, p256dh: true }),
             get: (select) => {
@@ -18,7 +18,7 @@ export const PushDeviceModel: PushDeviceModelLogic = ({
                 return select.p256dh.length < 4 ? select.p256dh : `...${select.p256dh.slice(-4)}`;
             },
         },
-    },
+    }),
     format: PushDeviceFormat,
     mutate: {
         shape: {
@@ -37,7 +37,7 @@ export const PushDeviceModel: PushDeviceModelLogic = ({
         yup: pushDeviceValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -57,5 +57,5 @@ export const PushDeviceModel: PushDeviceModelLogic = ({
                 user: { id: userId },
             }),
         },
-    },
+    }),
 });

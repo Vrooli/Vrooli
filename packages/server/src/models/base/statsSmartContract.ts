@@ -9,15 +9,15 @@ const __typename = "StatsSmartContract" as const;
 export const StatsSmartContractModel: StatsSmartContractModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_smart_contract,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, smartContract: { select: ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.select() } }),
+            select: () => ({ id: true, smartContract: { select: ModelMap.get<SmartContractModelLogic>("SmartContract").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.get(select.smartContract as SmartContractModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<SmartContractModelLogic>("SmartContract").display().label.get(select.smartContract as SmartContractModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsSmartContractFormat,
     search: {
         defaultSort: StatsSmartContractSortBy.PeriodStartAsc,
@@ -28,7 +28,7 @@ export const StatsSmartContractModel: StatsSmartContractModelLogic = ({
         },
         searchStringQuery: () => ({ smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -36,13 +36,13 @@ export const StatsSmartContractModel: StatsSmartContractModelLogic = ({
             smartContract: "SmartContract",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<SmartContractModelLogic>("SmartContract").validate.owner(data?.smartContract as SmartContractModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<SmartContractModelLogic>("SmartContract").validate().owner(data?.smartContract as SmartContractModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsSmartContractModelInfo["PrismaSelect"]>([["smartContract", "SmartContract"]], ...rest),
         visibility: {
-            private: { smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").validate.visibility.private },
-            public: { smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").validate.visibility.public },
-            owner: (userId) => ({ smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").validate.visibility.owner(userId) }),
+            private: { smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").validate().visibility.private },
+            public: { smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").validate().visibility.public },
+            owner: (userId) => ({ smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

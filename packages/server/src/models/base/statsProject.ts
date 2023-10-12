@@ -9,15 +9,15 @@ const __typename = "StatsProject" as const;
 export const StatsProjectModel: StatsProjectModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_project,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, project: { select: ModelMap.get<ProjectModelLogic>("Project").display.label.select() } }),
+            select: () => ({ id: true, project: { select: ModelMap.get<ProjectModelLogic>("Project").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: ModelMap.get<ProjectModelLogic>("Project").display.label.get(select.project as ProjectModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<ProjectModelLogic>("Project").display().label.get(select.project as ProjectModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsProjectFormat,
     search: {
         defaultSort: StatsProjectSortBy.PeriodStartAsc,
@@ -28,7 +28,7 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
         },
         searchStringQuery: () => ({ project: ModelMap.get<ProjectModelLogic>("Project").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -36,13 +36,13 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
             project: "Project",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate.owner(data?.project as ProjectModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.project as ProjectModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsProjectModelInfo["PrismaSelect"]>([["project", "Project"]], ...rest),
         visibility: {
-            private: { project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.private },
-            public: { project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.public },
-            owner: (userId) => ({ project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.owner(userId) }),
+            private: { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private },
+            public: { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public },
+            owner: (userId) => ({ project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

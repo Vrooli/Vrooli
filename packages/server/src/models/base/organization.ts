@@ -17,7 +17,7 @@ const __typename = "Organization" as const;
 export const OrganizationModel: OrganizationModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.organization,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -32,7 +32,7 @@ export const OrganizationModel: OrganizationModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: OrganizationFormat,
     mutate: {
         shape: {
@@ -242,7 +242,7 @@ export const OrganizationModel: OrganizationModelLogic = ({
             return result;
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: false,
@@ -292,5 +292,5 @@ export const OrganizationModel: OrganizationModelLogic = ({
             public: { isPrivate: false },
             owner: (userId) => ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId),
         },
-    },
+    }),
 });

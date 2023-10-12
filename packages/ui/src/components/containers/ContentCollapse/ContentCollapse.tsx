@@ -1,4 +1,3 @@
-// Used to display popular/search results of a particular object type
 import { Box, Collapse, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ExpandLessIcon, ExpandMoreIcon } from "icons";

@@ -30,10 +30,10 @@ const collectProfanities = (
     // Handle base case
     // Get current object's formatter and validator
     const format = ModelMap.get(objectType, false)?.format;
-    const validate = ModelMap.get(objectType, false)?.validate;
+    const validator = ModelMap.get(objectType, false)?.validate();
     // If validator specifies profanityFields, add them to the result
-    if (validate?.profanityFields) {
-        for (const field of validate.profanityFields) {
+    if (validator?.profanityFields) {
+        for (const field of validator.profanityFields) {
             if (input[field]) result[field] = result[field] ? [...result[field], input[field]] : [input[field]];
         }
     }
@@ -117,7 +117,7 @@ export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById
         const existingData = authDataById[item.input[idField]];
         const input = item.input as object;
         const combinedData = authDataWithInput(input, existingData ?? {}, inputsById, authDataById);
-        const isPublic = validate?.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), languages);
+        const isPublic = validate().isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), languages);
         if (isPublic === false) continue;
         const newFields = collectProfanities(item.input as ProfanityFieldsToCheck, item.objectType);
         for (const field in newFields) {

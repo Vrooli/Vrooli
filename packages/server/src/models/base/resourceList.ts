@@ -6,7 +6,7 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceListFormat } from "../formats";
-import { ApiVersionModelLogic, FocusModeModelLogic, OrganizationModelLogic, PostModelLogic, ProjectVersionModelLogic, ResourceListModelInfo, ResourceListModelLogic, RoutineVersionModelLogic, SmartContractVersionModelLogic, StandardVersionModelLogic } from "./types";
+import { ResourceListModelInfo, ResourceListModelLogic } from "./types";
 
 const forMapper: { [key in ResourceListFor]: keyof Prisma.resource_listUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
@@ -23,12 +23,12 @@ const __typename = "ResourceList" as const;
 export const ResourceListModel: ResourceListModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.resource_list,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
-    },
+    }),
     format: ResourceListFormat,
     mutate: {
         shape: {
@@ -68,63 +68,30 @@ export const ResourceListModel: ResourceListModelLogic = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            apiVersion: "ApiVersion",
-            organization: "Organization",
-            post: "Post",
-            projectVersion: "ProjectVersion",
-            routineVersion: "RoutineVersion",
-            smartContractVersion: "SmartContractVersion",
-            standardVersion: "StandardVersion",
-            focusMode: "FocusMode",
+            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => {
             if (!data) return {};
-            const [resourceOnType, resourceOnData] = findFirstRel(data, [
-                "apiVersion",
-                "focusMode",
-                "organization",
-                "post",
-                "projectVersion",
-                "routineVersion",
-                "smartContractVersion",
-                "standardVersion",
-            ]);
+            const [resourceOnType, resourceOnData] = findFirstRel(data, Object.values(forMapper));
             if (!resourceOnType || !resourceOnData) return {};
-            const validate = ModelMap.get(uppercaseFirstLetter(resourceOnType) as GqlModelType).validate;
-            return validate.owner(resourceOnData, userId);
+            return ModelMap.get(uppercaseFirstLetter(resourceOnType) as GqlModelType).validate().owner(resourceOnData, userId);
         },
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ResourceListModelInfo["PrismaSelect"]>([
-            ["apiVersion", "ApiVersion"],
-            ["focusMode", "FocusMode"],
-            ["organization", "Organization"],
-            ["post", "Post"],
-            ["projectVersion", "ProjectVersion"],
-            ["routineVersion", "RoutineVersion"],
-            ["smartContractVersion", "SmartContractVersion"],
-            ["standardVersion", "StandardVersion"],
-        ], ...rest),
+        isPublic: (...rest) => oneIsPublic<ResourceListModelInfo["PrismaSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType]), ...rest),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
                 OR: [
-                    { apiVersion: ModelMap.get<ApiVersionModelLogic>("ApiVersion").validate.visibility.owner(userId) },
-                    { focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate.visibility.owner(userId) },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.owner(userId) },
-                    { post: ModelMap.get<PostModelLogic>("Post").validate.visibility.owner(userId) },
-                    { projectVersion: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate.visibility.owner(userId) },
-                    { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.owner(userId) },
-                    { smartContractVersion: ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion").validate.visibility.owner(userId) },
-                    { standardVersion: ModelMap.get<StandardVersionModelLogic>("StandardVersion").validate.visibility.owner(userId) },
+                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.owner(userId) })),
                 ],
             }),
         },
-    },
+    }),
 });

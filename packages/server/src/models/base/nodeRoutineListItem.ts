@@ -11,21 +11,21 @@ const __typename = "NodeRoutineListItem" as const;
 export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node_routine_list_item,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
                 translations: { select: { id: true, name: true } },
-                routineVersion: { select: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display.label.select() },
+                routineVersion: { select: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.select() },
             }),
             get: (select, languages) => {
                 // Prefer item translations over routineVersion's
                 const itemLabel = bestTranslation(select.translations, languages)?.name ?? "";
                 if (itemLabel.length > 0) return itemLabel;
-                return ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display.label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages);
+                return ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages);
             },
         },
-    },
+    }),
     format: NodeRoutineListItemFormat,
     mutate: {
         shape: {
@@ -47,18 +47,18 @@ export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
         yup: nodeRoutineListItemValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, list: "NodeRoutineList" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate.owner(data?.list as NodeRoutineListModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate.isDeleted(data.list as NodeRoutineListModelInfo["PrismaModel"], languages),
+        owner: (data, userId) => ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().owner(data?.list as NodeRoutineListModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().isDeleted(data.list as NodeRoutineListModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeRoutineListItemModelInfo["PrismaSelect"]>([["list", "NodeRoutineList"]], ...rest),
         visibility: {
-            private: { list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate.visibility.private },
-            public: { list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate.visibility.public },
-            owner: (userId) => ({ list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate.visibility.owner(userId) }),
+            private: { list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().visibility.private },
+            public: { list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().visibility.public },
+            owner: (userId) => ({ list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

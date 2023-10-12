@@ -50,7 +50,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
         },
     },
     delegate: (prisma) => prisma.run_routine,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
@@ -61,7 +61,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 return getEmbeddableString({ name }, languages[0]);
             },
         },
-    },
+    }),
     format: RunRoutineFormat,
     mutate: {
         shape: {
@@ -294,7 +294,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -325,5 +325,5 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

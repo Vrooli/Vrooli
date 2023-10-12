@@ -13,12 +13,12 @@ const __typename = "Label" as const;
 export const LabelModel: LabelModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.label,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, label: true }),
             get: (select) => select.label,
         },
-    },
+    }),
     format: LabelFormat,
     mutate: {
         shape: {
@@ -76,7 +76,7 @@ export const LabelModel: LabelModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -104,5 +104,5 @@ export const LabelModel: LabelModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

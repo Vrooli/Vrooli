@@ -8,14 +8,14 @@ const __typename = "StatsSite" as const;
 export const StatsSiteModel: StatsSiteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_site,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true }),
             get: (_, languages) => i18next.t("common:SiteStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
             }),
         },
-    },
+    }),
     format: StatsSiteFormat,
     search: {
         defaultSort: StatsSiteSortBy.PeriodStartAsc,
@@ -26,7 +26,7 @@ export const StatsSiteModel: StatsSiteModelLogic = ({
         },
         searchStringQuery: () => ({}),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
@@ -41,5 +41,5 @@ export const StatsSiteModel: StatsSiteModelLogic = ({
             public: {},
             owner: () => ({}),
         },
-    },
+    }),
 });

@@ -13,12 +13,12 @@ const MAX_NODES_IN_ROUTINE = 100;
 export const NodeModel: NodeModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
-    },
+    }),
     format: NodeFormat,
     mutate: {
         shape: {
@@ -63,18 +63,18 @@ export const NodeModel: NodeModelLogic = ({
         yup: nodeValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.isDeleted(data.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().isDeleted(data.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
-            private: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.private },
-            public: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.public },
-            owner: (userId) => ({ routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate.visibility.owner(userId) }),
+            private: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.private },
+            public: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.public },
+            owner: (userId) => ({ routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

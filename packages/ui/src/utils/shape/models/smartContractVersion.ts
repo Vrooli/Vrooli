@@ -12,7 +12,7 @@ export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTran
 export type SmartContractVersionShape = Pick<SmartContractVersion, "id" | "content" | "contractType" | "default" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
     __typename: "SmartContractVersion";
     directoryListings?: ProjectVersionDirectoryShape[] | null;
-    resourceList?: Omit<ResourceListShape, "listFor"> | null;
+    resourceList?: ResourceListShape | null;
     root?: { id: string } | SmartContractShape | null;
     suggestedNextBySmartContract?: { id: string }[] | null;
     translations?: SmartContractVersionTranslationShape[] | null;

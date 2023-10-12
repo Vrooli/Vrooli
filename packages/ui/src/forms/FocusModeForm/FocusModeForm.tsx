@@ -33,6 +33,10 @@ export const focusModeInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
         resources: [],
+        listFor: {
+            __typename: "FocusMode" as const,
+            id: DUMMY_ID,
+        },
     },
     filters: [],
     schedule: null,

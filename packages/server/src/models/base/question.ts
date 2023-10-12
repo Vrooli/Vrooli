@@ -24,7 +24,7 @@ const __typename = "Question" as const;
 export const QuestionModel: QuestionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.question,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -39,7 +39,7 @@ export const QuestionModel: QuestionModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: QuestionFormat,
     mutate: {
         shape: {
@@ -122,7 +122,7 @@ export const QuestionModel: QuestionModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
@@ -142,5 +142,5 @@ export const QuestionModel: QuestionModelLogic = ({
                 createdBy: { id: userId },
             }),
         },
-    },
+    }),
 });

@@ -8,24 +8,24 @@ const __typename = "RunRoutineInput" as const;
 export const RunRoutineInputModel: RunRoutineInputModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.run_routine_input,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                input: { select: ModelMap.get<RoutineVersionInputModelLogic>("RoutineVersionInput").display.label.select() },
-                runRoutine: { select: ModelMap.get<RunRoutineModelLogic>("RunRoutine").display.label.select() },
+                input: { select: ModelMap.get<RoutineVersionInputModelLogic>("RoutineVersionInput").display().label.select() },
+                runRoutine: { select: ModelMap.get<RunRoutineModelLogic>("RunRoutine").display().label.select() },
             }),
             // Label combines runRoutine's label and input's label
             get: (select, languages) => {
-                const runRoutineLabel = ModelMap.get<RunRoutineModelLogic>("RunRoutine").display.label.get(select.runRoutine as RunRoutineModelInfo["PrismaModel"], languages);
-                const inputLabel = ModelMap.get<RoutineVersionInputModelLogic>("RoutineVersionInput").display.label.get(select.input as RoutineVersionInputModelInfo["PrismaModel"], languages);
+                const runRoutineLabel = ModelMap.get<RunRoutineModelLogic>("RunRoutine").display().label.get(select.runRoutine as RunRoutineModelInfo["PrismaModel"], languages);
+                const inputLabel = ModelMap.get<RoutineVersionInputModelLogic>("RoutineVersionInput").display().label.get(select.input as RoutineVersionInputModelInfo["PrismaModel"], languages);
                 if (runRoutineLabel.length > 0) {
                     return `${runRoutineLabel} - ${inputLabel}`;
                 }
                 return inputLabel;
             },
         },
-    },
+    }),
     format: RunRoutineInputFormat,
     mutate: {
         shape: {
@@ -56,7 +56,7 @@ export const RunRoutineInputModel: RunRoutineInputModelLogic = ({
         },
         searchStringQuery: () => ({ runRoutine: ModelMap.get<RunRoutineModelLogic>("RunRoutine").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -65,13 +65,13 @@ export const RunRoutineInputModel: RunRoutineInputModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["data"],
-        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate.owner(data?.runRoutine as RunRoutineModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<RunRoutineInputModelInfo["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
             private: { runRoutine: { isPrivate: true } },
             public: { runRoutine: { isPrivate: false } },
-            owner: (userId) => ({ runRoutine: ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate.visibility.owner(userId) }),
+            owner: (userId) => ({ runRoutine: ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

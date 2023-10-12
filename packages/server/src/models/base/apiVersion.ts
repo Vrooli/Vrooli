@@ -13,7 +13,7 @@ const __typename = "ApiVersion" as const;
 export const ApiVersionModel: ApiVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.api_version,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: ({ callLink, translations }, languages) => {
@@ -41,7 +41,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: ApiVersionFormat,
     mutate: {
         shape: {
@@ -130,14 +130,14 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
             oneIsPublic<ApiVersionModelInfo["PrismaSelect"]>([["root", "Api"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate.owner(data?.root as ApiModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate().owner(data?.root as ApiModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -163,8 +163,8 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                 ],
             },
             owner: (userId) => ({
-                root: ModelMap.get<ApiModelLogic>("Api").validate.visibility.owner(userId),
+                root: ModelMap.get<ApiModelLogic>("Api").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

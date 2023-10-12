@@ -9,15 +9,15 @@ const __typename = "StatsStandard" as const;
 export const StatsStandardModel: StatsStandardModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_standard,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, standard: { select: ModelMap.get<StandardModelLogic>("Standard").display.label.select() } }),
+            select: () => ({ id: true, standard: { select: ModelMap.get<StandardModelLogic>("Standard").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: ModelMap.get<StandardModelLogic>("Standard").display.label.get(select.standard as StandardModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<StandardModelLogic>("Standard").display().label.get(select.standard as StandardModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsStandardFormat,
     search: {
         defaultSort: StatsStandardSortBy.PeriodStartAsc,
@@ -28,7 +28,7 @@ export const StatsStandardModel: StatsStandardModelLogic = ({
         },
         searchStringQuery: () => ({ standard: ModelMap.get<StandardModelLogic>("Standard").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -36,13 +36,13 @@ export const StatsStandardModel: StatsStandardModelLogic = ({
             standard: "Standard",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate.owner(data?.standard as StandardModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate().owner(data?.standard as StandardModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsStandardModelInfo["PrismaSelect"]>([["standard", "Standard"]], ...rest),
         visibility: {
-            private: { standard: ModelMap.get<StandardModelLogic>("Standard").validate.visibility.private },
-            public: { standard: ModelMap.get<StandardModelLogic>("Standard").validate.visibility.public },
-            owner: (userId) => ({ standard: ModelMap.get<StandardModelLogic>("Standard").validate.visibility.owner(userId) }),
+            private: { standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.private },
+            public: { standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.public },
+            owner: (userId) => ({ standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

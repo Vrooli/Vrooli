@@ -9,12 +9,12 @@ const __typename = "QuestionAnswer" as const;
 export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.question_answer,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
         },
-    },
+    }),
     format: QuestionAnswerFormat,
     mutate: {
         shape: {
@@ -47,7 +47,7 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
@@ -67,5 +67,5 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
                 createdBy: { id: userId },
             }),
         },
-    },
+    }),
 });

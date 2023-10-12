@@ -15,15 +15,15 @@ const __typename = "ReportResponse" as const;
 export const ReportResponseModel: ReportResponseModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.report_response,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                report: { select: ModelMap.get<ReportModelLogic>("Report").display.label.select() },
+                report: { select: ModelMap.get<ReportModelLogic>("Report").display().label.select() },
             }),
-            get: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ModelMap.get<ReportModelLogic>("Report").display.label.get(select.report as ReportModelInfo["PrismaModel"], languages) }),
+            get: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ModelMap.get<ReportModelLogic>("Report").display().label.get(select.report as ReportModelInfo["PrismaModel"], languages) }),
         },
-    },
+    }),
     format: ReportResponseFormat,
     mutate: {
         shape: {
@@ -71,18 +71,18 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 100000,
         permissionsSelect: () => ({ id: true, report: "Report" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<ReportModelLogic>("Report").validate.owner(data?.report as ReportModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<ReportModelLogic>("Report").validate.isDeleted(data.report as ReportModelInfo["PrismaModel"], languages),
+        owner: (data, userId) => ModelMap.get<ReportModelLogic>("Report").validate().owner(data?.report as ReportModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<ReportModelLogic>("Report").validate().isDeleted(data.report as ReportModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<ReportResponseModelInfo["PrismaSelect"]>([["report", "Report"]], ...rest),
         visibility: {
-            private: { report: ModelMap.get<ReportModelLogic>("Report").validate.visibility.private },
-            public: { report: ModelMap.get<ReportModelLogic>("Report").validate.visibility.public },
-            owner: (userId) => ({ report: ModelMap.get<ReportModelLogic>("Report").validate.visibility.owner(userId) }),
+            private: { report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.private },
+            public: { report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.public },
+            owner: (userId) => ({ report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

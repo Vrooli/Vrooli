@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { CommonKey, Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource, ResourceUsedFor } from "@local/shared";
+import { CommonKey, Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource, ResourceListFor, ResourceUsedFor } from "@local/shared";
 import { Box, IconButton, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
@@ -9,7 +9,7 @@ import { useDebounce } from "hooks/useDebounce";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
 import { DeleteIcon, EditIcon, LinkIcon } from "icons";
-import { forwardRef, useCallback, useContext, useMemo, useState } from "react";
+import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -47,12 +47,11 @@ const ResourceBox = styled(Box)(({ theme }) => ({
 })) as any;// TODO: Fix any - https://github.com/mui/material-ui/issues/38274
 
 const ResourceCard = forwardRef<any, ResourceCardProps>(({
-    canUpdate,
     data,
     dragProps,
     dragHandleProps,
-    hideIcons,
     index,
+    isEditing,
     onContextMenu,
     onEdit,
     onDelete,
@@ -104,6 +103,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
         onLongPress: handleContextMenu,
         onClick: handleClickDebounce,
         onRightClick: handleContextMenu,
+        pressDelay: isEditing ? 1500 : 300,
     });
 
     return (
@@ -118,7 +118,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
                 onClick={(e) => e.preventDefault()}
             >
                 {/* Edit and delete icons, only visible on hover */}
-                {canUpdate && !hideIcons && (
+                {isEditing && (
                     <>
                         <Tooltip title={t("Edit")}>
                             <IconButton
@@ -189,7 +189,6 @@ const LoadingCard = () => {
 export const ResourceListHorizontal = ({
     canUpdate = true,
     handleUpdate,
-    hideIcons = false,
     id,
     list,
     loading = false,
@@ -200,9 +199,14 @@ export const ResourceListHorizontal = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
+    const [isEditing, setIsEditing] = useState(false);
+    useEffect(() => {
+        if (!canUpdate) setIsEditing(false);
+    }, [canUpdate]);
+
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
-        if (!canUpdate || !destination || source.index === destination.index) return;
+        if (!isEditing || !destination || source.index === destination.index) return;
         // Handle the reordering of the resources in the list
         if (handleUpdate && list) {
             handleUpdate({
@@ -210,7 +214,7 @@ export const ResourceListHorizontal = ({
                 resources: updateArray(list.resources, source.index, list.resources[destination.index]) as any[],
             });
         }
-    }, [canUpdate, handleUpdate, list]);
+    }, [isEditing, handleUpdate, list]);
 
     const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const onDelete = useCallback((index: number) => {
@@ -291,7 +295,7 @@ export const ResourceListHorizontal = ({
                 { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
                 resourceInitialValues(undefined, {
                     index: 0,
-                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
+                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listForType: parent.__typename as ResourceListFor, listForId: parent.id },
                 }) as NewResourceShape}
         /> : null
     ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id]);
@@ -327,7 +331,14 @@ export const ResourceListHorizontal = ({
                 }}
                 resource={selectedResource}
             />
-            {title && <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>}
+            {title && <Box display="flex" flexDirection="row" alignItems="center">
+                <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
+                {true && <Tooltip title={t("Edit")}>
+                    <IconButton onClick={() => { setIsEditing(e => !e); }}>
+                        <EditIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} />
+                    </IconButton>
+                </Tooltip>}
+            </Box>}
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="resource-list" direction="horizontal">
                     {(provided) => (
@@ -337,14 +348,14 @@ export const ResourceListHorizontal = ({
                             {...provided.droppableProps}
                             justifyContent="flex-start"
                             alignItems="center"
-                            p={1}
                             sx={{
                                 display: "flex",
                                 gap: 2,
                                 width: "100%",
-                                maxWidth: "700px",
                                 marginLeft: "auto",
                                 marginRight: "auto",
+                                paddingTop: title ? 0 : 1,
+                                paddingBottom: 1,
                                 overflowX: "auto",
                             }}>
                             {/* Resources */}
@@ -353,17 +364,16 @@ export const ResourceListHorizontal = ({
                                     key={`resource-card-${index}`}
                                     draggableId={`resource-card-${index}`}
                                     index={index}
-                                    isDragDisabled={!canUpdate}
+                                    isDragDisabled={!isEditing}
                                 >
                                     {(provided) => (
                                         <ResourceCard
                                             ref={provided.innerRef}
                                             dragProps={provided.draggableProps}
                                             dragHandleProps={provided.dragHandleProps}
-                                            canUpdate={canUpdate}
                                             key={`resource-card-${index}`}
-                                            hideIcons={hideIcons}
                                             index={index}
+                                            isEditing={isEditing}
                                             data={c}
                                             onContextMenu={openContext}
                                             onEdit={openUpdateDialog}

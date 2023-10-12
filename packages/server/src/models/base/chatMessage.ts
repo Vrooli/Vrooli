@@ -85,7 +85,7 @@ const __typename = "ChatMessage" as const;
 export const ChatMessageModel: ChatMessageModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.chat_message,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => {
@@ -93,7 +93,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 return best.length > 30 ? best.slice(0, 30) + "..." : best;
             },
         },
-    },
+    }),
     format: ChatMessageFormat,
     mutate: {
         shape: {
@@ -602,7 +602,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -611,7 +611,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             User: data?.user,
         }),
         permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, userId }) => {
-            const isChatAdmin = userId ? isOwnerAdminCheck(ModelMap.get<ChatModelLogic>("Chat").validate.owner(data.chat as ChatModelInfo["PrismaModel"], userId), userId) : false;
+            const isChatAdmin = userId ? isOwnerAdminCheck(ModelMap.get<ChatModelLogic>("Chat").validate().owner(data.chat as ChatModelInfo["PrismaModel"], userId), userId) : false;
             const isParticipant = uuidValidate(userId) && (data.chat as ChatModelInfo["PrismaModel"]).participants?.some((p) => p.userId === userId);
             return {
                 canConnect: () => isLoggedIn && !isDeleted && isParticipant,
@@ -633,8 +633,8 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ModelMap.get<ChatModelLogic>("Chat").validate.visibility.owner(userId),
+                chat: ModelMap.get<ChatModelLogic>("Chat").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

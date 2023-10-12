@@ -1,4 +1,6 @@
 import { Count, GqlModelType, lowercaseFirstLetter, ViewFor, ViewSortBy } from "@local/shared";
+import { Prisma } from "@prisma/client";
+import i18next from "i18next";
 import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { CustomError } from "../../events/error";
@@ -7,7 +9,7 @@ import { withRedis } from "../../redisConn";
 import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions } from "../../utils/defaultPermissions";
 import { ViewFormat } from "../formats";
-import { ApiModelInfo, ApiModelLogic, IssueModelLogic, NoteModelInfo, NoteModelLogic, OrganizationModelInfo, OrganizationModelLogic, PostModelInfo, PostModelLogic, ProjectModelInfo, ProjectModelLogic, QuestionModelInfo, QuestionModelLogic, RoutineModelInfo, RoutineModelLogic, SmartContractModelInfo, SmartContractModelLogic, StandardModelInfo, StandardModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types";
+import { OrganizationModelLogic, ViewModelLogic } from "./types";
 
 const toWhere = (key: string, nestedKey: string | null, id: string) => {
     if (nestedKey) return { [key]: { [nestedKey]: { some: { id } } } };
@@ -142,40 +144,38 @@ const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> =>
     }).then(({ count }) => ({ __typename: "Count" as const, count }));
 };
 
+const displayMapper: { [key in ViewFor]?: keyof Prisma.viewUpsertArgs["create"] } = {
+    Api: "api",
+    Organization: "organization",
+    Question: "question",
+    Note: "note",
+    Post: "post",
+    Project: "project",
+    Routine: "routine",
+    SmartContract: "smartContract",
+    Standard: "standard",
+    User: "user",
+};
+
 const __typename = "View" as const;
 export const ViewModel: ViewModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.view,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                api: { select: ModelMap.get<ApiModelLogic>("Api").display.label.select() },
-                organization: { select: ModelMap.get<OrganizationModelLogic>("Organization").display.label.select() },
-                question: { select: ModelMap.get<QuestionModelLogic>("Question").display.label.select() },
-                note: { select: ModelMap.get<NoteModelLogic>("Note").display.label.select() },
-                post: { select: ModelMap.get<PostModelLogic>("Post").display.label.select() },
-                project: { select: ModelMap.get<ProjectModelLogic>("Project").display.label.select() },
-                routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display.label.select() },
-                smartContract: { select: ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.select() },
-                standard: { select: ModelMap.get<StandardModelLogic>("Standard").display.label.select() },
-                user: { select: ModelMap.get<UserModelLogic>("User").display.label.select() },
+                ...Object.fromEntries(Object.entries(displayMapper).map(([key, value]) =>
+                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
-                if (select.api) return ModelMap.get<ApiModelLogic>("Api").display.label.get(select.api as ApiModelInfo["PrismaModel"], languages);
-                if (select.organization) return ModelMap.get<OrganizationModelLogic>("Organization").display.label.get(select.organization as OrganizationModelInfo["PrismaModel"], languages);
-                if (select.question) return ModelMap.get<QuestionModelLogic>("Question").display.label.get(select.question as QuestionModelInfo["PrismaModel"], languages);
-                if (select.note) return ModelMap.get<NoteModelLogic>("Note").display.label.get(select.note as NoteModelInfo["PrismaModel"], languages);
-                if (select.post) return ModelMap.get<PostModelLogic>("Post").display.label.get(select.post as PostModelInfo["PrismaModel"], languages);
-                if (select.project) return ModelMap.get<ProjectModelLogic>("Project").display.label.get(select.project as ProjectModelInfo["PrismaModel"], languages);
-                if (select.routine) return ModelMap.get<RoutineModelLogic>("Routine").display.label.get(select.routine as RoutineModelInfo["PrismaModel"], languages);
-                if (select.smartContract) return ModelMap.get<SmartContractModelLogic>("SmartContract").display.label.get(select.smartContract as SmartContractModelInfo["PrismaModel"], languages);
-                if (select.standard) return ModelMap.get<StandardModelLogic>("Standard").display.label.get(select.standard as StandardModelInfo["PrismaModel"], languages);
-                if (select.user) return ModelMap.get<UserModelLogic>("User").display.label.get(select.user as UserModelInfo["PrismaModel"], languages);
-                return "";
+                for (const [key, value] of Object.entries(displayMapper)) {
+                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                }
+                return i18next.t("common:View", { lng: languages[0], count: 1 });
             },
         },
-    },
+    }),
     format: ViewFormat,
     search: {
         defaultSort: ViewSortBy.LastViewedDesc,
@@ -186,17 +186,7 @@ export const ViewModel: ViewModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { api: ModelMap.get<ApiModelLogic>("Api").search.searchStringQuery() },
-                { issue: ModelMap.get<IssueModelLogic>("Issue").search.searchStringQuery() },
-                { note: ModelMap.get<NoteModelLogic>("Note").search.searchStringQuery() },
-                { organization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
-                { question: ModelMap.get<QuestionModelLogic>("Question").search.searchStringQuery() },
-                { post: ModelMap.get<PostModelLogic>("Post").search.searchStringQuery() },
-                { project: ModelMap.get<ProjectModelLogic>("Project").search.searchStringQuery() },
-                { routine: ModelMap.get<RoutineModelLogic>("Routine").search.searchStringQuery() },
-                { smartContract: ModelMap.get<SmartContractModelLogic>("SmartContract").search.searchStringQuery() },
-                { standard: ModelMap.get<StandardModelLogic>("Standard").search.searchStringQuery() },
-                { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
+                ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
             ],
         }),
     },
@@ -223,7 +213,7 @@ export const ViewModel: ViewModelLogic = ({
             return result;
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -246,7 +236,7 @@ export const ViewModel: ViewModelLogic = ({
                 by: { id: userId },
             }),
         },
-    },
+    }),
     /**
      * Marks objects as viewed. If view exists, updates last viewed time.
      * A user may view their own objects, but it does not count towards its view count.

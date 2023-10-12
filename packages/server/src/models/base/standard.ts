@@ -17,7 +17,7 @@ const __typename = "Standard" as const;
 export const StandardModel: StandardModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.standard,
-    display: rootObjectDisplay(ModelMap.get<StandardVersionModelLogic>("StandardVersion")),
+    display: () => rootObjectDisplay(ModelMap.get<StandardVersionModelLogic>("StandardVersion")),
     format: StandardFormat,
     mutate: {
         shape: {
@@ -200,7 +200,7 @@ export const StandardModel: StandardModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
@@ -240,5 +240,5 @@ export const StandardModel: StandardModelLogic = ({
         },
         // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
         // TODO when deleting, anonymize standards which are being used by inputs/outputs
-    },
+    }),
 });

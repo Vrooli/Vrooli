@@ -9,7 +9,7 @@ const __typename = "Phone" as const;
 export const PhoneModel: PhoneModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.phone,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, phoneNumber: true }),
             // Only display last 4 digits of phone number
@@ -19,7 +19,7 @@ export const PhoneModel: PhoneModelLogic = ({
                 return `...${select.phoneNumber.slice(-4)}`;
             },
         },
-    },
+    }),
     format: PhoneFormat,
     mutate: {
         shape: {
@@ -45,7 +45,7 @@ export const PhoneModel: PhoneModelLogic = ({
         yup: phoneValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -70,5 +70,5 @@ export const PhoneModel: PhoneModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

@@ -12,7 +12,7 @@ const __typename = "RunProject" as const;
 export const RunProjectModel: RunProjectModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.run_project,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
@@ -23,7 +23,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
                 return getEmbeddableString({ name }, languages[0]);
             },
         },
-    },
+    }),
     format: RunProjectFormat,
     mutate: {
         shape: {
@@ -93,7 +93,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -124,5 +124,5 @@ export const RunProjectModel: RunProjectModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

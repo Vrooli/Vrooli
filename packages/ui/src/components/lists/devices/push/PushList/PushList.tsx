@@ -36,7 +36,7 @@ export const PushList = ({
             },
         },
         enableReinitialize: true,
-        validationSchema: pushDeviceValidation.create({ env: process.env.NODE_ENV }),
+        validationSchema: pushDeviceValidation.create({ env: process.env.NODE_ENV as "development" | "production" }),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
             fetchLazyWrapper<PushDeviceCreateInput, PushDevice>({

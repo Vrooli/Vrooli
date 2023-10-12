@@ -11,12 +11,12 @@ const __typename = "NodeEnd" as const;
 export const NodeEndModel: NodeEndModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node_end,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display.label.select() } }),
-            get: (select, languages) => ModelMap.get<NodeModelLogic>("Node").display.label.get(select.node as NodeModelInfo["PrismaModel"], languages),
+            select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display().label.select() } }),
+            get: (select, languages) => ModelMap.get<NodeModelLogic>("Node").display().label.get(select.node as NodeModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: NodeEndFormat,
     mutate: {
         shape: {
@@ -38,18 +38,18 @@ export const NodeEndModel: NodeEndModelLogic = ({
         yup: nodeEndValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<NodeModelLogic>("Node").validate.owner(data?.node as NodeModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate.isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
+        owner: (data, userId) => ModelMap.get<NodeModelLogic>("Node").validate().owner(data?.node as NodeModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate().isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeEndModelInfo["PrismaSelect"]>([["node", "Node"]], ...rest),
         visibility: {
-            private: { node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.private },
-            public: { node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.public },
-            owner: (userId) => ({ node: ModelMap.get<NodeModelLogic>("Node").validate.visibility.owner(userId) }),
+            private: { node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.private },
+            public: { node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.public },
+            owner: (userId) => ({ node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

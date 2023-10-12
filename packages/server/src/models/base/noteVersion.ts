@@ -13,7 +13,7 @@ const __typename = "NoteVersion" as const;
 export const NoteVersionModel: NoteVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.note_version,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -33,7 +33,7 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: NoteVersionFormat,
     mutate: {
         shape: {
@@ -150,13 +150,13 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             oneIsPublic<NoteVersionModelInfo["PrismaSelect"]>([["root", "Note"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<NoteModelLogic>("Note").validate.owner(data?.root as NoteModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<NoteModelLogic>("Note").validate().owner(data?.root as NoteModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -182,8 +182,8 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                 ],
             },
             owner: (userId) => ({
-                root: ModelMap.get<NoteModelLogic>("Note").validate.visibility.owner(userId),
+                root: ModelMap.get<NoteModelLogic>("Note").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
 import { PrismaDelegate } from "../../builders/types";
 import { CustomError } from "../../events/error";
 import { PrismaType } from "../../types";
@@ -29,9 +29,9 @@ function getCallerFunctionName(): string {
     } catch (e) {
         if (e instanceof Error) {
             const stack = e.stack?.split("\n");
-            if (!stack || stack.length < 3) return "unknown";
+            if (!stack || stack.length < 4) return "unknown";
             // The current function is at stack[1], so the caller is at stack[2]
-            const match = stack[2].match(/at (\S+)/);
+            const match = stack[3].match(/at (\S+)/);
             return match && match[1] || "unknown";
         }
         return "unknown";
@@ -50,7 +50,7 @@ export class ModelMap {
         const modelNames = Object.keys(GqlModelType) as (keyof typeof ModelMap.prototype.map)[];
         for (const modelName of modelNames) {
             try {
-                this.map[modelName] = (await import(`./${modelName.toLowerCase()}`))[`${modelName}Model`];
+                this.map[modelName] = (await import(`./${lowercaseFirstLetter(modelName)}`))[`${modelName}Model`];
             } catch (error) {
                 this.map[modelName] = {};
             }
@@ -76,16 +76,16 @@ export class ModelMap {
     ): ThrowError extends true ? T : (T | undefined) {
         if (!objectType) {
             if (throwErrorIfNotFound) {
-                const trace = errorTrace ?? getCallerFunctionName();
-                throw new CustomError("0023", "InternalError", ["en"], { trace });
+                const caller = errorTrace ?? getCallerFunctionName();
+                throw new CustomError("0023", "InternalError", ["en"], { caller });
             } else {
                 return {} as ThrowError extends true ? T : undefined;
             }
         }
         const isModelObject = this.isModel(objectType);
         if (!isModelObject && throwErrorIfNotFound) {
-            const trace = errorTrace ?? getCallerFunctionName();
-            throw new CustomError("0024", "InternalError", ["en"], { trace, objectType });
+            const caller = errorTrace ?? getCallerFunctionName();
+            throw new CustomError("0024", "InternalError", ["en"], { caller, objectType });
         }
         return (isModelObject ? ModelMap.instance.map[objectType] : undefined) as ThrowError extends true ? T : (T | undefined);
     }
@@ -112,8 +112,8 @@ export class ModelMap {
             }
             // Make sure logic function exists
             if (!logic && throwErrorIfNotFound) {
-                const trace = errorTrace ?? getCallerFunctionName();
-                throw new CustomError("0367", "InternalError", ["en"], { trace, objectType, field });
+                const caller = errorTrace ?? getCallerFunctionName();
+                throw new CustomError("0367", "InternalError", ["en"], { caller, objectType, field });
             }
         }
         return object as unknown as GetLogicReturn<Logic[number]>;

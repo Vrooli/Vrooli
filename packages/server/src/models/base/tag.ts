@@ -11,7 +11,7 @@ const __typename = "Tag" as const;
 export const TagModel: TagModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.tag,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, tag: true }),
             get: (select) => select.tag,
@@ -26,7 +26,7 @@ export const TagModel: TagModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     idField: "tag",
     format: TagFormat,
     mutate: {
@@ -81,7 +81,7 @@ export const TagModel: TagModelLogic = ({
             }),
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, tag: true }),
@@ -95,5 +95,5 @@ export const TagModel: TagModelLogic = ({
             public: {},
             owner: () => ({}),
         },
-    },
+    }),
 });

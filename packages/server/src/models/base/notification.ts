@@ -7,12 +7,12 @@ const __typename = "Notification" as const;
 export const NotificationModel: NotificationModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.notification,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, title: true }),
             get: (select) => select.title,
         },
-    },
+    }),
     format: NotificationFormat,
     search: {
         defaultSort: NotificationSortBy.DateCreatedDesc,
@@ -28,7 +28,7 @@ export const NotificationModel: NotificationModelLogic = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
@@ -48,5 +48,5 @@ export const NotificationModel: NotificationModelLogic = ({
                 user: { id: userId },
             }),
         },
-    },
+    }),
 });

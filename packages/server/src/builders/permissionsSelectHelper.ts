@@ -57,7 +57,7 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
                     // Child omit is curr omit with first dot level removed, combined with value[1]
                     const childOmitFields = removeFirstDotLayer(omitFields).concat(value[1]);
                     // Child map is the validator's permissionsSelect function
-                    const childMap = validate.permissionsSelect(userId, languages);
+                    const childMap = validate().permissionsSelect(userId, languages);
                     if (childMap) {
                         result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1, childOmitFields) };
                     }
@@ -88,7 +88,7 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
                 // Child omit is curr omit with first dot level removed
                 const childOmitFields = removeFirstDotLayer(omitFields);
                 // Child map is the validator's permissionsSelect function
-                const childMap = validate.permissionsSelect(userId, languages);
+                const childMap = validate().permissionsSelect(userId, languages);
                 if (childMap) {
                     result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1, childOmitFields) };
                 }

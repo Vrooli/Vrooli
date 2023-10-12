@@ -10,15 +10,15 @@ const __typename = "Member" as const;
 export const MemberModel: MemberModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.member,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                user: { select: ModelMap.get<UserModelLogic>("User").display.label.select() },
+                user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() },
             }),
-            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display.label.get(select.user as UserModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: MemberFormat,
     search: {
         defaultSort: MemberSortBy.DateCreatedDesc,
@@ -47,18 +47,18 @@ export const MemberModel: MemberModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, organization: "Organization" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<OrganizationModelLogic>("Organization").validate.owner(data?.organization as OrganizationModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<OrganizationModelLogic>("Organization").validate.isDeleted(data.organization as OrganizationModelInfo["PrismaModel"], languages),
+        owner: (data, userId) => ModelMap.get<OrganizationModelLogic>("Organization").validate().owner(data?.organization as OrganizationModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<OrganizationModelLogic>("Organization").validate().isDeleted(data.organization as OrganizationModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<MemberModelInfo["PrismaSelect"]>([["organization", "Organization"]], ...rest),
         visibility: {
-            private: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.private },
-            public: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.public },
-            owner: (userId) => ({ organization: ModelMap.get<OrganizationModelLogic>("Organization").validate.visibility.owner(userId) }),
+            private: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.private },
+            public: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.public },
+            owner: (userId) => ({ organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

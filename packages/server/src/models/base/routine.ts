@@ -198,7 +198,7 @@ const __typename = "Routine" as const;
 export const RoutineModel: RoutineModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.routine,
-    display: rootObjectDisplay(ModelMap.get<RoutineVersionModelLogic>("RoutineVersion")),
+    display: () => rootObjectDisplay(ModelMap.get<RoutineVersionModelLogic>("RoutineVersion")),
     format: RoutineFormat,
     mutate: {
         shape: {
@@ -288,7 +288,7 @@ export const RoutineModel: RoutineModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
@@ -328,5 +328,5 @@ export const RoutineModel: RoutineModelLogic = ({
                 ],
             }),
         },
-    },
+    }),
 });

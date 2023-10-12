@@ -24,12 +24,12 @@ const __typename = "Comment" as const;
 export const CommentModel: CommentModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.comment,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
         },
-    },
+    }),
     format: CommentFormat,
     mutate: {
         shape: {
@@ -267,7 +267,7 @@ export const CommentModel: CommentModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -311,5 +311,5 @@ export const CommentModel: CommentModelLogic = ({
             public: {},
             owner: (userId) => ({ ownedByUser: { id: userId } }),
         },
-    },
+    }),
 });

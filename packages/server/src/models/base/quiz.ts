@@ -14,7 +14,7 @@ const __typename = "Quiz" as const;
 export const QuizModel: QuizModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.quiz,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -29,7 +29,7 @@ export const QuizModel: QuizModelLogic = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: QuizFormat,
     mutate: {
         shape: {
@@ -112,7 +112,7 @@ export const QuizModel: QuizModelLogic = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<QuizModelInfo["PrismaSelect"]>([
             ["project", "Project"],
@@ -135,18 +135,18 @@ export const QuizModel: QuizModelLogic = ({
             private: {
                 OR: [
                     { isPrivate: true },
-                    { project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.private },
-                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate.visibility.private },
+                    { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private },
+                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private },
                 ],
             },
             public: {
                 AND: [
                     { isPrivate: false },
-                    { project: ModelMap.get<ProjectModelLogic>("Project").validate.visibility.public },
-                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate.visibility.public },
+                    { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public },
+                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public },
                 ],
             },
             owner: (userId) => ({ createdBy: { id: userId } }),
         },
-    },
+    }),
 });
