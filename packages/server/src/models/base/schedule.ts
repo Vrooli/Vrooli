@@ -88,7 +88,7 @@ export const ScheduleModel: ScheduleModelLogic = ({
         },
         searchStringQuery: () => ({
             OR: [
-                ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
+                ...Object.entries(forMapper).map(([key, value]) => ({ [value]: { some: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() } })),
             ],
         }),
     },
@@ -117,7 +117,7 @@ export const ScheduleModel: ScheduleModelLogic = ({
             public: {},
             owner: (userId) => ({
                 OR: [
-                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.owner(userId) })),
+                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: { some: ModelMap.get(key as GqlModelType).validate().visibility.owner(userId) } })),
                 ],
             }),
         },
