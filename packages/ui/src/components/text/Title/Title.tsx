@@ -34,7 +34,7 @@ export const Title = ({
             justifyContent="center"
             alignItems="center"
             sx={{
-                padding: 2,
+                padding: 1,
                 wordBreak: "break-word",
                 ...sxs?.stack,
             }}

@@ -132,6 +132,7 @@
     "CreateBot": "Create bot",
     "CreateBotDescription": "Create a bot to chat with and use in your routines",
     "CreateChat": "Create chat",
+    "CreateChatDescription": "Create a chat to message users and bots",
     "CreateEvent": "Create event",
     "CreateFocusMode": "Create focus mode",
     "CreateInvite": "Create invite",

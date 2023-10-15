@@ -1422,7 +1422,7 @@ export type HomeInput = {
 
 export type HomeResult = {
   __typename: 'HomeResult';
-  notes: Array<Note>;
+  recommended: Array<Resource>;
   reminders: Array<Reminder>;
   resources: Array<Resource>;
   schedules: Array<Schedule>;
@@ -11762,7 +11762,7 @@ export type FocusModeSearchResultResolvers<ContextType = any, ParentType extends
 };
 
 export type HomeResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['HomeResult'] = ResolversParentTypes['HomeResult']> = {
-  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
+  recommended?: Resolver<Array<ResolversTypes['Resource']>, ParentType, ContextType>;
   reminders?: Resolver<Array<ResolversTypes['Reminder']>, ParentType, ContextType>;
   resources?: Resolver<Array<ResolversTypes['Resource']>, ParentType, ContextType>;
   schedules?: Resolver<Array<ResolversTypes['Schedule']>, ParentType, ContextType>;

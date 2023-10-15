@@ -237,6 +237,7 @@ export interface ProfilePictureInputProps {
 }
 
 export interface IntegerInputProps extends BoxProps {
+    allowDecimal?: boolean;
     autoFocus?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;

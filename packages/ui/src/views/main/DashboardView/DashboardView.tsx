@@ -1,6 +1,7 @@
 import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
 import { Box, IconButton, useTheme } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
+import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ResourceListHorizontal } from "components/lists/resource";
@@ -341,7 +342,7 @@ export const DashboardView = ({
                     />
                 </Box>
                 {/* Events */}
-                <ListTitleContainer
+                {upcomingEvents.length > 0 && <ListTitleContainer
                     Icon={MonthIcon}
                     id="main-event-list"
                     isEmpty={upcomingEvents.length === 0 && !loading}
@@ -359,9 +360,9 @@ export const DashboardView = ({
                         loading={loading}
                         onAction={onEventAction}
                     />
-                </ListTitleContainer>
+                </ListTitleContainer>}
                 {/* Reminders */}
-                <ListTitleContainer
+                {reminders.length > 0 && <ListTitleContainer
                     Icon={ReminderIcon}
                     id="main-reminder-list"
                     isEmpty={reminders.length === 0 && !loading}
@@ -383,7 +384,7 @@ export const DashboardView = ({
                         loading={loading}
                         onAction={onReminderAction}
                     />
-                </ListTitleContainer>
+                </ListTitleContainer>}
             </Box>
             <Resizable
                 id="chat-message-input"
@@ -403,6 +404,7 @@ export const DashboardView = ({
                     setSearchString={setSearchString}
                 />
             </Resizable>
+            <ChatSideMenu />
         </>
     );
 };

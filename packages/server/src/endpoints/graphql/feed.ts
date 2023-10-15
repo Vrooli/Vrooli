@@ -70,10 +70,10 @@ export const typeDef = gql`
     }
 
     type HomeResult {
-        notes: [Note!]!
-        reminders: [Reminder!]!
+        recommended: [Resource!]! # Not real resources (i.e. pulled from a feed instead of queried from database), but mimics the Resource shape
+        reminders: [Reminder!]! # Should only show reminders for the current focus mode which are almost due or overdue
         resources: [Resource!]!
-        schedules: [Schedule!]!
+        schedules: [Schedule!]! # Should only show schedules with upcoming or current events
     }
 
     type Query {

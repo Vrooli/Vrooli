@@ -10626,11 +10626,11 @@
             ],
             "type": "string"
           },
-          "notes": {
+          "recommended": {
             "items": {
-              "$ref": "#/components/schemas/Note"
+              "$ref": "#/components/schemas/Resource"
             },
-            "title": "HomeResult.notes",
+            "title": "HomeResult.recommended",
             "type": "array"
           },
           "reminders": {
@@ -10657,7 +10657,7 @@
         },
         "required": [
           "__typename",
-          "notes",
+          "recommended",
           "reminders",
           "resources",
           "schedules"

@@ -1,4 +1,5 @@
-import { AccountStatus, COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, emailSignUpFormValidation, EmailSignUpInput, LogOutInput, password as passwordValidation, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
+import { AccountStatus, COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, emailSignUpFormValidation, EmailSignUpInput, LINKS, LogOutInput, password as passwordValidation, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
+import { Prisma } from "@prisma/client";
 import { hashPassword, logIn, setupPasswordReset, validateCode, validateVerificationCode } from "../../auth/email";
 import { generateSessionJwt, getUser, updateSessionTimeZone } from "../../auth/request";
 import { sessionUserTokenToUser, toSession, toSessionUser } from "../../auth/session";
@@ -29,7 +30,7 @@ export type EndpointsAuth = {
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /** Default user data */
-const DEFAULT_USER_DATA = {
+const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Prisma.userUncheckedCreateInput>> = {
     isPrivateBookmarks: true,
     isPrivateVotes: true,
     focusModes: {
@@ -37,12 +38,91 @@ const DEFAULT_USER_DATA = {
             name: "Work",
             description: "This is an auto-generated focus mode. You can edit or delete it.",
             reminderList: { create: {} },
-            resourceList: { create: {} },
+            resourceList: {
+                create: {
+                    resources: {
+                        create: [{
+                            link: LINKS.Calendar,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Schedule",
+                                    description: "View your schedule and add new events.",
+                                }],
+                            },
+                        }, {
+                            link: `${LINKS.MyStuff}?type=Reminder`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Reminders",
+                                }],
+                            },
+                        }, {
+                            link: `${LINKS.MyStuff}?type=Note`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Notes",
+                                }],
+                            },
+                        }, {
+                            link: `${LINKS.History}?type=RunsActive`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Runs",
+                                    description: "View your active routines and projects, and start new ones.",
+                                }],
+                            },
+                        }],
+                    },
+                },
+            },
         }, {
             name: "Study",
             description: "This is an auto-generated focus mode. You can edit or delete it.",
             reminderList: { create: {} },
-            resourceList: { create: {} },
+            resourceList: {
+                create: {
+                    resources: {
+                        create: [{
+                            link: `${LINKS.History}?type=Bookmarked`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Bookmarks",
+                                }],
+                            },
+                        }, {
+                            link: `${LINKS.Search}?type=Routine`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Find Routines",
+                                    description: "Search for public routines to view, run, schedule, or bookmark.",
+                                }],
+                            },
+                        }, {
+                            link: `${LINKS.Search}?type=Project`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Find Projects",
+                                    description: "Search for public projects to view, run, schedule, or bookmark.",
+                                }],
+                            },
+                        }],
+                    },
+                },
+            },
         }],
     },
 };

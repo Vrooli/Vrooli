@@ -23,20 +23,15 @@ export const FeedEndpoints: EndpointsFeed = {
             const activeFocusMode = userData.activeFocusMode;
             const partial = toPartialGqlInfo(info, {
                 __typename: "HomeResult",
-                notes: "Note",
+                recommended: "Resource",
                 reminders: "Reminder",
                 resources: "Resource",
                 schedules: "Schedule",
             }, req.session.languages, true);
             const take = 10;
             const commonReadParams = { prisma, req };
-            // Query notes
-            const { nodes: notes } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                info: partial.notes as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: NoteSortBy.DateUpdatedDesc, visibility: VisibilityType.Own },
-                objectType: "Note",
-            });
+            // Query recommended TODO
+            const recommended: object[] = [];
             // Query reminders
             const { nodes: reminders } = await readManyAsFeedHelper({
                 ...commonReadParams,
@@ -81,7 +76,7 @@ export const FeedEndpoints: EndpointsFeed = {
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes({
-                notes,
+                recommended,
                 reminders,
                 resources,
                 schedules,

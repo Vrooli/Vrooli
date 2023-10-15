@@ -21,6 +21,7 @@ type HoldRefs = {
 }
 
 export const IntegerInput = ({
+    allowDecimal = false,
     autoFocus = false,
     disabled = false,
     fullWidth = false,
@@ -91,30 +92,13 @@ export const IntegerInput = ({
                 justifyContent: "center",
                 ...props?.sx ?? {},
             }}>
-                <IconButton
-                    aria-label='minus'
-                    disabled={disabled}
-                    onMouseDown={handleMinusDown}
-                    onMouseUp={stopTouch}
-                    onTouchStart={handleMinusDown}
-                    onTouchEnd={stopTouch}
-                    onContextMenu={(e) => e.preventDefault()}
-                    sx={{
-                        ...buttonProps,
-                        background: palette.secondary.main,
-                        borderRadius: "5px 0 0 5px",
-                    }}>
-                    <MinusIcon />
-                </IconButton>
                 <FormControl sx={{
                     background: palette.background.paper,
-                    width: fullWidth ? "100%" : "60%",
+                    width: "100%",
                     maxWidth: fullWidth ? "100%" : "12ch",
                     height: "100%",
-                    display: "grid",
-                    "& input::-webkit-clear-button, & input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
-                        display: "none",
-                    },
+                    borderRadius: "4px",
+                    border: `1px solid ${palette.divider}`,
                 }} error={meta.touched && !!meta.error}>
                     <InputLabel
                         htmlFor={`quantity-box-${name}`}
@@ -124,7 +108,7 @@ export const IntegerInput = ({
                                 (field.value === min || field.value === max) ?
                                     palette.warning.main :
                                     palette.background.textSecondary,
-                            paddingTop: "10px",
+                            paddingTop: "12px",
                         }}
                     >{label}</InputLabel>
                     <Input
@@ -149,21 +133,6 @@ export const IntegerInput = ({
                     />
                     {meta.touched && meta.error && <FormHelperText id={`helper-text-${name}`}>{meta.error}</FormHelperText>}
                 </FormControl>
-                <IconButton
-                    aria-label='plus'
-                    disabled={disabled}
-                    onMouseDown={handlePlusDown}
-                    onMouseUp={stopTouch}
-                    onTouchStart={handlePlusDown}
-                    onTouchEnd={stopTouch}
-                    onContextMenu={(e) => e.preventDefault()}
-                    sx={{
-                        ...buttonProps,
-                        background: palette.secondary.main,
-                        borderRadius: "0 5px 5px 0",
-                    }}>
-                    <PlusIcon />
-                </IconButton>
             </Box>
         </Tooltip >
     );

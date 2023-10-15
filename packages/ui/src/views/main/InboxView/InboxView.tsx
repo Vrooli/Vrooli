@@ -12,12 +12,14 @@ import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, CompleteIcon } from "icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { ArgsType } from "types";
 import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
+import { getObjectUrlBase } from "utils/navigation/openObject";
 import { InboxPageTabOption, inboxTabParams } from "utils/search/objectToSearch";
 import { InboxViewProps } from "../types";
 
@@ -29,6 +31,7 @@ export const InboxView = ({
 }: InboxViewProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
     const display = toDisplay(isOpen);
 
     const {
@@ -67,13 +70,9 @@ export const InboxView = ({
         });
     }, [markAllAsReadMutation, setAllData]);
 
-    const [isCreateChatOpen, setIsCreateChatOpen] = useState(false);
-    const openCreateChat = useCallback(() => { setIsCreateChatOpen(true); }, []);
-    const closeCreateChat = useCallback(() => { setIsCreateChatOpen(false); }, []);
-    const onChatCreated = useCallback((chat: Chat) => {
-        closeCreateChat();
-        //TODO
-    }, [closeCreateChat]);
+    const openCreateChat = useCallback(() => {
+        setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`);
+    }, [setLocation]);
 
     const [onActionButtonPress, ActionButtonIcon, actionTooltip] = useMemo(() => {
         if (currTab.tabType === InboxPageTabOption.Notification) {
