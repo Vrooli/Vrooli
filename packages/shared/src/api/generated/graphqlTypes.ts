@@ -1416,8 +1416,7 @@ export enum GqlModelType {
 }
 
 export type HomeInput = {
-  searchString: Scalars['String'];
-  take?: InputMaybe<Scalars['Int']>;
+  activeFocusModeId?: InputMaybe<Scalars['ID']>;
 };
 
 export type HomeResult = {

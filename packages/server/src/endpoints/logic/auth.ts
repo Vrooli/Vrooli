@@ -29,6 +29,7 @@ export type EndpointsAuth = {
 /** Expiry time for wallet authentication */
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
+const BASE_URL = "https://vrooli.com";
 /** Default user data */
 const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Prisma.userUncheckedCreateInput>> = {
     isPrivateBookmarks: true,
@@ -42,7 +43,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                 create: {
                     resources: {
                         create: [{
-                            link: LINKS.Calendar,
+                            link: `${BASE_URL}${LINKS.Calendar}`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -52,7 +53,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${LINKS.MyStuff}?type=Reminder`,
+                            link: `${BASE_URL}${LINKS.MyStuff}?type=Reminder`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -61,7 +62,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${LINKS.MyStuff}?type=Note`,
+                            link: `${BASE_URL}${LINKS.MyStuff}?type=Note`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -70,7 +71,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${LINKS.History}?type=RunsActive`,
+                            link: `${BASE_URL}${LINKS.History}?type=RunsActive`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -91,7 +92,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                 create: {
                     resources: {
                         create: [{
-                            link: `${LINKS.History}?type=Bookmarked`,
+                            link: `${BASE_URL}${LINKS.History}?type=Bookmarked`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -100,7 +101,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${LINKS.Search}?type=Routine`,
+                            link: `${BASE_URL}${LINKS.Search}?type=Routine`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -110,7 +111,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${LINKS.Search}?type=Project`,
+                            link: `${BASE_URL}${LINKS.Search}?type=Project`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -355,7 +356,10 @@ export const AuthEndpoints: EndpointsAuth = {
                 where: { id: userId },
                 select: { id: true },
             });
-            if (userData) return await toSession(userData, prisma, req);
+            if (userData) {
+                const session = await toSession(userData, prisma, req);
+                return session;
+            }
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Jwt);
             throw new CustomError("0148", "NotVerified", req.session.languages);

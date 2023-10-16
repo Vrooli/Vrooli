@@ -1,4 +1,4 @@
-import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
+import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
 import { Box, IconButton, useTheme } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -11,8 +11,7 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { Resizable, useDimensionContext } from "components/Resizable/Resizable";
 import { SessionContext } from "contexts/SessionContext";
 import { useDisplayServerError } from "hooks/useDisplayServerError";
-import { useFetch } from "hooks/useFetch";
-import { useReactSearch } from "hooks/useReactSearch";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { PageTab } from "hooks/useTabs";
 import { AddIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SearchIcon } from "icons";
 import { Dispatch, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -31,13 +30,13 @@ import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { DashboardViewProps } from "../types";
 
-const SearchBox = ({
-    searchString,
+const NewMessageContainer = ({
+    message,
     handleSubmit,
-    setSearchString,
+    setMessage,
 }: {
-    searchString: string,
-    setSearchString: Dispatch<SetStateAction<string>>,
+    message: string,
+    setMessage: Dispatch<SetStateAction<string>>,
     handleSubmit: (text: string) => unknown,
 }) => {
     const { t } = useTranslation();
@@ -53,7 +52,7 @@ const SearchBox = ({
             }]}
             disableAssistant={true}
             fullWidth
-            getTaggableItems={async (searchString) => {
+            getTaggableItems={async (message) => {
                 // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
                 return [];
             }}
@@ -61,7 +60,7 @@ const SearchBox = ({
             minRows={4}
             maxRows={15}
             name="search"
-            onChange={setSearchString}
+            onChange={setMessage}
             placeholder={t("WhatWouldYouLikeToDo")}
             sxs={{
                 root: {
@@ -74,7 +73,7 @@ const SearchBox = ({
                 bar: { borderRadius: 0 },
                 textArea: { paddingRight: 4, border: "none", height: "100%" },
             }}
-            value={searchString}
+            value={message}
         />
     );
 };
@@ -89,6 +88,10 @@ export const DashboardView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const display = toDisplay(isOpen);
+
+    const [message, setMessage] = useState<string>("");
+    const [refetch, { data, loading, errors }] = useLazyFetch<any, HomeResult>(endpointGetFeedHome);
+    useDisplayServerError(errors);
 
     // Handle focus modes
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
@@ -113,23 +116,10 @@ export const DashboardView = ({
             stopCondition: FocusModeStopCondition.NextBegins,
         });
     }, []);
-
-    const [searchString, setSearchString] = useState<string>("");
-    const searchParams = useReactSearch();
     useEffect(() => {
-        if (typeof searchParams.search === "string") setSearchString(searchParams.search);
-    }, [searchParams]);
-    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
-    const { data, loading, errors } = useFetch<HomeInput, HomeResult>({
-        ...endpointGetFeedHome,
-        inputs: { searchString: searchString.trim() },
-    }, [searchString, activeFocusMode]);
-    useDisplayServerError(errors);
+        refetch({ activeFocusModeId: activeFocusMode?.mode?.id });
+    }, [activeFocusMode, refetch]);
 
-    useEffect(() => {
-        if (searchString && searchString.length) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
-        else setLocation(LINKS.Home, { replace: true });
-    }, [searchString, setLocation]);
 
     /** Only show tabs if:
     * 1. The user is logged in 
@@ -169,7 +159,7 @@ export const DashboardView = ({
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
         // If "help" typed
-        if (searchString.toLowerCase().startsWith("help")) {
+        if (message.toLowerCase().startsWith("help")) {
             // firstResults.push({
             //     __typename: "Shortcut", //TODO
             //     label: t('Tutorial'),
@@ -182,7 +172,7 @@ export const DashboardView = ({
             return b.bookmarks - a.bookmarks;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
-    }, [searchString, data, languages, shortcutsItems]);
+    }, [message, data, languages, shortcutsItems]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -196,7 +186,7 @@ export const DashboardView = ({
         }
         // Replace current state with search string, so that search is not lost. 
         // Only do this if the selected item is not a shortcut
-        if (newValue.__typename !== "Shortcut" && searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
+        if (newValue.__typename !== "Shortcut" && message) setLocation(`${LINKS.Home}?search="${message}"`, { replace: true });
         else setLocation(LINKS.Home, { replace: true });
         // If selected item is a shortcut, navigate to it
         if (newValue.__typename === "Shortcut") {
@@ -206,7 +196,7 @@ export const DashboardView = ({
         else {
             openObject(newValue, setLocation);
         }
-    }, [searchString, setLocation]);
+    }, [message, setLocation]);
 
     const openSchedule = useCallback(() => {
         setLocation(LINKS.Calendar);
@@ -326,6 +316,7 @@ export const DashboardView = ({
                 display: "flex",
                 flexDirection: "column",
                 margin: "auto",
+                minHeight: "100vh",
                 gap: 2,
             }}>
                 {/* Resources */}
@@ -398,10 +389,10 @@ export const DashboardView = ({
                     background: palette.primary.dark,
                     color: palette.primary.contrastText,
                 }}>
-                <SearchBox
+                <NewMessageContainer
                     handleSubmit={() => { }}
-                    searchString={searchString}
-                    setSearchString={setSearchString}
+                    message={message}
+                    setMessage={setMessage}
                 />
             </Resizable>
             <ChatSideMenu />

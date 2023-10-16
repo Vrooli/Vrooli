@@ -91,9 +91,20 @@ const getRoute = (pathname: string): LINKS | undefined => {
 export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string, palette?: Palette): SvgComponent | JSX.Element => {
     // Determine default icon
     const defaultIcon = usedFor === ResourceUsedFor.Social ? ResourceSocialIconMap.default : (ResourceIconMap[usedFor] ?? LinkIconMap[usedFor]);
-    // Create URL object from link
-    const url = link ? new URL(link) : null;
-    if (!url) return defaultIcon;
+    // Create URL object from link safely
+    let url: URL | null = null;
+    try {
+        if (link) {
+            url = new URL(link);
+        }
+    } catch (err) {
+        // Invalid URL, return default icon
+        console.error(`Invalid URL passed to getResourceIcon: ${link}`, err);
+        return defaultIcon;
+    }
+    if (!url) {
+        return defaultIcon;
+    }
     // Find host name
     const host = url.hostname; // eg. www.youtube.com
     // Remove beginning of hostname (usually "www", but sometimes "m")

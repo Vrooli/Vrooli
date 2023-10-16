@@ -63,10 +63,8 @@ export const typeDef = gql`
         cursor: String!
         node: Popular!
     }
-
     input HomeInput {
-        searchString: String!
-        take: Int
+        activeFocusModeId: ID # Updates active focus mode when provided
     }
 
     type HomeResult {

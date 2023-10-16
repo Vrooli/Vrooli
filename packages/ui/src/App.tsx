@@ -291,8 +291,8 @@ export function App() {
             setCookieActiveFocusMode(data);
             setSession((prevState) => {
                 if (!prevState) return prevState;
-                const updatedUsers = prevState?.users?.map((user, idx) => {
-                    if (idx === 0) {
+                const updatedUsers = prevState?.users?.map((user, index) => {
+                    if (index === 0) {
                         return {
                             ...user,
                             activeFocusMode: data,

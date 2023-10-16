@@ -8,7 +8,7 @@ import { logger } from "../events/logger";
 import { ApiToken, BasicToken, RecursivePartial, SessionData, SessionToken, SessionUserToken } from "../types";
 import { isSafeOrigin } from "../utils/origin";
 
-const SESSION_MILLI = 30 * 86400 * 1000;
+const SESSION_MILLI = 30 * 86400 * 1000; // 30 days
 
 let privateKey = "";
 const privateKeyFile = `${process.env.PROJECT_DIR}/jwt_priv.pem`;

@@ -1,4 +1,5 @@
-import { ApiSortBy, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy, VisibilityType } from "@local/shared";
+import { ApiSortBy, FocusModeStopCondition, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy, VisibilityType } from "@local/shared";
+import { GraphQLResolveInfo } from "graphql";
 import { readManyAsFeedHelper } from "../../actions/reads";
 import { assertRequestFrom, getUser } from "../../auth/request";
 import { addSupplementalFieldsMultiTypes } from "../../builders/addSupplementalFieldsMultiTypes";
@@ -7,6 +8,7 @@ import { PartialGraphQLInfo } from "../../builders/types";
 import { schedulesWhereInTimeframe } from "../../events/schedule";
 import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint } from "../../types";
+import { FocusModeEndpoints } from "./focusMode";
 
 export type EndpointsFeed = {
     Query: {
@@ -17,10 +19,19 @@ export type EndpointsFeed = {
 
 export const FeedEndpoints: EndpointsFeed = {
     Query: {
-        home: async (_, { input }, { prisma, req }, info) => {
+        home: async (_, { input }, { prisma, req, res }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 5000, req });
-            const activeFocusMode = userData.activeFocusMode;
+            // Find focus mode to use
+            const activeFocusModeId = input.activeFocusModeId ?? userData.activeFocusMode?.mode?.id;
+            // If input provided the focus mode, update session
+            if (input.activeFocusModeId) {
+                FocusModeEndpoints.Mutation.setActiveFocusMode(_,
+                    { input: { id: input.activeFocusModeId, stopCondition: FocusModeStopCondition.NextBegins } },
+                    { prisma, req, res },
+                    {} as unknown as GraphQLResolveInfo,
+                );
+            }
             const partial = toPartialGqlInfo(info, {
                 __typename: "HomeResult",
                 recommended: "Resource",
@@ -38,7 +49,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 additionalQueries: {
                     reminderList: {
                         focusMode: {
-                            ...(activeFocusMode ? { id: activeFocusMode.mode.id } : { user: { id: userData.id } }),
+                            ...(activeFocusModeId ? { id: activeFocusModeId } : { user: { id: userData.id } }),
                         },
                     },
                 },
@@ -52,7 +63,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 additionalQueries: {
                     list: {
                         focusMode: {
-                            ...(activeFocusMode ? { id: activeFocusMode.mode.id } : { user: { id: userData.id } }),
+                            ...(activeFocusModeId ? { id: activeFocusModeId } : { user: { id: userData.id } }),
                         },
                     },
                 },
@@ -118,7 +129,6 @@ export const FeedEndpoints: EndpointsFeed = {
             const commonReadParams = { prisma, req };
             const commonInputParams = {
                 createdTimeFrame: input.createdTimeFrame,
-                searchString: input.searchString,
                 take,
                 updatedTimeFrame: input.updatedTimeFrame,
                 visibility: input.visibility,
