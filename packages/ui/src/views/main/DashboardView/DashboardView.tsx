@@ -10,7 +10,6 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { Resizable, useDimensionContext } from "components/Resizable/Resizable";
 import { SessionContext } from "contexts/SessionContext";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { PageTab } from "hooks/useTabs";
 import { AddIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SearchIcon } from "icons";
@@ -90,8 +89,7 @@ export const DashboardView = ({
     const display = toDisplay(isOpen);
 
     const [message, setMessage] = useState<string>("");
-    const [refetch, { data, loading, errors }] = useLazyFetch<any, HomeResult>(endpointGetFeedHome);
-    useDisplayServerError(errors);
+    const [refetch, { data, loading }] = useLazyFetch<any, HomeResult>(endpointGetFeedHome);
 
     // Handle focus modes
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);

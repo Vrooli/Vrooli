@@ -59,6 +59,7 @@ export function SearchList<DataType extends NavigableObject>({
         take,
         where,
     });
+    console.log("allData in SearchList", allData);
 
     const onAction = useCallback((action: keyof ObjectListActions<DataType>, ...data: unknown[]) => {
         switch (action) {

@@ -6,7 +6,6 @@ import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
 import { LineGraphCard } from "components/lists/LineGraphCard/LineGraphCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -119,7 +118,7 @@ export const StatsSiteView = ({
     }, [setCurrTab]);
 
     // Handle querying stats data.
-    const [getStats, { data: statsData, loading, errors }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
+    const [getStats, { data: statsData, loading }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
         ...endpointGetStatsSite,
         inputs: {
             periodType: tabPeriodTypes[currTab.tabType] as StatPeriodType,
@@ -129,7 +128,6 @@ export const StatsSiteView = ({
             },
         },
     });
-    useDisplayServerError(errors);
     const [stats, setStats] = useState<StatsSite[]>([]);
     useEffect(() => {
         if (statsData) {

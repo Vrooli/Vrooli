@@ -3,7 +3,6 @@ import { Box, Checkbox, CircularProgress, IconButton, Link, TypographyProps, use
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import hljs from "highlight.js";
 import "highlight.js/styles/monokai-sublime.css";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
 import { CopyIcon } from "icons";
@@ -145,8 +144,7 @@ const CustomLink = ({ children, href }) => {
     const endpoint = (isSpecialLink && matchingRoute) ? routeToEndpoint[matchingRoute] : null;
 
     // Fetch hook
-    const [getData, { data, loading: isLoading, errors }] = useLazyFetch<any, any>(endpoint ?? endpointGetUser);
-    useDisplayServerError(errors);
+    const [getData, { data, loading: isLoading }] = useLazyFetch<any, any>(endpoint ?? endpointGetUser);
 
     // Get display data
     const { title, subtitle } = getDisplay(data, ["en"]);

@@ -7,7 +7,6 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
@@ -56,8 +55,7 @@ export const InboxView = ({
     console.log("alldata", allData);
 
 
-    const [markAllAsReadMutation, { errors: markAllErrors }] = useLazyFetch<undefined, Success>(endpointPutNotificationsMarkAllAsRead);
-    useDisplayServerError(markAllErrors);
+    const [markAllAsReadMutation] = useLazyFetch<undefined, Success>(endpointPutNotificationsMarkAllAsRead);
 
     const onMarkAllAsRead = useCallback(() => {
         // TODO handle chats

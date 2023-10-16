@@ -6,7 +6,6 @@ import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { defaultYou, getYou, YouInflated } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
 
@@ -59,7 +58,7 @@ export function useObjectFromUrl<
     const stableTransform = useStableCallback(transform);
 
     // Fetch data
-    const [getData, { data, loading: isLoading, errors }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
+    const [getData, { data, loading: isLoading }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
     const [object, setObject] = useState<ObjectReturnType<TData, TFunc>>(() => {
         // If overrideObject provided, use it. Also use transform if provided
         if (typeof overrideObject === "object") return (typeof stableTransform === "function" ? stableTransform(overrideObject) : overrideObject) as ObjectReturnType<TData, TFunc>;
@@ -70,7 +69,6 @@ export function useObjectFromUrl<
         // Return data
         return data;
     });
-    useDisplayServerError(errors);
     useEffect(() => {
         // If overrideObject provided, don't fetch
         if (typeof overrideObject === "object") return;

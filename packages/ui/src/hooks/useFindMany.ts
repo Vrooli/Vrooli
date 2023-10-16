@@ -9,7 +9,6 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
-import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
 import { useStableObject } from "./useStableObject";
@@ -79,7 +78,6 @@ const updateSortBy = (searchParams: Pick<FullSearchParams, "defaultSortBy" | "so
  * @param params search params
  */
 const readyToSearch = (params: FullSearchParams) => {
-    console.log("calculating readyToSearch", params);
     return params.canSearch &&
         !params.loading &&
         params.hasMore &&
@@ -168,8 +166,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const after = useRef<Record<string, string>>({});
 
     // Handle fetching data
-    const [getPageData, { data: pageData, loading, errors }] = useLazyFetch<SearchQueryVariablesInput<string>, Record<string, any>>({});
-    useDisplayServerError(errors);
+    const [getPageData, { data: pageData, loading }] = useLazyFetch<SearchQueryVariablesInput<string>, Record<string, any>>({});
     /** Function for fetching new data, only when there isn't data currently being fetched */
     const getData = useCallback(() => {
         if (!readyToSearch(params.current)) return;
@@ -187,7 +184,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
             ...after.current,
             ...params.current.where,
             ...params.current.advancedSearchParams,
-        }, params.current.findManyEndpoint as string);
+        }, { endpointOverride: params.current.findManyEndpoint as string });
     }, [getPageData, take]);
     useEffect(() => {
         console.log("settings params.current.loading", loading);
@@ -300,7 +297,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         }
         // Parse data
         const parsedData = parseData(pageData, searchType, stableResolve);
-        console.log("got parsed data", parsedData, current, searchType);
+        console.log("got parsed data", parsedData, searchType);
         if (!parsedData) {
             setAllData([]);
             return;

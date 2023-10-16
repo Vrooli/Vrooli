@@ -12,7 +12,6 @@ import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay
 import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useDeleter } from "hooks/useDeleter";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
 import { AddIcon, BotIcon, DeleteIcon, EditIcon, ErrorIcon, UserIcon } from "icons";
@@ -236,8 +235,7 @@ export const ChatBubble = ({
 
     const [createMessage, { loading: isCreating, errors: createErrors }] = useLazyFetch<ChatMessageCreateInput, ChatMessage>(endpointPostChatMessage);
     const [updateMessage, { loading: isUpdating, errors: updateErrors }] = useLazyFetch<ChatMessageUpdateInput, ChatMessage>(endpointPutChatMessage);
-    const [react, { loading: isReacting, errors: reactErrors }] = useLazyFetch<ReactInput, Success>(endpointPostReact);
-    useDisplayServerError(createErrors ?? updateErrors ?? reactErrors);
+    const [react, { loading: isReacting }] = useLazyFetch<ReactInput, Success>(endpointPostReact);
 
     const [hasError, setHasError] = useState(false);
     useEffect(() => {

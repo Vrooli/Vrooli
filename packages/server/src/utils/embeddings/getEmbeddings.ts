@@ -86,12 +86,12 @@ export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableTy
                 apiRes.on("end", () => {
                     const result = JSON.parse(responseBody);
                     // Ensure result is of the expected type
-                    if (typeof result !== "object" || !Object.prototype.hasOwnProperty.call(result, "data") || !Array.isArray(result.data)) {
+                    if (typeof result !== "object" || !Object.prototype.hasOwnProperty.call(result, "embeddings") || !Array.isArray(result.embeddings)) {
                         const error = "Invalid response from embedding API";
                         logger.error(error, { trace: "0021", result, data, options });
                         reject(new Error(error));
                     }
-                    else resolve(result.data);
+                    else resolve(result.embeddings);
                 });
             });
             apiRequest.on("error", error => {

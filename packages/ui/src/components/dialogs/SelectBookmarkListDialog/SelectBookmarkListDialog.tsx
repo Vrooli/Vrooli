@@ -5,7 +5,6 @@ import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearc
 import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SessionContext } from "contexts/SessionContext";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -37,7 +36,7 @@ export const SelectBookmarkListDialog = ({
     }, [session]);
 
     // Fetch all bookmarks for object
-    const [refetch, { data, loading: isFindLoading, errors }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>({
+    const [refetch, { data, loading: isFindLoading }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>({
         ...endpointGetBookmarks,
         inputs: { [`${lowercaseFirstLetter(objectType)}Id`]: objectId! },
     });
@@ -48,7 +47,6 @@ export const SelectBookmarkListDialog = ({
             setSelectedLists([]);
         }
     }, [refetch, isCreate, isOpen, objectId]);
-    useDisplayServerError(errors);
     useEffect(() => {
         if (data) {
             setSelectedLists(data.edges.map(e => e.node.list));

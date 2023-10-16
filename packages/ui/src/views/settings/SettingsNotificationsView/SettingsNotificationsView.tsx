@@ -11,7 +11,6 @@ import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTop
 import { Title } from "components/text/Title/Title";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useFetch } from "hooks/useFetch";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { EmailIcon, PhoneIcon } from "icons";
@@ -117,10 +116,9 @@ export const SettingsNotificationsView = ({
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
 
-    const { data, refetch, loading: isLoading, errors } = useFetch<undefined, NotificationSettings>({
+    const { data, refetch, loading: isLoading } = useFetch<undefined, NotificationSettings>({
         ...endpointGetNotificationSettings,
     });
-    useDisplayServerError(errors);
     const [updateFetch, { loading: isUpdating }] = useLazyFetch<NotificationSettingsUpdateInput, NotificationSettings>(endpointPutNotificationSettings);
 
     return (

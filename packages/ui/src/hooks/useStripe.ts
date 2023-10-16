@@ -6,7 +6,6 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { parseSearchParams, removeSearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { useDisplayServerError } from "./useDisplayServerError";
 import { useFetch } from "./useFetch";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -17,12 +16,11 @@ export const useStripe = () => {
     const currentUser = useMemo(() => getCurrentUser(session), [session]);
     const [loading, setLoading] = useState(false);
 
-    const { data: prices, errors } = useFetch<undefined, { monthly: number, yearly: number }>({
+    const { data: prices } = useFetch<undefined, { monthly: number, yearly: number }>({
         endpoint: "/premium-prices",
         method: "GET",
         omitRestBase: true,
     });
-    useDisplayServerError(errors);
 
     // This view is also used to check for successful/failed payments, 
     // so we need to check URL search params

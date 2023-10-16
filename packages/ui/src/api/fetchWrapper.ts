@@ -1,5 +1,6 @@
 import { CommonKey, ErrorKey, exists } from "@local/shared";
 import { Method, ServerResponse } from "api";
+import { MakeLazyRequest } from "hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { errorToMessage } from "./errorParser";
 import { fetchData } from "./fetchData";
@@ -55,7 +56,7 @@ const objectToFormData = <T extends object>(obj: T, form?: FormData, namespace?:
 };
 
 interface FetchLazyWrapperProps<Input extends object | undefined, Output> {
-    fetch: (input?: Input) => Promise<ServerResponse<Output>>;
+    fetch: MakeLazyRequest<Input, Output>;
     /** Input to pass to endpoint */
     inputs?: Input;
     /** Callback to determine if mutation was a success, using mutation's return data */
@@ -122,7 +123,7 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
     const finalInputs = inputs && Object.values(inputs).some(value => value instanceof File)
         ? objectToFormData(inputs)
         : inputs;
-    await fetch(finalInputs as Input)
+    await fetch(finalInputs as Input, { displayError: false })
         .then((response: ServerResponse<Output>) => {
             result = response;
             // If response is null or undefined or not an object, then there must be an error

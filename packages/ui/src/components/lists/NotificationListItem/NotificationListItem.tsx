@@ -1,7 +1,6 @@
 import { endpointPutNotification, FindByIdInput, Success } from "@local/shared";
 import { Chip, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { VisibleIcon } from "icons";
 import { useCallback } from "react";
@@ -19,7 +18,6 @@ export function NotificationListItem({
     const { t } = useTranslation();
 
     const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
-    useDisplayServerError(markErrors);
     const onMarkAsRead = useCallback(() => {
         if (!data) {
             PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });

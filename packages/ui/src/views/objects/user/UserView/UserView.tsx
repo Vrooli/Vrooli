@@ -13,7 +13,6 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useTabs } from "hooks/useTabs";
@@ -61,10 +60,9 @@ export const UserView = ({
         return urlInfo as UrlInfo & { isOwnProfile: boolean };
     }, [location, session]);
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
-    const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
-    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
+    const [getUserData, { data: userData, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
+    const [getProfileData, { data: profileData, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
     const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
-    useDisplayServerError(userErrors ?? profileErrors);
     // Get user or profile data
     useEffect(() => {
         if (urlInfo.isOwnProfile) getProfileData();

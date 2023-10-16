@@ -5,7 +5,6 @@ import { fetchLazyWrapper } from "api";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
 import { ReminderListItemProps } from "components/lists/types";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { DeleteIcon, ScheduleIcon } from "icons";
@@ -28,7 +27,6 @@ import { shapeReminder } from "utils/shape/models/reminder";
 
 //  // Handle update mutation
 //  const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
-//  useDisplayServerError(updateErrors);
 //  const saveUpdate = useCallback((updated: Reminder) => {
 //      const index = allReminders.findIndex((reminder) => reminder.id === updated.id);
 //      if (index < 0) return;
@@ -69,7 +67,6 @@ export function ReminderListItem({
     console.log("in reminder list item", data);
 
     const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
-    useDisplayServerError(updateErrors);
 
     // State of the checkbox
     const { checked, checkDisabled, checkTooltip } = useMemo(() => {

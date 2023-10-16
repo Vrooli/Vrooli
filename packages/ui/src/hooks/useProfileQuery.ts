@@ -2,13 +2,11 @@ import { endpointGetProfile, User } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 
 export const useProfileQuery = () => {
     const session = useContext(SessionContext);
-    const [getData, { data, loading: isProfileLoading, errors }] = useLazyFetch<any, User>(endpointGetProfile);
-    useDisplayServerError(errors);
+    const [getData, { data, loading: isProfileLoading }] = useLazyFetch<any, User>(endpointGetProfile);
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
     }, [getData, session]);

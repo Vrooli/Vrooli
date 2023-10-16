@@ -5,7 +5,6 @@ import { ContentCollapse } from "components/containers/ContentCollapse/ContentCo
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useFetch } from "hooks/useFetch";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -143,10 +142,9 @@ export const AwardsView = ({
         })) as Award[];
         return noProgressAwards.map(a => awardToDisplay(a, t));
     });
-    const { data, refetch, loading, errors } = useFetch<AwardSearchInput, AwardSearchResult>({
+    const { data, refetch, loading } = useFetch<AwardSearchInput, AwardSearchResult>({
         ...endpointPostAwards,
     });
-    useDisplayServerError(errors);
     useEffect(() => {
         if (!data) return;
         // Add to awards array, and sort by award category

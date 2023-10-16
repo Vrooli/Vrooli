@@ -270,7 +270,7 @@ const ChatForm = ({
     const [typing, setTyping] = useState<ChatParticipant[]>([]);
 
     // We query messages separate from the chat, since we must traverse the message tree
-    const [getPageData, { data: pageData, loading, errors }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+    const [getPageData, { data: pageData, loading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
     const [allMessages, setAllMessages] = useState<ChatMessageShape[]>([]);
     useEffect(() => {
         if (!existing.id || existing.id === DUMMY_ID) return;
