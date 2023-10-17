@@ -9,7 +9,7 @@ export type ChatInviteShape = Pick<ChatInvite, "id" | "message"> & {
     status: ChatInviteStatus; // Ignored when mutating, so don't get any ideas
     chat: { id: string };
     user: { id: string };
-    you: ChatInviteYou; // Only used by the UI
+    you?: ChatInviteYou; // Only used by the UI
 }
 
 export const shapeChatInvite: ShapeModel<ChatInviteShape, ChatInviteCreateInput, ChatInviteUpdateInput> = {

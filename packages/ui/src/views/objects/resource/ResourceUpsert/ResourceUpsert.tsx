@@ -29,7 +29,7 @@ import { ResourceUpsertProps } from "../types";
 /** New resources must include a list ID and an index */
 export type NewResourceShape = Partial<Omit<Resource, "list">> & {
     index: number,
-    list: Partial<Resource["list"]> & ({ id: string } | { listFor: ResourceListFor | `${ResourceListFor}`, listForId: string })
+    list: Partial<Resource["list"]> & ({ id: string } | { listForType: ResourceListFor | `${ResourceListFor}`, listForId: string })
 };
 
 export const resourceInitialValues = (

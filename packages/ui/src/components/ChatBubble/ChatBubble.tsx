@@ -285,8 +285,7 @@ export const ChatBubble = ({
             fetch: createMessage,
             inputs: shapeChatMessage.create({
                 ...message,
-                isFork: true,
-                fork: { id: message.id },
+                versionOfId: message.id,
                 translations: [
                     ...message.translations.filter((t) => t.language !== lng),
                     {

@@ -56,6 +56,7 @@ export const RunPickerMenu = ({
                 fetch: createRunProject,
                 inputs: {
                     id: uuid(),
+                    isPrivate: true,
                     name: getTranslation(runnableObject as ProjectVersion, getUserLanguages(session)).name ?? "Unnamed Project",
                     projectVersionConnect: runnableObject.id,
                     status: RunStatus.InProgress,
@@ -75,6 +76,7 @@ export const RunPickerMenu = ({
                 fetch: createRunRoutine,
                 inputs: {
                     id: uuid(),
+                    isPrivate: true,
                     name: getTranslation(runnableObject as RoutineVersion, getUserLanguages(session)).name ?? "Unnamed Routine",
                     routineVersionConnect: runnableObject.id,
                     status: RunStatus.InProgress,

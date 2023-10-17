@@ -206,7 +206,7 @@ export type RichInputAction =
     "Table" |
     "Underline" |
     "Undo";
-export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo">]: boolean };
+export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo" | "SetValue">]: boolean };
 
 export type PasswordTextFieldProps = TextFieldProps & {
     autoComplete?: string;

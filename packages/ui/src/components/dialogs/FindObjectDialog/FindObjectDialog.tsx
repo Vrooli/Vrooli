@@ -194,9 +194,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             console.log("fetching full data!", item);
             queryingRef.current = true;
             if (versionId) {
-                getItem({ id: versionId }, findOneEndpoint);
+                getItem({ id: versionId }, { endpointOverride: findOneEndpoint });
             } else {
-                getItem({ id: item.id }, findOneEndpoint);
+                getItem({ id: item.id }, { endpointOverride: findOneEndpoint });
             }
         }
         // Return false so the list item does not navigate

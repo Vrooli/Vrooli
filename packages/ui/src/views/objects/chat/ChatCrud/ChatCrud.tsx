@@ -67,7 +67,6 @@ export const chatInitialValues = (
                 __typename: "Chat" as const,
                 id: existing.id ?? DUMMY_ID,
             },
-            isFork: true,
             isUnsent: true,
             reactionSummaries: [],
             translations: [{

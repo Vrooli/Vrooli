@@ -637,7 +637,7 @@ const RichInputLexicalComponents = ({
             setActiveStates({ ...updatedStates });
             onActiveStatesChange({ ...updatedStates });
         }
-    }, [activeEditor]);
+    }, [activeEditor, onActiveStatesChange]);
     useEffect(() => {
         return editor.registerCommand(
             SELECTION_CHANGE_COMMAND,
@@ -666,7 +666,7 @@ const RichInputLexicalComponents = ({
     }, [onChange]);
 
     // Toolbar actions
-    const toggleHeading = (headingSize: HeadingTagType) => {
+    const toggleHeading = useCallback((headingSize: HeadingTagType) => {
         editor.update(() => {
             const selection = $getSelection();
             if (
@@ -676,13 +676,13 @@ const RichInputLexicalComponents = ({
                 $setBlocksType(selection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createParagraphNode() : $createHeadingNode(headingSize));
             }
         });
-    };
-    const toggleFormat = (formatType: TextFormatType) => {
+    }, [activeStates, editor]);
+    const toggleFormat = useCallback((formatType: TextFormatType) => {
         editor.dispatchCommand(FORMAT_TEXT_COMMAND, formatType);
-    };
-    const toggleSpoiler = () => {
+    }, [editor]);
+    const toggleSpoiler = useCallback(() => {
         editor.dispatchCommand(SPOILER_COMMAND, (void 0));
-    };
+    }, [editor]);
 
 
     useEffect(() => {

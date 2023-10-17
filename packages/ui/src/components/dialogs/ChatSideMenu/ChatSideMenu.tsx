@@ -116,7 +116,7 @@ export const ChatSideMenu = () => {
                         currTab={currTab}
                         onChange={handleTabChange}
                         tabs={tabs}
-                        sx={{ height: "40px" }}
+                        sx={{ height: "48px" }}
                     />
                 </Box>
                 <IconButton

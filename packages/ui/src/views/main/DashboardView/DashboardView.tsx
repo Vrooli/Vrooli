@@ -17,13 +17,12 @@ import { Dispatch, SetStateAction, useCallback, useContext, useEffect, useMemo, 
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
-import { AutocompleteOption, CalendarEvent, ShortcutOption } from "types";
+import { CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { getDisplay, listToAutocomplete } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { openObject } from "utils/navigation/openObject";
-import { actionsItems, shortcuts } from "utils/navigation/quickActions";
+import { shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
@@ -153,48 +152,6 @@ export const DashboardView = ({
         label: t(label, { ...(labelArgs ?? {}), defaultValue: label }) as string,
         id: value,
     })), [t]);
-
-    const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
-        const firstResults: AutocompleteOption[] = [];
-        // If "help" typed
-        if (message.toLowerCase().startsWith("help")) {
-            // firstResults.push({
-            //     __typename: "Shortcut", //TODO
-            //     label: t('Tutorial'),
-            //     id: LINKS.Tutorial,
-            // });
-        }
-        // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
-        const flattened = (Object.values(data ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
-        const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
-            return b.bookmarks - a.bookmarks;
-        });
-        return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
-    }, [message, data, languages, shortcutsItems]);
-
-    /**
-     * When an autocomplete item is selected, navigate to object
-     */
-    const onInputSelect = useCallback((newValue: AutocompleteOption) => {
-        if (!newValue) return;
-        // If selected item is an action (i.e. no navigation required), do nothing 
-        // (search bar performs actions automatically)
-        if (newValue.__typename === "Action") {
-            return;
-        }
-        // Replace current state with search string, so that search is not lost. 
-        // Only do this if the selected item is not a shortcut
-        if (newValue.__typename !== "Shortcut" && message) setLocation(`${LINKS.Home}?search="${message}"`, { replace: true });
-        else setLocation(LINKS.Home, { replace: true });
-        // If selected item is a shortcut, navigate to it
-        if (newValue.__typename === "Shortcut") {
-            setLocation(newValue.id);
-        }
-        // Otherwise, navigate to item page
-        else {
-            openObject(newValue, setLocation);
-        }
-    }, [message, setLocation]);
 
     const openSchedule = useCallback(() => {
         setLocation(LINKS.Calendar);

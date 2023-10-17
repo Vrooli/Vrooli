@@ -116,9 +116,7 @@ export const SettingsNotificationsView = ({
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
 
-    const { data, refetch, loading: isLoading } = useFetch<undefined, NotificationSettings>({
-        ...endpointGetNotificationSettings,
-    });
+    const { data, refetch, loading: isLoading } = useFetch<undefined, NotificationSettings>(endpointGetNotificationSettings);
     const [updateFetch, { loading: isUpdating }] = useLazyFetch<NotificationSettingsUpdateInput, NotificationSettings>(endpointPutNotificationSettings);
 
     return (

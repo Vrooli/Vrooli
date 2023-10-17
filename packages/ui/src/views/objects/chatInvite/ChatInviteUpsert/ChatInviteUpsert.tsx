@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteCreateInput, ChatInviteUpdateInput, chatInviteValidation, DUMMY_ID, endpointGetChatInvite, endpointPostChatInvite, endpointPutChatInvite, Session } from "@local/shared";
+import { ChatInvite, ChatInviteCreateInput, ChatInviteStatus, ChatInviteUpdateInput, chatInviteValidation, DUMMY_ID, endpointGetChatInvite, endpointPostChatInvite, endpointPutChatInvite, Session } from "@local/shared";
 import { TextField } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -31,8 +31,11 @@ const chatInviteInitialValues = (
     existing: NewChatInviteShape,
 ): ChatInviteShape => ({
     __typename: "ChatInvite" as const,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     id: DUMMY_ID,
     message: "",
+    status: ChatInviteStatus.Pending,
     ...existing,
     user: {
         __typename: "User" as const,

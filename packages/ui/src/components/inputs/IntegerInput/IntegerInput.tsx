@@ -1,24 +1,7 @@
-import { Box, FormControl, FormHelperText, IconButton, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
+import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { MinusIcon, PlusIcon } from "icons";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { IntegerInputProps } from "../types";
-
-const buttonProps = {
-    minWidth: "30px",
-    maxWidth: "48px",
-    width: "20%",
-};
-
-// Time for a button press to become a hold
-const HOLD_DELAY = 750;
-
-type HoldRefs = {
-    which: boolean | null; // False for minus button, true for plus button, and null for no button
-    speed: number; // Speed that increases the longer you hold the button, with a maximum of 20 per second
-    timeout: NodeJS.Timeout | null;
-    value: number;
-}
 
 export const IntegerInput = ({
     allowDecimal = false,
@@ -39,51 +22,11 @@ export const IntegerInput = ({
     const { palette } = useTheme();
     const [field, meta, helpers] = useField<number>(name);
 
-    const holdRefs = useRef<HoldRefs>({
-        which: null,
-        speed: 1,
-        timeout: null,
-        value: field.value,
-    });
-    useEffect(() => {
-        holdRefs.current.value = field.value;
-    }, [field.value]);
-
     const updateValue = useCallback((quantity) => {
         if (quantity > max) quantity = max;
         if (quantity < min) quantity = min;
         helpers.setValue(quantity);
     }, [max, min, helpers]);
-
-    const startHold = useCallback(() => {
-        // Check if hold is taking place
-        if (holdRefs.current.which === null) return;
-        // Increment for decrement value, depending on which button was pressed
-        if (holdRefs.current.which === true) updateValue(holdRefs.current.value + 1);
-        else updateValue(holdRefs.current.value - 1);
-        // Calculate timeout for next tick. Speed increases with each tick, until max of 20 per second
-        holdRefs.current.speed = Math.min(holdRefs.current.speed + 1, 20);
-        // Set timeout for next tick
-        holdRefs.current.timeout = setTimeout(startHold, 1000 / holdRefs.current.speed);
-    }, [updateValue]);
-
-    const handleMinusDown = useCallback(() => {
-        updateValue(holdRefs.current.value * 1 - step);
-        holdRefs.current.which = false;
-        holdRefs.current.timeout = setTimeout(startHold, HOLD_DELAY);
-    }, [startHold, step, updateValue]);
-
-    const handlePlusDown = useCallback(() => {
-        updateValue(holdRefs.current.value * 1 + step);
-        holdRefs.current.which = true;
-        holdRefs.current.timeout = setTimeout(startHold, HOLD_DELAY);
-    }, [startHold, step, updateValue]);
-
-    const stopTouch = () => {
-        if (holdRefs.current.timeout) clearTimeout(holdRefs.current.timeout);
-        holdRefs.current.which = null;
-        holdRefs.current.speed = 1;
-    };
 
     return (
         <Tooltip title={tooltip}>
