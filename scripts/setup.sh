@@ -116,6 +116,29 @@ nvm alias default v16.16.0
 header "Installing Yarn"
 npm install -g yarn
 
+header "Installing jq for JSON parsing"
+sudo apt-get install -y jq
+
+header "Installing HashiCorp Vault"
+# Add HashiCorp's GPG key if it's not already added
+VAULT_KEYRING="/usr/share/keyrings/hashicorp-archive-keyring.gpg"
+if [ ! -f "$VAULT_KEYRING" ]; then
+    wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o "$VAULT_KEYRING"
+fi
+# Determine the distribution codename
+DISTRO_CODENAME=$(lsb_release -cs)
+if [ -z "$DISTRO_CODENAME" ]; then
+    echo "Error determining the distribution codename. Exiting."
+    exit 1
+fi
+# Add HashiCorp's APT repository if it's not already added
+VAULT_LIST="/etc/apt/sources.list.d/hashicorp.list"
+if [ ! -f "$VAULT_LIST" ]; then
+    echo "deb [signed-by=$VAULT_KEYRING] https://apt.releases.hashicorp.com $DISTRO_CODENAME main" | sudo tee "$VAULT_LIST"
+fi
+# Update APT and install Vault
+sudo apt update && sudo apt install -y vault
+
 if ! command -v docker &>/dev/null; then
     info "Docker is not installed. Installing Docker..."
     curl -fsSL https://get.docker.com -o get-docker.sh

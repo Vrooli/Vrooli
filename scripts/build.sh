@@ -287,7 +287,9 @@ if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || 
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
     read -n1 -r -s
-    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz ${ENV_FILE} root@${BUILD_DIR}
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz root@${BUILD_DIR}
+    # ENV_FILE must be copied as .env-prod since that's what deploy.sh expects
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" ${ENV_FILE} root@${BUILD_DIR}/.env-prod
     if [ $? -ne 0 ]; then
         error "Failed to copy files to ${BUILD_DIR}"
         exit 1

@@ -44,6 +44,23 @@ shift
 info "Creating or clearing temporary file: $TMP_FILE"
 echo "" >>"$TMP_FILE"
 
+# Function to prompt for a secret
+prompt_for_secret() {
+    local secret_name="$1"
+    local secret_path="/run/secrets/vrooli/$environment/$secret_name"
+
+    # If the secret already exists, skip prompting
+    if [ -f "$secret_path" ]; then
+        info "Secret $secret_name already exists. Skipping prompt."
+        return
+    fi
+
+    echo "Please enter the value for $secret_name: "
+    read -r secret_value
+
+    echo "$secret_value" >"$secret_path"
+}
+
 # Loop over the rest of the arguments to get secrets
 while [ $# -gt 0 ]; do
     # Check if secret contains ":" character for renaming
@@ -57,12 +74,37 @@ while [ $# -gt 0 ]; do
 
     # Check if the secret doesn't exist in /run/secrets
     if [ ! -f "/run/secrets/vrooli/$environment/$secret" ]; then
-        # Fetch the secret from the secret manager and store it in /run/secrets/
-        # Note: The following is a placeholder and should be replaced with an actual command to fetch the secret
-        info "Fetching $secret from the secret manager"
-        # TODO Complete
-        error "Fetching secrets is not yet implemented"
-        exit 1
+        # To fetch secrets, we need the vault's role ID and secret ID
+        if [ "$secret" = "vault_role_id" ] || [ "$secret" = "vault_secret_id" ]; then
+            # Prompt the user for the secret
+            prompt_for_secret "$secret"
+        else
+            # For any other secret, authenticate with Vault and fetch it
+            info "Fetching $secret from Vault"
+
+            # Ensure vault_role_id and vault_secret_id are present in /run/secrets
+            if [ ! -f "/run/secrets/vrooli/$environment/vault_role_id" ] || [ ! -f "/run/secrets/vrooli/$environment/vault_secret_id" ]; then
+                error "vault_role_id and vault_secret_id must be present in /run/secrets to fetch other secrets."
+                exit 1
+            fi
+
+            vault_role_id_value=$(cat "/run/secrets/vrooli/$environment/vault_role_id")
+            vault_secret_id_value=$(cat "/run/secrets/vrooli/$environment/vault_secret_id")
+
+            # Authenticate with Vault
+            vault login -method=approle role_id="$vault_role_id_value" secret_id="$vault_secret_id_value"
+
+            # Fetch the secret
+            fetched_secret=$(vault kv get -field="$rename" secret/$environment/$secret)
+
+            if [ -z "$fetched_secret" ]; then
+                error "Failed to fetch the secret: $secret"
+                exit 1
+            else
+                # Store the fetched secret temporarily in /run/secrets/
+                echo "$fetched_secret" >"/run/secrets/vrooli/$environment/$secret"
+            fi
+        fi
     fi
     # Store the secret in the temporary file using rename
     echo "Writing $secret to $TMP_FILE as $rename"

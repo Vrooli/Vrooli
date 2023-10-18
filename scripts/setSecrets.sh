@@ -38,10 +38,12 @@ if [ -z "$environment" ]; then
     exit 1
 fi
 
-# Set env file based on the environment
+# Set env file and vault address based on the environment
 env_file="${HERE}/../.env"
+VAULT_ADDR="http://127.0.0.1:8200" # Assuming development Vault runs locally
 if [ "$environment" == "production" ]; then
     env_file="${HERE}/../.env-prod"
+    # VAULT_ADDR="https://vault.myproductiondomain.com"  # Replace with your production Vault address TODO
 fi
 
 # Check if env file exists
@@ -53,6 +55,16 @@ fi
 # Create directories if they don't exist
 mkdir -p /run/secrets/vrooli/$environment
 
+# Detect if a vault is running, and is in the desired state (i.e. sealed for prod)
+VAULT_RUNNING=false
+if [ $(curl -s -o /dev/null -w "%{http_code}" $VAULT_ADDR/v1/sys/health) == "200" ]; then
+    if [ "$environment" == "dev" ]; then
+        VAULT_RUNNING=true
+    elif [ "$environment" == "prod" ] && [ $(curl -s $VAULT_ADDR/v1/sys/seal-status | jq '.sealed') == "true" ]; then
+        VAULT_RUNNING=true
+    fi
+fi
+
 # Read lines in env file
 while IFS= read -r line || [ -n "$line" ]; do
     # Ignore lines that start with '#' or are blank
@@ -60,5 +72,10 @@ while IFS= read -r line || [ -n "$line" ]; do
         key=$(echo "$line" | cut -d '=' -f 1)
         value=$(echo "$line" | cut -d '=' -f 2-)
         echo "$value" >"/run/secrets/vrooli/$environment/$key"
+
+        # Set the secret in the vault if it's running TODO probably won't work for prod, since it's sealed
+        if $VAULT_RUNNING; then
+            vault kv put secret/vrooli/$environment/$key value="$value"
+        fi
     fi
 done <"$env_file"
