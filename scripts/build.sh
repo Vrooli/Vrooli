@@ -5,14 +5,6 @@
 # 2. Builds the React app, making sure to include environment variables and post-build commands.
 # 3. Builds all Docker containers, making sure to include environment variables and post-build commands.
 # 3. Copies the tarballs for the React app and Docker containers to the VPS.
-#
-# Arguments (all optional):
-# -v: Version number to use (e.g. "1.0.0")
-# -d: Deploy to VPS (y/N)
-# -u: Send to Docker Hub (y/N)
-# -h: Show this help message
-# -a: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)
-# -e: .env file location (e.g. "/root/my-folder/.env"). Defaults to .env-prod
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
@@ -20,21 +12,6 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ENV_FILE="${HERE}/../.env-prod"
 while getopts "v:d:u:ha:e:" opt; do
     case $opt in
-    v)
-        VERSION=$OPTARG
-        ;;
-    d)
-        DEPLOY=$OPTARG
-        ;;
-    u)
-        SEND_TO_DOCKER_HUB=$OPTARG
-        ;;
-    a)
-        API_GENERATE=$OPTARG
-        ;;
-    e)
-        ENV_FILE=$OPTARG
-        ;;
     h)
         echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-u SEND_TO_DOCKER_HUB] [-h] [-a API_GENERATE] [-e ENV_FILE]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
@@ -44,6 +21,21 @@ while getopts "v:d:u:ha:e:" opt; do
         echo "  -a --api-generate: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
         echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
         exit 0
+        ;;
+    a)
+        API_GENERATE=$OPTARG
+        ;;
+    d)
+        DEPLOY=$OPTARG
+        ;;
+    e)
+        ENV_FILE=$OPTARG
+        ;;
+    u)
+        SEND_TO_DOCKER_HUB=$OPTARG
+        ;;
+    v)
+        VERSION=$OPTARG
         ;;
     \?)
         echo "Invalid option: -$OPTARG" >&2

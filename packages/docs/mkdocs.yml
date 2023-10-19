@@ -39,6 +39,7 @@ nav:
       - Overview: deployment/overview.md
       - Secrets Management: deployment/secrets_management.md
       - Single Server: deployment/single_server.md
+      - Kubernetes Testing: deployment/kubernetes_testing.md
       - Multiple Servers: deployment/multiple_servers.md
   - Guides:
       - Overview: guides/overview.md

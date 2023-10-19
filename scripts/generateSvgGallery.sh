@@ -1,9 +1,5 @@
 #!/bin/bash
 # Generates an HTML file to display all svg files in a folder
-# Arguments:
-# -d: Directory containing the SVG files
-# -o: Output file name (default: svgGallery.html)
-# -h: Show this help message
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 

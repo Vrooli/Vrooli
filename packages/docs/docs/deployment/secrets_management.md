@@ -15,7 +15,7 @@ Setting up Vault for development is straightforward. In development mode, Vault 
 vault server -dev
 ```
 
-For detailed steps and scripts, refer to our detailed development setup guide (coming soon).
+See `./scripts/develop.sh` for how we set up Vault in development.
 
 ### Production Setup
 Production setups require careful planning around storage backends, high availability, and secure access. Steps generally include:
@@ -24,7 +24,7 @@ Production setups require careful planning around storage backends, high availab
 2. Configuring and starting the Vault server.
 3. Initializing and unsealing Vault.
 
-For a detailed production setup, refer to our comprehensive production setup guide (coming soon).
+See `./scripts/deploy.sh` for how we set up Vault in production.
 
 ## Managing Vault and Accessing the GUI
 Vault comes with a built-in web UI:

@@ -7,26 +7,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 KOMPOSE_VERSION="v1.28.0"
 SECRET_NAME="vrooli-secrets"
 
-# Check if Kubernetes is installed
-if ! [ -x "$(command -v kubectl)" ]; then
-    info "Kubernetes not found. Installing Kubernetes..."
-
-    # Install Kubernetes
-    curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
-    chmod +x ./kubectl
-    sudo mv ./kubectl /usr/local/bin/kubectl
-
-    if ! [ -x "$(command -v kubectl)" ]; then
-        error "Failed to install Kubernetes"
-        exit 1
-    else
-        success "Kubernetes installed successfully"
-    fi
-else
-    success "Kubernetes is already installed"
-fi
-
-# Check if Kompose is installed
+# Check if Kompose is installed (setup script should already ensure Docker, Kubernetes, and Minikube are installed)
 if ! [ -x "$(command -v kompose)" ]; then
     info "Kompose not found. Installing Kompose..."
 
@@ -49,39 +30,6 @@ else
     success "Kompose is already installed"
 fi
 
-# Check if Minikube is installed
-if ! [ -x "$(command -v minikube)" ]; then
-    info "Minikube not found. Installing Minikube..."
-
-    # Install Minikube
-    curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-    sudo install minikube-linux-amd64 /usr/local/bin/minikube
-
-    if ! [ -x "$(command -v minikube)" ]; then
-        error "Failed to install Minikube"
-        exit 1
-    else
-        success "Minikube installed successfully"
-    fi
-else
-    success "Minikube is already installed"
-fi
-
-# Start Minikube if it's not running
-if ! minikube status >/dev/null 2>&1; then
-    info "Starting Minikube..."
-    minikube start --driver=docker --force # TODO get rid of --force by running Docker in rootless mode
-
-    if [ $? -ne 0 ]; then
-        error "Failed to start Minikube"
-        exit 1
-    else
-        success "Minikube started successfully"
-    fi
-else
-    success "Minikube is already running"
-fi
-
 # Find docker-compose*.yml files
 COMPOSE_FILES=$(find ${HERE}/.. -maxdepth 1 -name 'docker-compose*.yml')
 COMPOSE_FILES_ARRAY=($COMPOSE_FILES)
@@ -90,11 +38,12 @@ if [ ${#COMPOSE_FILES_ARRAY[@]} -eq 0 ]; then
     prompt "No docker-compose*.yml files found in the directory above. Please enter the path to your docker-compose file."
     read -r COMPOSE_FILE
 else
-    echo "Select the number of the docker-compose file you want to use:"
+    prompt "Select the number of the docker-compose file you want to use:"
     for ((i = 0; i < ${#COMPOSE_FILES_ARRAY[@]}; i++)); do
         echo "$((i + 1)). ${COMPOSE_FILES_ARRAY[i]}"
     done
-    read -r COMPOSE_FILE_NUMBER
+    read -r INPUT
+    COMPOSE_FILE_NUMBER="${INPUT//[^0-9]/}"
     COMPOSE_FILE=${COMPOSE_FILES_ARRAY[$((COMPOSE_FILE_NUMBER - 1))]}
 fi
 info "Using docker-compose file: ${COMPOSE_FILE}"
@@ -107,13 +56,15 @@ if [ ${#ENV_FILES_ARRAY[@]} -eq 0 ]; then
     prompt "No .env* files found in the directory above. Please enter the path to your .env file."
     read -r ENV_FILE
 else
-    echo "Select the number of the .env file you want to use:"
+    prompt "Select the number of the .env file you want to use:"
     for ((i = 0; i < ${#ENV_FILES_ARRAY[@]}; i++)); do
         echo "$((i + 1)). ${ENV_FILES_ARRAY[i]}"
     done
-    read -r ENV_FILE_NUMBER
+    read -r INPUT
+    ENV_FILE_NUMBER="${INPUT//[^0-9]/}"
     ENV_FILE=${ENV_FILES_ARRAY[$((ENV_FILE_NUMBER - 1))]}
 fi
+info "Using .env file: ${ENV_FILE}"
 
 # Set Kubernetes secrets using .env file
 # NOTE: To check the secrets, run `kubectl get secrets` and `kubectl describe secret <SECRET_NAME>`
@@ -145,8 +96,24 @@ while IFS= read -r line || [ -n "$line" ]; do
     fi
 done <"$ENV_FILE"
 
+# Start Minikube if it is not already running
+if ! minikube status >/dev/null 2>&1; then
+    info "Starting Minikube..."
+    # NOTE: If this is failing, try running `minikube delete` and then running this script again.
+    minikube start --driver=docker --force # TODO get rid of --force by running Docker in rootless mode
+
+    if [ $? -ne 0 ]; then
+        error "Failed to start Minikube"
+        exit 1
+    else
+        success "Minikube started successfully"
+    fi
+else
+    success "Minikube is already running"
+fi
+
 if [ -n "$SECRET_DATA" ]; then
-    echo "Setting secrets..."
+    info "Setting secrets..."
     kubectl create secret generic "${SECRET_NAME}" $SECRET_DATA --dry-run=client -o yaml | kubectl apply -f -
     if [ $? -ne 0 ]; then
         error "Failed to set Kubernetes secrets"
@@ -169,11 +136,12 @@ set +a
 
 # Create a copy of the docker-compose file, which we will prepare for Kompose
 cp ${COMPOSE_FILE} ${COMPOSE_FILE}.edit
+trap "rm ${COMPOSE_FILE}.edit" EXIT
 
 # Replace non-sensitive environment variables with their values
 for VAR_NAME in ${NON_SENSITIVE_VARS[@]}; do
     VAR_VALUE=${!VAR_NAME}
-    echo "Replacing ${VAR_NAME} with ${VAR_VALUE}"
+    info "Replacing ${VAR_NAME} with ${VAR_VALUE}"
     sed -i -E 's|\$\{'"${VAR_NAME}"'(:-[^}]*)?\}|'"${VAR_VALUE}"'|g' ${COMPOSE_FILE}.edit
 done
 
@@ -182,8 +150,14 @@ done
 # These will be replaced with Kubernetes secrets later.
 sed -i -E 's/\$\{([^:}]*).*\}/<\1>/g' ${COMPOSE_FILE}.edit
 
+# Generate name for output file based on selected docker-compose file and environment
+COMPOSE_BASENAME=$(basename "$COMPOSE_FILE" .yml)
+ENV_BASENAME=$(basename "${HERE}/../.env" .env)
+ENV_BASENAME=${ENV_BASENAME#.} # Remove the leading dot
+OUTPUT_FILE="k8s-${COMPOSE_BASENAME}-${ENV_BASENAME}.yml"
+
 # Convert the docker-compose file
-kompose convert -f ${COMPOSE_FILE}.edit -o k8s.yml
+kompose convert -f ${COMPOSE_FILE}.edit -o ${OUTPUT_FILE}
 if [ $? -ne 0 ]; then
     error "Failed to convert the Docker Compose file"
     exit 1
@@ -191,11 +165,8 @@ else
     success "Docker Compose file converted successfully"
 fi
 
-# Remove the edited docker-compose file
-rm ${COMPOSE_FILE}.edit
-
 # Replace angle brackets surrounded by whitespaces with Kubernetes secrets
-sed -i -E 's|value: <([^>]+)>|valueFrom:\n                secretKeyRef:\n                  name: '"${SECRET_NAME}"'\n                  key: \1|g' k8s.yml
+sed -i -E 's|value: <([^>]+)>|valueFrom:\n                secretKeyRef:\n                  name: '"${SECRET_NAME}"'\n                  key: \1|g' ${OUTPUT_FILE}
 if [ $? -ne 0 ]; then
     error "Failed to replace angle brackets with Kubernetes secrets"
     exit 1
@@ -205,7 +176,7 @@ fi
 # Replace angle brackets within strings with Kubernetes variable references
 # NOTE: This assumes that the referenced variables are defined earlier in the same env section.
 # This is because Kubernetes does not allow secret references in string interpolations.
-sed -i -E 's|<([^>]+)>|$(\1)|g' k8s.yml
+sed -i -E 's|<([^>]+)>|$(\1)|g' ${OUTPUT_FILE}
 if [ $? -ne 0 ]; then
     error "Failed to replace angle brackets within strings with Kubernetes variable references"
     exit 1
@@ -217,7 +188,7 @@ fi
 # TODO
 
 # Dry run the generated Kubernetes YAML file to check for errors
-kubectl apply -f k8s.yml --dry-run=client
+kubectl apply -f ${OUTPUT_FILE} --dry-run=client
 if [ $? -ne 0 ]; then
     error "Failed to dry run the generated Kubernetes YAML file"
     exit 1
@@ -225,8 +196,9 @@ else
     success "Generated Kubernetes YAML file validated successfully"
     prompt "Would you like to apply the generated Kubernetes YAML file now? (y/n)"
     read -n1 -r APPLY
+    echo
     if [ "$APPLY" = "y" ]; then
-        kubectl apply -f k8s.yml
+        kubectl apply -f ${OUTPUT_FILE}
         if [ $? -ne 0 ]; then
             error "Failed to apply the generated Kubernetes YAML file"
             exit 1
@@ -237,3 +209,22 @@ else
         success "Generated Kubernetes YAML file not applied"
     fi
 fi
+
+# Ask if Minikube should be stopped
+prompt "Would you like to stop Minikube? (y/n)"
+read -n1 -r STOP_MINIKUBE
+echo
+if [ "$STOP_MINIKUBE" = "y" ]; then
+    info "Stopping Minikube..."
+    minikube stop
+    if [ $? -ne 0 ]; then
+        error "Failed to stop Minikube"
+        exit 1
+    else
+        success "Minikube stopped successfully"
+    fi
+fi
+
+success "Success! Generated Kubernetes config file: ${OUTPUT_FILE}"
+warning "NOTE: Please refer to the Kubernetes testing guide for instructions on how to test the generated config file."
+warning "It most likely WILL NOT WORK without some modifications."

@@ -6,13 +6,6 @@
 # 3. Source the temporary file: `. "$TMP_FILE"`
 # 4. Remove the temporary file: `rm "$TMP_FILE"`
 #
-# Arguments:
-# - environment: Either 'development' or 'production'
-# - tmp_file: The temporary file to store secrets in
-# - secret1, secret2, ...: The secrets to fetch from the secret manager
-#   Secrets can be renamed with the format `old_name:new_name`. If there's no `:`, the name saved in the file
-#   will be the same as the name of the secret in the secret manager.
-#
 # NOTE: Due to incompatability with some shells and minimal images, we cannot rely on exporting secrets as environment variables.
 # This is why it's written to a temporary file, which can be sourced by the parent script.
 HERE=$(cd "$(dirname "$0")" && pwd)
