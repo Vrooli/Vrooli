@@ -144,6 +144,8 @@ export const BookmarkModel: BookmarkModelLogic = ({
             commentId: true,
             excludeLinkedToTag: true,
             issueId: true,
+            listLabel: true,
+            limitTo: true,
             listId: true,
             noteId: true,
             organizationId: true,

@@ -7,6 +7,7 @@ export const typeDef = gql`
         Api
         ApiVersion
         Bookmark
+        BookmarkList
         Chat
         ChatInvite
         ChatMessage

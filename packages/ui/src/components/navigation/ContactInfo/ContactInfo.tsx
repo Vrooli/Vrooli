@@ -1,7 +1,7 @@
 import { LINKS, SOCIALS } from "@local/shared";
 import { BottomNavigation, BottomNavigationAction, Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
-import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
+import { ArticleIcon, GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -28,7 +28,7 @@ export const ContactInfo = ({
             ] as NavActionListData[],
             contactInfo: [
                 [t("ContactHelpTwitter"), t("Twitter"), SOCIALS.Twitter, TwitterIcon],
-                [t("ContactHelpDiscord"), t("Discord"), SOCIALS.Discord, DiscordIcon],
+                // [t("ContactHelpDiscord"), t("Discord"), SOCIALS.Discord, DiscordIcon],
                 [t("ContactHelpCode"), t("Code"), SOCIALS.GitHub, GitHubIcon],
             ] as NavActionListData[],
         };

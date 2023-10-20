@@ -78,6 +78,7 @@ const updateSortBy = (searchParams: Pick<FullSearchParams, "defaultSortBy" | "so
  * @param params search params
  */
 const readyToSearch = (params: FullSearchParams) => {
+    console.log("in readyToSearch", params.canSearch, params.loading, params.hasMore, params.findManyEndpoint, params.sortBy);
     return params.canSearch &&
         !params.loading &&
         params.hasMore &&

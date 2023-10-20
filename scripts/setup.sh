@@ -201,6 +201,15 @@ else
     info "Detected: $(docker --version)"
 fi
 
+# Try to start Docker (if already running, this should be a no-op)
+sudo service docker start
+
+# Verify Docker is running by attempting a command
+if ! docker version >/dev/null 2>&1; then
+    error "Failed to start Docker or Docker is not running. If you are in Windows Subsystem for Linux (WSL), please start Docker Desktop and try again."
+    exit 1
+fi
+
 if ! command -v docker-compose &>/dev/null; then
     info "Docker Compose is not installed. Installing Docker Compose..."
     sudo curl -L "https://github.com/docker/compose/releases/download/v2.15.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose

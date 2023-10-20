@@ -1,6 +1,6 @@
 import { Box, IconButton, SwipeableDrawer, useTheme } from "@mui/material";
+import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
 import { SearchList } from "components/lists/SearchList/SearchList";
-import { PageTabs } from "components/PageTabs/PageTabs";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useTabs } from "hooks/useTabs";
@@ -17,7 +17,7 @@ export const chatSideMenuDisplayData = {
     sideForRightHanded: "left",
 } as const;
 
-const zIndex = 2000;
+const zIndex = 1300;
 const id = "chat-side-menu";
 
 export const ChatSideMenu = () => {
@@ -65,13 +65,13 @@ export const ChatSideMenu = () => {
             sx={{
                 zIndex,
                 "& .MuiDrawer-paper": {
-                    width: "min(300px, 100%)",
                     background: palette.background.default,
                     overflowY: "auto",
                     borderRight: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
+                    width: "min(350px, 100%)",
                 },
                 "& > .MuiDialog-container": {
-                    width: "min(300px, 100%)",
+                    width: "min(350px, 100%)",
                     "& > .MuiPaper-root": {
                         zIndex,
                     },
@@ -102,23 +102,15 @@ export const ChatSideMenu = () => {
                 >
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
-                <Box sx={{
-                    // border: `1px solid ${palette.primary.contrastText}`,
-                    background: palette.primary.light,
-                    borderRadius: 2,
-                    overflow: "overlay",
-                    margin: 1,
-                }}>
-                    <PageTabs
-                        ariaLabel="chat-related-tabs"
-                        fullWidth
-                        id="chat-related-tabs"
-                        currTab={currTab}
-                        onChange={handleTabChange}
-                        tabs={tabs}
-                        sx={{ height: "48px" }}
-                    />
-                </Box>
+                <SelectorBase
+                    name="tab"
+                    value={currTab}
+                    label=""
+                    onChange={(tab) => handleTabChange(undefined, tab)}
+                    options={tabs}
+                    getOptionLabel={(o) => o.label}
+                    fullWidth={true}
+                />
                 <IconButton
                     aria-label="search"
                     onClick={toggleSearchFilters}
@@ -127,9 +119,9 @@ export const ChatSideMenu = () => {
                 </IconButton>
             </Box>
             <Box sx={{ overflowY: "auto" }} >
-                {searchType && <SearchList
+                <SearchList
                     id="chat-related-search-list"
-                    display="partial"
+                    display={isMobile ? "dialog" : "partial"}
                     dummyLength={10}
                     hideUpdateButton={true}
                     take={20}
@@ -149,7 +141,7 @@ export const ChatSideMenu = () => {
                         },
                     }}
                     where={where()}
-                />}
+                />
             </Box>
         </SwipeableDrawer>
     );

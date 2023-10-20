@@ -58,6 +58,8 @@ export const typeDef = gql`
         excludeLinkedToTag: Boolean
         ids: [ID!]
         issueId: ID
+        limitTo: [BookmarkFor!]
+        listLabel: String
         listId: ID
         noteId: ID
         organizationId: ID

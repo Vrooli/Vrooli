@@ -81,7 +81,7 @@ const processTranslatedBatchHelper = async (
     const sentences = extractTranslatedSentences(batch, model);
     if (sentences.length === 0) return;
     // Find embeddings for all versions in the batch
-    const { data: embeddings } = await getEmbeddings(objectType, sentences);
+    const { embeddings } = await getEmbeddings(objectType, sentences);
     // Update the embeddings for each stale translation
     await Promise.all(batch.map(async (curr, index) => {
         const translationsToUpdate = curr.translations.filter(t => t.embeddingNeedsUpdate);
@@ -110,7 +110,7 @@ const processUntranslatedBatchHelper = async (
     const sentences = batch.map(obj => model.display().embed?.get(obj as any, []) ?? "");
     if (sentences.length === 0) return;
     // Find embeddings for all objects in the batch
-    const { data: embeddings } = await getEmbeddings(objectType, sentences);
+    const { embeddings } = await getEmbeddings(objectType, sentences);
     // Update the embeddings for each object
     await Promise.all(
         batch.map(async (obj, index) => {

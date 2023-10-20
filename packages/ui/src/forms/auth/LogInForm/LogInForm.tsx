@@ -1,11 +1,12 @@
 import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@local/shared";
-import { Button, Grid, Link, TextField, Typography } from "@mui/material";
+import { Button, Grid, InputAdornment, Link, TextField, Typography } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { EmailIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, useLocation } from "route";
@@ -101,7 +102,17 @@ export const LogInForm = ({
                                 autoComplete="email"
                                 name="email"
                                 label={t("Email", { count: 1 })}
+                                placeholder={t("EmailPlaceholder")}
                                 as={TextField}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <EmailIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                helperText={formik.touched.email && formik.errors.email}
+                                error={formik.touched.email && Boolean(formik.errors.email)}
                             />
                         </Grid>
                         <Grid item xs={12}>

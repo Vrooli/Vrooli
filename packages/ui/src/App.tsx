@@ -76,7 +76,7 @@ export function App() {
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
-    const [contentMargins, setContentMargins] = useState<{ paddingLeft?: string, paddingRight?: string }>({}); // Adds margins to content when a persistent drawer is open
+    const [contentMargins, setContentMargins] = useState<{ marginLeft?: string, marginRight?: string }>({}); // Adds margins to content when a persistent drawer is open
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
 
     // Applies language change
@@ -347,12 +347,12 @@ export function App() {
             // Flip side when in left-handed mode
             const side = isLeftHanded ? (sideForRightHanded === "left" ? "right" : "left") : sideForRightHanded;
             const menuElement = document.getElementById(data.id);
-            const padding = data.isOpen && !isMobile ? `${menuElement?.clientWidth ?? 0}px` : "0px";
+            const margin = data.isOpen && !isMobile ? `${menuElement?.clientWidth ?? 0}px` : "0px";
             // Only set on desktop
             if (side === "left") {
-                setContentMargins(existing => ({ ...existing, paddingLeft: padding }));
+                setContentMargins(existing => ({ ...existing, marginLeft: margin }));
             } else if (side === "right") {
-                setContentMargins(existing => ({ ...existing, paddingRight: padding }));
+                setContentMargins(existing => ({ ...existing, marginRight: margin }));
             }
         });
         // On unmount, unsubscribe from all PubSub topics
@@ -495,6 +495,7 @@ export function App() {
                                 <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
                                 <SideMenu />
                                 <Box id="content-wrap" sx={{
+                                    position: "relative",
                                     background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
                                     minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },
                                     ...(contentMargins),

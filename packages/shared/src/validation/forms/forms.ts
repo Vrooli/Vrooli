@@ -17,6 +17,14 @@ export const emailSignUpFormValidation = yup.object().shape({
     name: req(name),
     email: req(email),
     marketingEmails: req(yup.boolean()),
+    agreeToTerms: req(yup.boolean().oneOf([true])), // Has to be true
+    password: req(password),
+});
+
+export const emailSignUpValidation = yup.object().shape({
+    name: req(name),
+    email: req(email),
+    marketingEmails: req(yup.boolean()),
     password: req(password),
 });
 

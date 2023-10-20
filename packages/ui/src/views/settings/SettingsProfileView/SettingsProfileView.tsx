@@ -1,5 +1,5 @@
 import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, profileValidation, User, userTranslationValidation } from "@local/shared";
-import { Box, Stack, TextField } from "@mui/material";
+import { Box, InputAdornment, Stack, TextField } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -13,6 +13,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
+import { HandleIcon, UserIcon } from "icons";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSection, pagePaddingBottom } from "styles";
@@ -71,8 +72,40 @@ const SettingsProfileForm = ({
                         handleCurrent={setLanguage}
                         languages={languages}
                     />
-                    <Field fullWidth name="name" label={t("Name")} as={TextField} />
-                    <Field fullWidth name="handle" label={t("Handle")} as={TextField} />
+                    <Field
+                        fullWidth
+                        autoComplete="name"
+                        name="name"
+                        label={t("Name")}
+                        placeholder={t("NamePlaceholder")}
+                        as={TextField}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <UserIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                        error={props.touched.name && Boolean(props.errors.name)}
+                        helperText={props.touched.name && props.errors.name}
+                    />
+                    <Field
+                        fullWidth
+                        autoComplete="handle"
+                        name="handle"
+                        label={t("Handle")}
+                        placeholder={t("HandlePlaceholder")}
+                        as={TextField}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <HandleIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                        error={props.touched.handle && Boolean(props.errors.handle)}
+                        helperText={props.touched.handle && props.errors.handle}
+                    />
                     <TranslatedRichInput
                         language={language}
                         maxChars={2048}

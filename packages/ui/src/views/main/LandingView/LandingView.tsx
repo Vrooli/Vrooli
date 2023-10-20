@@ -1,5 +1,5 @@
-import { LINKS, SOCIALS, WHITE_PAPER_URL } from "@local/shared";
-import { Box, Grid, Stack, Tooltip, useTheme } from "@mui/material";
+import { LINKS, SOCIALS } from "@local/shared";
+import { Box, Button, Grid, keyframes, Stack, styled, Tooltip, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
 import Earth from "assets/img/Earth.svg";
@@ -7,11 +7,11 @@ import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainerNeon } from "components/slides";
 import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
-import { ArticleIcon, DiscordIcon, GitHubIcon, PlayIcon, TwitterIcon } from "icons";
+import { GitHubIcon, PlayIcon, TwitterIcon } from "icons";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { greenNeonText, PulseButton, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, textPop } from "styles";
+import { greenNeonText, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, textPop } from "styles";
 import { SvgComponent } from "types";
 import { Forms } from "utils/consts";
 import { toDisplay } from "utils/display/pageTools";
@@ -27,11 +27,42 @@ const slide5Id = "sky-is-limit";
 const slide6Id = "get-started";
 
 const externalLinks: [string, string, SvgComponent][] = [
-    ["Read the white paper", WHITE_PAPER_URL, ArticleIcon],
+    // ["Read the white paper", WHITE_PAPER_URL, ArticleIcon],
     ["Check out our code", SOCIALS.GitHub, GitHubIcon],
     ["Follow us on Twitter", SOCIALS.Twitter, TwitterIcon],
-    ["Join us on Discord", SOCIALS.Discord, DiscordIcon],
+    // ["Join us on Discord", SOCIALS.Discord, DiscordIcon],
 ];
+
+const pulse = keyframes`
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 170, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 255, 170, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 170, 0);
+    }
+`;
+
+const PulseButton = styled(Button)(() => ({
+    // Button border has neon green glow animation
+    animation: `${pulse} 3s infinite ease`,
+    background: "#00aa71",
+    borderColor: "#0fa",
+    borderWidth: "2px",
+    color: "white",
+    fontWeight: 550,
+    width: "fit-content",
+    // On hover, brighten and grow
+    "&:hover": {
+        background: "#2f9875",
+        borderColor: "#0fa",
+        filter: "brightness(1.2)",
+        transform: "scale(1.05)",
+    },
+    transition: "all 0.2s ease",
+}));
 
 /**
  * View displayed for Home page when not logged in
@@ -125,18 +156,38 @@ export const LandingView = ({
                         <SlideText sx={{ paddingBottom: 4 }}>
                             Harness the power of AI to automate tasks, collaborate effortlessly, and start businesses with ease.
                         </SlideText>
-                        <PulseButton
-                            variant="outlined"
-                            color="secondary"
-                            onClick={() => openLink(setLocation, LINKS.Start, { form: Forms.SignUp })}
-                            startIcon={<PlayIcon fill='#0fa' />}
-                            sx={{
-                                marginLeft: "auto !important",
-                                marginRight: "auto !important",
-                                marginBottom: 3,
-                            }}
-                        >Start Now</PulseButton>
-                        {/* Icon buttons for White paper, GitHub, Twitter, and Discord */}
+                        <Box sx={{
+                            display: "flex",
+                            flexDirection: "row",
+                            justifyContent: "center",
+                            gap: 2,
+                            alignItems: "center",
+                            marginLeft: "auto !important",
+                            marginRight: "auto !important",
+                            marginBottom: 3,
+                        }}>
+                            <PulseButton
+                                variant="outlined"
+                                color="secondary"
+                                onClick={() => openLink(setLocation, LINKS.Start, { form: Forms.SignUp })}
+                                startIcon={<PlayIcon fill='white' />}
+                                sx={{
+                                    fontSize: "1.8rem",
+                                    zIndex: 2,
+                                }}
+                            >Start Now</PulseButton>
+                            <Button
+                                variant="outlined"
+                                color="secondary"
+                                onClick={() => openLink(setLocation, LINKS.Search)}
+                                sx={{
+                                    fontSize: "1.4rem",
+                                    zIndex: 2,
+                                    color: "white",
+                                    borderColor: "white",
+                                }}
+                            >View Site</Button>
+                        </Box>
                         <Stack direction="row" spacing={2} display="flex" justifyContent="center" alignItems="center">
                             {externalLinks.map(([tooltip, link, Icon]) => (
                                 <Tooltip key={tooltip} title={tooltip} placement="bottom">
@@ -261,8 +312,9 @@ export const LandingView = ({
                             variant="outlined"
                             color="secondary"
                             onClick={() => openLink(setLocation, LINKS.Start)}
-                            startIcon={<PlayIcon fill='#0fa' />}
+                            startIcon={<PlayIcon fill='white' />}
                             sx={{
+                                fontSize: "1.8rem",
                                 marginLeft: "auto !important",
                                 marginRight: "auto !important",
                                 zIndex: 6,

@@ -1,11 +1,12 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session } from "@local/shared";
-import { Button, Checkbox, FormControlLabel, Grid, Link, TextField, Typography, useTheme } from "@mui/material";
+import { Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, InputAdornment, Link, TextField, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { EmailIcon, UserIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
@@ -36,6 +37,7 @@ export const SignUpForm = ({
             />
             <Formik
                 initialValues={{
+                    agreeToTerms: false,
                     marketingEmails: true,
                     name: "",
                     email: "",
@@ -52,6 +54,7 @@ export const SignUpForm = ({
                         fetch: emailSignUp,
                         inputs: {
                             ...values,
+                            agreeToTerms: undefined, // Not needed for the backend
                             marketingEmails: Boolean(values.marketingEmails),
                             theme: theme.palette.mode ?? "light",
                         },
@@ -101,7 +104,15 @@ export const SignUpForm = ({
                                 autoComplete="name"
                                 name="name"
                                 label={t("Name")}
+                                placeholder={t("NamePlaceholder")}
                                 as={TextField}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <UserIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -110,7 +121,17 @@ export const SignUpForm = ({
                                 autoComplete="email"
                                 name="email"
                                 label={t("Email", { count: 1 })}
+                                placeholder={t("EmailPlaceholder")}
                                 as={TextField}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <EmailIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                helperText={formik.touched.email && formik.errors.email}
+                                error={formik.touched.email && Boolean(formik.errors.email)}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -129,7 +150,7 @@ export const SignUpForm = ({
                                 label={t("PasswordConfirm")}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} sx={{ display: "flex", justifyContent: "left" }}>
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -141,8 +162,41 @@ export const SignUpForm = ({
                                         onChange={formik.handleChange}
                                     />
                                 }
-                                label="I want to receive marketing promotions and updates via email."
+                                label="I agree to receive marketing promotions and updates via email."
                             />
+                        </Grid>
+                        <Grid item xs={12} sx={{ display: "flex", justifyContent: "left" }}>
+                            <FormControl required error={!formik.values.agreeToTerms && formik.touched.agreeToTerms}>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            id="agreeToTerms"
+                                            name="agreeToTerms"
+                                            color="secondary"
+                                            checked={Boolean(formik.values.agreeToTerms)}
+                                            onBlur={formik.handleBlur}
+                                            onChange={formik.handleChange}
+                                        />
+                                    }
+                                    label={
+                                        <>
+                                            I agree to the{" "}
+                                            <Link
+                                                href="/terms-and-conditions"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(event) => event.stopPropagation()}
+                                            >
+                                                terms and conditions
+                                            </Link>
+                                            .
+                                        </>
+                                    }
+                                />
+                                <FormHelperText>
+                                    {formik.touched.agreeToTerms && !formik.values.agreeToTerms && "You must agree to the terms and conditions"}
+                                </FormHelperText>
+                            </FormControl>
                         </Grid>
                     </Grid>
                     <Button

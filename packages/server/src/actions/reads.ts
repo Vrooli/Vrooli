@@ -88,7 +88,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     const formatted = modelToGql(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
-        ModelMap.get<ViewModelLogic>(objectType).view(prisma, userData, { forId: object.id, viewFor: objectType as ViewFor });
+        ModelMap.get<ViewModelLogic>("View").view(prisma, userData, { forId: object.id, viewFor: objectType as ViewFor });
     }
     const result = (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
     return result;

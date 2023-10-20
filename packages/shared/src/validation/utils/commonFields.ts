@@ -26,7 +26,7 @@ export const id = yup.string().trim().removeEmptyString().max(256, maxStrErr);
 
 // protocol fields
 export const apiCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const email = yup.string().trim().removeEmptyString().email().max(256, maxStrErr);
+export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(256, maxStrErr);
 export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).test(
     "handle",
     "Must be 3-16 characters, and only contain letters and numbers",

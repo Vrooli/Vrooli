@@ -150,7 +150,7 @@ const ReminderForm = ({
 
     // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
-    const handleDelete = useCallback((id: string) => {
+    const handleDelete = useCallback(() => {
         fetchLazyWrapper<DeleteOneInput, Success>({
             fetch: deleteMutation,
             inputs: { id: values.id, objectType: DeleteType.Reminder },
@@ -237,7 +237,7 @@ const ReminderForm = ({
                 options={!isCreate ? [{
                     Icon: DeleteIcon,
                     label: t("Delete"),
-                    onClick: handleDelete as () => void,
+                    onClick: handleDelete,
                 }] : []}
             />
             <DragDropContext onDragEnd={onDragEnd}>

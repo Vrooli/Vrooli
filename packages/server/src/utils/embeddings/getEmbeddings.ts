@@ -61,7 +61,7 @@ export const EmbeddingTables: { [key in EmbeddableType]: string } = {
  * @throws An Error if the API request fails
  */
 export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<{
-    data: number[][],
+    embeddings: number[][],
     model: string
 }> {
     try {
@@ -91,7 +91,7 @@ export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableTy
                         logger.error(error, { trace: "0021", result, data, options });
                         reject(new Error(error));
                     }
-                    else resolve(result.embeddings);
+                    else resolve(result);
                 });
             });
             apiRequest.on("error", error => {
@@ -103,6 +103,6 @@ export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableTy
         });
     } catch (error) {
         logger.error("Error fetching embeddings", { trace: "0084", error });
-        return { data: [], model: "" };
+        return { embeddings: [], model: "" };
     }
 }

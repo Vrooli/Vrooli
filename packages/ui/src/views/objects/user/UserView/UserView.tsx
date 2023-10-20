@@ -163,7 +163,7 @@ export const UserView = ({
         });
         // Navigate to chat page
         setLocation(`${LINKS.Chat}/add`);
-    }, [user]);
+    }, [setLocation, user]);
 
     return (
         <>
@@ -448,7 +448,7 @@ export const UserView = ({
             </Box>
             <SideActionsButtons
                 display={display}
-                sx={{ position: "fixed" }}
+                sx={{ position: "absolute" }}
             >
                 {currTab.tabType !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />

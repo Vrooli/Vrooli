@@ -516,7 +516,9 @@ export type BookmarkSearchInput = {
   excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   issueId?: InputMaybe<Scalars['ID']>;
+  limitTo?: InputMaybe<Array<BookmarkFor>>;
   listId?: InputMaybe<Scalars['ID']>;
+  listLabel?: InputMaybe<Scalars['String']>;
   noteId?: InputMaybe<Scalars['ID']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   postId?: InputMaybe<Scalars['ID']>;
@@ -1111,6 +1113,7 @@ export enum DeleteType {
   Api = 'Api',
   ApiVersion = 'ApiVersion',
   Bookmark = 'Bookmark',
+  BookmarkList = 'BookmarkList',
   Chat = 'Chat',
   ChatInvite = 'ChatInvite',
   ChatMessage = 'ChatMessage',

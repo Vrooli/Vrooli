@@ -1,4 +1,4 @@
-import { GqlModelType, InputMaybe, TimeFrame, VisibilityType } from "@local/shared";
+import { GqlModelType, InputMaybe, lowercaseFirstLetter, TimeFrame, VisibilityType } from "@local/shared";
 import { PeriodType } from "@prisma/client";
 import { timeFrameToPrisma } from "../builders/timeFrameToPrisma";
 import { visibilityBuilder } from "../builders/visibilityBuilder";
@@ -163,6 +163,13 @@ export const SearchMap = {
     labelsIds: (ids: Maybe<string[]>) => ({ labels: { some: { label: { id: { in: ids } } } } }),
     languageIn: (languages: Maybe<string[]>) => ({ language: { in: languages } }),
     lastViewedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("lastViewedAt", time),
+    /**
+     * Example: limitTo(["Routine", "Standard"]) => ({ OR: [{ routineId: { NOT: null } }, { standardId: { NOT: null } }] })
+     */
+    limitTo: (limitTo: Maybe<string[]>) => limitTo ? ({
+        OR: limitTo.map((t) => ({ [`${lowercaseFirstLetter(t)}Id`]: { not: null } })),
+    }) : {},
+    listLabel: (label: Maybe<string>) => ({ list: { label } }),
     listId: (id: Maybe<string>) => oneToOneId(id, "list"),
     maxAmount: (amount: Maybe<number>) => ({ amount: { lte: amount } }),
     maxBookmarks: (bookmarks: Maybe<number>) => ({ bookmarks: { lte: bookmarks } }),

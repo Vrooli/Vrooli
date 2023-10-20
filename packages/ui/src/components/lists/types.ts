@@ -1,4 +1,4 @@
-import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
+import { BookmarkList, Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
@@ -49,6 +49,7 @@ export type ObjectListActions<T> = {
     Updated: (data: T) => void;
 };
 
+export type BookmarkListListItemProps = ObjectListItemProps<BookmarkList>
 export type ChatListItemProps = ObjectListItemProps<Chat>
 export type MemberListItemProps = ObjectListItemProps<Member>
 export type NotificationListItemProps = ObjectListItemProps<Notification>

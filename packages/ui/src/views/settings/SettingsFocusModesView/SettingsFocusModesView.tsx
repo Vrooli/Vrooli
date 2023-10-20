@@ -6,7 +6,7 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon, DeleteIcon, EditIcon } from "icons";
+import { AddIcon, DeleteIcon, EditIcon, FocusModeIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -170,6 +170,7 @@ export const SettingsFocusModesView = ({
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
+                        <FocusModeIcon fill={palette.background.textPrimary} style={{ width: "40px", height: "40px", marginRight: 8 }} />
                         <Typography component="h2" variant="h4">{t("FocusMode", { count: 2 })}</Typography>
                         <Tooltip title={canAdd ? "Add new" : "Max focus modes reached. Upgrade to premium to add more, or edit/delete an existing focus mode."} placement="top">
                             <IconButton

@@ -1,8 +1,8 @@
-import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
-import { SearchIcon } from "icons";
+import { LinkIcon, SearchIcon } from "icons";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
@@ -79,6 +79,14 @@ export const LinkInput = ({
                         label={label ?? t("Link")}
                         as={TextField}
                         ref={textFieldRef}
+                        placeholder={"https://example.com"}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <LinkIcon />
+                                </InputAdornment>
+                            ),
+                        }}
                         sx={{
                             "& .MuiInputBase-root": {
                                 borderRadius: "5px 0 0 5px",

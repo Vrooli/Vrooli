@@ -13,6 +13,7 @@ import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { ObjectListItemProps } from "../types";
 
 // Custom list item components
+const { BookmarkListListItem } = lazily(() => import("../BookmarkListListItem/BookmarkListListItem"));
 const { ChatListItem } = lazily(() => import("../ChatListItem/ChatListItem"));
 const { MemberListItem } = lazily(() => import("../MemberListItem/MemberListItem"));
 const { NotificationListItem } = lazily(() => import("../NotificationListItem/NotificationListItem"));
@@ -21,6 +22,7 @@ const { RunProjectListItem } = lazily(() => import("../RunProjectListItem/RunPro
 const { RunRoutineListItem } = lazily(() => import("../RunRoutineListItem/RunRoutineListItem"));
 const getListItemComponent = (objectType: `${GqlModelType}` | "CalendarEvent") => {
     switch (objectType) {
+        case "BookmarkList": return BookmarkListListItem;
         case "Chat": return ChatListItem;
         case "Member": return MemberListItem;
         case "Notification": return NotificationListItem;

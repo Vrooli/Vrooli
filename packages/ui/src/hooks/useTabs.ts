@@ -76,8 +76,8 @@ export const useTabs = <T, S extends boolean = true>({
         return tabFromParams || tabs.find(tab => tab.tabType === storedTab || defaultTab) || tabs[0];
     });
 
-    const handleTabChange = useCallback((e: ChangeEvent<unknown>, tab: PageTab<T, S>) => {
-        e.preventDefault();
+    const handleTabChange = useCallback((e: ChangeEvent<unknown> | undefined, tab: PageTab<T, S>) => {
+        e?.preventDefault();
         if (display === "page") addSearchParams(setLocation, { type: tab.tabType });
         setCookieLastTab(id, tab.tabType);
         setCurrTab(tab);

@@ -1,4 +1,4 @@
-import { AccountStatus, COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, emailSignUpFormValidation, EmailSignUpInput, LINKS, LogOutInput, password as passwordValidation, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
+import { AccountStatus, COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, EmailSignUpInput, emailSignUpValidation, LINKS, LogOutInput, password as passwordValidation, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { hashPassword, logIn, setupPasswordReset, validateCode, validateVerificationCode } from "../../auth/email";
 import { generateSessionJwt, getUser, updateSessionTimeZone } from "../../auth/request";
@@ -214,7 +214,7 @@ export const AuthEndpoints: EndpointsAuth = {
         emailSignUp: async (_, { input }, { prisma, req, res }) => {
             await rateLimit({ maxUser: 10, req });
             // Validate input format
-            emailSignUpFormValidation.validateSync(input, { abortEarly: false });
+            emailSignUpValidation.validateSync(input, { abortEarly: false });
             // Check for censored words
             if (hasProfanity(input.name))
                 throw new CustomError("0140", "BannedWord", req.session.languages);

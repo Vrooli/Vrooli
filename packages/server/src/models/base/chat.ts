@@ -167,7 +167,6 @@ export const ChatModel: ChatModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 "labelsWrapped",
-                "tagsWrapped",
                 "transNameWrapped",
                 "transDescriptionWrapped",
             ],

@@ -1,7 +1,8 @@
 import { BookmarkFor, DUMMY_ID, endpointGetTags, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
-import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
+import { Autocomplete, Chip, InputAdornment, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useFetch } from "hooks/useFetch";
+import { TagIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
@@ -184,8 +185,16 @@ export const TagSelectorBase = ({
                 <TextField
                     value={inputValue}
                     onChange={onChange}
+                    label={t("Tag", { count: 2 })}
                     placeholder={placeholder ?? t("TagSelectorPlaceholder")}
-                    InputProps={params.InputProps}
+                    InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <TagIcon />
+                            </InputAdornment>
+                        ),
+                    }}
                     inputProps={params.inputProps}
                     onKeyDown={onKeyDown}
                     fullWidth

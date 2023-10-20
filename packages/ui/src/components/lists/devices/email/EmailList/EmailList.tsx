@@ -2,12 +2,12 @@
  * Displays a list of emails for the user to manage
  */
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
-import { IconButton, Stack, TextField, useTheme } from "@mui/material";
+import { IconButton, InputAdornment, Stack, TextField, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useFormik } from "formik";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon } from "icons";
+import { AddIcon, EmailIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
@@ -120,11 +120,19 @@ export const EmailList = ({
                     id="emailAddress"
                     name="emailAddress"
                     label={t("NewEmailAddress")}
+                    placeholder={t("EmailPlaceholder")}
                     value={formik.values.emailAddress}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
                     error={formik.touched.emailAddress && Boolean(formik.errors.emailAddress)}
                     helperText={formik.touched.emailAddress && formik.errors.emailAddress}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <EmailIcon />
+                            </InputAdornment>
+                        ),
+                    }}
                     sx={{
                         height: "56px",
                         "& .MuiInputBase-root": {

@@ -1,5 +1,5 @@
 import { BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, Session, User } from "@local/shared";
-import { Slider, Stack, TextField, Typography } from "@mui/material";
+import { InputAdornment, Slider, Stack, TextField, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -17,6 +17,7 @@ import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { BotIcon, HandleIcon } from "icons";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -120,15 +121,37 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         />
                         <Field
                             fullWidth
+                            autoComplete="name"
                             name="name"
                             label={t("Name")}
+                            placeholder={t("NamePlaceholder")}
                             as={TextField}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <BotIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            error={props.touched.name && Boolean(props.errors.name)}
+                            helperText={props.touched.name && props.errors.name}
                         />
                         <Field
                             fullWidth
+                            autoComplete="handle"
                             name="handle"
                             label={t("Handle")}
+                            placeholder={t("HandlePlaceholder")}
                             as={TextField}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <HandleIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            error={props.touched.handle && Boolean(props.errors.handle)}
+                            helperText={props.touched.handle && props.errors.handle}
                         />
                         <TranslatedRichInput
                             language={language}

@@ -2,7 +2,7 @@ import { CommonKey, LINKS, SOCIALS, uuidValidate } from "@local/shared";
 import { Box, Grid, List, ListItem, ListItemIcon, ListItemText, Tooltip, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { SessionContext } from "contexts/SessionContext";
-import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
+import { GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -13,7 +13,7 @@ import { getDeviceInfo } from "utils/display/device";
 /** aria-label, tooltip, link, displayed text, icon */
 const contactLinks: [string, CommonKey, string, CommonKey, SvgComponent][] = [
     ["contact-twitter", "ContactHelpTwitter", SOCIALS.Twitter, "Twitter", TwitterIcon],
-    ["contact-discord", "ContactHelpDiscord", SOCIALS.Discord, "Discord", DiscordIcon],
+    // ["contact-discord", "ContactHelpDiscord", SOCIALS.Discord, "Discord", DiscordIcon],
     ["contact-github", "ContactHelpCode", SOCIALS.GitHub, "SourceCode", GitHubIcon],
 ];
 
@@ -57,7 +57,7 @@ export const Footer = () => {
             >
                 <Grid container justifyContent='center' spacing={1}>
                     <Grid item xs={12} sm={6}>
-                        <List component="nav">
+                        <List component="nav" dense>
                             <ListItem component="h3" >
                                 <ListItemText primary={t("Resource", { count: 2 })} sx={{ textTransform: "uppercase" }} />
                             </ListItem>
@@ -86,7 +86,7 @@ export const Footer = () => {
                         </List>
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                        <List component="nav">
+                        <List component="nav" dense>
                             <ListItem component="h3" >
                                 <ListItemText primary={t("Contact")} sx={{ textTransform: "uppercase" }} />
                             </ListItem>

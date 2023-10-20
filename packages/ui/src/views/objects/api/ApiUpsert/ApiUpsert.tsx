@@ -1,5 +1,5 @@
 import { ApiVersion, ApiVersionCreateInput, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, orDefault, Session } from "@local/shared";
-import { Button, Grid, Stack, TextField } from "@mui/material";
+import { Button, Grid, InputAdornment, Stack, TextField } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -21,7 +21,7 @@ import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { CompleteIcon } from "icons";
+import { CompleteIcon, LinkIcon } from "icons";
 import { forwardRef, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -167,8 +167,15 @@ const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                             fullWidth
                             name="callLink"
                             label={"Endpoint URL"}
-                            helperText={"The full URL to the endpoint"}
+                            placeholder={"https://example.com"}
                             as={TextField}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <LinkIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         {/* Selector for documentation URL or text */}
                         <Grid item xs={12} pb={2}>

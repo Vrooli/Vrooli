@@ -393,6 +393,13 @@ export const GridIcon = (props: SvgProps) => (
     />
 );
 
+export const HandleIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M12 2a10 10 0 0 0 0 20h5v-2h-5c-4.34 0-8-3.66-8-8s3.66-8 8-8 8 3.66 8 8v1.43c0 .79-.71 1.57-1.5 1.57s-1.5-.78-1.5-1.57V12a5 5 0 1 0-1.46 3.53A3.7 3.7 0 0 0 18.5 17c1.97 0 3.5-1.6 3.5-3.57V12A10 10 0 0 0 12 2zm0 13a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"
+    />
+);
+
 export const Header1Icon = (props: SvgProps) => (
     <SvgPath
         props={props}

@@ -2,7 +2,7 @@ import { LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useStripe } from "hooks/useStripe";
-import { CompleteIcon } from "icons";
+import { CompleteIcon, LogInIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { stringifySearchParams, useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
@@ -148,6 +148,7 @@ export const PremiumView = ({
                 {!currentUser.id && <Button
                     fullWidth
                     onClick={() => { setLocation(`${LINKS.Start}${stringifySearchParams({ redirect: LINKS.Premium })}`); }}
+                    startIcon={<LogInIcon />}
                     variant="contained"
                 >{t("LogInToUpgrade")}</Button>}
             </Stack>
