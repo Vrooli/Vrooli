@@ -158,7 +158,7 @@ export const SelectLanguageMenu = ({
     // Popup for selecting language
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
-    const zIndex = useZIndex(open);
+    const zIndex = useZIndex(open, false, 1000);
     const onOpen = useCallback((event: MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why

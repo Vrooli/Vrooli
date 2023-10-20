@@ -163,28 +163,26 @@ export const BookmarkListView = ({
                     />
                 </Box>}
             />
-            <>
-                <SideActionsButtons display={display} >
-                    <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
-                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
-                    <IconButton aria-label={t("AddBookmark")} onClick={openSearch} sx={{ background: palette.secondary.main }}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
-                </SideActionsButtons>
-                <ListContainer
-                    emptyText={t("NoResults", { ns: "error" })}
-                    isEmpty={bookmarks.length === 0 && !isLoading}
-                >
-                    <ObjectList
-                        dummyItems={new Array(5).fill("Routine")}
-                        items={bookmarks}
-                        keyPrefix="bookmark-list-item"
-                        loading={isLoading}
-                        onAction={onAction}
-                    />
-                </ListContainer>
-            </>
+            <ListContainer
+                emptyText={t("NoResults", { ns: "error" })}
+                isEmpty={bookmarks.length === 0 && !isLoading}
+            >
+                <ObjectList
+                    dummyItems={new Array(5).fill("Routine")}
+                    items={bookmarks}
+                    keyPrefix="bookmark-list-item"
+                    loading={isLoading}
+                    onAction={onAction}
+                />
+            </ListContainer>
+            <SideActionsButtons display={display} >
+                <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
+                    <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton>
+                <IconButton aria-label={t("AddBookmark")} onClick={openSearch} sx={{ background: palette.secondary.main }}>
+                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton>
+            </SideActionsButtons>
         </>
     );
 };

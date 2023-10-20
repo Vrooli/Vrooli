@@ -121,7 +121,7 @@ export const RunStepsDialog = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [isOpen, setIsOpen] = useState(false);
-    const zIndex = useZIndex(isOpen);
+    const zIndex = useZIndex(isOpen, false, 1000);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
     const closeDialog = () => { setIsOpen(false); };
 

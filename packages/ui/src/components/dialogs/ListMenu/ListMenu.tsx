@@ -20,7 +20,7 @@ export function ListMenu<T>({
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
-    const zIndex = useZIndex(open);
+    const zIndex = useZIndex(open, false, 1000);
 
     const items = useMemo(() => data?.map(({
         label,

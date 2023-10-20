@@ -446,10 +446,7 @@ export const UserView = ({
                     />
                 </Box>}
             </Box>
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "absolute" }}
-            >
+            <SideActionsButtons display={display}>
                 {currTab.tabType !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton> : null}

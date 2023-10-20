@@ -131,10 +131,7 @@ export const MyStuffView = ({
                 where={where({ userId: userId ?? "" })}
                 sxs={{ search: { marginTop: 2 } }}
             />}
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>

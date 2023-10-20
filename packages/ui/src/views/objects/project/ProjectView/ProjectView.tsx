@@ -187,11 +187,7 @@ export const ProjectView = ({
                 /> */}
             </Box>
             {/* Edit button (if canUpdate) */}
-            <SideActionsButtons
-                // Treat as a dialog when build view is open
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {permissions.canUpdate ? (
                     <IconButton aria-label={t("UpdateProject")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />

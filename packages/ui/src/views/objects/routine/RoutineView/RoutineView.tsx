@@ -353,7 +353,6 @@ export const RoutineView = ({
             <SideActionsButtons
                 // Treat as a dialog when build view is open
                 display={isBuildOpen ? "dialog" : display}
-                sx={{ position: "fixed" }}
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (

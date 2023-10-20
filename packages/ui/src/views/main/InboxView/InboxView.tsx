@@ -137,11 +137,7 @@ export const InboxView = ({
                     onAction={onAction}
                 />
             </ListContainer>
-            {/* New Chat button */}
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 <Tooltip title={t(actionTooltip)}>
                     <IconButton aria-label={t("CreateChat")} onClick={onActionButtonPress} sx={{ background: palette.secondary.main }}>
                         <ActionButtonIcon fill={palette.secondary.contrastText} width='36px' height='36px' />

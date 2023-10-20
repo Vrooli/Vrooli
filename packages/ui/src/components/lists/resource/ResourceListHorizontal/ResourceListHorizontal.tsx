@@ -149,7 +149,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
                         textOverflow: "ellipsis",
                     }}
                 >
-                    {typeof Icon === "function" ? <Icon fill={palette.background.textPrimary} /> : Icon}
+                    {typeof Icon === "function" ? <Icon fill={palette.primary.contrastText} /> : Icon}
                     <Typography
                         gutterBottom
                         variant="body2"

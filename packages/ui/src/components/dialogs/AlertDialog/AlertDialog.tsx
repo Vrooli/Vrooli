@@ -31,7 +31,7 @@ export const AlertDialog = () => {
 
     const [state, setState] = useState<AlertDialogState>(defaultState());
     const [open, setOpen] = useState(false);
-    const zIndex = useZIndex(open);
+    const zIndex = useZIndex(open, false, 1000);
 
     useEffect(() => {
         const dialogSub = PubSub.get().subscribeAlertDialog((o) => {

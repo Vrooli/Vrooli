@@ -1,6 +1,5 @@
 import { FindByIdInput, FindVersionInput } from "@local/shared";
 import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
-import { BottomActionsGrid } from "components/buttons/BottomActionsGrid/BottomActionsGrid";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -370,16 +369,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         </Stack>
                     )}
                 </Box>
-                <BottomActionsGrid display="dialog" sx={{ background: "transparent" }}>
-                    <SideActionsButtons display="dialog">
-                        <IconButton aria-label="filter-list" onClick={focusSearch} sx={{ background: palette.secondary.main }}>
-                            <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </IconButton>
-                        <IconButton aria-label="create-new" onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
-                            <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </IconButton>
-                    </SideActionsButtons>
-                </BottomActionsGrid>
+                <SideActionsButtons display="dialog">
+                    <IconButton aria-label="filter-list" onClick={focusSearch} sx={{ background: palette.secondary.main }}>
+                        <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </IconButton>
+                    <IconButton aria-label="create-new" onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
+                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </IconButton>
+                </SideActionsButtons>
             </LargeDialog>
         </>
     );

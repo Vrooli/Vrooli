@@ -14,7 +14,7 @@ import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -313,12 +313,13 @@ export const SideMenu = () => {
                             palette={palette}
                         />
                     ))}
-                    <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
                     <NavListItem label={t("Bookmark", { count: 2 })} Icon={BookmarkFilledIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`)} palette={palette} />
-                    <NavListItem label={t("History")} Icon={HistoryIcon} onClick={(event) => handleOpen(event, LINKS.History)} palette={palette} />
+                    <NavListItem label={t("Calendar", { count: 2 })} Icon={MonthIcon} onClick={(event) => handleOpen(event, LINKS.Calendar)} palette={palette} />
+                    <NavListItem label={t("View", { count: 2 })} Icon={HistoryIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Viewed}`)} palette={palette} />
                     <NavListItem label={t("Run", { count: 2 })} Icon={RoutineActiveIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`)} palette={palette} />
                     <NavListItem label={t("Award", { count: 2 })} Icon={AwardIcon} onClick={(event) => handleOpen(event, LINKS.Awards)} palette={palette} />
                     <NavListItem label={t("Premium")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Premium)} palette={palette} />
+                    <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
                 </List>
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* Additional Resources */}

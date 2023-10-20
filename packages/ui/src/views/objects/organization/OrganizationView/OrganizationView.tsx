@@ -285,10 +285,7 @@ export const OrganizationView = ({
                     }
                 </Box>
             </Box>
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {/* Toggle search filters */}
                 {currTab.tabType !== OrganizationPageTabOption.Resource ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />

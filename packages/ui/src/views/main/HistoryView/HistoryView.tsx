@@ -45,35 +45,32 @@ export const HistoryView = ({
                     tabs={tabs}
                 />}
             />
-            {searchType && <SearchList
-                id="history-page-list"
-                display={display}
-                dummyLength={display === "page" ? 5 : 3}
-                take={20}
-                searchType={searchType}
-                sxs={{
-                    search: {
-                        marginTop: 2,
-                    },
-                }}
-                where={where()}
-            />}
-            {searchType === SearchType.BookmarkList && <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }} // TODO for morning: using "fixed" needed to show at bottom, but it doesn't stay within content-wrap div. Maybe use "sticky" instead? But it doesn't show at the bottom if the content is too short.
-            // sx={{
-            //    position: "sticky",
-            //    justifyContent: "flex-end",
-            // }}
-            >
-                <IconButton
-                    aria-label={t("Add")}
-                    onClick={() => { setLocation(`${getObjectUrlBase({ __typename: GqlModelType.BookmarkList })}/add`); }}
-                    sx={{ background: palette.secondary.main }}
-                >
-                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
-            </SideActionsButtons>}
+            {
+                searchType && <SearchList
+                    id="history-page-list"
+                    display={display}
+                    dummyLength={display === "page" ? 5 : 3}
+                    take={20}
+                    searchType={searchType}
+                    sxs={{
+                        search: {
+                            marginTop: 2,
+                        },
+                    }}
+                    where={where()}
+                />
+            }
+            {
+                searchType === SearchType.BookmarkList && <SideActionsButtons display={display}>
+                    <IconButton
+                        aria-label={t("Add")}
+                        onClick={() => { setLocation(`${getObjectUrlBase({ __typename: GqlModelType.BookmarkList })}/add`); }}
+                        sx={{ background: palette.secondary.main }}
+                    >
+                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </IconButton>
+                </SideActionsButtons>
+            }
         </>
     );
 };

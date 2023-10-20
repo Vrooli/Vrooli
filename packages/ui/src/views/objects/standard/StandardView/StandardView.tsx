@@ -183,10 +183,7 @@ export const StandardView = ({
                     </Box>
                 </Box>}
             </Formik>
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
                     <IconButton aria-label={t("UpdateStandard")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>

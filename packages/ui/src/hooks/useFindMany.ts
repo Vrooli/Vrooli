@@ -147,8 +147,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         canSearch: typeof stableCanSearch === "function" ? stableCanSearch(stableWhere ?? {}) : true,
         findManyEndpoint: "",
         hasMore: true,
-        // Start loading as "true" if we're allowed to search, to prevent flicker
-        loading: typeof stableCanSearch === "function" ? stableCanSearch(stableWhere ?? {}) : true,
+        loading: false,
         searchString: getUrlParams().searchString ?? "",
         sortBy: getUrlParams().sortBy ?? "",
         timeFrame: getUrlParams().timeFrame,

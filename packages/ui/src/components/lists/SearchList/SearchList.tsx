@@ -107,7 +107,6 @@ export function SearchList<DataType extends NavigableObject>({
         } else {
             return;
         }
-        console.log("handlescroll should load more?", scrolledY, scrollableHeight - 500);
         if (!loading && scrolledY > scrollableHeight - 500) {
             loadMore();
         }

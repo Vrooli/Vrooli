@@ -130,10 +130,7 @@ export const QuestionView = ({
                     {comments}
                 </Stack>}
             </Formik>
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
                     <IconButton aria-label={t("UpdateQuestion")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>

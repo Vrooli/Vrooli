@@ -302,32 +302,30 @@ const NoteForm = ({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
-                sideActionButtons={{
-                    children: (!isCreate || (disabled && languages.length > 1)) ? (
-                        <EllipsisActionButton>
-                            <>
-                                <Box sx={{
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                }}>
-                                    {disabled && languages.length > 1 ? <SelectLanguageMenu
-                                        currentLanguage={language}
-                                        handleCurrent={setLanguage}
-                                        languages={languages}
-                                    /> : undefined}
-                                </Box>
-                                {!isCreate && (
-                                    <ObjectActionsRow
-                                        actionData={actionData}
-                                        exclude={[ObjectAction.Delete, ObjectAction.Edit]}
-                                        object={values as ListObject}
-                                    />
-                                )}
-                            </>
-                        </EllipsisActionButton>
-                    ) : null,
-                }}
+                sideActionButtons={(!isCreate || (disabled && languages.length > 1)) ? (
+                    <EllipsisActionButton>
+                        <>
+                            <Box sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                            }}>
+                                {disabled && languages.length > 1 ? <SelectLanguageMenu
+                                    currentLanguage={language}
+                                    handleCurrent={setLanguage}
+                                    languages={languages}
+                                /> : undefined}
+                            </Box>
+                            {!isCreate && (
+                                <ObjectActionsRow
+                                    actionData={actionData}
+                                    exclude={[ObjectAction.Delete, ObjectAction.Edit]}
+                                    object={values as ListObject}
+                                />
+                            )}
+                        </>
+                    </EllipsisActionButton>
+                ) : null}
             />
         </MaybeLargeDialog>
     );

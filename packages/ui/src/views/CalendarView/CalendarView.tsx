@@ -262,9 +262,39 @@ export const CalendarView = ({
         //TODO
     };
 
+    const activeDayStyle = {
+        background: palette.mode === "dark" ? palette.primary.main : undefined,
+        color: palette.mode === "dark" ? palette.primary.contrastText : undefined,
+    };
+    const outOfRangeDayStyle = {
+        background: palette.mode === "dark" ? palette.background.default : palette.grey[400],
+    };
+
+    const dayPropGetter = (date) => {
+        const now = new Date();
+        // Check if the date is the current day
+        if (date.getDate() === now.getDate() &&
+            date.getMonth() === now.getMonth() &&
+            date.getFullYear() === now.getFullYear()) {
+            return {
+                style: activeDayStyle,
+            };
+        }
+        // If the date is not in the current month, apply the outOfRangeDayStyle
+        if (dateRange.start && dateRange.end) {
+            const midRange = new Date((dateRange.start.getTime() + dateRange.end.getTime()) / 2);
+            if (date.getMonth() !== midRange.getMonth()) {
+                return {
+                    style: outOfRangeDayStyle,
+                };
+            }
+        }
+        return {};
+    };
+
     if (!localizer) return <FullPageSpinner />;
     return (
-        <>
+        <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
             {/* Dialog for creating/updating schedules */}
             <ScheduleUpsert
                 defaultTab={currTab.tabType === "All" ? CalendarPageTabOption.Meeting : currTab.tabType}
@@ -276,24 +306,6 @@ export const CalendarView = ({
                 onCompleted={handleScheduleCompleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
             />
-            {/* Add event button */}
-            <SideActionsButtons
-                // Treat as a dialog when build view is open
-                display={display}
-            >
-                <IconButton
-                    aria-label={t("CreateEvent")}
-                    onClick={handleAddSchedule}
-                    sx={{
-                        background: palette.secondary.main,
-                        padding: 0,
-                        width: "54px",
-                        height: "54px",
-                    }}
-                >
-                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
-            </SideActionsButtons>
             <TopBar
                 ref={ref}
                 display={display}
@@ -320,12 +332,28 @@ export const CalendarView = ({
                         header: DayColumnHeader,
                     },
                 }}
+                dayPropGetter={dayPropGetter}
                 style={{
                     height: calendarHeight,
                     maxHeight: calendarHeight,
                     background: palette.background.paper,
                 }}
             />
-        </>
+            {/* Add event button */}
+            <SideActionsButtons display={display}>
+                <IconButton
+                    aria-label={t("CreateEvent")}
+                    onClick={handleAddSchedule}
+                    sx={{
+                        background: palette.secondary.main,
+                        padding: 0,
+                        width: "54px",
+                        height: "54px",
+                    }}
+                >
+                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton>
+            </SideActionsButtons>
+        </Box>
     );
 };

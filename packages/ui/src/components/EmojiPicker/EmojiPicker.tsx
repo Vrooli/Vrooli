@@ -350,7 +350,7 @@ export const EmojiPicker = ({
 }) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
-    const zIndex = useZIndex(Boolean(anchorEl));
+    const zIndex = useZIndex(Boolean(anchorEl), false, 1000);
 
     const [searchString, setSearchString] = useState("");
     const handleChange = (value: string) => {

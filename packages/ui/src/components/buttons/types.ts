@@ -62,7 +62,7 @@ export interface BottomActionsButtonsProps {
     onCancel: () => unknown;
     onSetSubmitting?: (isSubmitting: boolean) => unknown;
     onSubmit?: () => unknown;
-    sideActionButtons?: Omit<SideActionsButtonsProps, "display" | "hasGridActions">;
+    sideActionButtons?: OrArray<JSX.Element | null | undefined>;
 }
 
 export interface HelpButtonProps extends ButtonProps {
@@ -130,8 +130,6 @@ export interface ShareButtonProps {
 export interface SideActionsButtonsProps {
     children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
-    /** If true, displays higher up */
-    hasGridActions?: boolean;
     sx?: SxType;
 }
 
