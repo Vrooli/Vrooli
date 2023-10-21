@@ -14,7 +14,6 @@ import { NavigableObject } from "types";
  */
 export const Cookies = {
     ...COOKIE,
-    Dimensions: "dimensions", // Used to store the dimensions of a resizable component
     PartialData: "partialData", // Used to store partial data for the page before the full data is loaded
     Preferences: "cookiePreferences",
     Theme: "theme",
@@ -167,31 +166,6 @@ export const getSideMenuState = <T extends boolean | undefined>(id: string, fall
 export const setSideMenuState = (id: string, state: boolean) => ifAllowed("functional", () => {
     const allMenus = getOrSetCookie(Cookies.SideMenuState, (value: unknown): value is Record<string, boolean> => typeof value === "object" && value !== null, {});
     setCookie(Cookies.SideMenuState, allMenus ? { ...allMenus, [id]: state } : { [id]: state });
-});
-
-type Dimensions = { width: number, height: number };
-
-export const getCookieDimensions = (id: string, fallback?: Dimensions): Dimensions | undefined =>
-    ifAllowed("functional",
-        () => {
-            const allDimensions = getOrSetCookie(Cookies.Dimensions, (value: unknown): value is Record<string, Dimensions> => typeof value === "object" && value !== null, {});
-            if (!allDimensions || !allDimensions[id]) return fallback;
-            // If dimension exists, make sure it's not larger than the screen
-            const { width, height } = allDimensions[id];
-            const maxWidth = window.innerWidth - 100;
-            const maxHeight = window.innerHeight - 100;
-            console.log("got cookie dimensions", width, height);
-            return {
-                width: Math.min(width ?? 0, maxWidth),
-                height: Math.min(height ?? 0, maxHeight),
-            };
-        },
-        fallback,
-    );
-
-export const setCookieDimensions = (id: string, dimensions: Dimensions) => ifAllowed("functional", () => {
-    const allDimensions = getOrSetCookie(Cookies.Dimensions, (value: unknown): value is Record<string, Dimensions> => typeof value === "object" && value !== null, {});
-    setCookie(Cookies.Dimensions, allDimensions ? { ...allDimensions, [id]: dimensions } : { [id]: dimensions });
 });
 
 export const getCookieShowMarkdown = <T extends boolean | undefined>(fallback?: T): T =>

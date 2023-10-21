@@ -1,4 +1,4 @@
-import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useUndoRedo } from "hooks/useUndoRedo";
@@ -164,12 +164,15 @@ export const RichInputBase = ({
         <>
             {/* Assistant dialog for generating text */}
             {!disableAssistant && <ChatCrud {...assistantDialogProps} />}
-            <Stack
+            <Box
                 id={`markdown-input-base-${name}`}
-                direction="column"
-                spacing={0}
                 onMouseDown={handleMouseDown}
-                sx={{ ...(sxs?.root ?? {}) }}
+                sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0,
+                    ...(sxs?.root ?? {}),
+                }}
             >
                 <RichInputToolbar
                     activeStates={activeStates}
@@ -232,7 +235,7 @@ export const RichInputBase = ({
                         </Box>
                     </Box>
                 }
-            </Stack >
+            </Box>
         </>
     );
 };

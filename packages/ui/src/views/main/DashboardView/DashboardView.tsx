@@ -8,12 +8,11 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { Resizable, useDimensionContext } from "components/Resizable/Resizable";
 import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { PageTab } from "hooks/useTabs";
 import { AddIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SearchIcon } from "icons";
-import { Dispatch, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
@@ -27,54 +26,6 @@ import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { DashboardViewProps } from "../types";
-
-const NewMessageContainer = ({
-    message,
-    handleSubmit,
-    setMessage,
-}: {
-    message: string,
-    setMessage: Dispatch<SetStateAction<string>>,
-    handleSubmit: (text: string) => unknown,
-}) => {
-    const { t } = useTranslation();
-    const dimensions = useDimensionContext();
-
-    return (
-        <RichInputBase
-            actionButtons={[{
-                Icon: SearchIcon, // Should be SearchIcon by default. But if search result is focused, then can change to that item's icon
-                onClick: () => {
-                    //TODO
-                },
-            }]}
-            disableAssistant={true}
-            fullWidth
-            getTaggableItems={async (message) => {
-                // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
-                return [];
-            }}
-            maxChars={1500}
-            minRows={4}
-            maxRows={15}
-            name="search"
-            onChange={setMessage}
-            placeholder={t("WhatWouldYouLikeToDo")}
-            sxs={{
-                root: {
-                    height: dimensions.height,
-                    width: "100%",
-                    // When BottomNav is shown, need to make room for it
-                    paddingBottom: { xs: pagePaddingBottom, md: 0 },
-                    willChange: "height",
-                },
-                bar: { borderRadius: 0 },
-                textArea: { paddingRight: 4, border: "none", height: "100%" },
-            }}
-            value={message}
-        />
-    );
-};
 
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
@@ -237,7 +188,13 @@ export const DashboardView = ({
     }, [closeSideMenu]);
 
     return (
-        <>
+        <Box sx={{
+            display: "flex",
+            flexDirection: "column",
+            maxHeight: "100vh",
+            height: "100vh",
+            overflow: "hidden",
+        }}>
             {/* Main content */}
             <TopBar
                 display={display}
@@ -264,15 +221,19 @@ export const DashboardView = ({
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}
+                        sx={{ width: "min(700px, 100%)", minWidth: undefined, margin: "auto" }}
                     />
                 )}
             />
             <Box sx={{
                 display: "flex",
                 flexDirection: "column",
-                margin: "auto",
-                minHeight: "100vh",
+                flexGrow: 1,
                 gap: 2,
+                margin: "auto",
+                paddingBottom: 4,
+                overflowY: "auto",
+                width: "min(700px, 100%)",
             }}>
                 {/* Resources */}
                 <Box p={1}>
@@ -332,25 +293,39 @@ export const DashboardView = ({
                     />
                 </ListTitleContainer>}
             </Box>
-            <Resizable
-                id="chat-message-input"
-                min={150}
-                max={"50vh"}
-                position="top"
-                sx={{
-                    position: "sticky",
-                    bottom: 0,
-                    height: "min(50vh, 250px)",
-                    background: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                }}>
-                <NewMessageContainer
-                    handleSubmit={() => { }}
-                    message={message}
-                    setMessage={setMessage}
-                />
-            </Resizable>
+            <RichInputBase
+                actionButtons={[{
+                    Icon: SearchIcon, // Should be SearchIcon by default. But if search result is focused, then can change to that item's icon
+                    onClick: () => {
+                        //TODO
+                    },
+                }]}
+                disableAssistant={true}
+                fullWidth
+                getTaggableItems={async (message) => {
+                    // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
+                    return [];
+                }}
+                maxChars={1500}
+                minRows={1}
+                name="search"
+                onChange={setMessage}
+                placeholder={t("WhatWouldYouLikeToDo")}
+                sxs={{
+                    root: {
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
+                        maxHeight: "min(50vh, 500px)",
+                        width: "min(700px, 100%)",
+                        margin: "auto",
+                        marginBottom: { xs: pagePaddingBottom, md: "0" },
+                    },
+                    bar: { borderRadius: 0 },
+                    textArea: { paddingRight: 4, border: "none" },
+                }}
+                value={message}
+            />
             <ChatSideMenu />
-        </>
+        </Box>
     );
 };

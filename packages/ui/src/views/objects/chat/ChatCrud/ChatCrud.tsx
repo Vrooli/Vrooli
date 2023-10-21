@@ -11,7 +11,6 @@ import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/Trans
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { Resizable, useDimensionContext } from "components/Resizable/Resizable";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik } from "formik";
@@ -27,7 +26,7 @@ import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { TFunction } from "i18next";
 import { CopyIcon, ListIcon, SendIcon } from "icons";
-import { Dispatch, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormContainer, FormSection, pagePaddingBottom } from "styles";
@@ -43,7 +42,6 @@ import { addToArray, updateArray, validateAndGetYupErrors } from "utils/shape/ge
 import { ChatShape, shapeChat } from "utils/shape/models/chat";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
-import { ViewDisplayType } from "views/types";
 import { ChatCrudProps } from "../types";
 
 export const chatInitialValues = (
@@ -139,70 +137,6 @@ export const assistantChatInfo: ChatCrudProps["overrideObject"] = {
     }] as unknown as ChatInviteShape[],
 };
 
-const NewMessageContainer = ({
-    chat,
-    display,
-    message,
-    handleSubmit,
-    setMessage,
-}: {
-    chat: ChatShape,
-    display: ViewDisplayType,
-    message: string,
-    setMessage: Dispatch<SetStateAction<string>>,
-    handleSubmit: (text: string) => unknown,
-}) => {
-    const session = useContext(SessionContext);
-    const dimensions = useDimensionContext();
-
-    return (
-        <RichInputBase
-            actionButtons={[{
-                Icon: SendIcon,
-                onClick: () => {
-                    if (!chat) {
-                        PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
-                        return;
-                    }
-                    handleSubmit(message);
-                },
-            }]}
-            disabled={!chat}
-            disableAssistant={true}
-            fullWidth
-            getTaggableItems={async (searchString) => {
-                // Find all users in the chat, plus @Everyone
-                let users = [
-                    //TODO handle @Everyone
-                    ...(chat?.participants?.map(p => p.user) ?? []),
-                ];
-                // Filter out current user
-                users = users.filter(p => p.id !== getCurrentUser(session).id);
-                // Filter out users that don't match the search string
-                users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
-                console.log("got taggable items", users, searchString);
-                return users;
-            }}
-            maxChars={1500}
-            minRows={4}
-            maxRows={15}
-            onChange={setMessage}
-            name="newMessage"
-            sxs={{
-                root: {
-                    height: dimensions.height,
-                    width: "100%",
-                    // When BottomNav is shown, need to make room for it
-                    paddingBottom: { xs: display === "page" ? pagePaddingBottom : 0, md: 0 },
-                },
-                bar: { borderRadius: 0 },
-                textArea: { paddingRight: 4, border: "none", height: "100%" },
-            }}
-            value={message}
-        />
-    );
-};
-
 const getTypingIndicatorText = (participants: ListObject[], maxChars: number) => {
     if (participants.length === 0) return "";
     if (participants.length === 1) return `${getDisplay(participants[0]).title} is typing`;
@@ -269,15 +203,16 @@ const ChatForm = ({
     const [typing, setTyping] = useState<ChatParticipant[]>([]);
 
     // We query messages separate from the chat, since we must traverse the message tree
-    const [getPageData, { data: pageData, loading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+    const [getPageData, { data: searchTreeData, loading: isSearchTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
     const [allMessages, setAllMessages] = useState<ChatMessageShape[]>([]);
     useEffect(() => {
+        console.log("getting page data?", existing.id);
         if (!existing.id || existing.id === DUMMY_ID) return;
         getPageData({ chatId: existing.id });
     }, [existing.id, getPageData]);
     useEffect(() => {
-        if (!pageData || pageData.messages.length === 0) return;
-        console.log("got page data", pageData);
+        console.log("got search tree data", searchTreeData);
+        if (!searchTreeData || searchTreeData.messages.length === 0) return;
         // Add to all messages, making sure to only add messages that aren't already there
         setAllMessages(curr => {
             const hash = {};
@@ -286,14 +221,15 @@ const ChatForm = ({
                 hash[item.id] = item;
             }
             // Add unique items from parsedData
-            for (const item of pageData.messages) {
+            for (const item of searchTreeData.messages) {
                 if (!hash[item.id]) {
                     hash[item.id] = item;
                 }
             }
+            console.log("setting all messages hash:", hash);
             return Object.values(hash);
         });
-    }, [pageData]);
+    }, [searchTreeData]);
     useEffect(() => {
         // Build message tree
         const temp = new MessageTree(allMessages);
@@ -316,7 +252,7 @@ const ChatForm = ({
     });
     const { formRef, handleClose } = useFormDialog({ handleCancel });
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isSearchTreeLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, isSearchTreeLoading, props.isSubmitting]);
 
     const onSubmit = useCallback((updatedChat?: ChatShape) => {
         if (disabled) {
@@ -341,7 +277,8 @@ const ChatForm = ({
                 // Update, but make sure messages are in the correct order
                 handleUpdate({
                     ...data,
-                    messages: data.messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+                    // TODO should be adding messages to tree instead
+                    messages: data.messages?.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) ?? {},
                 });
                 setMessage("");
             },
@@ -438,7 +375,7 @@ const ChatForm = ({
             socket.off("message");
             socket.off("typing");
         };
-    }, [existing.participants, handleUpdate, session, typing]);
+    }, [existing.participants, handleUpdate, message, session, typing]);
 
     // Handle translations
     const {
@@ -532,184 +469,220 @@ const ChatForm = ({
                 isOpen={isOpen}
                 onClose={handleClose}
             >
-                <TopBar
-                    display={display}
-                    startComponent={<IconButton
-                        aria-label="Open chat menu"
-                        onClick={openSideMenu}
-                        sx={{
-                            width: "48px",
-                            height: "48px",
-                            marginLeft: 1,
-                            marginRight: 1,
-                            cursor: "pointer",
-                        }}
-                    >
-                        <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
-                    </IconButton>}
-                    titleComponent={<EditableTitle
-                        handleDelete={handleDelete}
-                        isDeletable={!(isCreate || disabled)}
-                        isEditable={!disabled}
-                        language={language}
-                        onClose={onSubmit}
-                        onSubmit={onSubmit}
-                        titleField="name"
-                        subtitleField="description"
-                        variant="subheader"
-                        sxs={{ stack: { padding: 0 } }}
-                        DialogContentForm={() => (
-                            <>
-                                <BaseForm
-                                    dirty={dirty}
-                                    display="dialog"
-                                    maxWidth={600}
-                                    style={{
-                                        paddingBottom: "16px",
-                                    }}
-                                >
-                                    <FormContainer>
-                                        {/* TODO relationshiplist should be for connecting organization and inviting users. Can invite non-members even if organization specified, but the search should show members first */}
-                                        <RelationshipList
-                                            isEditing={true}
-                                            objectType={"Chat"}
-                                            sx={{ marginBottom: 4 }}
-                                        />
-                                        <FormSection sx={{
-                                            overflowX: "hidden",
-                                        }}>
-                                            <LanguageInput
-                                                currentLanguage={language}
-                                                handleAdd={handleAddLanguage}
-                                                handleDelete={handleDeleteLanguage}
-                                                handleCurrent={setLanguage}
-                                                languages={languages}
+                <Box sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    maxHeight: "100vh",
+                    height: "100vh",
+                    overflow: "hidden",
+                }}>
+                    <TopBar
+                        display={display}
+                        startComponent={<IconButton
+                            aria-label="Open chat menu"
+                            onClick={openSideMenu}
+                            sx={{
+                                width: "48px",
+                                height: "48px",
+                                marginLeft: 1,
+                                marginRight: 1,
+                                cursor: "pointer",
+                            }}
+                        >
+                            <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
+                        </IconButton>}
+                        titleComponent={<EditableTitle
+                            handleDelete={handleDelete}
+                            isDeletable={!(isCreate || disabled)}
+                            isEditable={!disabled}
+                            language={language}
+                            onClose={onSubmit}
+                            onSubmit={onSubmit}
+                            titleField="name"
+                            subtitleField="description"
+                            variant="subheader"
+                            sxs={{ stack: { padding: 0 } }}
+                            DialogContentForm={() => (
+                                <>
+                                    <BaseForm
+                                        dirty={dirty}
+                                        display="dialog"
+                                        maxWidth={600}
+                                        style={{
+                                            paddingBottom: "16px",
+                                        }}
+                                    >
+                                        <FormContainer>
+                                            {/* TODO relationshiplist should be for connecting organization and inviting users. Can invite non-members even if organization specified, but the search should show members first */}
+                                            <RelationshipList
+                                                isEditing={true}
+                                                objectType={"Chat"}
+                                                sx={{ marginBottom: 4 }}
                                             />
-                                            <TranslatedTextField
-                                                fullWidth
-                                                label={t("Name")}
-                                                language={language}
-                                                name="name"
-                                            />
-                                            <TranslatedRichInput
-                                                language={language}
-                                                maxChars={2048}
-                                                minRows={4}
-                                                name="description"
-                                                placeholder={t("Description")}
-                                            />
-                                        </FormSection>
-                                        {/* Invite link */}
-                                        <Stack direction="column" spacing={1}>
-                                            <Stack direction="row" sx={{ alignItems: "center" }}>
-                                                <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
-                                                <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
-                                            </Stack>
-                                            <Stack direction="row" spacing={0}>
-                                                {/* Enable/disable */}
-                                                {/* <Checkbox
+                                            <FormSection sx={{
+                                                overflowX: "hidden",
+                                            }}>
+                                                <LanguageInput
+                                                    currentLanguage={language}
+                                                    handleAdd={handleAddLanguage}
+                                                    handleDelete={handleDeleteLanguage}
+                                                    handleCurrent={setLanguage}
+                                                    languages={languages}
+                                                />
+                                                <TranslatedTextField
+                                                    fullWidth
+                                                    label={t("Name")}
+                                                    language={language}
+                                                    name="name"
+                                                />
+                                                <TranslatedRichInput
+                                                    language={language}
+                                                    maxChars={2048}
+                                                    minRows={4}
+                                                    name="description"
+                                                    placeholder={t("Description")}
+                                                />
+                                            </FormSection>
+                                            {/* Invite link */}
+                                            <Stack direction="column" spacing={1}>
+                                                <Stack direction="row" sx={{ alignItems: "center" }}>
+                                                    <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
+                                                    <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
+                                                </Stack>
+                                                <Stack direction="row" spacing={0}>
+                                                    {/* Enable/disable */}
+                                                    {/* <Checkbox
                                         id="open-to-anyone"
                                         size="small"
                                         name='openToAnyoneWithInvite'
                                         color='secondary'
             
                                     /> */}
-                                                <Field
-                                                    name="openToAnyoneWithInvite"
-                                                    type="checkbox"
-                                                    as={Checkbox}
-                                                    sx={{
-                                                        "&.MuiCheckbox-root": {
-                                                            color: palette.secondary.main,
-                                                        },
-                                                    }}
-                                                />
-                                                {/* Show link with copy adornment*/}
-                                                <TextField
-                                                    disabled
-                                                    fullWidth
-                                                    id="invite-link"
-                                                    label={t("InviteLink")}
-                                                    variant="outlined"
-                                                    value={url}
-                                                    InputProps={{
-                                                        endAdornment: (
-                                                            <InputAdornment position="end">
-                                                                <IconButton
-                                                                    aria-label={t("Copy")}
-                                                                    onClick={copyLink}
-                                                                    size="small"
-                                                                >
-                                                                    <CopyIcon />
-                                                                </IconButton>
-                                                            </InputAdornment>
-                                                        ),
-                                                    }}
-                                                />
+                                                    <Field
+                                                        name="openToAnyoneWithInvite"
+                                                        type="checkbox"
+                                                        as={Checkbox}
+                                                        sx={{
+                                                            "&.MuiCheckbox-root": {
+                                                                color: palette.secondary.main,
+                                                            },
+                                                        }}
+                                                    />
+                                                    {/* Show link with copy adornment*/}
+                                                    <TextField
+                                                        disabled
+                                                        fullWidth
+                                                        id="invite-link"
+                                                        label={t("InviteLink")}
+                                                        variant="outlined"
+                                                        value={url}
+                                                        InputProps={{
+                                                            endAdornment: (
+                                                                <InputAdornment position="end">
+                                                                    <IconButton
+                                                                        aria-label={t("Copy")}
+                                                                        onClick={copyLink}
+                                                                        size="small"
+                                                                    >
+                                                                        <CopyIcon />
+                                                                    </IconButton>
+                                                                </InputAdornment>
+                                                            ),
+                                                        }}
+                                                    />
+                                                </Stack>
                                             </Stack>
-                                        </Stack>
-                                    </FormContainer>
-                                </BaseForm>
-                            </>
-                        )}
-                    />}
-                />
-                <Box ref={dimRef} sx={{
-                    display: "table",
-                    margin: "auto",
-                    overflowY: "auto",
-                    maxHeight: "calc(100vh - 64px)",
-                    minHeight: "calc(100vh - 64px)",
-                    minWidth: "min(700px, 100%)",
-                }}>
-                    {existing.messages.map((message: ChatMessageShape, index) => {
-                        const isOwn = message.user?.id === getCurrentUser(session).id;
-                        return <ChatBubble
-                            key={index}
-                            chatWidth={dimensions.width}
-                            message={message}
-                            index={index}
-                            isOwn={isOwn}
-                            onDeleted={(deletedMessage) => {
-                                handleUpdate(c => ({
-                                    ...c,
-                                    messages: c.messages.filter(m => m.id !== deletedMessage.id),
-                                }));
-                            }}
-                            onUpdated={(updatedMessage) => {
-                                handleUpdate(c => ({
-                                    ...c,
-                                    messages: updateArray(
-                                        c.messages,
-                                        c.messages.findIndex(m => m.id === updatedMessage.id),
-                                        updatedMessage,
-                                    ),
-                                }));
-                            }}
-                        />;
-                    })}
-                    <TypingIndicator participants={typing} />
-                </Box>
-                <Resizable
-                    id="chat-message-input"
-                    min={150}
-                    max={"50vh"}
-                    position="top"
-                    sx={{
-                        position: "sticky",
-                        bottom: 0,
-                        height: "min(50vh, 250px)",
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                    }}>
-                    <NewMessageContainer
-                        chat={existing}
-                        display={display}
-                        message={message}
-                        handleSubmit={addMessage}
-                        setMessage={setMessage}
+                                        </FormContainer>
+                                    </BaseForm>
+                                </>
+                            )}
+                        />}
                     />
-                </Resizable>
+                    <Box ref={dimRef} sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        flexGrow: 1,
+                        margin: "auto",
+                        overflowY: "auto",
+                        width: "min(700px, 100%)",
+                    }}>
+                        {/* {existing.messages.map((message: ChatMessageShape, index) => { */}
+                        {allMessages.map((message: ChatMessageShape, index) => {
+                            const isOwn = message.user?.id === getCurrentUser(session).id;
+                            return <ChatBubble
+                                key={index}
+                                chatWidth={dimensions.width}
+                                message={message}
+                                index={index}
+                                isOwn={isOwn}
+                                onDeleted={(deletedMessage) => {
+                                    handleUpdate(c => ({
+                                        ...c,
+                                        // TODO should be deleting messages in tree instead
+                                        messages: c.messages.filter(m => m.id !== deletedMessage.id),
+                                    }));
+                                }}
+                                onUpdated={(updatedMessage) => {
+                                    handleUpdate(c => ({
+                                        ...c,
+                                        // TODO should be updating messages in tree instead
+                                        messages: updateArray(
+                                            c.messages,
+                                            c.messages.findIndex(m => m.id === updatedMessage.id),
+                                            updatedMessage,
+                                        ),
+                                    }));
+                                }}
+                            />;
+                        })}
+                        <TypingIndicator participants={typing} />
+                    </Box>
+                    <RichInputBase
+                        actionButtons={[{
+                            Icon: SendIcon,
+                            onClick: () => {
+                                if (!existing) {
+                                    PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
+                                    return;
+                                }
+                                addMessage(message);
+                            },
+                        }]}
+                        disabled={!existing}
+                        disableAssistant={true}
+                        fullWidth
+                        getTaggableItems={async (searchString) => {
+                            // Find all users in the chat, plus @Everyone
+                            let users = [
+                                //TODO handle @Everyone
+                                ...(existing?.participants?.map(p => p.user) ?? []),
+                            ];
+                            // Filter out current user
+                            users = users.filter(p => p.id !== getCurrentUser(session).id);
+                            // Filter out users that don't match the search string
+                            users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
+                            console.log("got taggable items", users, searchString);
+                            return users;
+                        }}
+                        maxChars={1500}
+                        minRows={1}
+                        onChange={setMessage}
+                        name="newMessage"
+                        sxs={{
+                            root: {
+                                background: palette.primary.dark,
+                                color: palette.primary.contrastText,
+                                maxHeight: "min(50vh, 500px)",
+                                width: "min(700px, 100%)",
+                                margin: "auto",
+                                marginBottom: { xs: pagePaddingBottom, md: "0" },
+                            },
+                            bar: { borderRadius: 0 },
+                            textArea: { paddingRight: 4, border: "none" },
+                        }}
+                        value={message}
+                    />
+                </Box>
             </MaybeLargeDialog>
             <ChatSideMenu />
         </>

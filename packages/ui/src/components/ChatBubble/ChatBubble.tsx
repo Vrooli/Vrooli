@@ -1,5 +1,5 @@
 import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPostReact, endpointPutChatMessage, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
-import { Avatar, Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, Grid, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
 import IconButton from "@mui/material/IconButton";
@@ -14,7 +14,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useDeleter } from "hooks/useDeleter";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
-import { AddIcon, BotIcon, DeleteIcon, EditIcon, ErrorIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, DeleteIcon, EditIcon, ErrorIcon, ReplyIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
@@ -165,7 +165,7 @@ const ChatBubbleReactions = ({
     return (
         <Box
             display="flex"
-            justifyContent="space-between"
+            justifyContent="left"
             alignItems="center"
             flexDirection={isOwn ? "row-reverse" : "row"}
         >
@@ -213,7 +213,11 @@ const ChatBubbleReactions = ({
                 />
             </Stack>
             {isBot && <Stack direction="row">
-                <Button variant="text">{t("Reply")}</Button>
+                <Tooltip title={t("Reply")}>
+                    <IconButton size="small" onClick={() => { }}>
+                        <ReplyIcon fill={palette.background.textPrimary} />
+                    </IconButton>
+                </Tooltip>
                 <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
             </Stack>}
         </Box>
@@ -432,7 +436,9 @@ export const ChatBubble = ({
                             color: palette.background.textPrimary,
                             borderRadius: isOwn ? "8px 8px 0 8px" : "8px 8px 8px 0",
                             boxShadow: 2,
+                            minWidth: "50px",
                             width: editingText !== undefined ? "100%" : "unset",
+                            minHeight: "20x",
                             transition: "width 0.3s ease-in-out",
                         }}
                     >
