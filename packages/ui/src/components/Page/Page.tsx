@@ -16,14 +16,14 @@ export const Page = ({
 }: PageProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
-    const [location] = useLocation();
+    const [{ pathname }] = useLocation();
 
     // If this page has restricted access
     if (mustBeLoggedIn) {
         if (session?.isLoggedIn) return children;
-        if (sessionChecked && location !== LINKS.Start) {
+        if (sessionChecked && pathname !== LINKS.Start) {
             PubSub.get().publishSnack({ messageKey: "PageRestricted", severity: "Error" });
-            return <Redirect to={`${LINKS.Start}${stringifySearchParams({ redirect: location })}`} />;
+            return <Redirect to={`${LINKS.Start}${stringifySearchParams({ redirect: pathname })}`} />;
         }
         return null;
     }

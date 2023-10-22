@@ -1,5 +1,5 @@
 import { handleRegex, LINKS, uuidValidate } from "@local/shared";
-import { getLastUrlPart, SetLocation } from "route";
+import { getLastPathnamePart, SetLocation } from "route";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -67,13 +67,19 @@ export type UrlInfo = {
  * NOTE: This function may sometimes be used for deeper navigation within a single item, 
  * such as site.com/reports/id or site.com/comments/id. In this case, the logic is still the same.
  */
-export const parseSingleItemUrl = ({
-    url,
-}: {
-    url?: string,
-}) => {
+export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname?: string }) => {
     // Initialize the return object
     const returnObject: UrlInfo = {};
+    // Get the pathname from the href if it's not provided
+    if (!pathname && href) {
+        try {
+            pathname = new URL(href).pathname;
+        } catch (error) {
+            console.error("Error parsing URL in parseSingleItemUrl", href, error);
+        }
+    }
+    // If no pathname provided, return empty object
+    if (!pathname) return returnObject;
     // Helper for checking if a string is a handle
     const isHandle = (text: string) => {
         if (text.startsWith("@")) text = text.slice(1);
@@ -81,8 +87,9 @@ export const parseSingleItemUrl = ({
         return handleRegex.test(text) && !Object.values(LINKS).includes("/" + text as LINKS) && ["add", "edit", "update"].every(word => !text.includes(word));
     };
     // Get the last 2 parts of the URL
-    const lastPart = getLastUrlPart({ url });
-    const secondLastPart = getLastUrlPart({ url, offset: 1 });
+    const lastPart = getLastPathnamePart({ pathname });
+    const secondLastPart = getLastPathnamePart({ pathname, offset: 1 });
+    console.log("urlParams parseSingleItemUrl", lastPart, secondLastPart);
     // Get the list of versioned object names
     const objectsWithVersions = [
         LINKS.Api,

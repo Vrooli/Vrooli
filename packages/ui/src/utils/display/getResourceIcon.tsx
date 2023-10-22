@@ -120,7 +120,7 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string, palette
         const route = getRoute(url.pathname);
         const routeKey = Object.keys(LINKS).find(key => LINKS[key as LINKS] === route);
         // Check if it corresponds to a cached item
-        const urlParams = parseSingleItemUrl({ url: link });
+        const urlParams = parseSingleItemUrl({ href: link });
         const cachedItem = getCookiePartialData({ __typename: routeKey as GqlModelType, ...urlParams }) as { __typename: GqlModelType, isBot?: boolean, profileImage?: string, updated_at?: string };
         console.log("urlParams", urlParams);
         console.log("cachedItem", cachedItem);

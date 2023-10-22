@@ -69,22 +69,24 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                             </a>{" "}
                             and we will try to help you as soon as possible.
                         </Typography>
-                        <Button
-                            variant="contained"
-                            startIcon={<RefreshIcon />}
-                            onClick={this.handleRefresh}
-                            sx={{ marginTop: "16px" }}
-                        >
-                            Refresh
-                        </Button>
-                        <Button
-                            variant="contained"
-                            startIcon={<HomeIcon />}
-                            onClick={() => window.location.assign("/")}
-                            sx={{ marginTop: "16px" }}
-                        >
-                            Go to Home
-                        </Button>
+                        <Stack direction="row" spacing={2} pt={2} justifyContent="center" alignItems="center">
+                            <Button
+                                variant="contained"
+                                startIcon={<RefreshIcon />}
+                                onClick={this.handleRefresh}
+                                sx={{ marginTop: "16px" }}
+                            >
+                                Refresh
+                            </Button>
+                            <Button
+                                variant="contained"
+                                startIcon={<HomeIcon />}
+                                onClick={() => window.location.assign("/")}
+                                sx={{ marginTop: "16px" }}
+                            >
+                                Go to Home
+                            </Button>
+                        </Stack>
                     </Stack>
                 </div>
             );

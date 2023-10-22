@@ -40,7 +40,7 @@ export const UserView = ({
 }: UserViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
-    const [location, setLocation] = useLocation();
+    const [{ pathname }, setLocation] = useLocation();
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -48,8 +48,8 @@ export const UserView = ({
     // Parse information from URL
     const urlInfo = useMemo<UrlInfo & { isOwnProfile: boolean }>(() => {
         // Use common function to parse URL
-        let urlInfo: UrlInfo & { isOwnProfile?: boolean } = parseSingleItemUrl({ url: location });
-        // If it returns the handle "profile", or the location it returns nothing, then it's the current user's profile
+        let urlInfo: UrlInfo & { isOwnProfile?: boolean } = parseSingleItemUrl({ pathname });
+        // If it returns the handle "profile", or the path it returns nothing, then it's the current user's profile
         if (session && (urlInfo.handle === "profile" || Object.keys(urlInfo).length === 0)) {
             urlInfo.isOwnProfile = true;
             const currentUser = getCurrentUser(session);
@@ -58,7 +58,7 @@ export const UserView = ({
             urlInfo.isOwnProfile = false;
         }
         return urlInfo as UrlInfo & { isOwnProfile: boolean };
-    }, [location, session]);
+    }, [pathname, session]);
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
     const [getUserData, { data: userData, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
     const [getProfileData, { data: profileData, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
@@ -257,7 +257,7 @@ export const UserView = ({
                             textAlign="center"
                             fontFamily="monospace"
                             onClick={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
+                                navigator.clipboard.writeText(`${window.path.origin}${LINKS.User}/${handle}`);
                                 PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
                             }}
                             sx={{

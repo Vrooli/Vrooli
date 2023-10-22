@@ -172,7 +172,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         if (!readyToSearch(params.current)) return;
         console.log("getting data and setting lastParms.current", params.current);
         lastParams.current = deepClone(params.current);
-        params.current.loading = true;
+        // params.current.loading = true;
         getPageData({
             take,
             sortBy: params.current.sortBy,

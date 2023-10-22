@@ -192,7 +192,7 @@ export const TutorialDialog = ({
     onClose,
 }: TutorialDialogProps) => {
     const { palette } = useTheme();
-    const [location, setLocation] = useLocation();
+    const [{ pathname }, setLocation] = useLocation();
     const session = useContext(SessionContext);
     const user = useMemo(() => getCurrentUser(session), [session]);
 
@@ -246,20 +246,20 @@ export const TutorialDialog = ({
         // ensure the current section and next step exists
         if (currentSection && currentSection.steps[place.step + 1]) {
             const nextPage = currentSection.steps[place.step + 1].page;
-            if (nextPage && nextPage !== location) {
+            if (nextPage && nextPage !== pathname) {
                 setLocation(nextPage);
             }
             setPlace({ section: place.section, step: place.step + 1 });
         } else if (nextSection && nextSection.steps[0]) {
             const nextPage = nextSection.steps[0].page;
-            if (nextPage && nextPage !== location) {
+            if (nextPage && nextPage !== pathname) {
                 setLocation(nextPage);
             }
             setPlace({ section: place.section + 1, step: 0 });
         } else {
             onClose();
         }
-    }, [location, onClose, place, setLocation]);
+    }, [pathname, onClose, place, setLocation]);
 
     /** Move to the previous step */
     const handlePrev = useCallback(() => {
@@ -269,7 +269,7 @@ export const TutorialDialog = ({
         // ensure the current section and previous step exists
         if (currentSection && currentSection.steps[place.step - 1]) {
             const prevPage = currentSection.steps[place.step - 1].page;
-            if (prevPage && prevPage !== location) {
+            if (prevPage && prevPage !== pathname) {
                 setLocation(prevPage);
             }
             setPlace({ section: place.section, step: place.step - 1 });
@@ -277,13 +277,13 @@ export const TutorialDialog = ({
             const prevStepIndex = previousSection.steps.length - 1;
             if (previousSection.steps[prevStepIndex]) {
                 const prevPage = previousSection.steps[prevStepIndex].page;
-                if (prevPage && prevPage !== location) {
+                if (prevPage && prevPage !== pathname) {
                     setLocation(prevPage);
                 }
                 setPlace({ section: place.section - 1, step: prevStepIndex });
             }
         }
-    }, [location, place, setLocation]);
+    }, [pathname, place, setLocation]);
 
     const getCurrentElement = useCallback(() => {
         const currentSection = sections[place.section];
@@ -304,7 +304,7 @@ export const TutorialDialog = ({
 
         // Guide user to correct page if they're on the wrong one
         const correctPage = currentStep.page;
-        if (correctPage && correctPage !== location) {
+        if (correctPage && correctPage !== pathname) {
             return (
                 <>
                     <DialogTitle
@@ -372,7 +372,7 @@ export const TutorialDialog = ({
                 />
             </>
         );
-    }, [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, location, onClose, place, setLocation]);
+    }, [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, pathname, onClose, place, setLocation]);
 
     // If the user navigates to the page for the next step, automatically advance. 
     // This is temporarily disabled after the previous/next buttons are pressed.
@@ -386,17 +386,17 @@ export const TutorialDialog = ({
         // Find current step's page
         const currPage = currentStep.page;
         // If already on the correct page, return
-        if (currPage && currPage === location) return;
+        if (currPage && currPage === pathname) return;
 
         // Find next step's page
         const nextPage = nextStep?.page;
 
         // If next step has a page and it's the current page, advance
-        if (currPage && nextPage && nextPage === location) {
+        if (currPage && nextPage && nextPage === pathname) {
             console.log("handling next", currPage, nextPage);
             handleNext();
         }
-    }, [handleNext, location, nextStep?.page, place, setLocation]);
+    }, [handleNext, pathname, nextStep?.page, place, setLocation]);
 
 
     // If there's an anchor, use a popper

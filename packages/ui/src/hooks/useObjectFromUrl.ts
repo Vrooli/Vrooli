@@ -51,8 +51,8 @@ export function useObjectFromUrl<
     transform?: TFunc,
 }): UseObjectFromUrlReturn<TData, TFunc> {
     // Get URL params
-    const [location] = useLocation();
-    const urlParams = useMemo(() => parseSingleItemUrl({ url: location }), [location]);
+    const [{ pathname }] = useLocation();
+    const urlParams = useMemo(() => parseSingleItemUrl({ pathname }), [pathname]);
 
     const stableOnInvalidUrlParams = useStableCallback(onInvalidUrlParams);
     const stableTransform = useStableCallback(transform);

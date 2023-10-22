@@ -153,7 +153,7 @@ const CustomLink = ({ children, href }) => {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = useCallback((target: EventTarget) => {
         setAnchorEl(target as HTMLElement);
-        const urlParams = parseSingleItemUrl({ url: href });
+        const urlParams = parseSingleItemUrl({ href });
         if (exists(urlParams.handle)) getData({ handle: urlParams.handle });
         else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });
         else if (exists(urlParams.id)) getData({ id: urlParams.id });

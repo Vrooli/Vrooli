@@ -1,34 +1,28 @@
-// eslint-disable-file import/no-anonymous-default-export
 import { useCallback, useEffect, useRef, useState } from "react";
 import { stringifySearchParams } from "./searchParams";
 
-export type Path = string;
-
+export type Href = string;
+export type Pathname = string;
+export type Search = string;
+export type Location = {
+    href: Href,
+    pathname: Pathname,
+    search: Search
+};
 export type SetLocationOptions = {
     replace?: boolean;
     searchParams?: Record<string, any>;
 };
-
-export type SetLocation = (to: Path, options?: SetLocationOptions) => void;
-
-export type UseLocationResult = [Path, SetLocation];
-
-export type UseLocationHook = (options?: {
-    base?: Path;
-}) => UseLocationResult;
-
-// Returns the type of the navigation options that hook's push function accepts.
+export type SetLocation = (to: string, options?: SetLocationOptions) => void;
+export type UseLocationResult = [Location, SetLocation];
+export type UseLocationHook = () => UseLocationResult;
+/** Returns the type of the navigation options that hook's push function accepts. */
 export type HookNavigationOptions =
-    SetLocation extends (path: Path, options: infer R, ...rest: any[]) => any
+    SetLocation extends (to: string, options: infer R, ...rest: any[]) => any
     ? R extends { [k: string]: any }
     ? R
     : object
     : object;
-
-// Returns the type of the navigation options that hook's push function accepts.
-export type LocationHook = (options?: {
-    base?: Path;
-}) => [Path, (to: Path, options?: { replace?: boolean }) => void];
 
 /**
  * History API docs @see https://developer.mozilla.org/en-US/docs/Web/API/History
@@ -38,22 +32,21 @@ const eventPushState = "pushState";
 const eventReplaceState = "replaceState";
 export const events = [eventPopstate, eventPushState, eventReplaceState];
 
-export default ({ base = "" } = {}): [Path, SetLocation] => {
-    const [{ path, search }, update] = useState(() => ({
-        path: currentPathname(base),
+export default function useLocation(): UseLocationResult {
+    const [loc, setLoc] = useState<Location>(() => ({
+        href: location.href,
+        pathname: location.pathname ?? "",
         search: location.search,
     })); // @see https://reactjs.org/docs/hooks-reference.html#lazy-initial-state
-    const prevHash = useRef(path + search);
+    const prevHref = useRef(location.href);
 
     useEffect(() => {
         const checkForUpdates = () => {
-            const pathname = currentPathname(base);
-            const search = location.search;
-            const hash = pathname + search;
+            const { href, pathname, search } = location;
 
-            if (prevHash.current !== hash) {
-                prevHash.current = hash;
-                update({ path: pathname, search });
+            if (prevHref.current !== href) {
+                prevHref.current = href;
+                setLoc({ href, pathname: pathname ?? "", search });
             }
         };
 
@@ -65,22 +58,21 @@ export default ({ base = "" } = {}): [Path, SetLocation] => {
         checkForUpdates();
 
         return () => events.forEach((e) => removeEventListener(e, checkForUpdates));
-    }, [base]);
+    }, []);
 
     // the 2nd argument of the `useLocation` return value is a function
     // that allows to perform a navigation.
     //
     // the function reference should stay the same between re-renders, so that
     // it can be passed down as an element prop without any performance concerns.
-    const setLocation = useCallback((to: Path, { replace = false, searchParams = {} } = {}) => {
+    const setLocation = useCallback((to: string, { replace = false, searchParams = {} } = {}) => {
         // Get last path and search params from sessionStorage
         const lastPath = sessionStorage.getItem("currentPath");
         const lastSearchParams = sessionStorage.getItem("currentSearchParams");
         // Get current path and search params. "to" might contain search params, 
         // so we need to split it
-        const toShaped = to[0] === "~" ? to.slice(1) : to;
-        const currPath = toShaped.split("?")[0];
-        let currSearchParams: string | undefined = toShaped.split("?")[1];
+        const currPath = to.split("?")[0];
+        let currSearchParams: string | undefined = to.split("?")[1];
         if (currSearchParams) currSearchParams = `?${currSearchParams}`;
         else if (Object.keys(searchParams).length > 0) currSearchParams = stringifySearchParams(searchParams);
         // Store last data in sessionStorage
@@ -100,10 +92,13 @@ export default ({ base = "" } = {}): [Path, SetLocation] => {
             // Combine path and search params
             currSearchParams ? `${currPath}${currSearchParams}` : currPath,
         );
-    }, [base]);
+        // Update location
+        const { href, pathname, search } = location;
+        setLoc({ href, pathname: pathname ?? "", search });
+    }, []);
 
-    return [path, setLocation];
-};
+    return [loc, setLocation];
+}
 
 // While History API does have `popstate` event, the only
 // proper way to listen to changes via `push/replaceState`
@@ -124,8 +119,3 @@ if (typeof history !== "undefined") {
         };
     }
 }
-
-const currentPathname = (base: any, path = location.pathname) =>
-    !path.toLowerCase().indexOf(base.toLowerCase())
-        ? path.slice(base.length) || "/"
-        : "~" + path;

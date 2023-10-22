@@ -1,6 +1,6 @@
 import { CommonKey } from "@local/shared";
 import { Palette, useTheme } from "@mui/material";
-import { ChangeEvent, useCallback, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { SvgComponent } from "types";
@@ -48,7 +48,7 @@ export const useTabs = <T, S extends boolean = true>({
     id: string,
     tabParams: readonly UseTabsParam<T, S>[],
 }) => {
-    const [, setLocation] = useLocation();
+    const [location, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
 
@@ -75,6 +75,17 @@ export const useTabs = <T, S extends boolean = true>({
         const tabFromParams = tabs.find(tab => tab.tabType === searchParams.type);
         return tabFromParams || tabs.find(tab => tab.tabType === storedTab || defaultTab) || tabs[0];
     });
+
+    useEffect(() => {
+        console.log("useLocation useTabs location changed", location, display);
+        if (display === "page") {
+            const searchParams = parseSearchParams();
+            const tabFromParams = tabs.find(tab => tab.tabType === searchParams.type);
+            if (tabFromParams) {
+                setCurrTab(tabFromParams);
+            }
+        }
+    }, [location, display, tabs]);
 
     const handleTabChange = useCallback((e: ChangeEvent<unknown> | undefined, tab: PageTab<T, S>) => {
         e?.preventDefault();

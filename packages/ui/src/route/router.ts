@@ -1,7 +1,7 @@
 import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, ReactNode, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
 import { parseSearchParams } from "./searchParams";
-import locationHook, { HookNavigationOptions, LocationHook, Path, SetLocation } from "./useLocation";
+import locationHook, { HookNavigationOptions, Path, UseLocationHook, UseLocationResult } from "./useLocation";
 
 export type ExtractRouteOptionalParam<PathType extends Path> =
     PathType extends `${infer Param}?`
@@ -28,7 +28,7 @@ export type ExtractRouteParams<PathType extends string> =
     : {};
 
 export interface RouterProps {
-    hook: LocationHook;
+    hook: UseLocationHook;
     base: Path;
     matcher: MatcherFn;
 }
@@ -69,7 +69,7 @@ export const useRouter = () => {
     return globalRef.v || (globalRef.v = buildRouter());
 };
 
-export const useLocation = (): [Path, SetLocation] => {
+export const useLocation = (): UseLocationResult => {
     const router = useRouter();
     return router.hook(router);
 };
@@ -80,8 +80,8 @@ export const useRoute = <
         pattern: RoutePath,
     ):
     Match<T extends DefaultParams ? T : ExtractRouteParams<RoutePath>> => {
-    const [path] = useLocation();
-    return useRouter().matcher(pattern, path);
+    const [{ pathname }] = useLocation();
+    return useRouter().matcher(pattern, pathname);
 };
 
 // internal hook used by Link and Redirect in order to perform navigation
@@ -112,21 +112,16 @@ export const Router = (props: RouterProps): FunctionComponent<Partial<RouterProp
 };
 
 export type RouteProps = {
-    /**
-     * If sitemapIndex is true, this specifies the change frequency of the page 
-     */
+    /** If sitemapIndex is true, this specifies the change frequency of the page  */
     changeFreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
     children: ReactNode;
     component?: any;
     match?: any;
+    /** Should be provided for every route except the 404 page */
     path?: string;
-    /**
-     * If sitemapIndex is true, this specifies the priority of the page.
-     */
+    /** If sitemapIndex is true, this specifies the priority of the page. */
     priority?: number;
-    /**
-     * Specifies if this route should be included in the sitemap
-     */
+    /** Specifies if this route should be included in the sitemap */
     sitemapIndex?: boolean;
 }
 
@@ -139,7 +134,7 @@ export const Route = ({ path, match, component, children }: RouteProps) => {
         const lastCurrentPath = sessionStorage.getItem("currentPath");
         const lastCurrentSearchParams = sessionStorage.getItem("currentSearchParams");
         // Store current data in sessionStorage if last data didn't exist
-        if (!lastCurrentPath) sessionStorage.setItem("currentPath", location.pathname);
+        if (!lastCurrentPath) sessionStorage.setItem("currentPath", path ?? "");
         if (!lastCurrentSearchParams) sessionStorage.setItem("currentSearchParams", JSON.stringify(parseSearchParams()));
     }, [path]);
 
@@ -161,28 +156,24 @@ export const Link = (props: LinkProps) => {
 
     const { to, href = to, children, onClick } = props;
 
-    const handleClick = useCallback(
-        (event: any) => {
-            // ignores the navigation when clicked using right mouse button or
-            // by holding a special modifier key: ctrl, command, win, alt, shift
-            if (
-                event.ctrlKey ||
-                event.metaKey ||
-                event.altKey ||
-                event.shiftKey ||
-                event.button !== 0
-            )
-                return;
+    const handleClick = useCallback((event: any) => {
+        // ignores the navigation when clicked using right mouse button or
+        // by holding a special modifier key: ctrl, command, win, alt, shift
+        if (
+            event.ctrlKey ||
+            event.metaKey ||
+            event.altKey ||
+            event.shiftKey ||
+            event.button !== 0
+        )
+            return;
 
-            onClick && onClick(event);
-            if (!event.defaultPrevented) {
-                event.preventDefault();
-                navRef.current();
-            }
-        },
-        // navRef is a ref so it never changes
-        [onClick],
-    );
+        onClick && onClick(event);
+        if (!event.defaultPrevented) {
+            event.preventDefault();
+            navRef.current();
+        }
+    }, [navRef, onClick]);
 
     // wraps children in `a` if needed
     const extraProps = {
@@ -225,7 +216,7 @@ type SwitchProps = {
 
 export const Switch = ({ children, location, fallback }: SwitchProps) => {
     const { matcher } = useRouter();
-    const [originalLocation] = useLocation();
+    const [{ pathname: originalPath }] = useLocation();
 
     for (const element of flattenChildren(children)) {
         let match = 0;
@@ -237,7 +228,7 @@ export const Switch = ({ children, location, fallback }: SwitchProps) => {
             // this allows to use different components that wrap Route
             // inside of a switch, for example <AnimatedRoute />.
             (match = (element as any).props.path
-                ? matcher((element as any).props.path, location || originalLocation)
+                ? matcher((element as any).props.path, location || originalPath)
                 : [true, {}])[0]
         ) {
             // If there is a fallback, wrap the route in it
@@ -258,7 +249,7 @@ export const Redirect = (props: any): JSX.Element | null => {
     // empty array means running the effect once, navRef is a ref so it never changes
     useLayoutEffect(() => {
         navRef.current();
-    }, []);
+    }, [navRef]);
 
     return null;
 };
