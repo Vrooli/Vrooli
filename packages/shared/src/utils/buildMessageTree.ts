@@ -2,7 +2,7 @@ import { ChatMessage } from "@local/shared";
 
 /** Tree structure for displaying chat messages in the correct order */
 export type MessageNode = {
-    message: any;//ChatMessage;
+    message: ChatMessage;
     /** When there is more than one child, there are multiple versions (edits) of the message */
     children: MessageNode[];
 };
@@ -32,14 +32,14 @@ export type MessageNode = {
  */
 export class MessageTree {
     /** Map of message IDs to nodes */
-    private messageMap: Map<string, MessageNode>;
+    protected messageMap: Map<string, MessageNode>;
     /** 
      * Array of nodes which are either the first message in the chat, or have 
      * not been linked to a parent message.
      */
-    private roots: MessageNode[];
+    protected roots: MessageNode[];
 
-    constructor(private messages: any[]) {// ChatMessage[]) {
+    constructor(private messages: ChatMessage[]) {
         // Initialize data structures
         this.messageMap = new Map<string, MessageNode>();
         this.roots = [];
@@ -72,8 +72,8 @@ export class MessageTree {
                 console.error(`Message ${message.id} not found in messageMap`);
                 continue;
             }
-            if (message.parentId) {
-                const parentNode = this.messageMap.get(message.parentId);
+            if (message.parent?.id) {
+                const parentNode = this.messageMap.get(message.parent.id);
                 if (parentNode) {
                     // Since all edited versions have the same parentId and are not nested,
                     // they will be siblings in the tree structure.
@@ -83,7 +83,7 @@ export class MessageTree {
                     this.roots.push(node);
                 }
             } else {
-                // If there's no parentId, it's a root node
+                // If there's no parent ID, we'll assume it's a root node
                 this.roots.push(node);
             }
         }
@@ -108,119 +108,71 @@ export class MessageTree {
     public getRoots(): MessageNode[] {
         return this.roots;
     }
+
+    public addMessage(message: ChatMessage): void {
+        // Create a new node for the message
+        const newNode: MessageNode = {
+            message,
+            children: [],
+        };
+
+        // Update the messageMap with the new node
+        this.messageMap.set(message.id, newNode);
+
+        if (message.parent?.id) {
+            const parentNode = this.messageMap.get(message.parent.id);
+            if (parentNode) {
+                // Add the new message node as a child of the parent node
+                parentNode.children.push(newNode);
+                // Sort the children of the parent node to maintain order
+                this.sortNodeChildren(parentNode);
+            } else {
+                // If no parent node is found, consider it as a root node
+                this.roots.push(newNode);
+            }
+        } else {
+            // If there's no parent ID, it's a root node
+            this.roots.push(newNode);
+        }
+    }
+
+    public removeMessage(messageId: string): void {
+        const nodeToRemove = this.messageMap.get(messageId);
+        if (!nodeToRemove) {
+            console.error(`Message ${messageId} not found in messageMap`);
+            return;
+        }
+
+        // Remove the node from the messageMap
+        this.messageMap.delete(messageId);
+
+        if (nodeToRemove.message.parent?.id) {
+            const parentNode = this.messageMap.get(nodeToRemove.message.parent.id);
+            if (parentNode) {
+                // Remove the message node from the parent's children
+                parentNode.children = parentNode.children.filter(child => child.message.id !== messageId);
+
+                // If the nodeToRemove had children, link them to its parent
+                parentNode.children.push(...nodeToRemove.children);
+            }
+        } else {
+            // If the node to remove is a root node, remove it from the roots array
+            this.roots = this.roots.filter(root => root.message.id !== messageId);
+        }
+    }
+
+    /**
+     * Edits the content of a message in the tree. DOES NOT 
+     * add a new version of the message. This method is useful when 
+     * chatting with other participants, where branching is disabled.
+     */
+    public editMessage(messageId: string, updatedMessage: ChatMessage): void {
+        const node = this.messageMap.get(messageId);
+        if (node) {
+            // Update the message with the new data
+            node.message = updatedMessage;
+        } else {
+            console.error(`Message ${messageId} not found in messageMap. Cannot edit.`);
+        }
+    }
 }
-
-// export type ChatMessage = { // For playground
-//     __typename: 'ChatMessage';
-//     created_at: string;
-//     parent?: { id: string, created_at: string };
-//     id: string;
-//     translations: Array<{ id: string, language: string, text: string }>;
-//   };
-
-
-// First test case: Result should have messages in order from ID 1 to 10, each with node having a single child
-const messages1 = [
-    {
-        id: "3",
-        parent: { id: "2" },
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "Certainly! What seems to be the issue?",
-        }],
-        created_at: "2021-10-01T02:00:00Z",
-    },
-    {
-        id: "1",
-        parent: null,
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "Hello, how can I help you?",
-        }],
-        created_at: "2021-10-01T00:00:00Z",
-    },
-    {
-        id: "2",
-        parent: { id: "1" },
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "I need assistance with my account.",
-        }],
-        created_at: "2021-10-01T01:00:00Z",
-    },
-    {
-        id: "4",
-        parent: { id: "2" },
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "I can't access my account.",
-        }],
-        created_at: "2021-10-01T03:00:00Z",
-    },
-    {
-        id: "5",
-        parent: { id: "4" },
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "I see. Have you tried resetting your password?",
-        }],
-        created_at: "2021-10-01T04:00:00Z",
-    },
-    {
-        id: "6",
-        parent: { id: "5" },
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "Yes, but I didn't receive the reset email.",
-        }],
-        created_at: "2021-10-01T05:00:00Z",
-    },
-    {
-        id: "7",
-        parent: { id: "6" },
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "I can help with that. Can you provide your username?",
-        }],
-        created_at: "2021-10-01T06:00:00Z",
-    },
-    {
-        id: "8",
-        parent: { id: "7" },
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "My username is johndoe123.",
-        }],
-        created_at: "2021-10-01T07:00:00Z",
-    },
-    {
-        id: "9",
-        parent: { id: "8" },
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "Thank you, John. I have sent a password reset link to your email.",
-        }],
-        created_at: "2021-10-01T08:00:00Z",
-    },
-    {
-        id: "10",
-        parent: { id: "9" },
-        translations: [{
-            id: "1001",
-            language: "en",
-            text: "Got it. Thanks!",
-        }],
-        created_at: "2021-10-01T09:00:00Z",
-    },
-] as ChatMessage[];
-const builder1 = new MessageTree(messages1);
-const roots1 = builder1.getRoots();

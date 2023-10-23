@@ -108,11 +108,34 @@ if [ "${SHOULD_UPDATE_VERSION}" = true ]; then
     done
 fi
 
+# Navigate to shared directory
+cd ${HERE}/../packages/shared
+
+# Run unit tests
+header "Running unit tests for shared..."
+yarn test
+if [ $? -ne 0 ]; then
+    error "Failed to run unit tests for shared"
+    exit 1
+fi
+
 # Navigate to server directory
 cd ${HERE}/../packages/server
 
+# Run unit tests TODO need to add tests
+# header "Running unit tests for server..."
+# yarn test
+# if [ $? -ne 0 ]; then
+#     error "Failed to run unit tests for server"
+#     exit 1
+# fi
+
 # Build shared
 "${HERE}/shared.sh"
+if [ $? -ne 0 ]; then
+    error "Failed to build shared"
+    exit 1
+fi
 
 # Build server
 info "Building server..."
@@ -124,6 +147,14 @@ fi
 
 # Navigate to UI directory
 cd ${HERE}/../packages/ui
+
+# Run unit tests TODO need to add tests
+# header "Running unit tests for UI..."
+# yarn test
+# if [ $? -ne 0 ]; then
+#     error "Failed to run unit tests for UI"
+#     exit 1
+# fi
 
 # Create local .env file
 touch .env
