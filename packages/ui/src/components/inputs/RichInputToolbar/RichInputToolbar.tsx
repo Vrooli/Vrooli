@@ -1,7 +1,7 @@
 import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
+import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
-import { useWindowSize } from "hooks/useWindowSize";
 import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, TableIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -225,7 +225,8 @@ export const RichInputToolbar = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const { dimensions, fromDims, ref: dimRef } = useDimensions();
+    const isMobile = useMemo(() => dimensions.width <= breakpoints.values.md, [breakpoints, dimensions]);
     const isLeftHanded = useIsLeftHanded();
 
     const handleToggleAction = (action: string, data?: unknown) => {
@@ -276,11 +277,11 @@ export const RichInputToolbar = ({
     ];
 
     return (
-        <Box sx={{
+        <Box ref={dimRef} sx={{
             display: "flex",
             flexDirection: (isLeftHanded || !isMobile) ? "row" : "row-reverse",
             width: "100%",
-            padding: "0.5rem",
+            padding: "2px",
             background: palette.primary.main,
             color: palette.primary.contrastText,
             borderRadius: "0.5rem 0.5rem 0 0",
@@ -289,7 +290,7 @@ export const RichInputToolbar = ({
             {/* Group of main editor controls including AI assistant and formatting tools */}
             <Stack
                 direction="row"
-                spacing={{ xs: 0, sm: 0.5, md: 1 }}
+                spacing={fromDims({ xs: 0, sm: 0.5, md: 1 })}
                 sx={{
                     ...((isLeftHanded || !isMobile) ? { marginRight: "auto" } : { marginLeft: "auto" }),
                     visibility: disabled ? "hidden" : "visible",
