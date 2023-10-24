@@ -198,6 +198,7 @@ export const SearchMap = {
     minViews: (views: Maybe<number>) => ({ views: { gte: views } }),
     minViewsRoot: (views: Maybe<number>) => ({ root: { views: { gte: views } } }),
     nodeType: (nodeType: Maybe<string>) => nodeType ? ({ nodeType: { contains: nodeType.trim(), mode: "insensitive" } }) : {},
+    notInChatId: (id: Maybe<string>) => id ? ({ NOT: { chats: { some: { id } } } }) : {}, // TODO should probably validate that you can read the participants in this chat, so that you can't figure out who's in a chat by finding out everyone who's not
     noteId: (id: Maybe<string>) => oneToOneId(id, "note"),
     notesId: (id: Maybe<string>) => oneToManyId(id, "notes"),
     noteVersionId: (id: Maybe<string>) => oneToOneId(id, "noteVersion"),

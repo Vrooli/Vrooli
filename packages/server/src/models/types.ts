@@ -213,7 +213,7 @@ export type SearchStringQuery<Where extends { [x: string]: any }> = {
     (keyof typeof SearchStringMap | SearchStringQuery<Where[x]>) :
     //Else
     SearchStringQuery<Where[x]> : never
-}
+} | (keyof typeof SearchStringMap);
 
 /**
  * Describes shape of component that can be sorted in a specific order

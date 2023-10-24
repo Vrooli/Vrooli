@@ -114,6 +114,7 @@ export const UserModel: UserModelLogic = ({
             memberInOrganizationId: true,
             minBookmarks: true,
             minViews: true,
+            notInChatId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },

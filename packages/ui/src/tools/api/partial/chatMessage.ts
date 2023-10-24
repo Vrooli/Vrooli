@@ -56,6 +56,6 @@ export const chatMessageSearchTreeResult: GqlPartial<ChatMessageSearchTreeResult
     common: {
         hasMoreUp: true,
         hasMoreDown: true,
-        messages: () => rel(chatMessage, "common"),
+        messages: () => rel(chatMessage, "list"),
     },
 };

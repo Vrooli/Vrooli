@@ -6340,8 +6340,47 @@
             "nullable": true,
             "type": "string"
           },
+          "limitTo": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "Api",
+                    "Comment",
+                    "Issue",
+                    "Note",
+                    "Organization",
+                    "Post",
+                    "Project",
+                    "Question",
+                    "QuestionAnswer",
+                    "Quiz",
+                    "Routine",
+                    "SmartContract",
+                    "Standard",
+                    "Tag",
+                    "User"
+                  ],
+                  "title": "BookmarkSearchInput.limitTo",
+                  "type": "string"
+                },
+                "title": "BookmarkSearchInput.limitTo",
+                "type": "array"
+              },
+              {
+                "title": "BookmarkSearchInput.limitTo",
+                "nullable": true
+              }
+            ],
+            "title": "BookmarkSearchInput.limitTo"
+          },
           "listId": {
             "title": "BookmarkSearchInput.listId",
+            "nullable": true,
+            "type": "string"
+          },
+          "listLabel": {
+            "title": "BookmarkSearchInput.listLabel",
             "nullable": true,
             "type": "string"
           },
@@ -9602,6 +9641,7 @@
               "Api",
               "ApiVersion",
               "Bookmark",
+              "BookmarkList",
               "Chat",
               "ChatInvite",
               "ChatMessage",
@@ -9667,6 +9707,7 @@
               "Api",
               "ApiVersion",
               "Bookmark",
+              "BookmarkList",
               "Chat",
               "ChatInvite",
               "ChatMessage",
@@ -10600,19 +10641,12 @@
       },
       "HomeInput": {
         "properties": {
-          "searchString": {
-            "title": "HomeInput.searchString",
-            "type": "string"
-          },
-          "take": {
-            "title": "HomeInput.take",
+          "activeFocusModeId": {
+            "title": "HomeInput.activeFocusModeId",
             "nullable": true,
-            "type": "number"
+            "type": "string"
           }
         },
-        "required": [
-          "searchString"
-        ],
         "additionalProperties": false,
         "title": "HomeInput",
         "type": "object"

@@ -267,6 +267,7 @@ const ChatForm = ({
         // chat is not created until you send the first message)
         const withoutOtherMessages = (chat: ChatShape) => ({
             ...chat,
+            // TODO should be using tree instead
             messages: chat.messages.filter(m => m.user?.id === getCurrentUser(session).id || m.isUnsent),
         });
         fetchLazyWrapper<ChatCreateInput | ChatUpdateInput, Chat>({
@@ -426,6 +427,7 @@ const ChatForm = ({
         console.log("updating messages", values.messages, newMessage);
         onSubmit({
             ...values,
+            //TODO chat tree
             messages: [...values.messages, newMessage],
         });
     }, [existing.id, language, onSubmit, session, values]);
@@ -436,8 +438,8 @@ const ChatForm = ({
         PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
     }, [url]);
 
-    const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: true }); }, []);
-    const closeSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: false }); }, []);
+    const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: task, isOpen: true }); }, [task]);
+    const closeSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: task, isOpen: false }); }, [task]);
     useEffect(() => {
         return () => {
             closeSideMenu();
@@ -468,6 +470,9 @@ const ChatForm = ({
                 id="chat-dialog"
                 isOpen={isOpen}
                 onClose={handleClose}
+                sxs={{
+                    paper: { minWidth: "100vw" },
+                }}
             >
                 <Box sx={{
                     display: "flex",
@@ -684,7 +689,7 @@ const ChatForm = ({
                     />
                 </Box>
             </MaybeLargeDialog>
-            <ChatSideMenu />
+            <ChatSideMenu idPrefix={task} />
         </>
     );
 };

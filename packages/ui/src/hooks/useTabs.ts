@@ -94,7 +94,12 @@ export const useTabs = <T, S extends boolean = true>({
         setCurrTab(tab);
     }, [display, setLocation, id]);
 
+    const changeTab = useCallback((tabType: T) => {
+        const tab = tabs.find(tab => tab.tabType === tabType);
+        if (tab) handleTabChange(undefined, tab);
+    }, [handleTabChange, tabs]);
+
     const currTabParams = useMemo(() => tabParams[currTab.index], [currTab.index, tabParams]);
 
-    return { tabs, currTab, setCurrTab, handleTabChange, ...currTabParams };
+    return { tabs, currTab, setCurrTab, handleTabChange, changeTab, ...currTabParams };
 };

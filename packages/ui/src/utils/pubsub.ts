@@ -63,6 +63,7 @@ export type AlertDialogPub = {
 
 export type SideMenuPub = {
     id: "side-menu" | "chat-side-menu";
+    idPrefix?: string;
     isOpen: boolean;
 }
 

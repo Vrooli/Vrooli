@@ -220,6 +220,7 @@ export const typeDef = gql`
         memberInOrganizationId: ID
         minBookmarks: Int
         minViews: Int
+        notInChatId: ID
         ids: [ID!]
         isBot: Boolean
         sortBy: UserSortBy

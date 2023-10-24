@@ -10,8 +10,8 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, CompleteIcon } from "icons";
-import { useCallback, useEffect, useMemo } from "react";
+import { ActionIcon, AddIcon, CancelIcon, CompleteIcon, DeleteIcon } from "icons";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
@@ -54,6 +54,26 @@ export const InboxView = ({
     });
     console.log("alldata", allData);
 
+    const [isSelecting, setIsSelecting] = useState(false);
+    const [selectedItems, setSelectedItems] = useState<ListObject[]>([]);
+    const handleToggleSelecting = useCallback(() => {
+        if (isSelecting) {
+            setSelectedItems([]);
+        }
+        setIsSelecting(is => !is);
+    }, [isSelecting]);
+    const handleToggleSelect = useCallback((item: ListObject) => {
+        setSelectedItems(items => {
+            const newItems = [...items];
+            const index = newItems.findIndex(i => i.id === item.id);
+            if (index === -1) {
+                newItems.push(item);
+            } else {
+                newItems.splice(index, 1);
+            }
+            return newItems;
+        });
+    }, []);
 
     const [markAllAsReadMutation] = useLazyFetch<undefined, Success>(endpointPutNotificationsMarkAllAsRead);
 
@@ -106,6 +126,7 @@ export const InboxView = ({
         return () => window.removeEventListener("scroll", handleScroll);
     }, [handleScroll]);
 
+    const actionIconProps = useMemo(() => ({ fill: palette.secondary.contrastText, width: "36px", height: "36px" }), [palette.secondary.contrastText]);
 
     return (
         <>
@@ -131,18 +152,31 @@ export const InboxView = ({
             >
                 <ObjectList
                     dummyItems={new Array(5).fill(searchType)}
+                    handleToggleSelect={handleToggleSelect}
+                    isSelecting={isSelecting}
                     items={allData as ListObject[]}
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
                     onAction={onAction}
+                    selectedItems={selectedItems}
                 />
             </ListContainer>
             <SideActionsButtons display={display}>
-                <Tooltip title={t(actionTooltip)}>
-                    <IconButton aria-label={t("CreateChat")} onClick={onActionButtonPress} sx={{ background: palette.secondary.main }}>
-                        <ActionButtonIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                {isSelecting && selectedItems.length > 0 ? <Tooltip title={t("Delete")}>
+                    <IconButton aria-label={t("Delete")} onClick={() => { }} sx={{ background: palette.secondary.main }}>
+                        <DeleteIcon {...actionIconProps} />
+                    </IconButton>
+                </Tooltip> : null}
+                <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
+                    <IconButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+                        {isSelecting ? <CancelIcon {...actionIconProps} /> : <ActionIcon {...actionIconProps} />}
                     </IconButton>
                 </Tooltip>
+                {!isSelecting ? <Tooltip title={t(actionTooltip)}>
+                    <IconButton aria-label={t(actionTooltip)} onClick={onActionButtonPress} sx={{ background: palette.secondary.main }}>
+                        <ActionButtonIcon {...actionIconProps} />
+                    </IconButton>
+                </Tooltip> : null}
             </SideActionsButtons>
         </>
     );

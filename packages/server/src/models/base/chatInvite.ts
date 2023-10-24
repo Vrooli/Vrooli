@@ -53,7 +53,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
         sortBy: ChatInviteSortBy,
         searchStringQuery: () => ({
             OR: [
-                "message",
+                "messageWrapped",
                 { chat: ModelMap.get<ChatModelLogic>("Chat").search.searchStringQuery() },
                 { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
             ],

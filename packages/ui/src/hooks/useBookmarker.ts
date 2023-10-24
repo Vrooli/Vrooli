@@ -42,7 +42,17 @@ export const useBookmarker = ({
             PubSub.get().publishSnack({ messageKey: "NotFound", severity: "Error" });
             return;
         }
-        const bookmarkListId = bookmarkLists && bookmarkLists.length ? bookmarkLists[0].id : undefined;
+        let bookmarkListId: string | undefined;
+        if (bookmarkLists && bookmarkLists.length) {
+            // Try to find "Favorites" bookmark list first
+            const favorites = bookmarkLists.find(list => list.label === "Favorites");
+            if (favorites) {
+                bookmarkListId = favorites.id;
+            } else {
+                // Otherwise, just use the first bookmark list
+                bookmarkListId = bookmarkLists[0].id;
+            }
+        }
         console.log("adding bookmark", bookmarkListId, shapeBookmark.create({
             id: uuid(),
             to: {

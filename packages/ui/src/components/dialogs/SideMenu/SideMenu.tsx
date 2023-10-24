@@ -66,7 +66,7 @@ export const SideMenu = () => {
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     // Handle opening and closing
-    const { isOpen, close } = useSideMenu(id, isMobile);
+    const { isOpen, close } = useSideMenu({ id, isMobile });
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
         PubSub.get().publishSideMenu({ id, isOpen });
@@ -210,8 +210,9 @@ export const SideMenu = () => {
                     background: palette.background.default,
                     overflowY: "auto",
                     borderLeft: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
+                    zIndex,
                 },
-                "& > .MuiDialog-container": {
+                "& > .MuiDrawer-root": {
                     "& > .MuiPaper-root": {
                         zIndex,
                     },

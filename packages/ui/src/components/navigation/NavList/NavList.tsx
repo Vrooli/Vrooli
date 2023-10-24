@@ -36,7 +36,7 @@ export const NavList = () => {
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
 
-    const { isOpen: isSideMenuOpen } = useSideMenu("side-menu", isMobile);
+    const { isOpen: isSideMenuOpen } = useSideMenu({ id: "side-menu", isMobile });
     const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); }, []);
 
     return (

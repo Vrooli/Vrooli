@@ -1,6 +1,6 @@
 import { BookmarkFor, ChatInviteStatus, CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType } from "@local/shared";
 import { Palette } from "@mui/material";
-import { ApiIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
+import { AddIcon, ApiIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { YouInflated } from "utils/display/listTools";
 import { PolicyTabOption } from "views/legal";
 import { apiSearchParams } from "./schemas/api";
@@ -177,6 +177,7 @@ export enum OrganizationPageTabOption {
 export enum ParticipantManagePageTabOption {
     ChatParticipant = "ChatParticipant",
     ChatInvite = "ChatInvite",
+    Add = "Add",
 }
 
 export enum SearchPageTabOption {
@@ -558,6 +559,12 @@ export const participantTabParams = [{
     searchType: SearchType.ChatInvite,
     tabType: ParticipantManagePageTabOption.ChatInvite,
     where: (chatId: string) => ({ chatId, statuses: [ChatInviteStatus.Pending, ChatInviteStatus.Declined] }),
+}, {
+    Icon: AddIcon,
+    titleKey: "SearchUser" as CommonKey,
+    searchType: SearchType.User,
+    tabType: ParticipantManagePageTabOption.Add,
+    where: (chatId: string) => ({ notInChatId: chatId }),
 }];
 
 export const policyTabParams = [

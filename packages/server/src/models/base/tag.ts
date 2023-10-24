@@ -65,11 +65,7 @@ export const TagModel: TagModelLogic = ({
             translationLanguages: true,
             updatedTimeFrame: true,
         },
-        searchStringQuery: () => ({
-            OR: [
-                "tagWrapped",
-            ],
-        }),
+        searchStringQuery: () => "tagWrapped",
         supplemental: {
             graphqlFields: SuppFields[__typename],
             dbFields: ["createdById", "id"],

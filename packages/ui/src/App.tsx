@@ -344,6 +344,8 @@ export function App() {
             const { persistentOnDesktop, sideForRightHanded } = menusDisplayData[data.id];
             // Ignore if dialog is not persistent on desktop
             if (!persistentOnDesktop) return;
+            // For now, ignore if "idPrefix" is present. This is currently only used for menus associated with dialogs
+            if (data.idPrefix) return;
             // Flip side when in left-handed mode
             const side = isLeftHanded ? (sideForRightHanded === "left" ? "right" : "left") : sideForRightHanded;
             const menuElement = document.getElementById(data.id);

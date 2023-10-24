@@ -89,7 +89,6 @@ export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname
     // Get the last 2 parts of the URL
     const lastPart = getLastPathnamePart({ pathname });
     const secondLastPart = getLastPathnamePart({ pathname, offset: 1 });
-    console.log("urlParams parseSingleItemUrl", lastPart, secondLastPart);
     // Get the list of versioned object names
     const objectsWithVersions = [
         LINKS.Api,

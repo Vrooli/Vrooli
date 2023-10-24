@@ -59,12 +59,7 @@ export const LabelModel: LabelModelLogic = ({
             translationLanguages: true,
             updatedTimeFrame: true,
         },
-        searchStringQuery: () => ({
-            OR: [
-                "labelWrapped",
-                "transDescriptionWrapped",
-            ],
-        }),
+        searchStringQuery: () => ({ OR: ["labelWrapped", "transDescriptionWrapped"] }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {

@@ -1,17 +1,18 @@
-import { ChatInvite } from "@local/shared";
-import { IconButton, useTheme } from "@mui/material";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
+import { ChatInvite, ChatParticipant, User } from "@local/shared";
+import { Box, useTheme } from "@mui/material";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, SearchIcon } from "icons";
-import { useCallback, useEffect, useState } from "react";
+import { AddIcon } from "icons";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { pagePaddingBottom } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
-import { ChatInviteUpsert } from "views/objects/chatInvite";
 import { ParticipantManageViewProps } from "../types";
 
 /**
@@ -27,6 +28,7 @@ export const ParticipantManageView = ({
     const display = toDisplay(isOpen);
 
     const {
+        changeTab,
         currTab,
         handleTabChange,
         searchType,
@@ -34,22 +36,11 @@ export const ParticipantManageView = ({
         where,
     } = useTabs<ParticipantManagePageTabOption>({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
 
-    const [isInviteDialogOpen, setInviteDialogOpen] = useState(false);
-    const onInviteStart = useCallback(() => {
-        setInviteDialogOpen(true);
+    const handleItemClick = useCallback((item: ChatParticipant | ChatInvite | User) => {
+        // If members or invites tab, toggle selected
+        //TODO
+        // If add tab, add to invites 
     }, []);
-    const onInviteCompleted = useCallback((invite: ChatInvite) => {
-        setInviteDialogOpen(false);
-        // TODO add or update list
-    }, []);
-
-    const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
-    const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
-    useEffect(() => {
-        if (!showSearchFilters) return;
-        const searchInput = document.getElementById("search-bar-participant-manage-list");
-        searchInput?.focus();
-    }, [showSearchFilters]);
 
     return (
         <MaybeLargeDialog
@@ -59,23 +50,25 @@ export const ParticipantManageView = ({
             onClose={onClose}
             sxs={{
                 paper: {
-                    minHeight: "min(100vh - 64px, 600px)",
+                    minHeight: "min(100vh - 64px, 800px)",
                     width: "min(100%, 500px)",
+                    display: "flex",
                 },
             }}
         >
             {/* Dialog for creating new participant invite */}
-            <ChatInviteUpsert
+            {/* <ChatInviteUpsert
                 isCreate={true}
                 isOpen={isInviteDialogOpen}
                 onCompleted={onInviteCompleted}
                 onCancel={() => setInviteDialogOpen(false)}
                 overrideObject={{ chat }}
-            />
+            /> */}
             {/* Main dialog */}
             <TopBar
                 display={display}
                 onClose={onClose}
+                title={t("Participant", { count: 2 })}
                 below={<PageTabs
                     ariaLabel="search-tabs"
                     currTab={currTab}
@@ -84,30 +77,59 @@ export const ParticipantManageView = ({
                     tabs={tabs}
                 />}
             />
-            {searchType && <SearchList
-                id="participant-manage-list"
-                display={display}
-                dummyLength={display === "page" ? 5 : 3}
-                take={20}
-                searchType={searchType}
-                where={where(chat.id)}
-                sxs={showSearchFilters ? {
-                    search: { marginTop: 2 },
-                    listContainer: { borderRadius: 0 },
-                } : {
-                    search: { display: "none" },
-                    buttons: { display: "none" },
-                    listContainer: { borderRadius: 0 },
+            <Box sx={{ flexGrow: 1, overflowY: "auto" }} >
+                {/* TODO for invites tab, show newly invited first */}
+                {searchType && <SearchList
+                    id="participant-manage-list"
+                    display={display}
+                    dummyLength={display === "page" ? 5 : 3}
+                    onItemClick={handleItemClick}
+                    take={20}
+                    searchType={searchType}
+                    where={where(chat.id)}
+                    sxs={{
+                        search: { marginTop: 2 },
+                        listContainer: { borderRadius: 0 },
+                    }}
+                />}
+            </Box>
+            {/* Text input to set message for selected invite(s) */}
+            {/* TODO need way to put message text input inbetween side and bottom buttons */}
+            {currTab.tabType === ParticipantManagePageTabOption.ChatInvite ? <RichInputBase
+                actionButtons={[{
+                    Icon: AddIcon,
+                    onClick: () => {
+                        //TODO
+                    },
+                }]}
+                fullWidth
+                maxChars={1500}
+                minRows={1}
+                onChange={() => { }} //TODO
+                name="inviteMessage"
+                sxs={{
+                    root: {
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
+                        maxHeight: "min(50vh, 500px)",
+                        width: "min(700px, 100%)",
+                        margin: "auto",
+                        marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
+                    },
+                    bar: { borderRadius: 0 },
+                    textArea: { paddingRight: 4, border: "none" },
                 }}
-            />}
-            <SideActionsButtons display={display}>
-                <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
-                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
-                <IconButton aria-label={t("CreateInvite")} onClick={onInviteStart} sx={{ background: palette.secondary.main }}>
-                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
-            </SideActionsButtons>
+                value={""} //TODO
+            /> : null}
+            <BottomActionsButtons
+                display={display}
+                errors={{}} //TODO need to add formik
+                isCreate={false} //TODO
+                loading={false} //TODO
+                onCancel={() => { }} //TODO
+                onSetSubmitting={() => { }}//TODO
+                onSubmit={() => { }} //TODO
+            />
         </MaybeLargeDialog>
     );
 };

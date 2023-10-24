@@ -5,6 +5,7 @@ import { useUndoRedo } from "hooks/useUndoRedo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
 import { noop } from "utils/objects";
+import { PubSub } from "utils/pubsub";
 import { assistantChatInfo, ChatCrud } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
@@ -62,13 +63,18 @@ export const RichInputBase = ({
         setCookieShowMarkdown(!isMarkdownOn);
     }, [isMarkdownOn]);
 
+    const closeAssistantDialog = useCallback(() => {
+        setAssistantDialogProps(props => ({ ...props, isOpen: false }));
+        PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: "note", isOpen: false });
+    }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
         isCreate: true,
         isOpen: false,
+        onCancel: closeAssistantDialog,
         overrideObject: assistantChatInfo,
         task: "note",
-        onCompleted: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        onCompleted: closeAssistantDialog,
     });
     const openAssistantDialog = useCallback((highlighted: string) => {
         if (disabled) return;
@@ -191,7 +197,7 @@ export const RichInputBase = ({
                 {
                     (helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box
                         sx={{
-                            padding: 1,
+                            padding: "2px",
                             display: "flex",
                             flexDirection: isLeftHanded ? "row-reverse" : "row",
                             gap: 1,

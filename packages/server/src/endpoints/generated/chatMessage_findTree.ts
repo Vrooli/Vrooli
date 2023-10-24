@@ -2,6 +2,11 @@ export const chatMessage_findTree = {
   "hasMoreUp": true,
   "hasMoreDown": true,
   "messages": {
+    "translations": {
+      "id": true,
+      "language": true,
+      "text": true
+    },
     "id": true,
     "created_at": true,
     "updated_at": true,

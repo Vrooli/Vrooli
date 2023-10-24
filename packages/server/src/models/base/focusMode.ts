@@ -54,12 +54,7 @@ export const FocusModeModel: FocusModeModelLogic = ({
             timeZone: true,
             updatedTimeFrame: true,
         },
-        searchStringQuery: () => ({
-            OR: [
-                "descriptionWrapped",
-                "nameWrapped",
-            ],
-        }),
+        searchStringQuery: () => ({ OR: ["descriptionWrapped", "nameWrapped"] }),
     },
     validate: () => ({
         isDeleted: () => false,

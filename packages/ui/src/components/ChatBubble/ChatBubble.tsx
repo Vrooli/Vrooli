@@ -14,7 +14,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useDeleter } from "hooks/useDeleter";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
-import { AddIcon, BotIcon, DeleteIcon, EditIcon, ErrorIcon, ReplyIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
@@ -213,9 +213,14 @@ const ChatBubbleReactions = ({
                 />
             </Stack>
             {isBot && <Stack direction="row">
+                <Tooltip title={t("Retry")}>
+                    <IconButton size="small" onClick={() => { }}>
+                        <RefreshIcon fill={palette.background.textSecondary} />
+                    </IconButton>
+                </Tooltip>
                 <Tooltip title={t("Reply")}>
                     <IconButton size="small" onClick={() => { }}>
-                        <ReplyIcon fill={palette.background.textPrimary} />
+                        <ReplyIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Tooltip>
                 <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
