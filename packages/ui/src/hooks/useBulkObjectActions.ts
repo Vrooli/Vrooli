@@ -1,21 +1,22 @@
 import { exists, GqlModelType } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
-import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { SetLocation } from "route";
 import { BulkObjectAction, BulkObjectActionComplete, getAvailableBulkActions } from "utils/actions/bulkObjectActions";
 import { ListObject } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { useBulkDeleter } from "./useBulkDeleter";
 
-export type UseBulkObjectActionsProps = {
-    objectType: ListObject["__typename"];
-    selectedData: ListObject[];
-    setAllData: Dispatch<SetStateAction<ListObject[]>>;
-    setSelectedData: Dispatch<SetStateAction<ListObject[]>>;
+export type UseBulkObjectActionsProps<T extends ListObject = ListObject> = {
+    allData: T[];
+    objectType: T["__typename"];
+    selectedData: T[];
+    setAllData: (data: T[]) => unknown;
+    setSelectedData: (data: T[]) => unknown;
     setLocation: SetLocation;
 };
 
-export type UseBulkObjectActionsReturn = {
+export type UseBulkObjectActionsReturn<T extends ListObject = ListObject> = {
     availableActions: BulkObjectAction[];
     closeBookmarkDialog: () => unknown;
     closeDeleteDialog: () => unknown;
@@ -26,7 +27,7 @@ export type UseBulkObjectActionsReturn = {
     isDeleteDialogOpen: boolean;
     isProjectAddDialogOpen: boolean;
     isReportDialogOpen: boolean;
-    objectType: ListObject["__typename"];
+    objectType: T["__typename"];
     onBulkActionStart: (action: BulkObjectAction | `${BulkObjectAction}`) => unknown;
     onBulkActionComplete: (action: BulkObjectActionComplete | `${BulkObjectActionComplete}`, data: any) => unknown;
 };
@@ -39,13 +40,14 @@ const callIfExists = (callback: (() => void) | null | undefined) => {
     callback();
 };
 
-export const useBulkObjectActions = ({
+export const useBulkObjectActions = <T extends ListObject = ListObject>({
+    allData,
     objectType,
     selectedData,
     setAllData,
     setSelectedData,
     setLocation,
-}: UseBulkObjectActionsProps): UseBulkObjectActionsReturn => {
+}: UseBulkObjectActionsProps<T>): UseBulkObjectActionsReturn<T> => {
     const session = useContext(SessionContext);
 
     // Callback when an action is completed
@@ -60,7 +62,7 @@ export const useBulkObjectActions = ({
                 // TODO
                 break;
             case BulkObjectActionComplete.Delete: {
-                setAllData(all => all.filter(object => !(data as ListObject[]).find(deleted => deleted.id === object.id)));
+                setAllData(allData.filter(object => !(data as ListObject[]).find(deleted => deleted.id === object.id)));
                 setSelectedData([]);
                 break;
             }
@@ -68,7 +70,7 @@ export const useBulkObjectActions = ({
                 //TODO
                 break;
         }
-    }, [selectedData, setAllData, setSelectedData]);
+    }, [allData, selectedData, setAllData, setSelectedData]);
 
     const {
         closeDeleteDialog,

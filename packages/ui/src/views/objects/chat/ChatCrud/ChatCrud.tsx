@@ -232,7 +232,7 @@ const ChatForm = ({
     }, [searchTreeData]);
     useEffect(() => {
         // Build message tree
-        const temp = new MessageTree(allMessages);
+        const temp = new MessageTree<ChatMessageShape>(allMessages);
         console.log("building tree", temp, allMessages);
     }, [allMessages]);
 

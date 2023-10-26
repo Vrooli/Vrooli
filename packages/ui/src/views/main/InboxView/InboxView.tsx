@@ -1,4 +1,4 @@
-import { Chat, endpointPutNotificationsMarkAllAsRead, GqlModelType, Notification, Success } from "@local/shared";
+import { Chat, endpointPutNotificationsMarkAllAsRead, Notification, Success } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -69,18 +69,22 @@ export const InboxView = ({
             const newItems = [...items];
             const index = newItems.findIndex(i => i.id === item.id);
             if (index === -1) {
-                newItems.push(item);
+                newItems.push(item as InboxObject);
             } else {
                 newItems.splice(index, 1);
             }
             return newItems;
         });
     }, []);
-    const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions({
+    const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<InboxObject>({
+        allData,
         selectedData,
-        objectType: searchType as unknown as GqlModelType,
+        objectType: searchType as InboxObject["__typename"],
         setAllData,
-        setSelectedData,
+        setSelectedData: (data) => {
+            setSelectedData(data);
+            setIsSelecting(false);
+        },
         setLocation,
     });
 
@@ -168,7 +172,7 @@ export const InboxView = ({
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
                     onAction={onAction}
-                    selectedData={selectedData}
+                    selectedItems={selectedData}
                 />
             </ListContainer>
             <SideActionsButtons display={display}>

@@ -21,7 +21,7 @@ export interface SideMenuProps { }
 export interface BulkDeleteDialogProps {
     handleClose: (selectedForDelete: ListObject[]) => unknown;
     isOpen: boolean;
-    objects: ListObject[];
+    selectedData: ListObject[];
 }
 
 export interface CommentDialogProps extends Omit<BaseObjectFormProps<CommentShape>, "display"> {

@@ -1,8 +1,7 @@
-import { ChatMessage } from "@local/shared";
-import { MessageNode, MessageTree } from "./buildMessageTree";
+import { MessageNode, MessageTree, MinimumChatMessage } from "./buildMessageTree";
 
-export class DebuggableMessageTree extends MessageTree {
-    constructor(private msgs: ChatMessage[]) {
+export class DebuggableMessageTree<T extends MinimumChatMessage> extends MessageTree<T> {
+    constructor(private msgs: T[]) {
         super(msgs);
     }
 
@@ -45,7 +44,7 @@ export class DebuggableMessageTree extends MessageTree {
             for (let i = 1; i < node.children.length; i++) {
                 const currChild = node.children[i];
                 const lastChild = node.children[i - 1];
-                if (!currChild || !lastChild) continue;
+                if (!currChild?.message?.sequence || !lastChild?.message?.sequence) continue;
                 if (currChild.message.sequence <= lastChild.message.sequence) {
                     throw new Error(`Children of message with ID ${id} are not sorted by sequence.`);
                 }
@@ -61,7 +60,7 @@ export class DebuggableMessageTree extends MessageTree {
     }
 
     // Helper recursive function for tree traversal
-    private traverseTree(node: MessageNode, visited: Set<string>): void {
+    private traverseTree(node: MessageNode<T>, visited: Set<string>): void {
         if (visited.has(node.message.id)) {
             throw new Error(`Cycle detected at message with ID ${node.message.id}.`);
         }
@@ -83,6 +82,7 @@ const case1 = [
             text: "Certainly! What seems to be the issue?",
         }],
         created_at: "2021-10-01T02:00:00Z",
+        sequence: 2,
     },
     {
         id: "1",
@@ -93,6 +93,7 @@ const case1 = [
             text: "Hello, how can I help you?",
         }],
         created_at: "2021-10-01T00:00:00Z",
+        sequence: 0,
     },
     {
         id: "2",
@@ -103,6 +104,7 @@ const case1 = [
             text: "I need assistance with my account.",
         }],
         created_at: "2021-10-01T01:00:00Z",
+        sequence: 1,
     },
     {
         id: "4",
@@ -113,6 +115,7 @@ const case1 = [
             text: "I can't access my account.",
         }],
         created_at: "2021-10-01T03:00:00Z",
+        sequence: 3,
     },
     {
         id: "5",
@@ -123,6 +126,7 @@ const case1 = [
             text: "I see. Have you tried resetting your password?",
         }],
         created_at: "2021-10-01T04:00:00Z",
+        sequence: 4,
     },
     {
         id: "6",
@@ -133,6 +137,7 @@ const case1 = [
             text: "Yes, but I didn't receive the reset email.",
         }],
         created_at: "2021-10-01T05:00:00Z",
+        sequence: 5,
     },
     {
         id: "7",
@@ -143,6 +148,7 @@ const case1 = [
             text: "I can help with that. Can you provide your username?",
         }],
         created_at: "2021-10-01T06:00:00Z",
+        sequence: 6,
     },
     {
         id: "8",
@@ -153,6 +159,7 @@ const case1 = [
             text: "My username is johndoe123.",
         }],
         created_at: "2021-10-01T07:00:00Z",
+        sequence: 7,
     },
     {
         id: "9",
@@ -163,6 +170,7 @@ const case1 = [
             text: "Thank you, John. I have sent a password reset link to your email.",
         }],
         created_at: "2021-10-01T08:00:00Z",
+        sequence: 8,
     },
     {
         id: "10",
@@ -173,8 +181,9 @@ const case1 = [
             text: "Got it. Thanks!",
         }],
         created_at: "2021-10-01T09:00:00Z",
+        sequence: 9,
     },
-] as ChatMessage[];
+];
 
 describe("DebuggableMessageTree", () => {
     it("should assert tree integrity without errors for case 1", () => {

@@ -18,12 +18,12 @@ function getRandomConfirmationWords() {
 export const BulkDeleteDialog = ({
     handleClose,
     isOpen,
-    objects,
+    selectedData,
 }: BulkDeleteDialogProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [selectedItems, setSelectedItems] = useState(objects);
+    const [selectedItems, setSelectedItems] = useState(selectedData);
     const [confirmationInput, setConfirmationInput] = useState("");
     const [randomWords, setRandomWords] = useState(getRandomConfirmationWords());
     useEffect(() => {
@@ -40,10 +40,10 @@ export const BulkDeleteDialog = ({
     };
 
     const toggleAllItems = () => {
-        if (selectedItems.length === objects.length) {
+        if (selectedItems.length === selectedData.length) {
             setSelectedItems([]);
         } else {
-            setSelectedItems(objects);
+            setSelectedItems(selectedData);
         }
     };
 
@@ -70,8 +70,8 @@ export const BulkDeleteDialog = ({
                 <FormControlLabel
                     control={
                         <Checkbox
-                            checked={selectedItems.length === objects.length}
-                            indeterminate={selectedItems.length > 0 && selectedItems.length < objects.length}
+                            checked={selectedItems.length === selectedData.length}
+                            indeterminate={selectedItems.length > 0 && selectedItems.length < selectedData.length}
                             onChange={toggleAllItems}
                         />
                     }
@@ -83,7 +83,7 @@ export const BulkDeleteDialog = ({
                     borderRadius: 1,
                     marginBottom: 2,
                 }}>
-                    {objects.map(object => (
+                    {selectedData.map(object => (
                         <ListItem key={object.id}>
                             <FormControlLabel
                                 control={
@@ -104,7 +104,7 @@ export const BulkDeleteDialog = ({
                     fullWidth
                     value={confirmationInput}
                     onChange={(e) => setConfirmationInput(e.target.value)}
-                    sx={{marginBottom: 2}}
+                    sx={{ marginBottom: 2 }}
                 />
             </DialogContent>
             <BottomActionsGrid display="dialog">

@@ -1,10 +1,17 @@
-import { ChatMessage } from "@local/shared";
+
+export type MinimumChatMessage = {
+    id: string;
+    parent?: {
+        id: string;
+    } | null;
+    sequence?: number;
+};
 
 /** Tree structure for displaying chat messages in the correct order */
-export type MessageNode = {
-    message: ChatMessage;
+export type MessageNode<T extends MinimumChatMessage> = {
+    message: T;
     /** When there is more than one child, there are multiple versions (edits) of the message */
-    children: MessageNode[];
+    children: MessageNode<T>[];
 };
 
 // TODO should query chat messages from the bottom up, using a query like this:
@@ -30,18 +37,18 @@ export type MessageNode = {
  * Constructs a hierarchical tree representation of message threads
  * from a flat array of ChatMessage objects.
  */
-export class MessageTree {
+export class MessageTree<T extends MinimumChatMessage> {
     /** Map of message IDs to nodes */
-    protected messageMap: Map<string, MessageNode>;
+    protected messageMap: Map<string, MessageNode<T>>;
     /** 
      * Array of nodes which are either the first message in the chat, or have 
      * not been linked to a parent message.
      */
-    protected roots: MessageNode[];
+    protected roots: MessageNode<T>[];
 
-    constructor(private messages: ChatMessage[]) {
+    constructor(private messages: T[]) {
         // Initialize data structures
-        this.messageMap = new Map<string, MessageNode>();
+        this.messageMap = new Map<string, MessageNode<T>>();
         this.roots = [];
         this.initMessageMap();
         // Build the tree
@@ -98,20 +105,20 @@ export class MessageTree {
         }
     }
 
-    private sortNodeChildren(node: MessageNode): void {
-        node.children.sort((a, b) => a.message.sequence - b.message.sequence);
+    private sortNodeChildren(node: MessageNode<T>): void {
+        node.children.sort((a, b) => (a.message.sequence || 0) - (b.message.sequence || 0));
         for (const child of node.children) {
             this.sortNodeChildren(child);  // Recursive call to sort children of children
         }
     }
 
-    public getRoots(): MessageNode[] {
+    public getRoots(): MessageNode<T>[] {
         return this.roots;
     }
 
-    public addMessage(message: ChatMessage): void {
+    public addMessage(message: T): void {
         // Create a new node for the message
-        const newNode: MessageNode = {
+        const newNode: MessageNode<T> = {
             message,
             children: [],
         };
@@ -166,7 +173,7 @@ export class MessageTree {
      * add a new version of the message. This method is useful when 
      * chatting with other participants, where branching is disabled.
      */
-    public editMessage(messageId: string, updatedMessage: ChatMessage): void {
+    public editMessage(messageId: string, updatedMessage: T): void {
         const node = this.messageMap.get(messageId);
         if (node) {
             // Update the message with the new data

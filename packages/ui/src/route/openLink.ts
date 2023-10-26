@@ -1,5 +1,5 @@
 import { ParseSearchParamsResult, stringifySearchParams } from "./searchParams";
-import { SetLocation } from "./useLocation";
+import { SetLocation } from "./types";
 
 /**
  * Opens link using routing or a new tab, depending on the link

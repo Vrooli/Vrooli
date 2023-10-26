@@ -257,7 +257,7 @@ export const UserView = ({
                             textAlign="center"
                             fontFamily="monospace"
                             onClick={() => {
-                                navigator.clipboard.writeText(`${window.path.origin}${LINKS.User}/${handle}`);
+                                navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
                                 PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
                             }}
                             sx={{

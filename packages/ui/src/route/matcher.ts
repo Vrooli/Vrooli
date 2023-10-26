@@ -1,4 +1,4 @@
-import { Path } from "./useLocation";
+import { Pathname } from "./useLocation";
 
 export interface DefaultParams {
     [paramName: string]: string;
@@ -14,7 +14,7 @@ export type Match<T extends DefaultParams = DefaultParams> =
     | MatchWithParams<T>
     | NoMatch;
 
-export type MatcherFn = (pattern: Path, path: Path) => Match;
+export type MatcherFn = (pattern: Pathname, path: Pathname) => Match;
 
 export interface PatternToRegexpResult {
     keys: Array<{ name: string | number }>;
