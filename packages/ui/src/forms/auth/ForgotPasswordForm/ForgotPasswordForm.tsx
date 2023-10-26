@@ -10,12 +10,13 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
+import { noop } from "utils/objects";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
 import { ForgotPasswordFormProps } from "../../types";
 
 export const ForgotPasswordForm = ({
     onClose,
-    onFormChange = () => { },
+    onFormChange = noop,
 }: ForgotPasswordFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();

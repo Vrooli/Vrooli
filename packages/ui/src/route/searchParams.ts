@@ -1,4 +1,4 @@
-import { SetLocation } from "./useLocation";
+import { SetLocation } from "./types";
 
 type Primitive = string | number | boolean;
 export type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };

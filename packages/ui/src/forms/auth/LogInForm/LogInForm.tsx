@@ -12,13 +12,14 @@ import { useTranslation } from "react-i18next";
 import { parseSearchParams, useLocation } from "route";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
+import { noop } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
 import { LogInFormProps } from "../../types";
 
 export const LogInForm = ({
     onClose,
-    onFormChange = () => { },
+    onFormChange = noop,
 }: LogInFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();

@@ -1,9 +1,9 @@
 import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, ReactNode, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
 import { parseSearchParams } from "./searchParams";
-import locationHook, { HookNavigationOptions, Path, UseLocationHook, UseLocationResult } from "./useLocation";
+import locationHook, { HookNavigationOptions, Pathname, UseLocationHook, UseLocationResult } from "./useLocation";
 
-export type ExtractRouteOptionalParam<PathType extends Path> =
+export type ExtractRouteOptionalParam<PathType extends Pathname> =
     PathType extends `${infer Param}?`
     ? { [k in Param]: string | undefined }
     : PathType extends `${infer Param}*`
@@ -29,13 +29,13 @@ export type ExtractRouteParams<PathType extends string> =
 
 export interface RouterProps {
     hook: UseLocationHook;
-    base: Path;
+    base: Pathname;
     matcher: MatcherFn;
 }
 
 export type NavigationalProps = (
-    | { to: Path; href?: never }
-    | { href: Path; to?: never }
+    | { to: Pathname; href?: never }
+    | { href: Pathname; to?: never }
 ) &
     HookNavigationOptions;
 
@@ -76,7 +76,7 @@ export const useLocation = (): UseLocationResult => {
 
 export const useRoute = <
     T extends DefaultParams | undefined = undefined,
-    RoutePath extends Path = Path>(
+    RoutePath extends Pathname = Pathname>(
         pattern: RoutePath,
     ):
     Match<T extends DefaultParams ? T : ExtractRouteParams<RoutePath>> => {

@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
+import { noop } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
@@ -18,7 +19,7 @@ import { SignUpFormProps } from "../../types";
 
 export const SignUpForm = ({
     onClose,
-    onFormChange = () => { },
+    onFormChange = noop,
 }: SignUpFormProps) => {
     const theme = useTheme();
     const { t } = useTranslation();
@@ -53,8 +54,10 @@ export const SignUpForm = ({
                     fetchLazyWrapper<EmailSignUpInput, Session>({
                         fetch: emailSignUp,
                         inputs: {
-                            ...values,
-                            agreeToTerms: undefined, // Not needed for the backend
+                            name: values.name,
+                            email: values.email,
+                            password: values.password,
+                            confirmPassword: values.confirmPassword,
                             marketingEmails: Boolean(values.marketingEmails),
                             theme: theme.palette.mode ?? "light",
                         },

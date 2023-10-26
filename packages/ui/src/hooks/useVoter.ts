@@ -1,4 +1,4 @@
-import { endpointPostReact, exists, getReactionScore, GqlModelType, ReactInput, ReactionFor, Success } from "@local/shared";
+import { endpointPostReact, getReactionScore, GqlModelType, ReactInput, ReactionFor, Success } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
@@ -21,7 +21,7 @@ export const useVoter = ({
 }: UseVoterProps) => {
     const [fetch] = useLazyFetch<ReactInput, Success>(endpointPostReact);
 
-    const hasVotingSupport = exists(ReactionFor[objectType]);
+    const hasVotingSupport = objectType in ReactionFor;
 
     const handleVote = useCallback((emoji: string | null) => {
         // Validate objectId and objectType

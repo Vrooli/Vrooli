@@ -1,4 +1,4 @@
-import { Chat, endpointPutNotificationsMarkAllAsRead, Notification, Success } from "@local/shared";
+import { Chat, endpointPutNotificationsMarkAllAsRead, GqlModelType, Notification, Success } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -7,6 +7,7 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { useBulkObjectActions } from "hooks/useBulkObjectActions";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
@@ -16,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { ArgsType } from "types";
+import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getObjectUrlBase } from "utils/navigation/openObject";
@@ -55,15 +57,15 @@ export const InboxView = ({
     console.log("alldata", allData);
 
     const [isSelecting, setIsSelecting] = useState(false);
-    const [selectedItems, setSelectedItems] = useState<ListObject[]>([]);
+    const [selectedData, setSelectedData] = useState<InboxObject[]>([]);
     const handleToggleSelecting = useCallback(() => {
         if (isSelecting) {
-            setSelectedItems([]);
+            setSelectedData([]);
         }
         setIsSelecting(is => !is);
     }, [isSelecting]);
     const handleToggleSelect = useCallback((item: ListObject) => {
-        setSelectedItems(items => {
+        setSelectedData(items => {
             const newItems = [...items];
             const index = newItems.findIndex(i => i.id === item.id);
             if (index === -1) {
@@ -74,6 +76,13 @@ export const InboxView = ({
             return newItems;
         });
     }, []);
+    const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions({
+        selectedData,
+        objectType: searchType as unknown as GqlModelType,
+        setAllData,
+        setSelectedData,
+        setLocation,
+    });
 
     const [markAllAsReadMutation] = useLazyFetch<undefined, Success>(endpointPutNotificationsMarkAllAsRead);
 
@@ -130,6 +139,7 @@ export const InboxView = ({
 
     return (
         <>
+            {BulkDeleteDialogComponent}
             <TopBar
                 display={display}
                 hideTitleOnDesktop={true}
@@ -158,12 +168,12 @@ export const InboxView = ({
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
                     onAction={onAction}
-                    selectedItems={selectedItems}
+                    selectedData={selectedData}
                 />
             </ListContainer>
             <SideActionsButtons display={display}>
-                {isSelecting && selectedItems.length > 0 ? <Tooltip title={t("Delete")}>
-                    <IconButton aria-label={t("Delete")} onClick={() => { }} sx={{ background: palette.secondary.main }}>
+                {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
+                    <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }} sx={{ background: palette.secondary.main }}>
                         <DeleteIcon {...actionIconProps} />
                     </IconButton>
                 </Tooltip> : null}

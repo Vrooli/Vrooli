@@ -8,7 +8,6 @@ import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import usePress from "hooks/usePress";
-import { useWindowSize } from "hooks/useWindowSize";
 import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -45,7 +44,11 @@ export function ObjectListItemBase<T extends ListObject>({
     belowSubtitle,
     belowTags,
     handleContextMenu,
+    handleToggleSelect,
     hideUpdateButton,
+    isMobile,
+    isSelecting,
+    isSelected,
     loading,
     data,
     onClick,
@@ -54,10 +57,9 @@ export function ObjectListItemBase<T extends ListObject>({
     toTheRight,
 }: ObjectListItemProps<T>) {
     const session = useContext(SessionContext);
-    const { breakpoints, palette, typography } = useTheme();
+    const { palette, typography } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const id = useMemo(() => data?.id ?? uuid(), [data]);
 
     const [object, setObject] = useState<T | null | undefined>(data);
@@ -65,19 +67,25 @@ export function ObjectListItemBase<T extends ListObject>({
 
     const profileColors = useMemo(() => placeholderColor(), []);
     const { canBookmark, canComment, canUpdate, canReact, isBookmarked, reaction } = useMemo(() => getYou(data), [data]);
-    const { subtitle, title, adornments } = useMemo(() => getDisplay(data, getUserLanguages(session), palette), [data, session]);
+    const { subtitle, title, adornments } = useMemo(() => getDisplay(data, getUserLanguages(session), palette), [data, palette, session]);
     const { score } = useMemo(() => getCounts(data), [data]);
 
     const link = useMemo(() => (
         data &&
         (typeof canNavigate !== "function" || canNavigate(data))) &&
-        typeof onClick !== "function" ?
+        typeof onClick !== "function" &&
+        !isSelecting ?
         getObjectUrl(data) :
-        "", [data, canNavigate, onClick]);
+        "", [data, canNavigate, isSelecting, onClick]);
     const handleClick = useCallback((target: EventTarget) => {
         if (!target.id || !target.id.startsWith(LIST_PREFIX)) return;
         // If data not supplied, don't open
         if (data === null) return;
+        // If in selection mode, toggle selection
+        if (isSelecting && typeof handleToggleSelect === "function") {
+            handleToggleSelect(data);
+            return;
+        }
         // If onClick is supplied, call it instead of navigating
         if (typeof onClick === "function") {
             onClick(data);
@@ -92,7 +100,7 @@ export function ObjectListItemBase<T extends ListObject>({
         setCookiePartialData(data, "list");
         // Navigate to the object's page
         setLocation(link);
-    }, [data, link, onClick, canNavigate, setLocation]);
+    }, [data, isSelecting, handleToggleSelect, onClick, canNavigate, setLocation, link]);
 
     const editUrl = useMemo(() => data ? getObjectEditUrl(data) : "", [data]);
     const handleEditClick = useCallback((event: any) => {
@@ -278,12 +286,26 @@ export function ObjectListItemBase<T extends ListObject>({
                 {...pressEvents}
                 sx={{
                     display: "flex",
-                    background: palette.background.paper,
                     padding: "8px 16px",
                     cursor: "pointer",
                     borderBottom: `1px solid ${palette.divider}`,
+                    background: isSelected ? palette.secondary.light : palette.background.paper,
+                    "&:hover": {
+                        background: isSelected ? palette.secondary.light : palette.action.hover,
+                    },
                 }}
             >
+                {/* Giant radio button if isSelecting */}
+                {isSelecting && <Box
+                    sx={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        backgroundColor: isSelected ? palette.secondary.main : palette.background.paper,
+                        border: `1px solid ${palette.divider}`,
+                        pointerEvents: "none",
+                    }}
+                />}
                 {leftColumn}
                 <Stack
                     direction="column"
@@ -359,9 +381,9 @@ export function ObjectListItemBase<T extends ListObject>({
                         {belowTags}
                     </Stack>
                     {/* Action buttons if mobile */}
-                    {isMobile && actionButtons}
+                    {isMobile && !isSelecting && actionButtons}
                 </Stack>
-                {!isMobile && actionButtons}
+                {!isMobile && !isSelecting && actionButtons}
                 {/* Custom components displayed on the right */}
                 {toTheRight}
             </ListItem>

@@ -18,6 +18,12 @@ import { FindObjectTabOption } from "./FindObjectDialog/FindObjectDialog";
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SideMenuProps { }
 
+export interface BulkDeleteDialogProps {
+    handleClose: (selectedForDelete: ListObject[]) => unknown;
+    isOpen: boolean;
+    objects: ListObject[];
+}
+
 export interface CommentDialogProps extends Omit<BaseObjectFormProps<CommentShape>, "display"> {
     parent: Comment | null;
 }

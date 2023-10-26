@@ -6,9 +6,6 @@ import { useTranslation } from "react-i18next";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { DeleteDialogProps } from "../types";
 
-// Objects which show a simple confirmation instead of requiring the full "enter name" flow
-// const simpleConfirmationObjects = [GqlModelType.Note, GqlModelType.NoteVersion, GqlModelType.
-
 export const DeleteDialog = ({
     handleClose,
     handleDelete,

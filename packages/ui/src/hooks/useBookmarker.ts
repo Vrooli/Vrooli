@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, exists, GqlModelType, Success, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, GqlModelType, Success, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
@@ -31,7 +31,7 @@ export const useBookmarker = ({
     // we usually only know that an object has a bookmark - not the bookmarks themselves
     const [getData] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointGetBookmarks);
 
-    const hasBookmarkingSupport = exists(BookmarkFor[objectType]);
+    const hasBookmarkingSupport = objectType in BookmarkFor;
 
     // Handle dialog for updating a bookmark's lists
     const [isBookmarkDialogOpen, setIsBookmarkDialogOpen] = useState<boolean>(false);

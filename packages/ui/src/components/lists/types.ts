@@ -31,8 +31,14 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
     handleContextMenu: (target: EventTarget, object: ListObject | null) => unknown;
+    handleToggleSelect: (object: ListObject) => unknown;
     /** If update button should be hidden */
     hideUpdateButton?: boolean;
+    isMobile: boolean;
+    /** Disables actions and navigation */
+    isSelecting: boolean;
+    /** Used when isSelecting is true */
+    isSelected: boolean;
     /** If data is still being fetched */
     loading: boolean;
     data: T | null;

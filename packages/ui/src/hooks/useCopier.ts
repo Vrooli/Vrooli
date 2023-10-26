@@ -1,4 +1,4 @@
-import { CopyInput, CopyResult, CopyType, endpointPostCopy, exists, GqlModelType } from "@local/shared";
+import { CopyInput, CopyResult, CopyType, endpointPostCopy, GqlModelType } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
@@ -23,7 +23,7 @@ export const useCopier = ({
 }: UseCopierProps) => {
     const [copy] = useLazyFetch<CopyInput, CopyResult>(endpointPostCopy);
 
-    const hasCopyingSupport = exists(CopyType[objectType]);
+    const hasCopyingSupport = objectType in CopyType;
 
     const handleCopy = useCallback(() => {
         // Validate objectId and objectType

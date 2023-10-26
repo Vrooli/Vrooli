@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { stringifySearchParams } from "./searchParams";
+import { SetLocation } from "./types";
 
 export type Href = string;
 export type Pathname = string;
@@ -9,11 +10,6 @@ export type Location = {
     pathname: Pathname,
     search: Search
 };
-export type SetLocationOptions = {
-    replace?: boolean;
-    searchParams?: Record<string, any>;
-};
-export type SetLocation = (to: string, options?: SetLocationOptions) => void;
 export type UseLocationResult = [Location, SetLocation];
 export type UseLocationHook = () => UseLocationResult;
 /** Returns the type of the navigation options that hook's push function accepts. */

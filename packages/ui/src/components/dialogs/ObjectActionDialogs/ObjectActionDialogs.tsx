@@ -1,4 +1,5 @@
 import { BookmarkFor, ReportFor } from "@local/shared";
+import { ObjectAction } from "utils/actions/objectActions";
 import { ReportUpsert } from "views/objects/report";
 import { StatsObjectView } from "views/StatsObjectView/StatsObjectView";
 import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog";
@@ -6,13 +7,7 @@ import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 import { ObjectActionDialogsProps } from "../types";
 
 export const ObjectActionDialogs = ({
-    hasBookmarkingSupport,
-    hasCopyingSupport,
-    hasDeletingSupport,
-    hasReportingSupport,
-    hasSharingSupport,
-    hasStatsSupport,
-    hasVotingSupport,
+    availableActions,
     isDeleteDialogOpen,
     isBookmarkDialogOpen,
     isDonateDialogOpen,
@@ -36,7 +31,7 @@ export const ObjectActionDialogs = ({
             {/* openAddCommentDialog?: () => void; //TODO: implement
     openDonateDialog?: () => void; //TODO: implement
     */}
-            {object?.id && hasBookmarkingSupport && <SelectBookmarkListDialog
+            {object?.id && (availableActions.includes(ObjectAction.Bookmark) || availableActions.includes(ObjectAction.BookmarkUndo)) && <SelectBookmarkListDialog
                 objectId={object.id}
                 objectType={objectType as unknown as BookmarkFor}
                 onClose={closeBookmarkDialog}
@@ -44,19 +39,19 @@ export const ObjectActionDialogs = ({
                 isOpen={isBookmarkDialogOpen}
             />}
             {object?.id && DeleteDialogComponent}
-            {object?.id && hasReportingSupport && <ReportUpsert
+            {object?.id && availableActions.includes(ObjectAction.Delete) && <ReportUpsert
                 isCreate={true}
                 isOpen={isReportDialogOpen}
                 onCancel={closeReportDialog}
                 onCompleted={closeReportDialog}
                 overrideObject={{ createdFor: { __typename: objectType as unknown as ReportFor, id: object.id } }}
             />}
-            {hasSharingSupport && <ShareObjectDialog
+            {availableActions.includes(ObjectAction.Share) && <ShareObjectDialog
                 object={object}
                 open={isShareDialogOpen}
                 onClose={closeShareDialog}
             />}
-            {hasStatsSupport && <StatsObjectView
+            {availableActions.includes(ObjectAction.Stats) && <StatsObjectView
                 handleObjectUpdate={() => { }} //TODO
                 isOpen={isStatsDialogOpen}
                 object={object as any}

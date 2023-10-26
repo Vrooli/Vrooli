@@ -291,6 +291,7 @@ export const LandingView = ({
                             margin: "auto",
                             maxWidth: "1000px",
                             maxHeight: "1000px",
+                            pointerEvents: "none",
                             transform: earthTransform,
                             transition: (scrollDirectionRef.current === "up" && earthTransform === "translate(0%, 100%) scale(1)")
                                 ? "transform 0.2s ease-in-out"

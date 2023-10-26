@@ -1,4 +1,4 @@
-import { getReactionScore, Session } from "@local/shared";
+import { BookmarkFor, CommentFor, CommonKey, CopyType, DeleteType, getReactionScore, ReactionFor, ReportFor, Session } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
 import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, UpvoteWideIcon } from "icons";
 import { SvgComponent } from "types";
@@ -42,10 +42,10 @@ export enum ObjectActionComplete {
 
 /**
  * Determines which actions are available for the given object.
- * Actions follow the order: Edit, VoteUp/VoteDown, Star/StarUndo, Comment, Share, Donate, Stats, FindInPage, Fork, Copy, Report, Delete
+ * Actions follow the order: Edit, VoteUp/VoteDown, Bookmark/BookmarkUndo, Comment, Share, Donate, Stats, FindInPage, Fork, Copy, Report, Delete
  * @param object The object to determine actions for
  * @param session Current session. Many actions require a logged in user.
- * @param exclude Actions to exclude from the list (useful when other components on the page handle those actions, like a star button)
+ * @param exclude Actions to exclude from the list (useful when other components on the page handle those actions, like a bookmark button)
  */
 export const getAvailableActions = (object: ListObject | null | undefined, session: Session | undefined, exclude: ObjectAction[] = []): ObjectAction[] => {
     console.log("checking available actions", object);
@@ -58,15 +58,15 @@ export const getAvailableActions = (object: ListObject | null | undefined, sessi
         options.push(ObjectAction.Edit);
     }
     // Check VoteUp/VoteDown
-    if (isLoggedIn && canReact) {
+    if (isLoggedIn && canReact && object.__typename in ReactionFor) {
         options.push(getReactionScore(reaction) > 0 ? ObjectAction.VoteDown : ObjectAction.VoteUp);
     }
     // Check Bookmark/BookmarkUndo
-    if (isLoggedIn && canBookmark) {
+    if (isLoggedIn && canBookmark && object.__typename in BookmarkFor) {
         options.push(isBookmarked ? ObjectAction.BookmarkUndo : ObjectAction.Bookmark);
     }
     // Check Comment
-    if (isLoggedIn && canComment) {
+    if (isLoggedIn && canComment && object.__typename in CommentFor) {
         options.push(ObjectAction.Comment);
     }
     // Check Share
@@ -76,19 +76,19 @@ export const getAvailableActions = (object: ListObject | null | undefined, sessi
     // Check Donate
     //TODO
     // Check Stats
-    //TODO
+    //TODO ["Api", "Organization", "Project", "Quiz", "Routine", "SmartContract", "Standard", "User"].includes(object.__typename)
     // Can always find in page
     options.push(ObjectAction.FindInPage);
     // Check Fork
-    if (isLoggedIn && canCopy) {
+    if (isLoggedIn && canCopy && object.__typename in CopyType) {
         options.push(ObjectAction.Fork);
     }
     // Check Report
-    if (isLoggedIn && canReport) {
+    if (isLoggedIn && canReport && object.__typename in ReportFor) {
         options.push(ObjectAction.Report);
     }
     // Check Delete
-    if (isLoggedIn && canDelete) {
+    if (isLoggedIn && canDelete && object.__typename in DeleteType) {
         options.push(ObjectAction.Delete);
     }
     // Omit excluded actions
@@ -99,27 +99,27 @@ export const getAvailableActions = (object: ListObject | null | undefined, sessi
 };
 
 /**
- * Maps an ObjectAction to [label, Icon, iconColor, preview]
+ * Maps an ObjectAction to [labelKey, Icon, iconColor, preview]
  */
-const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boolean] } = ({
+const allOptionsMap: { [key in ObjectAction]: [CommonKey, SvgComponent, string, boolean] } = ({
     [ObjectAction.Bookmark]: ["Bookmark", BookmarkOutlineIcon, "#cbae30", false],
-    [ObjectAction.BookmarkUndo]: ["Unstar", BookmarkFilledIcon, "#cbae30", false],
+    [ObjectAction.BookmarkUndo]: ["BookmarkUndo", BookmarkFilledIcon, "#cbae30", false],
     [ObjectAction.Comment]: ["Comment", ReplyIcon, "default", false],
     [ObjectAction.Delete]: ["Delete", DeleteIcon, "default", false],
     [ObjectAction.Donate]: ["Donate", DonateIcon, "default", true],
     [ObjectAction.Edit]: ["Edit", EditIcon, "default", false],
-    [ObjectAction.FindInPage]: ["Find...", SearchIcon, "default", false],
+    [ObjectAction.FindInPage]: ["FindEllipsis", SearchIcon, "default", false],
     [ObjectAction.Fork]: ["Fork", BranchIcon, "default", false],
     [ObjectAction.Report]: ["Report", ReportIcon, "default", false],
     [ObjectAction.Share]: ["Share", ShareIcon, "default", false],
-    [ObjectAction.Stats]: ["Stats", StatsIcon, "default", true],
-    [ObjectAction.VoteDown]: ["Downvote", DownvoteWideIcon, "default", false],
-    [ObjectAction.VoteUp]: ["Upvote", UpvoteWideIcon, "default", false],
+    [ObjectAction.Stats]: ["StatisticsShort", StatsIcon, "default", true],
+    [ObjectAction.VoteDown]: ["VoteDown", DownvoteWideIcon, "default", false],
+    [ObjectAction.VoteUp]: ["VoteUp", UpvoteWideIcon, "default", false],
 });
 
-export const getActionsDisplayData = (actions: ObjectAction[]): Pick<ListMenuItemData<ObjectAction>, "Icon" | "iconColor" | "label" | "value">[] => {
+export const getActionsDisplayData = (actions: ObjectAction[]): Pick<ListMenuItemData<ObjectAction>, "Icon" | "iconColor" | "labelKey" | "value">[] => {
     return actions.map((action) => {
-        const [label, Icon, iconColor, preview] = allOptionsMap[action];
-        return { label, Icon, iconColor, preview, value: action };
+        const [labelKey, Icon, iconColor, preview] = allOptionsMap[action];
+        return { labelKey, Icon, iconColor, preview, value: action };
     });
 };
