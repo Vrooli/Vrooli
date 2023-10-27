@@ -147,7 +147,7 @@ export const SideMenu = () => {
     }, [handleClose, isMobile, userId, setLocation, switchCurrentAccount]);
 
     const handleAddAccount = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        setLocation(LINKS.Start);
+        setLocation(LINKS.Login);
         if (isMobile) handleClose(event);
     }, [handleClose, isMobile, setLocation]);
 

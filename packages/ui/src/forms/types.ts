@@ -3,7 +3,6 @@ import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, Lan
 import { FormikProps } from "formik";
 import { Dispatch, ReactNode, SetStateAction } from "react";
 import { AssistantTask } from "types";
-import { Forms } from "utils/consts";
 import { ListObject } from "utils/display/listTools";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
@@ -74,26 +73,6 @@ export interface ImprovedFormProps<Model extends ListObject, ModelShape> extends
 export interface BaseGeneratedFormProps {
     schema: FormSchema;
     onSubmit: (values: any) => void;
-}
-
-export interface FormProps {
-    onFormChange?: (form: Forms) => unknown;
-}
-
-export interface ForgotPasswordFormProps extends FormProps {
-    onClose?: () => unknown;
-}
-
-export interface LogInFormProps extends FormProps {
-    onClose?: () => unknown;
-}
-
-export interface ResetPasswordFormProps extends FormProps {
-    onClose?: () => unknown;
-}
-
-export interface SignUpFormProps extends FormProps {
-    onClose?: () => unknown;
 }
 
 export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {

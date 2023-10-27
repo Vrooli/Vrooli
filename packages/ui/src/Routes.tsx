@@ -3,11 +3,10 @@ import { Box, useTheme } from "@mui/material";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { NavbarProps } from "components/navigation/types";
 import { ScrollToTop } from "components/ScrollToTop";
-import { ForgotPasswordForm, ResetPasswordForm } from "forms/auth";
 import { lazily } from "react-lazily";
 import { Route, RouteProps, Switch } from "route";
 import { BotUpsert } from "views/objects/bot";
-import { PageProps } from "views/wrapper/types";
+import { PageProps } from "views/types";
 import { Page } from "./components/Page/Page";
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
@@ -18,6 +17,12 @@ const {
     MyStuffView,
     InboxView,
 } = lazily(() => import("./views/main"));
+const {
+    ForgotPasswordView,
+    LoginView,
+    ResetPasswordView,
+    SignupView,
+} = lazily(() => import("./views/auth"));
 const {
     SettingsView,
     SettingsApiView,
@@ -38,11 +43,9 @@ const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
 const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
 const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
 const { ChatCrud } = lazily(() => import("./views/objects/chat"));
-const { FormView } = lazily(() => import("./views/wrapper/FormView"));
 const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
 const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
-const { StartView } = lazily(() => import("./views/StartView/StartView"));
 const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/StatsSiteView"));
 const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
 const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
@@ -153,15 +156,13 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <ChatCrud isCreate={false} />
                 </NavRoute>
                 <NavRoute
-                    path={`${LINKS.ForgotPassword}/:code?`}
+                    path={LINKS.ForgotPassword}
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Forgot Password" maxWidth="700px" {...props}>
-                        <ForgotPasswordForm />
-                    </FormView>
+                    <ForgotPasswordView />
                 </NavRoute>
                 <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
                     <HistoryView />
@@ -175,6 +176,15 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <HomeView />
+                </NavRoute>
+                <NavRoute
+                    path={`${LINKS.Login}/:code?`}
+                    sitemapIndex
+                    priority={0.2}
+                    changeFreq="yearly"
+                    {...props}
+                >
+                    <LoginView />
                 </NavRoute>
                 <NavRoute path={LINKS.MyStuff} mustBeLoggedIn={true} {...props}>
                     <MyStuffView />
@@ -269,9 +279,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Reset Password" maxWidth="700px" {...props}>
-                        <ResetPasswordForm />
-                    </FormView>
+                    <ResetPasswordView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>
                     <RoutineUpsert isCreate={true} />
@@ -321,6 +329,16 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={LINKS.SettingsFocusModes} mustBeLoggedIn={true} {...props}>
                     <SettingsFocusModesView />
                 </NavRoute>
+                <NavRoute
+                    path={`${LINKS.Signup}/:code?`}
+                    excludePageContainer
+                    sitemapIndex
+                    priority={0.4}
+                    changeFreq="monthly"
+                    {...props}
+                >
+                    <SignupView />
+                </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
                     <SmartContractUpsert isCreate={true} />
                 </NavRoute>
@@ -338,15 +356,6 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/:rootId/:versionId?`} {...props}>
                     <StandardView />
-                </NavRoute>
-                <NavRoute
-                    path={LINKS.Start}
-                    sitemapIndex
-                    priority={0.2}
-                    changeFreq="yearly"
-                    {...props}
-                >
-                    <StartView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Stats}

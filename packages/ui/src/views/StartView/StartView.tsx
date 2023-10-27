@@ -41,7 +41,7 @@ export const StartView = ({
     const [emailLogIn] = useLazyFetch<EmailLogInInput, Session>(endpointPostAuthEmailLogin);
     const [formType, setFormType] = useState<Forms>(() => {
         // Default to log in form
-        let form: Forms = Forms.LogIn;
+        let form: Forms = Forms.Login;
         // Check search params
         const searchParams = parseSearchParams();
         if (searchParams.form && Object.values(Forms).includes(searchParams.form as Forms)) {
@@ -49,7 +49,7 @@ export const StartView = ({
         }
         return form;
     });
-    const handleFormChange = useCallback((type: Forms = Forms.LogIn) => {
+    const handleFormChange = useCallback((type: Forms = Forms.Login) => {
         if (type === formType) return;
         setFormType(type);
         addSearchParams(setLocation, { form: type });
@@ -58,7 +58,7 @@ export const StartView = ({
         switch (formType) {
             case Forms.ForgotPassword:
                 return ForgotPasswordForm;
-            case Forms.LogIn:
+            case Forms.Login:
                 return LogInForm;
             case Forms.ResetPassword:
                 return ResetPasswordForm;
@@ -151,7 +151,7 @@ export const StartView = ({
     // const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false); }, []);
 
     return (
-        <>
+        <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
             {/* Dialogs */}
             {/* <WalletSelectDialog
                 handleOpenInstall={openWalletInstallDialog}
@@ -171,19 +171,27 @@ export const StartView = ({
             />
             {/* Main content */}
             <Box sx={{
+                // display: "flex",
+                // flexDirection: "column",
+                // justifyContent: "center",
+                // alignItems: "center",
+                // textAlign: "center",
+                // height: "calc(100vh - 128px)", // Minus double the app bar height
                 display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                textAlign: "center",
-                height: "calc(100vh - 128px)", // Minus double the app bar height
+                flexDirection: "row",
+                height: "calc(100vh - 128px)",
             }}>
                 <Box sx={{
-                    width: "min(calc(100vw - 16px), 600px)",
-                    marginTop: 4,
+                    // width: "min(calc(100vw - 16px), 600px)",
+                    // marginTop: 4,
+                    // background: palette.background.paper,
+                    // borderRadius: 2,
+                    // overflow: "overlay",
+                    width: "min(400px, 100%)",
+                    height: "100vh",
                     background: palette.background.paper,
                     borderRadius: 2,
-                    overflow: "overlay",
+                    overflow: "auto",
                 }}>
                     {/* <Box sx={{
                         display: "flex",
@@ -222,7 +230,16 @@ export const StartView = ({
                         onFormChange={handleFormChange}
                     />
                 </Box>
+                <Box sx={{
+                    flex: 1, // take up remaining space
+                    background: palette.background.default,
+                    paddingLeft: 4, // optional: add some spacing
+                }}>
+                    {/* Add your additional content (image, pricing, promotions, etc.) here */}
+                    {/* Example: */}
+                    <p>Your additional content goes here. Such as images, pricing, promotions, etc.</p>
+                </Box>
             </Box>
-        </>
+        </Box>
     );
 };

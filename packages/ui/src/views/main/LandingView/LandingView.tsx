@@ -169,7 +169,7 @@ export const LandingView = ({
                             <PulseButton
                                 variant="outlined"
                                 color="secondary"
-                                onClick={() => openLink(setLocation, LINKS.Start, { form: Forms.SignUp })}
+                                onClick={() => openLink(setLocation, LINKS.Signup, { form: Forms.SignUp })}
                                 startIcon={<PlayIcon fill='white' />}
                                 sx={{
                                     fontSize: "1.8rem",
@@ -312,7 +312,7 @@ export const LandingView = ({
                         <PulseButton
                             variant="outlined"
                             color="secondary"
-                            onClick={() => openLink(setLocation, LINKS.Start)}
+                            onClick={() => openLink(setLocation, LINKS.Signup)}
                             startIcon={<PlayIcon fill='white' />}
                             sx={{
                                 fontSize: "1.8rem",

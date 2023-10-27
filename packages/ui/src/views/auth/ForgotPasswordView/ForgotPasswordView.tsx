@@ -1,29 +1,28 @@
 import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success } from "@local/shared";
-import { Button, Grid, InputAdornment, Link, TextField, Typography } from "@mui/material";
+import { Box, Button, Grid, InputAdornment, Link, TextField, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { formNavLink, formPaper, formSubmit } from "forms/styles";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { EmailIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
-import { Forms } from "utils/consts";
-import { noop } from "utils/objects";
-import { formNavLink, formPaper, formSubmit } from "../../styles";
-import { ForgotPasswordFormProps } from "../../types";
+import { toDisplay } from "utils/display/pageTools";
+import { ForgotPasswordViewProps } from "views/types";
 
-export const ForgotPasswordForm = ({
+interface ForgotPasswordFormProps {
+    onClose?: () => unknown;
+}
+
+const ForgotPasswordForm = ({
     onClose,
-    onFormChange = noop,
 }: ForgotPasswordFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailRequestPasswordChange, { loading }] = useLazyFetch<EmailRequestPasswordChangeInput, Success>(endpointPostAuthEmailRequestPasswordChange);
-
-    const toSignUp = () => onFormChange(Forms.SignUp);
-    const toLogIn = () => onFormChange(Forms.LogIn);
 
     return (
         <>
@@ -88,35 +87,68 @@ export const ForgotPasswordForm = ({
                     >
                         {t("Submit")}
                     </Button>
-                    <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                            <Link onClick={toLogIn}>
-                                <Typography
-                                    sx={{
-                                        ...clickSize,
-                                        ...formNavLink,
-                                    }}
-                                >
-                                    {t("RememberLogBackIn")}
-                                </Typography>
-                            </Link>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <Link onClick={toSignUp}>
-                                <Typography
-                                    sx={{
-                                        ...clickSize,
-                                        ...formNavLink,
-                                        flexDirection: "row-reverse",
-                                    }}
-                                >
-                                    {t("DontHaveAccountSignUp")}
-                                </Typography>
-                            </Link>
-                        </Grid>
-                    </Grid>
+                    <Box sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                    }}>
+                        <Link href={LINKS.Login}>
+                            <Typography
+                                sx={{
+                                    ...clickSize,
+                                    ...formNavLink,
+                                }}
+                            >
+                                {t("LogIn")}
+                            </Typography>
+                        </Link>
+                        <Link href={LINKS.Signup}>
+                            <Typography
+                                sx={{
+                                    ...clickSize,
+                                    ...formNavLink,
+                                    flexDirection: "row-reverse",
+                                }}
+                            >
+                                {t("SignUp")}
+                            </Typography>
+                        </Link>
+                    </Box>
                 </BaseForm>}
             </Formik>
         </>
+    );
+};
+
+export const ForgotPasswordView = ({
+    isOpen,
+    onClose,
+}: ForgotPasswordViewProps) => {
+    const display = toDisplay(isOpen);
+    const { palette } = useTheme();
+
+    return (
+        <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
+            <TopBar
+                display={display}
+                onClose={onClose}
+                hideTitleOnDesktop
+            />
+            <Box
+                sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translateX(-50%) translateY(-50%)",
+                    width: "min(700px, 100%)",
+                    background: palette.background.paper,
+                    borderRadius: { xs: 0, sm: 2 },
+                    overflow: "overlay",
+                }}
+            >
+                <ForgotPasswordForm onClose={onClose} />
+            </Box>
+        </Box>
     );
 };

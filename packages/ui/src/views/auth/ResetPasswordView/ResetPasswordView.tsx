@@ -1,19 +1,24 @@
 import { EmailResetPasswordInput, emailResetPasswordSchema, endpointPostAuthEmailResetPassword, LINKS, Session, uuidValidate } from "@local/shared";
-import { Button, Grid } from "@mui/material";
+import { Box, Button, Grid } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ResetPasswordFormProps } from "forms/types";
+import { formPaper, formSubmit } from "forms/styles";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { formPaper, formSubmit } from "../../styles";
+import { ResetPasswordViewProps } from "views/types";
 
-export const ResetPasswordForm = ({
+interface ResetPasswordFormProps {
+    onClose?: () => unknown;
+}
+
+const ResetPasswordForm = ({
     onClose,
 }: ResetPasswordFormProps) => {
     const { t } = useTranslation();
@@ -101,5 +106,37 @@ export const ResetPasswordForm = ({
                 </BaseForm>}
             </Formik>
         </>
+    );
+};
+
+export const ResetPasswordView = ({
+    isOpen,
+    onClose,
+}: ResetPasswordViewProps) => {
+    const display = toDisplay(isOpen);
+    const { palette } = useTheme();
+
+    return (
+        <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
+            <TopBar
+                display={display}
+                onClose={onClose}
+                hideTitleOnDesktop
+            />
+            <Box
+                sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translateX(-50%) translateY(-50%)",
+                    width: "min(700px, 100%)",
+                    background: palette.background.paper,
+                    borderRadius: { xs: 0, sm: 2 },
+                    overflow: "overlay",
+                }}
+            >
+                <ResetPasswordForm onClose={onClose} />
+            </Box>
+        </Box>
     );
 };

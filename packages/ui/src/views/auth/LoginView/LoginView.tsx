@@ -1,41 +1,73 @@
 import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@local/shared";
-import { Button, Grid, InputAdornment, Link, TextField, Typography } from "@mui/material";
+import { Box, Button, Grid, InputAdornment, Link, TextField, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { formNavLink, formPaper, formSubmit } from "forms/styles";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useReactSearch } from "hooks/useReactSearch";
 import { EmailIcon } from "icons";
-import { useMemo } from "react";
+import { useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { parseSearchParams, useLocation } from "route";
+import { useLocation } from "route";
 import { clickSize } from "styles";
-import { Forms } from "utils/consts";
-import { noop } from "utils/objects";
+import { getCurrentUser } from "utils/authentication/session";
+import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
-import { formNavLink, formPaper, formSubmit } from "../../styles";
-import { LogInFormProps } from "../../types";
+import { LoginViewProps } from "views/types";
 
-export const LogInForm = ({
+interface LoginFormProps {
+    onClose?: () => unknown;
+}
+
+const LoginForm = ({
     onClose,
-    onFormChange = noop,
-}: LogInFormProps) => {
+}: LoginFormProps) => {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
-    const { redirect, verificationCode } = useMemo(() => {
-        const params = parseSearchParams();
-        return {
-            redirect: typeof params.redirect === "string" ? params.redirect : undefined,
-            verificationCode: typeof params.code === "string" ? params.code : undefined,
-        };
-    }, []);
+    const search = useReactSearch();
+    const { redirect, verificationCode } = useMemo(() => ({
+        redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+        verificationCode: typeof search.verificationCode === "string" ? search.verificationCode : undefined,
+    }), [search]);
 
     const [emailLogIn, { loading }] = useLazyFetch<EmailLogInInput, Session>(endpointPostAuthEmailLogin);
 
-    const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
-    const toSignUp = () => onFormChange(Forms.SignUp);
+    /**
+     * If verification code supplied
+     */
+    useEffect(() => {
+        if (verificationCode) {
+            // If still logged in, call emailLogIn right away
+            if (userId) {
+                fetchLazyWrapper<EmailLogInInput, Session>({
+                    fetch: emailLogIn,
+                    inputs: { verificationCode },
+                    onSuccess: (data) => {
+                        PubSub.get().publishSnack({ messageKey: "EmailVerified", severity: "Success" });
+                        PubSub.get().publishSession(data);
+                        setLocation(redirect ?? LINKS.Home);
+                    },
+                    onError: (response) => {
+                        if (hasErrorCode(response, "MustResetPassword")) {
+                            PubSub.get().publishAlertDialog({
+                                messageKey: "ChangePasswordBeforeLogin",
+                                buttons: [
+                                    { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home); } },
+                                ],
+                            });
+                        }
+                    },
+                });
+            }
+        }
+    }, [emailLogIn, verificationCode, redirect, setLocation, userId]);
 
     return (
         <>
@@ -76,7 +108,7 @@ export const LogInForm = ({
                                     messageKey: "EmailNotFound",
                                     severity: "Error",
                                     buttonKey: "SignUp",
-                                    buttonClicked: () => { toSignUp(); },
+                                    buttonClicked: () => { setLocation(LINKS.Signup); },
                                 });
                             } else {
                                 PubSub.get().publishSnack({ message: errorToMessage(response, ["en"]), severity: "Error", data: response });
@@ -134,35 +166,68 @@ export const LogInForm = ({
                     >
                         {t("LogIn")}
                     </Button>
-                    <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                            <Link onClick={toForgotPassword}>
-                                <Typography
-                                    sx={{
-                                        ...clickSize,
-                                        ...formNavLink,
-                                    }}
-                                >
-                                    {t("ForgotPassword")}
-                                </Typography>
-                            </Link>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <Link onClick={toSignUp}>
-                                <Typography
-                                    sx={{
-                                        ...clickSize,
-                                        ...formNavLink,
-                                        flexDirection: "row-reverse",
-                                    }}
-                                >
-                                    {t("DontHaveAccountSignUp")}
-                                </Typography>
-                            </Link>
-                        </Grid>
-                    </Grid>
+                    <Box sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                    }}>
+                        <Link href={LINKS.ForgotPassword}>
+                            <Typography
+                                sx={{
+                                    ...clickSize,
+                                    ...formNavLink,
+                                }}
+                            >
+                                {t("ForgotPassword")}
+                            </Typography>
+                        </Link>
+                        <Link href={LINKS.Signup}>
+                            <Typography
+                                sx={{
+                                    ...clickSize,
+                                    ...formNavLink,
+                                    flexDirection: "row-reverse",
+                                }}
+                            >
+                                {t("SignUp")}
+                            </Typography>
+                        </Link>
+                    </Box>
                 </BaseForm>}
             </Formik>
         </>
+    );
+};
+
+export const LoginView = ({
+    isOpen,
+    onClose,
+}: LoginViewProps) => {
+    const display = toDisplay(isOpen);
+    const { palette } = useTheme();
+
+    return (
+        <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
+            <TopBar
+                display={display}
+                onClose={onClose}
+                hideTitleOnDesktop
+            />
+            <Box
+                sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translateX(-50%) translateY(-50%)",
+                    width: "min(700px, 100%)",
+                    background: palette.background.paper,
+                    borderRadius: { xs: 0, sm: 2 },
+                    overflow: "overlay",
+                }}
+            >
+                <LoginForm onClose={onClose} />
+            </Box>
+        </Box>
     );
 };
