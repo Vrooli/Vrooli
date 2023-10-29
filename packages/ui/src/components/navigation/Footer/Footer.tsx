@@ -20,7 +20,7 @@ const contactLinks: [string, CommonKey, string, CommonKey, SvgComponent][] = [
 const aboutUsLink = LINKS.About;
 const viewStatsLink = LINKS.Stats;
 
-const pagesWithFooter: string[] = [LINKS.About, LINKS.Premium, LINKS.Privacy, LINKS.Start, LINKS.Terms];
+const pagesWithFooter: string[] = [LINKS.About, LINKS.Premium, LINKS.Privacy, LINKS.Signup, LINKS.Login, LINKS.ForgotPassword, LINKS.ResetPassword, LINKS.Terms];
 
 export const Footer = () => {
     const { palette } = useTheme();

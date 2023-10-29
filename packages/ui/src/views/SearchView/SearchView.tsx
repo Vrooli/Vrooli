@@ -53,7 +53,7 @@ export const SearchView = ({
         // If not logged in, redirect to login page
         if (!userId) {
             PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
-            setLocation(LINKS.Start, { searchParams: { redirect: addUrl } });
+            setLocation(LINKS.Login, { searchParams: { redirect: addUrl } });
             return;
         }
         // Otherwise, navigate to object's add page

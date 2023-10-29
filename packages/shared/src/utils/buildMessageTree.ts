@@ -97,6 +97,8 @@ export class MessageTree<T extends MinimumChatMessage> {
         // Sort the children of each node based on the sequence number to ensure
         // the correct order of message versions.
         this.sortChildren();
+        // Do the same for roots
+        this.sortRoots();
     }
 
     private sortChildren(): void {
@@ -110,6 +112,10 @@ export class MessageTree<T extends MinimumChatMessage> {
         for (const child of node.children) {
             this.sortNodeChildren(child);  // Recursive call to sort children of children
         }
+    }
+
+    private sortRoots(): void {
+        this.roots.sort((a, b) => (a.message.sequence || 0) - (b.message.sequence || 0));
     }
 
     public getRoots(): MessageNode<T>[] {
@@ -173,13 +179,13 @@ export class MessageTree<T extends MinimumChatMessage> {
      * add a new version of the message. This method is useful when 
      * chatting with other participants, where branching is disabled.
      */
-    public editMessage(messageId: string, updatedMessage: T): void {
-        const node = this.messageMap.get(messageId);
+    public editMessage(updatedMessage: T): void {
+        const node = this.messageMap.get(updatedMessage.id);
         if (node) {
             // Update the message with the new data
             node.message = updatedMessage;
         } else {
-            console.error(`Message ${messageId} not found in messageMap. Cannot edit.`);
+            console.error(`Message ${updatedMessage.id} not found in messageMap. Cannot edit.`);
         }
     }
 }

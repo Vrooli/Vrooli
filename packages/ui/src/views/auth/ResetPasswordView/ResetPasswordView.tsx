@@ -1,5 +1,5 @@
 import { EmailResetPasswordInput, emailResetPasswordSchema, endpointPostAuthEmailResetPassword, LINKS, Session, uuidValidate } from "@local/shared";
-import { Box, Button, Grid } from "@mui/material";
+import { Box, Button, Grid, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";

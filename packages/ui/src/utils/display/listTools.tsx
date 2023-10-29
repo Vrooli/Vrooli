@@ -1,5 +1,5 @@
 import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, exists, GqlModelType, isOfType, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
-import { Palette } from "@mui/material";
+import { Chip, Palette } from "@mui/material";
 import { BotIcon } from "icons";
 import { AutocompleteOption } from "types";
 import { valueFromDot } from "utils/shape/general";
@@ -380,6 +380,13 @@ export const getDisplay = (
                 style={{ padding: "1px" }}
             />,
         );
+    }
+    // If a Routine and there are nodes and edges, add icon indicating that it's a multi-step routine
+    if (isOfType(object, "RoutineVersion") && (object as Partial<RoutineVersion>).nodesCount && (object as Partial<RoutineVersion>).nodeLinksCount) {
+        adornments.push(<Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />);
+    }
+    if (isOfType(object, "Routine") && (object as Partial<Routine>).versions?.some(v => v.nodesCount && v.nodeLinksCount)) {
+        adornments.push(<Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />);
     }
     // Return result
     return { title, subtitle, adornments };

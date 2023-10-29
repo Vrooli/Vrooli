@@ -69,8 +69,8 @@ export const NavList = () => {
             {/* Enter button displayed when not logged in */}
             {!checkIfLoggedIn(session) && (
                 <Button
-                    href={LINKS.Start}
-                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start); }}
+                    href={LINKS.Login}
+                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Login); }}
                     startIcon={<LogInIcon />}
                     variant="contained"
                     sx={{

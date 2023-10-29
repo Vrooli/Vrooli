@@ -1,13 +1,15 @@
 import { DUMMY_ID, Report, ReportFor, reportValidation, Session } from "@local/shared";
 import { TextField } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { RichInput } from "components/inputs/RichInput/RichInput";
 import { Selector } from "components/inputs/Selector/Selector";
+import { SessionContext } from "contexts/SessionContext";
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReportFormProps } from "forms/types";
-import { forwardRef, useCallback } from "react";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
+import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -68,11 +70,18 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
     ...props
 }, ref) => {
     const { t } = useTranslation();
+    const session = useContext(SessionContext);
 
-    const [languageField, , languageHelpers] = useField("language");
-    const setLanguage = useCallback((language: string) => {
-        languageHelpers.setValue(language);
-    }, [languageHelpers]);
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        setLanguage,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
+        fields: [],
+    });
 
     const [reasonField] = useField("reason");
 
@@ -85,11 +94,13 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                 maxWidth={700}
                 ref={ref}
             >
-                <FormContainer>
-                    <SelectLanguageMenu
-                        currentLanguage={languageField.value}
+                <FormContainer sx={{ gap: 2 }}>
+                    <LanguageInput
+                        currentLanguage={language}
+                        handleAdd={handleAddLanguage}
+                        handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
-                        languages={[languageField.value]}
+                        languages={languages}
                     />
                     <Selector
                         name="reason"

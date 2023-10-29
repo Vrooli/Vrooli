@@ -147,9 +147,7 @@ export const slideContent = (theme: Theme) => ({
     padding: theme.spacing(2),
     textAlign: "center",
     zIndex: 5,
-    "& > *:not(:last-child)": {
-        marginBottom: theme.spacing(4),
-    },
+    gap: theme.spacing(4),
 } as const);
 export const SlideContent = styled(Stack)(({ theme }) => ({
     ...slideContent(theme),
@@ -176,9 +174,7 @@ export const slideBox = (theme: Theme) => ({
     boxShadow: theme.shadows[2],
     minHeight: "unset",
     zIndex: 2,
-    "& > *:not(:last-child)": {
-        marginBottom: theme.spacing(6),
-    },
+    gap: theme.spacing(6),
 } as const);
 export const SlideBox = styled(Stack)(({ theme }) => ({
     ...slideBox(theme),
@@ -214,9 +210,7 @@ export const BaseSection = styled(Box)(({ theme }) => ({
 export const formSection = (theme: Theme) => ({
     ...baseSection(theme),
     overflowX: "auto",
-    "& > *:not(:last-child)": {
-        marginBottom: theme.spacing(2),
-    },
+    gap: theme.spacing(2),
 } as const);
 export const FormSection = styled(Stack)(({ theme }) => ({
     ...noSelect,
@@ -227,9 +221,7 @@ export const FormSection = styled(Stack)(({ theme }) => ({
 export const formContainer = (theme: Theme): SxProps => ({
     flexDirection: "column",
     margin: theme.spacing(2),
-    "& > *:not(:last-child)": {
-        marginBottom: theme.spacing(4),
-    },
+    gap: theme.spacing(4),
 });
 export const FormContainer = styled(Stack)(({ theme }) => ({
     ...formContainer(theme),

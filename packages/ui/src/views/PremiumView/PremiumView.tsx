@@ -147,7 +147,7 @@ export const PremiumView = ({
                 {/* If not logged in, button to log in first */}
                 {!currentUser.id && <Button
                     fullWidth
-                    onClick={() => { setLocation(`${LINKS.Start}${stringifySearchParams({ redirect: LINKS.Premium })}`); }}
+                    onClick={() => { setLocation(`${LINKS.Login}${stringifySearchParams({ redirect: LINKS.Premium })}`); }}
                     startIcon={<LogInIcon />}
                     variant="contained"
                 >{t("LogInToUpgrade")}</Button>}

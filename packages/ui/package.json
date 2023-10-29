@@ -80,7 +80,7 @@
         "start-production": "serve --config serve.json",
         "analyze": "source-map-explorer dist/assets/*",
         "lint": "eslint src",
-        "test": "jest"
+        "test": "jest --coverage"
     },
     "browserslist": [
         ">0.2%",

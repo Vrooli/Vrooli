@@ -17,11 +17,14 @@ import usePress from "hooks/usePress";
 import { AddIcon, BotIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
+import { NavigableObject } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { fontSizeToPixels } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getObjectUrl } from "utils/navigation/openObject";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
 
 /**
@@ -238,6 +241,7 @@ export const ChatBubble = ({
     onUpdated,
 }: ChatBubbleProps) => {
     const session = useContext(SessionContext);
+    const [, setLocation] = useLocation();
     const { breakpoints, palette } = useTheme();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const isMobile = useMemo(() => chatWidth <= breakpoints.values.sm, [breakpoints, chatWidth]);
@@ -414,7 +418,7 @@ export const ChatBubble = ({
                         <Avatar
                             src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, 50)}
                             alt={message.user?.name ?? message.user?.handle ?? message?.user?.isBot ? "Bot" : "User"}
-                            // onClick handlers...
+                            onClick={() => { setLocation(getObjectUrl(message.user as NavigableObject)); }}
                             sx={{
                                 bgcolor: message.user?.isBot ? "grey" : undefined,
                                 boxShadow: 2,

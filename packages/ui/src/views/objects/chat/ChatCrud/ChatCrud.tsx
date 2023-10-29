@@ -22,6 +22,7 @@ import { useFormDialog } from "hooks/useFormDialog";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { usePromptBeforeUnload } from "hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { TFunction } from "i18next";
@@ -201,6 +202,8 @@ const ChatForm = ({
     const [message, setMessage] = useState<string>(context ?? "");
     const isCreate = useMemo(() => existing.id === DUMMY_ID, [existing.id]);
     const [typing, setTyping] = useState<ChatParticipant[]>([]);
+
+    usePromptBeforeUnload({ shouldPrompt: message.length > 0 }); //TODO doesn't work when clicking on link - just refresh
 
     // We query messages separate from the chat, since we must traverse the message tree
     const [getPageData, { data: searchTreeData, loading: isSearchTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);

@@ -48,7 +48,6 @@ export type PremiumViewProps = ViewProps
 export type ResetPasswordViewProps = ViewProps
 export type SearchViewProps = ViewProps
 export type SignupViewProps = ViewProps
-export type StartViewProps = ViewProps
 export type StatsSiteViewProps = ViewProps
 export interface StatsObjectViewProps<T extends ListObject> extends ViewProps {
     handleObjectUpdate: (object: T) => unknown;

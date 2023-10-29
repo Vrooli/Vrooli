@@ -491,7 +491,7 @@ const Promo = () => {
                     sx={{ marginBottom: 4 }}
                 />
                 <Testimonial
-                    text="Used Vrooli to manage my cat's Instagram. Now Mr. Whiskers has more followers than I do."
+                    text="Set up Vrooli to manage my cat's Instagram. Now Mr. Whiskers has more followers than I do."
                     author="Elena K., overshadowed by her cat"
                     src={Testimonial2}
                     alt="Elena K."
@@ -552,3 +552,95 @@ export const SignupView = ({
         </Box>
     );
 };
+
+
+// // Wallet provider popups
+    // const [connectOpen, setConnectOpen] = useState(false);
+    // const [installOpen, setInstallOpen] = useState(false);
+    // const openWalletConnectDialog = useCallback(() => { setConnectOpen(true); }, []);
+    // const openWalletInstallDialog = useCallback(() => { setInstallOpen(true); }, []);
+
+    // // Performs handshake to establish trust between site backend and user's wallet.
+    // // 1. Whitelist website on wallet
+    // // 2. Send public address to backend
+    // // 3. Store public address and nonce in database
+    // // 4. Sign human-readable message (which includes nonce) using wallet
+    // // 5. Send signed message to backend for verification
+    // // 6. Receive JWT and user session
+    // const walletLogin = useCallback(async (providerKey: string) => {
+    //     // Check if wallet extension installed
+    //     if (!hasWalletExtension(providerKey)) {
+    //         PubSub.get().publishAlertDialog({
+    //             messageKey: "WalletProviderNotFoundDetails",
+    //             buttons: [
+    //                 { labelKey: "TryAgain", onClick: openWalletConnectDialog },
+    //                 { labelKey: "InstallWallet", onClick: openWalletInstallDialog },
+    //                 { labelKey: "EmailLogin", onClick: toEmailLogIn },
+    //             ],
+    //         });
+    //         return;
+    //     }
+    //     // Validate wallet
+    //     const walletCompleteResult = await validateWallet(providerKey);
+    //     if (walletCompleteResult?.session) {
+    //         PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
+    //         PubSub.get().publishSession(walletCompleteResult.session);
+    //         // Redirect to main dashboard
+    //         setLocation(redirect ?? LINKS.Home);
+    //         // Set up push notifications
+    //         setupPush();
+    //     }
+    // }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect]);
+
+    // const closeWalletConnectDialog = useCallback((providerKey: string | null) => {
+    //     setConnectOpen(false);
+    //     if (providerKey) {
+    //         walletLogin(providerKey);
+    //     }
+    // }, [walletLogin]);
+
+    // const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false); }, []);
+
+    //  <WalletSelectDialog
+    //             handleOpenInstall={openWalletInstallDialog}
+    //             open={connectOpen}
+    //             onClose={closeWalletConnectDialog}
+    //         />
+    //         <WalletInstallDialog
+    //             open={installOpen}
+    //             onClose={closeWalletInstallDialog}
+    //         />
+
+    //          <Box sx={{
+    //                     display: "flex",
+    //                     justifyContent: "center",
+    //                     alignItems: "center",
+    //                     marginBottom: 2,
+    //                 }}>
+    //                     <Typography
+    //                         variant="h6"
+    //                         sx={{
+    //                             display: "inline-block",
+    //                         }}
+    //                     >
+    //                         {t("SelectLogInMethod")}
+    //                     </Typography>
+    //                     <HelpButton markdown={helpText} />
+    //                 </Box>
+    //                 <Stack
+    //                     direction="column"
+    //                     spacing={2}
+    //                 >
+    //                     <Button
+    //                         fullWidth
+    //                         onClick={openWalletConnectDialog}
+    //                         startIcon={<WalletIcon />}
+    //                         sx={{ ...buttonProps }}
+    //                     >{t("Wallet")}</Button>
+    //                     <Button
+    //                         fullWidth
+    //                         onClick={toEmailLogIn}
+    //                         startIcon={<EmailIcon />}
+    //                         sx={{ ...buttonProps }}
+    //                     >{t("Email")}</Button>
+    //                 </Stack>

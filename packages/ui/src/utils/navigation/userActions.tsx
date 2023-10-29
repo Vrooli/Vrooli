@@ -57,7 +57,7 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     else {
         actions.push(["About", NAV_ACTION_TAGS.About, LINKS.About, HelpIcon, 0]);
         actions.push(["Pricing", NAV_ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
-        actions.push(["Log In", NAV_ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
+        actions.push(["Log In", NAV_ACTION_TAGS.LogIn, LINKS.Login, CreateAccountIcon, 0]);
     }
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
 }

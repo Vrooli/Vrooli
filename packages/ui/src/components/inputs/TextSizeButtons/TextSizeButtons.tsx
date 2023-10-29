@@ -1,72 +1,73 @@
-import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { BumpModerateIcon } from "icons";
-import { useCallback, useState } from "react";
+import { IconButton, Slider, SliderThumb, useTheme } from "@mui/material";
+import { useThrottle } from "hooks/useThrottle";
+import { AddIcon, CaseSensitiveIcon, MinusIcon } from "icons";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { noSelect } from "styles";
 import { getCookieFontSize } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 
 const smallestFontSize = 10;
 const largestFontSize = 20;
 
+const ThumbComponent = (props: React.HTMLAttributes<unknown>) => {
+    const { children, ...other } = props;
+    return (
+        <SliderThumb {...other}>
+            {children}
+            <CaseSensitiveIcon width="20px" height="20px" />
+        </SliderThumb>
+    );
+};
+
 /**
  * Updates the font size of the entire app
  */
-export function TextSizeButtons() {
+export const TextSizeButtons = () => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
     const [size, setSize] = useState<number>(getCookieFontSize(14));
 
-    const handleShrink = useCallback(() => {
-        if (size > smallestFontSize) {
-            setSize(size - 1);
-            PubSub.get().publishFontSize(size - 1);
+    const handleSliderChange = (newValue: number) => {
+        if (newValue >= smallestFontSize && newValue <= largestFontSize) {
+            setSize(newValue);
+            PubSub.get().publishFontSize(newValue);
         }
-    }, [size]);
+    };
 
-    const handleGrow = useCallback(() => {
-        if (size < largestFontSize) {
-            setSize(size + 1);
-            PubSub.get().publishFontSize(size + 1);
-        }
-    }, [size]);
+    const handleSliderChangeThrottled = useThrottle((event: Event, newValue: number | number[]) => {
+        handleSliderChange(newValue as number);
+    }, 50);
 
     return (
-        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-            <Typography variant="body1" sx={{
-                ...noSelect,
-                marginRight: "auto",
-            }}>
-                {t("TextSize")}: {size}
-            </Typography>
-            <Stack direction="row" spacing={0} sx={{ paddingTop: 1, paddingBottom: 1 }}>
-                <Tooltip placement="top" title={t("TextShrink")}>
-                    <IconButton
-                        aria-label={t("TextShrink")}
-                        onClick={handleShrink}
-                        sx={{
-                            background: palette.secondary.main,
-                            borderRadius: "12px 0 0 12px",
-                            borderRight: `1px solid ${palette.secondary.contrastText}`,
-                            height: "48px",
-                        }}>
-                        <BumpModerateIcon fill={palette.secondary.contrastText} style={{ transform: "rotate(180deg)" }} />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip placement="top" title={t("TextGrow")}>
-                    <IconButton
-                        aria-label={t("TextGrow")}
-                        onClick={handleGrow}
-                        sx={{
-                            background: palette.secondary.main,
-                            borderRadius: "0 12px 12px 0",
-                            height: "48px",
-                        }}>
-                        <BumpModerateIcon fill={palette.secondary.contrastText} />
-                    </IconButton>
-                </Tooltip>
-            </Stack>
-        </Stack>
+        <div style={{ display: "flex", alignItems: "center" }}>
+            <IconButton onClick={() => handleSliderChange(size - 1)} disabled={size === smallestFontSize}>
+                <MinusIcon fill={palette.secondary.main} />
+            </IconButton>
+            <Slider
+                value={size}
+                onChange={handleSliderChangeThrottled}
+                valueLabelDisplay="auto"
+                min={smallestFontSize}
+                max={largestFontSize}
+                slots={{ thumb: ThumbComponent }}
+                sx={{
+                    color: palette.secondary.main,
+                    flex: 1,
+                    "& .MuiSlider-thumb": {
+                        backgroundColor: palette.secondary.main,
+                        color: palette.secondary.contrastText,
+                        height: 30,
+                        width: 30,
+                        "&:hover, &.Mui-focusVisible": {
+                            boxShadow: "initial",
+                        },
+                    },
+                }}
+            />
+            <IconButton onClick={() => handleSliderChange(size + 1)} disabled={size === largestFontSize}>
+                <AddIcon fill={palette.secondary.main} />
+            </IconButton>
+        </div>
     );
-}
+};
