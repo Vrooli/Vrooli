@@ -59,9 +59,7 @@ export const InboxView = ({
     const [isSelecting, setIsSelecting] = useState(false);
     const [selectedData, setSelectedData] = useState<InboxObject[]>([]);
     const handleToggleSelecting = useCallback(() => {
-        if (isSelecting) {
-            setSelectedData([]);
-        }
+        if (isSelecting) { setSelectedData([]); }
         setIsSelecting(is => !is);
     }, [isSelecting]);
     const handleToggleSelect = useCallback((item: ListObject) => {

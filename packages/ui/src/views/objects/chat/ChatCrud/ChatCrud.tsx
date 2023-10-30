@@ -518,6 +518,7 @@ const ChatForm = ({
                                         maxWidth={600}
                                         style={{
                                             paddingBottom: "16px",
+                                            width: "600px",
                                         }}
                                     >
                                         <FormContainer>

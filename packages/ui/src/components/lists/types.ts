@@ -1,4 +1,4 @@
-import { BookmarkList, Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
+import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, Meeting, MeetingInvite, Member, MemberInvite, Notification, OrArray, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
@@ -8,6 +8,7 @@ import { ListObject } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
+import { ObjectListProps } from "./ObjectList/ObjectList";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
@@ -57,6 +58,10 @@ export type ObjectListActions<T> = {
 
 export type BookmarkListListItemProps = ObjectListItemProps<BookmarkList>
 export type ChatListItemProps = ObjectListItemProps<Chat>
+export type ChatInviteListItemProps = ObjectListItemProps<ChatInvite>
+export type ChatParticipantListItemProps = ObjectListItemProps<ChatParticipant>
+export type MeetingInviteListItemProps = ObjectListItemProps<MeetingInvite>
+export type MemberInviteListItemProps = ObjectListItemProps<MemberInvite>
 export type MemberListItemProps = ObjectListItemProps<Member>
 export type NotificationListItemProps = ObjectListItemProps<Notification>
 export type ReminderListItemProps = ObjectListItemProps<Reminder>
@@ -158,7 +163,7 @@ export interface SearchListGenerator {
     where: any;
 }
 
-export interface SearchListProps {
+export interface SearchListProps<T extends OrArray<ListObject>> extends Pick<ObjectListProps<T>, "handleToggleSelect" | "isSelecting" | "selectedItems"> {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.

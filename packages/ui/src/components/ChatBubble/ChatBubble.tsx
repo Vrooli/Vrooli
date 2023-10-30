@@ -369,7 +369,6 @@ export const ChatBubble = ({
     });
     useEffect(() => {
         const handleResize = () => {
-            console.log("handleResize", isMobile, bubblePressed);
             if (!isMobile && !bubblePressed) setBubblePressed(true);
             if (isMobile && bubblePressed) setBubblePressed(false);
         };

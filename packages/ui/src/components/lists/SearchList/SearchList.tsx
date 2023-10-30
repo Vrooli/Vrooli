@@ -7,7 +7,7 @@ import { ListContainer } from "components/containers/ListContainer/ListContainer
 import { SiteSearchBar } from "components/inputs/search";
 import { useFindMany } from "hooks/useFindMany";
 import { PlusIcon } from "icons";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ArgsType, NavigableObject } from "types";
@@ -16,22 +16,25 @@ import { openObject } from "utils/navigation/openObject";
 import { ObjectList } from "../ObjectList/ObjectList";
 import { ObjectListActions, SearchListProps } from "../types";
 
-export function SearchList<DataType extends NavigableObject>({
+export function SearchList<DataType extends ListObject>({
     canNavigate = () => true,
     canSearch,
     display,
     dummyLength = 5,
     handleAdd,
+    handleToggleSelect,
     hideUpdateButton,
     id,
+    isSelecting,
     searchPlaceholder,
     take = 20,
     resolve,
     searchType,
+    selectedItems,
     sxs,
     onItemClick,
     where,
-}: SearchListProps) {
+}: SearchListProps<DataType>) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -59,7 +62,11 @@ export function SearchList<DataType extends NavigableObject>({
         take,
         where,
     });
-    console.log("allData in SearchList", allData);
+    // Selected items which don't appear in allData (e.g. when searching)
+    const selectedItemsNotInSearch = useMemo(() => {
+        if (!selectedItems) return [];
+        return selectedItems.filter(item => !allData.some(d => d.id === item.id));
+    }, [allData, selectedItems]);
 
     const onAction = useCallback((action: keyof ObjectListActions<DataType>, ...data: unknown[]) => {
         switch (action) {
@@ -146,7 +153,7 @@ export function SearchList<DataType extends NavigableObject>({
             if (shouldContinue === false) return;
         }
         // Navigate to the object's page
-        openObject(selectedItem, setLocation);
+        openObject(selectedItem as NavigableObject, setLocation);
     }, [allData, canNavigate, onItemClick, setLocation]);
 
     return (
@@ -189,18 +196,21 @@ export function SearchList<DataType extends NavigableObject>({
             <ListContainer
                 ref={containerRef}
                 emptyText={t("NoResults", { ns: "error" })}
-                isEmpty={allData.length === 0 && !loading}
+                isEmpty={allData.length === 0 && selectedItemsNotInSearch.length === 0 && !loading}
                 sx={{ ...sxs?.listContainer }}
             >
                 <ObjectList
                     canNavigate={canNavigate}
                     dummyItems={new Array(dummyLength).fill(searchType)}
+                    handleToggleSelect={handleToggleSelect}
                     hideUpdateButton={hideUpdateButton}
-                    items={allData as ListObject[]}
+                    isSelecting={isSelecting}
+                    items={[...selectedItemsNotInSearch, ...allData] as ListObject[]}
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
                     onAction={onAction}
                     onClick={onItemClick}
+                    selectedItems={selectedItems}
                 />
             </ListContainer>
             {/* Add new button */}

@@ -17,6 +17,10 @@ import { ObjectListItemProps } from "../types";
 // Custom list item components
 const { BookmarkListListItem } = lazily(() => import("../BookmarkListListItem/BookmarkListListItem"));
 const { ChatListItem } = lazily(() => import("../ChatListItem/ChatListItem"));
+const { ChatInviteListItem } = lazily(() => import("../ChatInviteListItem/ChatInviteListItem"));
+const { ChatParticipantListItem } = lazily(() => import("../ChatParticipantListItem/ChatParticipantListItem"));
+const { MeetingInviteListItem } = lazily(() => import("../MeetingInviteListItem/MeetingInviteListItem"));
+const { MemberInviteListItem } = lazily(() => import("../MemberInviteListItem/MemberInviteListItem"));
 const { MemberListItem } = lazily(() => import("../MemberListItem/MemberListItem"));
 const { NotificationListItem } = lazily(() => import("../NotificationListItem/NotificationListItem"));
 const { ReminderListItem } = lazily(() => import("../ReminderListItem/ReminderListItem"));
@@ -26,6 +30,10 @@ const getListItemComponent = (objectType: `${GqlModelType}` | "CalendarEvent") =
     switch (objectType) {
         case "BookmarkList": return BookmarkListListItem;
         case "Chat": return ChatListItem;
+        case "ChatInvite": return ChatInviteListItem;
+        case "ChatParticipant": return ChatParticipantListItem;
+        case "MeetingInvite": return MeetingInviteListItem;
+        case "MemberInvite": return MemberInviteListItem;
         case "Member": return MemberListItem;
         case "Notification": return NotificationListItem;
         case "Reminder": return ReminderListItem;

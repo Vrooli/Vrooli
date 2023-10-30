@@ -1,5 +1,4 @@
-import { ChatInvite, ChatParticipant, User } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
@@ -7,10 +6,11 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon } from "icons";
-import { useCallback } from "react";
+import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, EditIcon } from "icons";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { pagePaddingBottom } from "styles";
+import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
 import { ParticipantManageViewProps } from "../types";
@@ -36,11 +36,73 @@ export const ParticipantManageView = ({
         where,
     } = useTabs<ParticipantManagePageTabOption>({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
 
-    const handleItemClick = useCallback((item: ChatParticipant | ChatInvite | User) => {
-        // If members or invites tab, toggle selected
-        //TODO
-        // If add tab, add to invites 
+    const [isSelecting, setIsSelecting] = useState(true);
+    const [selectedData, setSelectedData] = useState<ListObject[]>([]);
+    const handleToggleSelecting = useCallback(() => {
+        if (isSelecting) { setSelectedData([]); }
+        setIsSelecting(is => !is);
+    }, [isSelecting]);
+    const handleToggleSelect = useCallback((item: ListObject) => {
+        setSelectedData(items => {
+            const newItems = [...items];
+            const index = newItems.findIndex(i => i.id === item.id);
+            if (index === -1) {
+                newItems.push(item as ListObject);
+            } else {
+                newItems.splice(index, 1);
+            }
+            return newItems;
+        });
     }, []);
+    // Remove selection when tab changes
+    useEffect(() => {
+        setSelectedData([]);
+    }, [currTab.tabType]);
+
+    const sideActionButtons = useMemo(() => {
+        const actionIconProps = { fill: palette.secondary.contrastText, width: "36px", height: "36px" };
+        const buttons: JSX.Element[] = [];
+        // If not selecting, show select button
+        if (!isSelecting) {
+            buttons.push(<Tooltip title={t("Select")}>
+                <IconButton aria-label={t("Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+                    <ActionIcon {...actionIconProps} />
+                </IconButton>
+            </Tooltip>);
+            return;
+        }
+        // If there are selected items, show relevant actions depending on tab
+        if (selectedData.length > 0) {
+            if ([ParticipantManagePageTabOption.ChatParticipant, ParticipantManagePageTabOption.ChatInvite].includes(currTab.tabType)) {
+                buttons.push(<Tooltip title={t("Delete")}>
+                    <IconButton aria-label={t("Delete")} onClick={() => { }} sx={{ background: palette.secondary.main }}>
+                        <DeleteIcon {...actionIconProps} />
+                    </IconButton>
+                </Tooltip>);
+            }
+            if (currTab.tabType === ParticipantManagePageTabOption.ChatInvite) {
+                buttons.push(<Tooltip title={t("Edit")}>
+                    <IconButton aria-label={t("Edit")} onClick={() => { }} sx={{ background: palette.secondary.main }}>
+                        <EditIcon {...actionIconProps} />
+                    </IconButton>
+                </Tooltip>);
+            }
+            if (currTab.tabType === ParticipantManagePageTabOption.Add) {
+                buttons.push(<Tooltip title={t("Add")}>
+                    <IconButton aria-label={t("Add")} onClick={() => { }} sx={{ background: palette.secondary.main }}>
+                        <AddIcon {...actionIconProps} />
+                    </IconButton>
+                </Tooltip>);
+            }
+        }
+        // Show cancel button to exit selection mode
+        buttons.push(<Tooltip title={t("Cancel")}>
+            <IconButton aria-label={t("Cancel")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+                <CancelIcon {...actionIconProps} />
+            </IconButton>
+        </Tooltip>);
+        return buttons;
+    }, [palette.secondary.contrastText, palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.tabType]);
 
     return (
         <MaybeLargeDialog
@@ -83,10 +145,12 @@ export const ParticipantManageView = ({
                     id="participant-manage-list"
                     display={display}
                     dummyLength={display === "page" ? 5 : 3}
-                    onItemClick={handleItemClick}
+                    handleToggleSelect={handleToggleSelect}
+                    isSelecting={isSelecting}
                     take={20}
                     searchType={searchType}
                     where={where(chat.id)}
+                    selectedItems={selectedData}
                     sxs={{
                         search: { marginTop: 2 },
                         listContainer: { borderRadius: 0 },
@@ -129,6 +193,7 @@ export const ParticipantManageView = ({
                 onCancel={() => { }} //TODO
                 onSetSubmitting={() => { }}//TODO
                 onSubmit={() => { }} //TODO
+                sideActionButtons={sideActionButtons}
             />
         </MaybeLargeDialog>
     );

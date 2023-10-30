@@ -304,6 +304,7 @@ export function ObjectListItemBase<T extends ListObject>({
                         backgroundColor: isSelected ? palette.secondary.main : palette.background.paper,
                         border: `1px solid ${palette.divider}`,
                         pointerEvents: "none",
+                        marginRight: "8px",
                     }}
                 />}
                 {leftColumn}
