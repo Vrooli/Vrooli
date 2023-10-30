@@ -158,7 +158,7 @@ Examples of correct use for each resource type:
 - `Related` - Anything that's related to the project, but doesn't fit into any of the other categories
 - `Researching` - Knowledge base, research paper
 - `Scheduling` - Google calendar, tasking app
-- `Social` - Twitter, Facebook, Instagram
+- `Social` - X, Facebook, Instagram
 - `Tutorial` - Youtube video link
 
 ## RunStatus

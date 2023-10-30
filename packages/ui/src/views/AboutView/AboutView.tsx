@@ -1,7 +1,7 @@
 import { Box, Button, IconButton, keyframes, Link, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import MattProfilePic from "assets/img/profile-matt.jpg";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { GitHubIcon, OrganizationIcon, TwitterIcon, WebsiteIcon } from "icons";
+import { GitHubIcon, OrganizationIcon, WebsiteIcon, XIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { slideTitle, textPop } from "styles";
@@ -14,7 +14,7 @@ type MemberData = {
     photo: string;
     socials: {
         website?: string;
-        twitter?: string;
+        x?: string;
         github?: string;
     }
 }
@@ -57,7 +57,7 @@ const teamMembers: MemberData[] = [
         photo: MattProfilePic,
         socials: {
             website: "https://matthalloran.info",
-            twitter: "https://twitter.com/mdhalloran",
+            x: "https://x.com/mdhalloran",
             github: "https://github.com/MattHalloran",
         },
     },
@@ -179,10 +179,10 @@ export const AboutView = ({
                                         </IconButton>
                                     </Tooltip>
                                 )}
-                                {member.socials.twitter && (
-                                    <Tooltip title="Twitter" placement="bottom">
-                                        <IconButton onClick={() => openLink(setLocation, member.socials.twitter as string)} sx={memberButtonProps}>
-                                            <TwitterIcon fill={palette.secondary.light} width="36px" height="36px" />
+                                {member.socials.x && (
+                                    <Tooltip title="X/Twitter" placement="bottom">
+                                        <IconButton onClick={() => openLink(setLocation, member.socials.x as string)} sx={memberButtonProps}>
+                                            <XIcon fill={palette.secondary.light} width="36px" height="36px" />
                                         </IconButton>
                                     </Tooltip>
                                 )}

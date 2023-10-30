@@ -2,7 +2,7 @@ import { CommonKey, LINKS, SOCIALS, uuidValidate } from "@local/shared";
 import { Box, Grid, List, ListItem, ListItemIcon, ListItemText, Tooltip, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { SessionContext } from "contexts/SessionContext";
-import { GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
+import { GitHubIcon, InfoIcon, StatsIcon, XIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -12,7 +12,7 @@ import { getDeviceInfo } from "utils/display/device";
 
 /** aria-label, tooltip, link, displayed text, icon */
 const contactLinks: [string, CommonKey, string, CommonKey, SvgComponent][] = [
-    ["contact-twitter", "ContactHelpTwitter", SOCIALS.Twitter, "Twitter", TwitterIcon],
+    ["contact-x", "ContactHelpX", SOCIALS.X, "X", XIcon],
     // ["contact-discord", "ContactHelpDiscord", SOCIALS.Discord, "Discord", DiscordIcon],
     ["contact-github", "ContactHelpCode", SOCIALS.GitHub, "SourceCode", GitHubIcon],
 ];

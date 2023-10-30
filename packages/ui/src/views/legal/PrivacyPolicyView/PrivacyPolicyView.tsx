@@ -26,7 +26,7 @@ const BUSINESS_DATA = {
     SOCIALS: {
         Discord: "https://discord.gg/VyrDFzbmmF",
         GitHub: "https://github.com/MattHalloran/Vrooli",
-        Twitter: "https://twitter.com/VrooliOfficial",
+        X: "https://x.com/VrooliOfficial",
     },
     APP_URL: "https://vrooli.com",
 };

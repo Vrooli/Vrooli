@@ -7,7 +7,7 @@ import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainerNeon } from "components/slides";
 import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
-import { GitHubIcon, PlayIcon, TwitterIcon } from "icons";
+import { GitHubIcon, PlayIcon, XIcon } from "icons";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -29,7 +29,7 @@ const slide6Id = "get-started";
 const externalLinks: [string, string, SvgComponent][] = [
     // ["Read the white paper", WHITE_PAPER_URL, ArticleIcon],
     ["Check out our code", SOCIALS.GitHub, GitHubIcon],
-    ["Follow us on Twitter", SOCIALS.Twitter, TwitterIcon],
+    ["Follow us on X/Twitter", SOCIALS.X, XIcon],
     // ["Join us on Discord", SOCIALS.Discord, DiscordIcon],
 ];
 

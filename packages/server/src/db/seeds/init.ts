@@ -538,9 +538,9 @@ export async function init(prisma: PrismaType) {
                                 {
                                     usedFor: "Social",
                                     index: 1,
-                                    link: "https://twitter.com/VrooliOfficial",
+                                    link: "https://x.com/VrooliOfficial",
                                     translations: {
-                                        create: [{ language: EN, name: "Twitter", description: "Follow us on Twitter" }],
+                                        create: [{ language: EN, name: "X", description: "Follow us on X" }],
                                     },
                                 },
                                 {

@@ -1,6 +1,6 @@
 import { GqlModelType, LINKS, ResourceUsedFor } from "@local/shared";
 import { Avatar, Palette } from "@mui/material";
-import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, OrganizationIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SmartContractIcon, SocialVideoIcon, StandardIcon, StatsIcon, TerminalIcon, TwitterIcon, UserIcon, WebsiteIcon, YouTubeIcon } from "icons";
+import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, OrganizationIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SmartContractIcon, SocialVideoIcon, StandardIcon, StatsIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons";
 import { SvgComponent } from "types";
 import { getCookiePartialData } from "utils/cookies";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -31,7 +31,7 @@ export const ResourceSocialIconMap: { [key: string]: SvgComponent } = {
     "instagram": InstagramIcon,
     "tiktok": SocialVideoIcon,
     "odysee": SocialVideoIcon,
-    "twitter": TwitterIcon,
+    "x": XIcon,
     "vimeo": SocialVideoIcon,
     "youtube": YouTubeIcon,
     "reddit": RedditIcon,
