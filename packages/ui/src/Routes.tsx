@@ -219,6 +219,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Premium}
+                    excludePageContainer
                     sitemapIndex
                     priority={0.5}
                     changeFreq="weekly"

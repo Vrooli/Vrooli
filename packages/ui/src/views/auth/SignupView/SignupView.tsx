@@ -1,26 +1,23 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session } from "@local/shared";
-import { Avatar, Box, Button, Checkbox, Fade, FormControl, FormControlLabel, FormHelperText, Grid, InputAdornment, keyframes, Link, SxProps, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, InputAdornment, keyframes, Link, TextField, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import Blob1 from "assets/img/blob1.svg";
 import Blob2 from "assets/img/blob2.svg";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
 import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
-import Testimonial1 from "assets/img/Testimonial1.png";
-import Testimonial2 from "assets/img/Testimonial2.png";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Testimonials } from "components/Testimonials/Testimonials";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { formNavLink, formPaper, formSubmit } from "forms/styles";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useWindowSize } from "hooks/useWindowSize";
 import { EmailIcon, UserIcon } from "icons";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
-import { placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
@@ -297,90 +294,6 @@ const ImageWithCaption = ({ src, alt, caption }) => (
     </Box>
 );
 
-function useOnScreen() {
-    const ref = useRef(null);
-    const [isIntersecting, setIntersecting] = useState(false);
-
-    useEffect(() => {
-        const currentRef = ref.current;
-
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                setIntersecting(entry.isIntersecting);
-            },
-            {
-                rootMargin: "0px 0px -100px 0px",
-            },
-        );
-
-        if (currentRef) {
-            observer.observe(currentRef);
-        }
-
-        return () => {
-            if (currentRef) {
-                observer.unobserve(currentRef);
-            }
-        };
-    }, []);
-
-    return [ref, isIntersecting] as const;
-}
-
-const Testimonial = ({
-    author,
-    text,
-    src,
-    alt,
-    sx,
-}: {
-    author: string;
-    text: string;
-    src: string;
-    alt: string;
-    sx?: SxProps;
-}) => {
-    const [ref, isVisible] = useOnScreen();
-    const profileColors = useMemo(() => placeholderColor(), []);
-
-    return (
-        <Box ref={ref} sx={{
-            display: "flex",
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 2,
-            padding: 1,
-            background: "#2c2d2fd1",
-            borderRadius: "24px",
-            zIndex: 10,
-            ...sx,
-        }}>
-            <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
-                <Avatar
-                    src={src}
-                    alt={alt}
-                    sx={{
-                        backgroundColor: profileColors[0],
-                        width: { xs: "50px", md: "75px" },
-                        height: { xs: "50px", md: "75px" },
-                        pointerEvents: "none",
-                        marginRight: 2,
-                    }}
-                >
-                    <UserIcon width="75%" height="75%" fill={profileColors[1]} />
-                </Avatar>
-                <Fade in={isVisible} timeout={1500}>
-                    <Typography variant="h6">
-                        "{text}"
-                        <span style={{ fontStyle: "italic" }}> - {author}</span>
-                    </Typography>
-                </Fade>
-            </Box>
-        </Box>
-    );
-};
-
 const Promo = () => {
     return (
         <>
@@ -482,23 +395,7 @@ const Promo = () => {
                         caption="Build and showcase your automated organization"
                     />
                 </Box>
-
-                <Testimonial
-                    text="I used to do things... manually! Can you imagine? Thanks to Vrooli, I've now forgotten how to use a pen."
-                    author="Jeremy P., former pen enthusiast"
-                    src={Testimonial1}
-                    alt="Jeremy P."
-                    sx={{ marginBottom: 4 }}
-                />
-                <Testimonial
-                    text="Set up Vrooli to manage my cat's Instagram. Now Mr. Whiskers has more followers than I do."
-                    author="Elena K., overshadowed by her cat"
-                    src={Testimonial2}
-                    alt="Elena K."
-                />
-                <Typography variant="body2" color="textSecondary" align="center" sx={{ marginBottom: 2 }}>
-                    *Testimonials are satirical in nature and are for illustrative purposes only.
-                </Typography>
+                <Testimonials />
             </Box>
         </>
     );
