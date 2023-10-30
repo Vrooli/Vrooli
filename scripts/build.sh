@@ -122,13 +122,13 @@ fi
 # Navigate to server directory
 cd ${HERE}/../packages/server
 
-# Run unit tests TODO need to add tests
-# header "Running unit tests for server..."
-# yarn test
-# if [ $? -ne 0 ]; then
-#     error "Failed to run unit tests for server"
-#     exit 1
-# fi
+# Run unit tests
+header "Running unit tests for server..."
+yarn test
+if [ $? -ne 0 ]; then
+    error "Failed to run unit tests for server"
+    exit 1
+fi
 
 # Build shared
 "${HERE}/shared.sh"

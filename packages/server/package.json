@@ -14,7 +14,7 @@
         "seed": "./dist/db/seeds/init.js"
     },
     "scripts": {
-        "test": "jest --coverage",
+        "test": "jest --coverage --config jest.config.cjs",
         "pre-build": "yarn pre-build-prisma",
         "pre-build-prisma": "mkdir -p dist/db && [ -f src/db/schema.prisma ] && cp src/db/schema.prisma dist/db/schema.prisma || echo 'schema.prisma not found, skipping copy' && [ -d src/db/migrations ] && rm -rf dist/db/migrations && cp -r src/db/migrations dist/db/migrations || echo 'migrations directory not found, skipping copy' && prisma migrate deploy && yarn prisma-generate",
         "build": "yarn tsc && yarn post-build",
