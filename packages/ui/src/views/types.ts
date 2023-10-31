@@ -1,4 +1,4 @@
-import { RoutineVersion } from "@local/shared";
+import { OrArray, RoutineVersion } from "@local/shared";
 import { ReactNode } from "react";
 import { PartialWithType, SxType } from "types";
 import { ListObject } from "utils/display/listTools";
@@ -14,7 +14,7 @@ export type ViewProps = {
     isOpen?: boolean;
     onClose?: () => unknown;
 }
-export type ObjectViewProps<T extends ListObject> = ViewProps & {
+export type ObjectViewProps<T extends OrArray<ListObject>> = ViewProps & {
     /**
     * Data known about the object, which cannot be fetched from the server or cache. 
     * This should always and only be used for dialogs.

@@ -31,6 +31,7 @@
     "exclude": [
         "**/*.spec.ts",
         "**/*.test.ts",
+        "**/__mocks__",
         "**/node_modules",
         "**/.*/",
     ],

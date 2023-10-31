@@ -148,13 +148,13 @@ fi
 # Navigate to UI directory
 cd ${HERE}/../packages/ui
 
-# Run unit tests TODO need to add tests
-# header "Running unit tests for UI..."
-# yarn test
-# if [ $? -ne 0 ]; then
-#     error "Failed to run unit tests for UI"
-#     exit 1
-# fi
+# Run unit tests
+header "Running unit tests for UI..."
+yarn test
+if [ $? -ne 0 ]; then
+    error "Failed to run unit tests for UI"
+    exit 1
+fi
 
 # Create local .env file
 touch .env

@@ -4,5 +4,6 @@
     "include": [
         "**/*.spec.ts",
         "**/*.test.ts",
+        "**/config",
     ]
 }

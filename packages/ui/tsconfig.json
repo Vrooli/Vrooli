@@ -24,6 +24,10 @@
         "noImplicitAny": false,
         "jsx": "react-jsx",
         "baseUrl": "./src",
+        "types": [
+            "jest",
+            "@testing-library/jest-dom"
+        ]
     },
     "include": [
         "src",
@@ -35,6 +39,8 @@
     "exclude": [
         "**/*.spec.ts",
         "**/*.test.ts",
+        "**/__mocks__",
+        "**/config",
         "node_modules",
     ],
     "references": [
