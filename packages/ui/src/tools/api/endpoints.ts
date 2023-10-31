@@ -84,8 +84,10 @@ export const endpoints = {
         return {
             findOne: toQuery("chatInvite", "FindByIdInput", chatInvitePartial, "full"),
             findMany: toQuery("chatInvites", "ChatInviteSearchInput", ...(await toSearch(chatInvitePartial))),
-            create: toMutation("chatInviteCreate", "ChatInviteCreateInput", chatInvitePartial, "full"),
-            update: toMutation("chatInviteUpdate", "ChatInviteUpdateInput", chatInvitePartial, "full"),
+            createOne: toMutation("chatInviteCreate", "ChatInviteCreateInput", chatInvitePartial, "full"),
+            createMany: toMutation("chatInvitesCreate", "[ChatInviteCreateInput!]", chatInvitePartial, "full"),
+            updateOne: toMutation("chatInviteUpdate", "ChatInviteUpdateInput", chatInvitePartial, "full"),
+            updateMany: toMutation("chatInvitesUpdate", "[ChatInviteUpdateInput!]", chatInvitePartial, "full"),
             accept: toMutation("chatInviteAccept", "FindByIdInput", chatInvitePartial, "full"),
             decline: toMutation("chatInviteDecline", "FindByIdInput", chatInvitePartial, "full"),
         };

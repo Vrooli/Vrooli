@@ -1,13 +1,11 @@
 import { MemberInvite } from "@local/shared";
-import { Checkbox, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
+import { Checkbox, FormControlLabel, Stack, useTheme } from "@mui/material";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { Field } from "formik";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
@@ -114,14 +112,14 @@ export const MemberManageView = ({
                     listContainer: { borderRadius: 0 },
                 }}
             />}
-            <SideActionsButtons display={display}>
+            {/* <SideActionsButtons display={display}>
                 <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>
                 <IconButton aria-label={t("CreateInvite")} onClick={onInviteStart} sx={{ background: palette.secondary.main }}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>
-            </SideActionsButtons>
+            </SideActionsButtons> */}
         </MaybeLargeDialog>
     );
 };

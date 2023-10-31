@@ -1,6 +1,6 @@
 import { FindByIdInput, Member, MemberSearchInput, MemberUpdateInput } from "@local/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { rateLimit } from "../../middleware/rateLimit";
 import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
@@ -30,7 +30,7 @@ export const MemberEndpoints: EndpointsMember = {
     Mutation: {
         memberUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
     },
 };

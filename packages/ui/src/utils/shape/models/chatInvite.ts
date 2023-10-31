@@ -7,8 +7,8 @@ export type ChatInviteShape = Pick<ChatInvite, "id" | "message"> & {
     created_at: Date; // Only used by the UI
     updated_at: Date; // Only used by the UI
     status: ChatInviteStatus; // Ignored when mutating, so don't get any ideas
-    chat: { id: string };
-    user: { id: string };
+    chat: { __typename: "Chat", id: string };
+    user: { __typename: "User", id: string };
     you?: ChatInviteYou; // Only used by the UI
 }
 

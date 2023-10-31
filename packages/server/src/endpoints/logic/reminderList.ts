@@ -1,6 +1,6 @@
 import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from "@local/shared";
-import { createHelper } from "../../actions/creates";
-import { updateHelper } from "../../actions/updates";
+import { createOneHelper } from "../../actions/creates";
+import { updateOneHelper } from "../../actions/updates";
 import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
@@ -16,11 +16,11 @@ export const ReminderListEndpoints: EndpointsReminderList = {
     Mutation: {
         reminderListCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         reminderListUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
     },
 };

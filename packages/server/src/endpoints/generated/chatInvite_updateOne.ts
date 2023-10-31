@@ -1,4 +1,4 @@
-export const chatInvite_update = {
+export const chatInvite_updateOne = {
   "chat": {
     "participants": {
       "user": {

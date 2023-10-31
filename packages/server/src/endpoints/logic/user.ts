@@ -1,9 +1,9 @@
 import { BotCreateInput, BotUpdateInput, FindByIdOrHandleInput, ImportCalendarInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, ProfileUpdateInput, Session, Success, User, UserDeleteInput, UserSearchInput } from "@local/shared";
-import { createHelper } from "../../actions/creates";
+import { createOneHelper } from "../../actions/creates";
 import { cudHelper } from "../../actions/cuds";
 import { deleteOneHelper } from "../../actions/deletes";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { hashPassword, logIn, setupPasswordReset } from "../../auth/email";
 import { assertRequestFrom } from "../../auth/request";
 import { CustomError } from "../../events/error";
@@ -50,17 +50,17 @@ export const UserEndpoints: EndpointsUser = {
     Mutation: {
         botCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         botUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
         profileUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
             // Add user id to input, since IDs are required for validation checks
             const { id } = assertRequestFrom(req, { isUser: true });
-            return updateHelper({ info, input: { ...input, id }, objectType, prisma, req });
+            return updateOneHelper({ info, input: { ...input, id }, objectType, prisma, req });
         },
         profileEmailUpdate: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });

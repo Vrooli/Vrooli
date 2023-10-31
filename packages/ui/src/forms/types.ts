@@ -84,7 +84,8 @@ export type ChatFormProps = ImprovedFormProps<ChatShape, ChatShape> & {
     context?: string | null | undefined;
     task?: AssistantTask;
 }
-export type ChatInviteFormProps = BaseObjectFormProps<ChatInviteShape>
+/** Unlike other forms, this one does multiple invites at once */
+export type ChatInviteFormProps = BaseObjectFormProps<ChatInviteShape[]>
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
 export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };

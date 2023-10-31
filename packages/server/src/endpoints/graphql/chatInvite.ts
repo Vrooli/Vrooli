@@ -78,7 +78,9 @@ export const typeDef = gql`
 
     extend type Mutation {
         chatInviteCreate(input: ChatInviteCreateInput!): ChatInvite!
+        chatInvitesCreate(input: [ChatInviteCreateInput!]!): [ChatInvite!]!
         chatInviteUpdate(input: ChatInviteUpdateInput!): ChatInvite!
+        chatInvitesUpdate(input: [ChatInviteUpdateInput!]!): [ChatInvite!]!
         chatInviteAccept(input: FindByIdInput!): ChatInvite!
         chatInviteDecline(input: FindByIdInput!): ChatInvite!
     }

@@ -1,5 +1,5 @@
 import { PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from "@local/shared";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom } from "../../auth/request";
 import { rateLimit } from "../../middleware/rateLimit";
 import { Notify } from "../../notify";
@@ -42,7 +42,7 @@ export const PushDeviceEndpoints: EndpointsPushDevice = {
         },
         pushDeviceUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 10, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
     },
 };

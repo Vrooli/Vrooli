@@ -1,5 +1,5 @@
 import { Phone, PhoneCreateInput, SendVerificationTextInput, Success } from "@local/shared";
-import { createHelper } from "../../actions/creates";
+import { createOneHelper } from "../../actions/creates";
 import { setupVerificationCode } from "../../auth/email";
 import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, GQLEndpoint } from "../../types";
@@ -16,7 +16,7 @@ export const PhoneEndpoints: EndpointsPhone = {
     Mutation: {
         phoneCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 10, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         sendVerificationText: async (_, { input }, { prisma, req }) => {
             await rateLimit({ maxUser: 50, req });

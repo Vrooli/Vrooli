@@ -1,7 +1,7 @@
 import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType } from "@local/shared";
-import { createHelper } from "../../actions/creates";
+import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom, updateSessionCurrentUser } from "../../auth/request";
 import { focusModeSelect } from "../../auth/session";
 import { CustomError } from "../../events/error";
@@ -35,11 +35,11 @@ export const FocusModeEndpoints: EndpointsFocusMode = {
     Mutation: {
         focusModeCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         focusModeUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
         setActiveFocusMode: async (_, { input }, { prisma, req, res }) => {
             // Unlink other objects, active focus mode is only stored in the user's session. 

@@ -2083,6 +2083,8 @@ export type Mutation = {
   chatInviteCreate: ChatInvite;
   chatInviteDecline: ChatInvite;
   chatInviteUpdate: ChatInvite;
+  chatInvitesCreate: Array<ChatInvite>;
+  chatInvitesUpdate: Array<ChatInvite>;
   chatMessageCreate: ChatMessage;
   chatMessageUpdate: ChatMessage;
   chatParticipantUpdate: ChatParticipant;
@@ -2312,6 +2314,16 @@ export type MutationChatInviteDeclineArgs = {
 
 export type MutationChatInviteUpdateArgs = {
   input: ChatInviteUpdateInput;
+};
+
+
+export type MutationChatInvitesCreateArgs = {
+  input: Array<ChatInviteCreateInput>;
+};
+
+
+export type MutationChatInvitesUpdateArgs = {
+  input: Array<ChatInviteUpdateInput>;
 };
 
 
@@ -12056,6 +12068,8 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   chatInviteCreate?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteCreateArgs, 'input'>>;
   chatInviteDecline?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteDeclineArgs, 'input'>>;
   chatInviteUpdate?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteUpdateArgs, 'input'>>;
+  chatInvitesCreate?: Resolver<Array<ResolversTypes['ChatInvite']>, ParentType, ContextType, RequireFields<MutationChatInvitesCreateArgs, 'input'>>;
+  chatInvitesUpdate?: Resolver<Array<ResolversTypes['ChatInvite']>, ParentType, ContextType, RequireFields<MutationChatInvitesUpdateArgs, 'input'>>;
   chatMessageCreate?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationChatMessageCreateArgs, 'input'>>;
   chatMessageUpdate?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationChatMessageUpdateArgs, 'input'>>;
   chatParticipantUpdate?: Resolver<ResolversTypes['ChatParticipant'], ParentType, ContextType, RequireFields<MutationChatParticipantUpdateArgs, 'input'>>;

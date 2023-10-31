@@ -1,7 +1,7 @@
 import { FindByIdInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionSearchInput, ScheduleExceptionUpdateInput } from "@local/shared";
-import { createHelper } from "../../actions/creates";
+import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
@@ -31,11 +31,11 @@ export const ScheduleExceptionEndpoints: EndpointsScheduleException = {
     Mutation: {
         scheduleExceptionCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         scheduleExceptionUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
     },
 };

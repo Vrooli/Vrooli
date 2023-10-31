@@ -1,5 +1,5 @@
 import { Wallet, WalletUpdateInput } from "@local/shared";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint, UpdateOneResult } from "../../types";
 
@@ -14,7 +14,7 @@ export const WalletEndpoints: EndpointsWallet = {
     Mutation: {
         walletUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
     },
 };

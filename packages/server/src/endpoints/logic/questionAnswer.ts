@@ -1,7 +1,7 @@
 import { FindByIdInput, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerUpdateInput } from "@local/shared";
-import { createHelper } from "../../actions/creates";
+import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
@@ -33,11 +33,11 @@ export const QuestionAnswerEndpoints: EndpointsQuestionAnswer = {
     Mutation: {
         questionAnswerCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         questionAnswerUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
         questionAnswerMarkAsAccepted: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 500, req });

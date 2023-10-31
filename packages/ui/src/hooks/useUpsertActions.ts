@@ -1,11 +1,11 @@
-import { LINKS } from "@local/shared";
+import { LINKS, OrArray } from "@local/shared";
 import { Method } from "api";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { NavigableObject } from "types";
-import { setCookiePartialData } from "utils/cookies";
+import { CookiePartialData, setCookiePartialData } from "utils/cookies";
 import { ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -20,7 +20,7 @@ import { MakeLazyRequest, useLazyFetch } from "./useLazyFetch";
  * Also handles snack messages.
  */
 export const useUpsertActions = <
-    T extends { __typename: ListObject["__typename"], id: string },
+    T extends OrArray<{ __typename: ListObject["__typename"], id: string }>,
     TCreateInput extends Record<string, any>,
     TUpdateInput extends Record<string, any>,
 >({
@@ -50,7 +50,7 @@ export const useUpsertActions = <
         switch (action) {
             case ObjectDialogAction.Add:
                 // Add the new object to the cache
-                if (item) setCookiePartialData(item, "full");
+                if (item) setCookiePartialData(item as CookiePartialData, "full");
                 // Navigate to the view page for the new object
                 if (display === "page") {
                     setLocation(viewUrl ?? LINKS.Home, { replace: true });
@@ -59,7 +59,7 @@ export const useUpsertActions = <
                 }
                 // Display snack message
                 if (isCreate) {
-                    const rootType = (item?.__typename ?? "").replace("Version", "");
+                    const rootType = ((item as ListObject)?.__typename ?? "").replace("Version", "");
                     const objectTranslation = t(rootType, { count: 1, defaultValue: rootType });
                     PubSub.get().publishSnack({
                         message: t("ObjectCreated", { objectName: objectTranslation }),
@@ -84,13 +84,13 @@ export const useUpsertActions = <
                     if (hasPreviousPage) window.history.back();
                     else setLocation(LINKS.Home, { replace: true });
                 } else {
-                    onDeleted?.(item!.id);
+                    onDeleted?.((item as ListObject)!.id as string);
                 }
                 // Don't display snack message, as we don't have enough information for the message's "Undo" button
                 break;
             case ObjectDialogAction.Save:
                 // Update the object in the cache
-                if (item) setCookiePartialData(item, "full");
+                if (item) setCookiePartialData(item as CookiePartialData, "full");
                 // Navigate to the view page for the object
                 if (display === "page") {
                     if (!viewUrl && hasPreviousPage) window.history.back();
@@ -100,7 +100,7 @@ export const useUpsertActions = <
                 }
                 // Display snack message
                 if (!isCreate) {
-                    const rootType = (item?.__typename ?? "").replace("Version", "");
+                    const rootType = ((item as ListObject)?.__typename ?? "").replace("Version", "");
                     const objectTranslation = t(rootType, { count: 1, defaultValue: rootType });
                     PubSub.get().publishSnack({
                         message: t("ObjectUpdated", { objectName: objectTranslation }),

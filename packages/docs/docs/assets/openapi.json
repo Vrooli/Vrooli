@@ -532,6 +532,30 @@
             "description": "Default response. Replace this with real responses."
           }
         }
+      },
+      "post": {
+        "operationId": "endpointPostChatInvites",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutChatInvites",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
       }
     },
     "/chatInvite": {
@@ -48382,6 +48406,11 @@
             "title": "UserSearchInput.minViews",
             "nullable": true,
             "type": "number"
+          },
+          "notInChatId": {
+            "title": "UserSearchInput.notInChatId",
+            "nullable": true,
+            "type": "string"
           },
           "searchString": {
             "title": "UserSearchInput.searchString",

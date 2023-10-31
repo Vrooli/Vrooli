@@ -1,7 +1,7 @@
 import { ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput } from "@local/shared";
-import { createHelper } from "../../actions/creates";
+import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { rateLimit } from "../../middleware/rateLimit";
 import { ModelMap } from "../../models/base";
 import { ChatMessageModelLogic } from "../../models/base/types";
@@ -38,11 +38,11 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
     Mutation: {
         chatMessageCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         chatMessageUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
     },
 };

@@ -157,7 +157,7 @@ export const MemberInviteUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleClose}
-                title={t(isCreate ? "CreateInvite" : "UpdateInvite")}
+            // title={t(isCreate ? "CreateInvite" : "UpdateInvite")}
             />
             <Formik
                 enableReinitialize={true}

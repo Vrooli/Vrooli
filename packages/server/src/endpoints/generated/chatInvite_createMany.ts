@@ -1,4 +1,4 @@
-export const chatInvite_create = {
+export const chatInvite_createMany = {
   "chat": {
     "participants": {
       "user": {

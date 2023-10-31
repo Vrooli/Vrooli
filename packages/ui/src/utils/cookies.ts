@@ -182,7 +182,7 @@ export const getCookieLastTab = <T>(id: string, fallback?: T): T | undefined => 
 export const setCookieLastTab = <T>(id: string, tabType: T) => ifAllowed("functional", () => setCookie(`${Cookies.LastTab}-${id}`, tabType));
 
 /** Supports ID data from URL params, as well as partial object */
-type PartialData = {
+export type CookiePartialData = {
     __typename: NavigableObject["__typename"],
     id?: string | null,
     idRoot?: string | null,
@@ -202,10 +202,10 @@ type DataType = "list" | "full";
  * Objects can be cached using their ID or handle, or root's ID or handle
  */
 type Cache = {
-    idMap: Record<string, PartialData>,
-    handleMap: Record<string, PartialData>,
-    idRootMap: Record<string, PartialData>,
-    handleRootMap: Record<string, PartialData>,
+    idMap: Record<string, CookiePartialData>,
+    handleMap: Record<string, CookiePartialData>,
+    idRootMap: Record<string, CookiePartialData>,
+    handleRootMap: Record<string, CookiePartialData>,
     order: string[], // Order of objects in cache, for FIFO
 };
 
@@ -231,7 +231,7 @@ const getCache = (): Cache => getOrSetCookie(
 ) as Cache;
 
 /** Shape knownData to replace idRoot and handleRoot with proper root object */
-const shapeKnownData = <T extends PartialData>(knownData: T): T => ({
+const shapeKnownData = <T extends CookiePartialData>(knownData: T): T => ({
     ...knownData,
     idRoot: undefined,
     handleRoot: undefined,
@@ -243,7 +243,7 @@ const shapeKnownData = <T extends PartialData>(knownData: T): T => ({
         },
     } : {}),
 });
-export const getCookiePartialData = <T extends PartialData>(knownData: PartialData): T =>
+export const getCookiePartialData = <T extends CookiePartialData>(knownData: CookiePartialData): T =>
     ifAllowed("functional",
         () => {
             const shapedKnownData = shapeKnownData(knownData);
@@ -263,7 +263,7 @@ export const getCookiePartialData = <T extends PartialData>(knownData: PartialDa
         },
         shapeKnownData(knownData),
     );
-export const setCookiePartialData = (partialData: PartialData, dataType: DataType) => ifAllowed("functional", () => {
+export const setCookiePartialData = (partialData: CookiePartialData, dataType: DataType) => ifAllowed("functional", () => {
     ifAllowed("functional", () => {
         // Get the cache
         const cache = getCache();

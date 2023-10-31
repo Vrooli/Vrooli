@@ -1,7 +1,7 @@
 import { ApiKey, ApiKeyCreateInput, ApiKeyDeleteOneInput, ApiKeyUpdateInput, ApiKeyValidateInput, COOKIE, Success } from "@local/shared";
-import { createHelper } from "../../actions/creates";
+import { createOneHelper } from "../../actions/creates";
 import { deleteOneHelper } from "../../actions/deletes";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom } from "../../auth/request";
 import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -22,12 +22,12 @@ export const ApiKeyEndpoints: EndpointsApiKey = {
         apiKeyCreate: async (_, { input }, { prisma, req }, info) => {
             assertRequestFrom(req, { isOfficialUser: true });
             await rateLimit({ maxUser: 10, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         apiKeyUpdate: async (_, { input }, { prisma, req }, info) => {
             assertRequestFrom(req, { isOfficialUser: true });
             await rateLimit({ maxUser: 10, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
         apiKeyDeleteOne: async (_, { input }, { prisma, req }) => {
             assertRequestFrom(req, { isOfficialUser: true });

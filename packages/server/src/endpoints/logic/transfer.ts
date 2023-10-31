@@ -1,6 +1,6 @@
 import { FindByIdInput, Transfer, TransferDenyInput, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferUpdateInput } from "@local/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateHelper } from "../../actions/updates";
+import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom } from "../../auth/request";
 import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -49,7 +49,7 @@ export const TransferEndpoints: EndpointsTransfer = {
         },
         transferUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
         transferCancel: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });

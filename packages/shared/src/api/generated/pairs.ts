@@ -226,6 +226,18 @@ export const endpointGetChatInvites = {
     tag: "chatInvite",
 } as const;
 
+export const endpointPostChatInvites = {
+    endpoint: "/chatInvites",
+    method: "POST",
+    tag: "chatInvite",
+} as const;
+
+export const endpointPutChatInvites = {
+    endpoint: "/chatInvites",
+    method: "PUT",
+    tag: "chatInvite",
+} as const;
+
 export const endpointPostChatInvite = {
     endpoint: "/chatInvite",
     method: "POST",
