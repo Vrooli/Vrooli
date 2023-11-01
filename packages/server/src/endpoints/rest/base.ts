@@ -142,9 +142,18 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                 // Handle endpoint
                 async (req: Request, res: Response) => {
                     // Find non-file data
-                    const input: Record<string, string> = method === "get" ?
-                        { ...req.params, ...parseInput(req.query) } :
-                        { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
+                    let input: Record<string, string> | any[] = {}; // default to an empty object
+                    // If it's a GET method, combine params and parsed query
+                    if (method === "get") {
+                        input = { ...req.params, ...parseInput(req.query) };
+                    } else {
+                        // For non-GET methods, handle object and array bodies
+                        if (Array.isArray(req.body)) {
+                            input = [...req.body]; // directly spread array into a new array
+                        } else if (typeof req.body === "object") {
+                            input = { ...req.params, ...req.body };
+                        }
+                    }
                     // Get files from request
                     const files = (req.files ?? []) as Express.Multer.File[];
                     let fileNames: { [x: string]: string[] } = {};
