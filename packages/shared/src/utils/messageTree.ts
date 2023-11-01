@@ -123,6 +123,12 @@ export class MessageTree<T extends MinimumChatMessage> {
     }
 
     public addMessage(message: T): void {
+        // If already exists, return
+        if (this.messageMap.has(message.id)) {
+            console.warn(`Message ${message.id} already exists in messageMap`);
+            return;
+        }
+
         // Create a new node for the message
         const newNode: MessageNode<T> = {
             message,

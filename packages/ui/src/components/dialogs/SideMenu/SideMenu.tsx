@@ -1,4 +1,4 @@
-import { endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, ProfileUpdateInput, profileValidation, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared";
+import { endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, noop, ProfileUpdateInput, profileValidation, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
@@ -23,7 +23,6 @@ import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getUserActions, NavAction, NAV_ACTION_TAGS } from "utils/navigation/userActions";
-import { noop } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { shapeProfile } from "utils/shape/models/profile";

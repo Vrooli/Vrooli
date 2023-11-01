@@ -1,10 +1,10 @@
+import { noop } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useUndoRedo } from "hooks/useUndoRedo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
-import { noop } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { assistantChatInfo, ChatCrud } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";

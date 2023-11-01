@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, MessageTree, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Checkbox, IconButton, InputAdornment, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -37,7 +37,6 @@ import { getDisplay, getYou, ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { uuidToBase36 } from "utils/navigation/urlTools";
-import { noopSubmit } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { addToArray, updateArray, validateAndGetYupErrors } from "utils/shape/general";
 import { ChatShape, shapeChat } from "utils/shape/models/chat";

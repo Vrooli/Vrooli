@@ -1,4 +1,4 @@
-import { Bookmark, GqlModelType, isOfType, OrArray, Reaction, View } from "@local/shared";
+import { Bookmark, GqlModelType, isOfType, noop, OrArray, Reaction, View } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { useDimensions } from "hooks/useDimensions";
@@ -10,7 +10,6 @@ import { lazily } from "react-lazily";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { ListObject } from "utils/display/listTools";
-import { noop } from "utils/objects";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { ObjectListItemProps } from "../types";
 

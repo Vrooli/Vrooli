@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getSideMenuState, setSideMenuState } from "utils/cookies";
+import { getCookieSideMenuState, setCookieSideMenuState } from "utils/cookies";
 import { PubSub, SideMenuPub } from "utils/pubsub";
 
 /** Hook for simplifying a side menu's pub/sub events */
@@ -12,13 +12,13 @@ export const useSideMenu = ({
     idPrefix?: string,
     isMobile?: boolean,
 }) => {
-    const defaultOpenState: boolean = getSideMenuState(`${idPrefix}${id}`, false);
+    const defaultOpenState: boolean = getCookieSideMenuState(`${idPrefix}${id}`, false);
     const [isOpen, setIsOpen] = useState<boolean>(isMobile ? false : defaultOpenState);
     useEffect(() => {
         const sideMenuSub = PubSub.get().subscribeSideMenu((data) => {
             if (data.id !== id || data.idPrefix !== idPrefix) return;
             setIsOpen(data.isOpen);
-            setSideMenuState(`${idPrefix}${id}`, data.isOpen);
+            setCookieSideMenuState(`${idPrefix}${id}`, data.isOpen);
         });
         return (() => {
             PubSub.get().unsubscribe(sideMenuSub);
@@ -27,7 +27,7 @@ export const useSideMenu = ({
 
     const close = useCallback(() => {
         setIsOpen(false);
-        setSideMenuState(`${idPrefix}${id}`, false);
+        setCookieSideMenuState(`${idPrefix}${id}`, false);
         PubSub.get().publishSideMenu({ id, idPrefix, isOpen: false });
     }, [id, idPrefix]);
 

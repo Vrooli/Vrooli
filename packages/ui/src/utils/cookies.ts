@@ -154,7 +154,7 @@ export const getCookieAllFocusModes = <T extends FocusMode[]>(fallback?: T): T =
     );
 export const setCookieAllFocusModes = (modes: FocusMode[]) => ifAllowed("functional", () => setCookie(Cookies.FocusModeAll, modes));
 
-export const getSideMenuState = <T extends boolean | undefined>(id: string, fallback?: T): T =>
+export const getCookieSideMenuState = <T extends boolean | undefined>(id: string, fallback?: T): T =>
     ifAllowed("functional",
         () => {
             const allMenus = getOrSetCookie(Cookies.SideMenuState, (value: unknown): value is Record<string, boolean> => typeof value === "object" && value !== null, {});
@@ -163,7 +163,7 @@ export const getSideMenuState = <T extends boolean | undefined>(id: string, fall
         fallback,
     );
 
-export const setSideMenuState = (id: string, state: boolean) => ifAllowed("functional", () => {
+export const setCookieSideMenuState = (id: string, state: boolean) => ifAllowed("functional", () => {
     const allMenus = getOrSetCookie(Cookies.SideMenuState, (value: unknown): value is Record<string, boolean> => typeof value === "object" && value !== null, {});
     setCookie(Cookies.SideMenuState, allMenus ? { ...allMenus, [id]: state } : { [id]: state });
 });

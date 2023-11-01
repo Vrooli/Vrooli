@@ -1,4 +1,4 @@
-import { MessageNode, MessageTree, MinimumChatMessage } from "./buildMessageTree";
+import { MessageNode, MessageTree, MinimumChatMessage } from "./messageTree";
 
 export class DebuggableMessageTree<T extends MinimumChatMessage> extends MessageTree<T> {
     constructor(private msgs: T[]) {
@@ -548,6 +548,14 @@ describe("DebuggableMessageTree", () => {
 });
 
 describe("MessageTree Operations", () => {
+    beforeAll(() => {
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        jest.spyOn(console, "warn").mockImplementation(() => { });
+    });
+    afterAll(() => {
+        jest.restoreAllMocks();
+    });
+
     const tree = new DebuggableMessageTree<MinimumChatMessage>([...case3]); // Create a copy of case3 to not mutate the original
 
     const newMessage = {
@@ -579,6 +587,24 @@ describe("MessageTree Operations", () => {
         expect(greatGreatGrandchild.message.id).toBe(newMessage.id);
         expect(greatGrandchild.children.length).toBe(1);
         expect(greatGreatGrandchild.children.length).toBe(0);
+    });
+
+    it("Add Message - Won't add the same message twice", () => {
+        // Find number of nodes before adding the message
+        let origNodesCount = 0;
+        for (const root of tree.getRoots()) {
+            origNodesCount += countNodesInTree(root);
+        }
+        // Add the same message again
+        tree.addMessage(newMessage);
+
+        // Find number of nodes after adding the message
+        let newNodesCount = 0;
+        for (const root of tree.getRoots()) {
+            newNodesCount += countNodesInTree(root);
+        }
+        // Ensure the number of nodes didn't change
+        expect(newNodesCount).toBe(origNodesCount);
     });
 
     it("Edit Message - Edits the newly added message", () => {
