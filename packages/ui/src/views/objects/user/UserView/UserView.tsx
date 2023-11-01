@@ -1,5 +1,7 @@
 import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
-import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, InputAdornment, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import BannerDefault from "assets/img/BannerDefault.png";
+import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -16,7 +18,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, SearchIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setSearchParams, useLocation } from "route";
@@ -90,9 +92,11 @@ export const UserView = ({
         const { creativity, verbosity, translations } = findBotData(language, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language]);
         const { adornments } = getDisplay(user, [language], palette);
+        let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, 1000);
+        if (!bannerImageUrl) bannerImageUrl = user?.isBot ? BannerDefaultBot : BannerDefault;
         return {
             adornments,
-            bannerImageUrl: extractImageUrl(user?.bannerImage, user?.updated_at, 1000),
+            bannerImageUrl,
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             botData: { ...botTranslations, creativity, verbosity },
             name: user?.name,
@@ -317,46 +321,95 @@ export const UserView = ({
                             fullWidth
                             label={t("Occupation")}
                             value={botData.occupation}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <OrganizationIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
                         {botData.persona && <TextField
                             disabled
                             fullWidth
                             label={t("Persona")}
                             value={botData.persona}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <PersonaIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
                         {botData.startMessage && <TextField
                             disabled
                             fullWidth
                             label={t("StartMessage")}
                             value={botData.startMessage}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <CommentIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
                         {botData.tone && <TextField
                             disabled
                             fullWidth
                             label={t("Tone")}
                             value={botData.tone}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <RoutineValidIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
                         {botData.keyPhrases && <TextField
                             disabled
                             fullWidth
                             label={t("KeyPhrases")}
                             value={botData.keyPhrases}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <KeyPhrasesIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
                         {botData.domainKnowledge && <TextField
                             disabled
                             fullWidth
                             label={t("DomainKnowledge")}
                             value={botData.domainKnowledge}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <LearnIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
                         {botData.bias && <TextField
                             disabled
                             fullWidth
                             label={t("Bias")}
                             value={botData.bias}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <HeartFilledIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
                         <Stack>
                             <Typography id="creativity-slider" gutterBottom>
-                                {t("Creativity")}
+                                {t("CreativityPlaceholder")}
                             </Typography>
                             <Slider
                                 aria-labelledby="creativity-slider"
@@ -390,7 +443,7 @@ export const UserView = ({
                         </Stack>
                         <Stack>
                             <Typography id="verbosity-slider" gutterBottom>
-                                {t("Verbosity")}
+                                {t("VerbosityPlaceholder")}
                             </Typography>
                             <Slider
                                 aria-labelledby="verbosity-slider"
@@ -403,11 +456,11 @@ export const UserView = ({
                                 marks={[
                                     {
                                         value: 0.1,
-                                        label: t("Low"),
+                                        label: t("Short"),
                                     },
                                     {
                                         value: 1,
-                                        label: t("High"),
+                                        label: t("Long"),
                                     },
                                 ]}
                                 sx={{

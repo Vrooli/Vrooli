@@ -79,6 +79,8 @@ const collectProfanities = (
         let nextObjectType: `${GqlModelType}` | undefined;
         // Strip "Create" and "Update" from the end of the key
         const strippedKey = key.endsWith("Create") || key.endsWith("Update") ? key.slice(0, -6) : key;
+        // Translations were already handled above, so skip them here
+        if (strippedKey === "translations") continue;
         // Check if stripped key is in validator's validateMap
         if (typeof format?.gqlRelMap?.[strippedKey] === "string") {
             nextObjectType = format?.gqlRelMap?.[strippedKey] as GqlModelType;

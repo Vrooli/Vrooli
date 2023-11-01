@@ -3,6 +3,7 @@ import { InputAdornment, Slider, Stack, TextField, Typography } from "@mui/mater
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
@@ -17,7 +18,7 @@ import { useFormDialog } from "hooks/useFormDialog";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { BotIcon, HandleIcon } from "icons";
+import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon } from "icons";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -39,6 +40,7 @@ const botInitialValues = (
         __typename: "User" as const,
         id: DUMMY_ID,
         creativity,
+        isBotDepictingPerson: false,
         isPrivate: false,
         name: "",
         verbosity,
@@ -137,6 +139,11 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                             helperText={props.touched.name && props.errors.name}
                         />
                         <Field
+                            name="isBotDepictingPerson"
+                            label={t("BotDepictPersonAsk")}
+                            component={CheckboxInput}
+                        />
+                        <Field
                             fullWidth
                             autoComplete="handle"
                             name="handle"
@@ -163,48 +170,104 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         <TranslatedTextField
                             fullWidth
                             label={t("Occupation")}
+                            placeholder={t("OccupationPlaceholderBot")}
                             language={language}
                             name="occupation"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <OrganizationIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         <TranslatedTextField
                             fullWidth
                             label={t("Persona")}
+                            placeholder={t("PersonaPlaceholderBot")}
                             language={language}
                             name="persona"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <PersonaIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         <TranslatedTextField
                             fullWidth
                             label={t("StartMessage")}
+                            placeholder={t("StartMessagePlaceholder")}
                             language={language}
                             name="startMessage"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <CommentIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         <TranslatedTextField
                             fullWidth
                             label={t("Tone")}
+                            placeholder={t("TonePlaceholderBot")}
                             language={language}
                             name="tone"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <RoutineValidIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         <TranslatedTextField
                             fullWidth
                             label={t("KeyPhrases")}
+                            placeholder={t("KeyPhrasesPlaceholderBot")}
                             language={language}
                             name="keyPhrases"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <KeyPhrasesIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         <TranslatedTextField
                             fullWidth
                             label={t("DomainKnowledge")}
+                            placeholder={t("DomainKnowledgePlaceholderBot")}
                             language={language}
                             name="domainKnowledge"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <LearnIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         <TranslatedTextField
                             fullWidth
                             label={t("Bias")}
+                            placeholder={t("BiasPlaceholderBot")}
                             language={language}
                             name="bias"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <HeartFilledIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         <Stack>
                             <Typography id="creativity-slider" gutterBottom>
-                                {t("Creativity")}
+                                {t("CreativityPlaceholder")}
                             </Typography>
                             <Slider
                                 aria-labelledby="creativity-slider"
@@ -238,7 +301,7 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         </Stack>
                         <Stack>
                             <Typography id="verbosity-slider" gutterBottom>
-                                {t("Verbosity")}
+                                {t("VerbosityPlaceholder")}
                             </Typography>
                             <Slider
                                 aria-labelledby="verbosity-slider"
@@ -251,11 +314,11 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                                 marks={[
                                     {
                                         value: 0.1,
-                                        label: t("Low"),
+                                        label: t("Short"),
                                     },
                                     {
                                         value: 1,
-                                        label: t("High"),
+                                        label: t("Long"),
                                     },
                                 ]}
                                 sx={{

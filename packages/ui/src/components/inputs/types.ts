@@ -357,6 +357,7 @@ export interface TranslatedTextFieldProps {
     multiline?: boolean;
     name: string;
     placeholder?: string;
+    InputProps?: TextFieldProps["InputProps"];
 }
 
 export type VersionInputProps = Omit<TextFieldProps, "helperText" | "onBlur" | "onChange" | "value"> & {

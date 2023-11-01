@@ -13,7 +13,6 @@ export const LargeDialog = ({
 }: LargeDialogProps) => {
     const { palette, spacing } = useTheme();
     const [zIndex, handleTransitionExit] = useZIndex(isOpen, true, 1000);
-    console.log("largedialog gogzIndex", zIndex);
 
     return (
         <Dialog

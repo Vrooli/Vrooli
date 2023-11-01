@@ -121,8 +121,18 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                     const option = findOption(value as string);
                     if (!exists(option)) return null;
                     const labelText = getOptionLabel(option);
+                    const Icon = getOptionIcon ? getOptionIcon(option) : null;
                     return (
-                        <Stack direction="column">
+                        <Stack direction="row" alignItems="center">
+                            {
+                                Icon ?
+                                    typeof Icon === "function" ?
+                                        <ListItemIcon sx={{ minWidth: "32px" }}>
+                                            <Icon fill={palette.background.textSecondary} />
+                                        </ListItemIcon> :
+                                        Icon :
+                                    null
+                            }
                             <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
                         </Stack>
                     );
