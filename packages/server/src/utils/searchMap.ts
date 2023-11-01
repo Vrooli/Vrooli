@@ -98,6 +98,7 @@ export const SearchMap = {
     hasCompleteVersion: (hasCompleteVersion: Maybe<boolean>) => ({ hasCompleteVersion }),
     ids: (ids: Maybe<string[]>) => ({ id: { in: ids } }),
     isBot: (isBot: Maybe<boolean>) => ({ isBot }),
+    isBotDepictingPerson: (isBotDepictingPerson: Maybe<boolean>) => ({ isBotDepictingPerson }),
     isComplete: (isComplete: Maybe<boolean>) => ({ isComplete }),
     isCompleteWithRoot: (isComplete: Maybe<boolean>) => ({
         AND: [

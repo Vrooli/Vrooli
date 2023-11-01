@@ -58,7 +58,7 @@ export const Title = ({
                 ...sxs?.stack,
             }}
         >
-            <Box sx={{ display: "flex" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
                 {/* Icon */}
                 {Icon && <Icon fill={palette.background.textPrimary} style={{ width: "30px", height: "30px", marginRight: 8 }} />}
                 {/* Title */}
@@ -76,7 +76,6 @@ export const Title = ({
                 {/* Adornments */}
                 {adornments && adornments.map((Adornment) => (
                     <Box sx={{
-                        width: fontSizeToPixels(fontSize ?? "1rem") * Number(typography[variant === "header" ? "h3" : "h4"].lineHeight ?? "1.5"),
                         height: fontSizeToPixels(fontSize ?? "1rem") * Number(typography[variant === "header" ? "h3" : "h4"].lineHeight ?? "1.5"),
                     }}>
                         {Adornment}

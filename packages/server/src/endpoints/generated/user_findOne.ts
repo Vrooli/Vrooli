@@ -11,6 +11,7 @@ export const user_findOne = {
   "bannerImage": true,
   "handle": true,
   "isBot": true,
+  "isBotDepictingPerson": true,
   "name": true,
   "profileImage": true,
   "bookmarks": true,

@@ -64,6 +64,7 @@ export const userValidation: YupModel<true, true> = {
     update: (d) => yupObj({
         // Bot part
         id: opt(id), // Have to make this optional
+        isBotDepictingPerson: opt(bool),
         botSettings: opt(botSettings),
         // Profile part
         bannerImage: opt(imageFile),

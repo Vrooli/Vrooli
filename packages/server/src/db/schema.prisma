@@ -2528,6 +2528,7 @@ model user {
     confirmationCodeDate           DateTime?                   @db.Timestamptz(6)
     invitedByUserId                String?                     @db.Uuid
     isBot                          Boolean                     @default(false)
+    isBotDepictingPerson           Boolean                     @default(false)
     isPrivate                      Boolean                     @default(false)
     isPrivateApis                  Boolean                     @default(false)
     isPrivateApisCreated           Boolean                     @default(false)

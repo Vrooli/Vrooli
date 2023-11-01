@@ -6645,6 +6645,10 @@
             "title": "BotCreateInput.id",
             "type": "string"
           },
+          "isBotDepictingPerson": {
+            "title": "BotCreateInput.isBotDepictingPerson",
+            "type": "boolean"
+          },
           "isPrivate": {
             "title": "BotCreateInput.isPrivate",
             "type": "boolean"
@@ -6676,6 +6680,7 @@
         "required": [
           "botSettings",
           "id",
+          "isBotDepictingPerson",
           "isPrivate",
           "name"
         ],
@@ -6701,6 +6706,11 @@
           "id": {
             "title": "BotUpdateInput.id",
             "type": "string"
+          },
+          "isBotDepictingPerson": {
+            "title": "BotUpdateInput.isBotDepictingPerson",
+            "nullable": true,
+            "type": "boolean"
           },
           "isPrivate": {
             "title": "BotUpdateInput.isPrivate",
@@ -47374,6 +47384,10 @@
             "title": "User.isBot",
             "type": "boolean"
           },
+          "isBotDepictingPerson": {
+            "title": "User.isBotDepictingPerson",
+            "type": "boolean"
+          },
           "isPrivate": {
             "title": "User.isPrivate",
             "type": "boolean"
@@ -48242,6 +48256,7 @@
           "created_at",
           "id",
           "isBot",
+          "isBotDepictingPerson",
           "isPrivate",
           "isPrivateApis",
           "isPrivateApisCreated",
@@ -48379,6 +48394,11 @@
           },
           "isBot": {
             "title": "UserSearchInput.isBot",
+            "nullable": true,
+            "type": "boolean"
+          },
+          "isBotDepictingPerson": {
+            "title": "UserSearchInput.isBotDepictingPerson",
             "nullable": true,
             "type": "boolean"
           },

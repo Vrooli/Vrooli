@@ -560,6 +560,7 @@ export type BotCreateInput = {
   botSettings: Scalars['String'];
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isBotDepictingPerson: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   profileImage?: InputMaybe<Scalars['Upload']>;
@@ -571,6 +572,7 @@ export type BotUpdateInput = {
   botSettings?: InputMaybe<Scalars['String']>;
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isBotDepictingPerson?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   profileImage?: InputMaybe<Scalars['Upload']>;
@@ -9547,6 +9549,7 @@ export type User = {
   invitedByUser?: Maybe<User>;
   invitedUsers?: Maybe<Array<User>>;
   isBot: Scalars['Boolean'];
+  isBotDepictingPerson: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   isPrivateApis: Scalars['Boolean'];
   isPrivateApisCreated: Scalars['Boolean'];
@@ -9646,6 +9649,7 @@ export type UserSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isBot?: InputMaybe<Scalars['Boolean']>;
+  isBotDepictingPerson?: InputMaybe<Scalars['Boolean']>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
   memberInOrganizationId?: InputMaybe<Scalars['ID']>;
@@ -14720,6 +14724,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   invitedByUser?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   invitedUsers?: Resolver<Maybe<Array<ResolversTypes['User']>>, ParentType, ContextType>;
   isBot?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBotDepictingPerson?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApis?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApisCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;

@@ -18,6 +18,7 @@ export const botValidation: YupModel = {
         bannerImage: opt(imageFile),
         botSettings: req(botSettings),
         handle: opt(handle),
+        isBotDepictingPerson: req(bool),
         isPrivate: opt(bool),
         name: req(name),
         profileImage: opt(imageFile),
@@ -28,6 +29,7 @@ export const botValidation: YupModel = {
         id: req(id),
         botSettings: opt(botSettings),
         handle: opt(handle),
+        isBotDepictingPerson: opt(bool),
         isPrivate: opt(bool),
         name: opt(name),
     }, [

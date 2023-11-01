@@ -380,6 +380,10 @@ export const getDisplay = (
                 style={{ padding: "1px" }}
             />,
         );
+        // If the bot is depicting a real person, add a chip indicating that
+        if ((object as Partial<User>).isBotDepictingPerson) {
+            adornments.push(<Chip key="parody" label="Parody" sx={{ backgroundColor: palette?.mode === "light" ? "#521f81" : "#a979d5", color: "white", display: "inline" }} />);
+        }
     }
     // If a Routine and there are nodes and edges, add icon indicating that it's a multi-step routine
     if (isOfType(object, "RoutineVersion") && (object as Partial<RoutineVersion>).nodesCount && (object as Partial<RoutineVersion>).nodeLinksCount) {

@@ -21,23 +21,6 @@ export async function init(prisma: PrismaType) {
 
     const EN = "en";
 
-    // TODO temporary
-    // Delete CIP-0025 standards
-    await prisma.standard.deleteMany({
-        where: {
-            createdById: "3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2",
-            versions: {
-                some: {
-                    translations: {
-                        some: {
-                            name: "CIP-0025 - NFT Metadata Standard",
-                        },
-                    },
-                },
-            },
-        },
-    });
-
     //==============================================================
     /* #endregion Initialization */
     //==============================================================

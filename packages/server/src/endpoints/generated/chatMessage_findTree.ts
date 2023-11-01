@@ -23,6 +23,7 @@ export const chatMessage_findTree = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true
     },
