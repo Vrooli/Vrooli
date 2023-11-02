@@ -13,6 +13,15 @@ export interface ChatBubbleProps {
     onUpdated: (message: ChatMessageShape) => unknown;
 }
 
+export interface ChatBubbleTreeProps {
+    chatWidth: number;
+    message: ChatMessageShape;
+    index: number;
+    isOwn: boolean;
+    onDeleted: (message: ChatMessageShape) => unknown;
+    onUpdated: (message: ChatMessageShape) => unknown;
+}
+
 export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {
     isLoading?: boolean;
     showLabel?: boolean;

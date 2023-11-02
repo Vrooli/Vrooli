@@ -318,7 +318,7 @@ export const DashboardView = ({
                         maxHeight: "min(50vh, 500px)",
                         width: "min(700px, 100%)",
                         margin: "auto",
-                        marginBottom: { xs: pagePaddingBottom, md: "0" },
+                        marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
                     },
                     bar: { borderRadius: 0 },
                     textArea: { paddingRight: 4, border: "none" },

@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, CommonKey, endpointPostBookmark, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, CommonKey, endpointPostBookmark, noop, uuid } from "@local/shared";
 import { Box, IconButton, SwipeableDrawer, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
@@ -17,7 +17,6 @@ import { useLocation } from "route";
 import { noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getObjectUrlBase } from "utils/navigation/openObject";
-import { noop } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { ChatPageTabOption, chatTabParams } from "utils/search/objectToSearch";
 import { BookmarkShape, shapeBookmark } from "utils/shape/models/bookmark";
@@ -63,7 +62,6 @@ export const ChatSideMenu = ({
     }, [close]);
 
     const [zIndex, handleTransitionExit] = useZIndex(isOpen, true, 1000);
-    console.log("chatsidemenu gogzIndex", zIndex);
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -143,11 +141,11 @@ export const ChatSideMenu = ({
                         background: palette.background.default,
                         overflowY: "auto",
                         borderRight: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
-                        width: "min(400px, 100%)",
+                        width: "min(350px, 100%)",
                         zIndex,
                     },
                     "& > .MuiDrawer-root": {
-                        width: "min(400px, 100%)",
+                        width: "min(350px, 100%)",
                         "& > .MuiPaper-root": {
                             zIndex,
                         },

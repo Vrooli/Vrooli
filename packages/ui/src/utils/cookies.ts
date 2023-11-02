@@ -25,6 +25,7 @@ export const Cookies = {
     FocusModeAll: "focusModeAll",
     ShowMarkdown: "showMarkdown",
     SideMenuState: "sideMenuState",
+    ChatMessageTree: "chatMessageTree",
 };
 export type Cookies = ValueOf<typeof Cookies>;
 
@@ -180,6 +181,67 @@ export const getCookieLastTab = <T>(id: string, fallback?: T): T | undefined => 
     return lastTab as unknown as T;
 }, fallback);
 export const setCookieLastTab = <T>(id: string, tabType: T) => ifAllowed("functional", () => setCookie(`${Cookies.LastTab}-${id}`, tabType));
+
+/** A chat message ID and which way it branches */
+export type ChatMessageBranch = {
+    messageId: string;
+    selectedChildId: string;
+}
+type ChatMessageTreeCookie = {
+    /** Which branches you're viewing */
+    branches: ChatMessageBranch[];
+    /** The message you viewed last */
+    locationId: string;
+}
+type ChatMessageCache = {
+    chats: { [chatId: string]: ChatMessageTreeCookie };
+    order: string[]; // Order of chatIds in cache, for FIFO
+};
+
+const MAX_CHAT_CACHE_SIZE = 100;
+
+/** Get the chat message cache */
+const getChatMessageCache = (): ChatMessageCache => getOrSetCookie(
+    Cookies.ChatMessageTree,
+    (value: unknown): value is ChatMessageCache =>
+        typeof value === "object" &&
+        typeof (value as Partial<ChatMessageCache>)?.chats === "object" &&
+        Array.isArray((value as Partial<ChatMessageCache>)?.order),
+    {
+        chats: {},
+        order: [],
+    }, // Default value
+) as ChatMessageCache;
+
+export const getCookieMessageTree = (chatId: string): ChatMessageTreeCookie | undefined =>
+    ifAllowed("functional", () => {
+        const cache = getChatMessageCache();
+        return cache.chats[chatId];
+    });
+
+export const setCookieMessageTree = (chatId: string, data: ChatMessageTreeCookie) => ifAllowed("functional", () => {
+    const cache = getChatMessageCache();
+
+    // If chatId already exists, remove from order for reinsertion at end
+    const existingIndex = cache.order.indexOf(chatId);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+    }
+
+    // If cache is full, remove the oldest chat
+    if (cache.order.length >= MAX_CHAT_CACHE_SIZE) {
+        const oldestChatId = cache.order.shift();
+        if (oldestChatId) {
+            delete cache.chats[oldestChatId];
+        }
+    }
+
+    // Store the new/updated chat data and update order
+    cache.chats[chatId] = data;
+    cache.order.push(chatId);
+
+    setCookie(Cookies.ChatMessageTree, cache);
+});
 
 /** Supports ID data from URL params, as well as partial object */
 export type CookiePartialData = {

@@ -1,8 +1,8 @@
 import { OrArray, RoutineVersion } from "@local/shared";
 import { ReactNode } from "react";
-import { PartialWithType, SxType } from "types";
+import { PartialOrArrayWithType, SxType } from "types";
 import { ListObject } from "utils/display/listTools";
-import { NewChatInviteShape } from "./objects/chatInvite";
+import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { NewMemberInviteShape } from "./objects/memberInvite";
 
 /**
@@ -21,7 +21,7 @@ export type ObjectViewProps<T extends OrArray<ListObject>> = ViewProps & {
     * 
     * This means that passing this in will render the view as a dialog instead of a page.
     */
-    overrideObject?: PartialWithType<T>;
+    overrideObject?: PartialOrArrayWithType<T>;
 }
 export interface PageProps {
     children: JSX.Element;
@@ -42,7 +42,7 @@ export type MemberManageViewProps = ViewProps & {
     organization: NewMemberInviteShape["organization"];
 }
 export type ParticipantManageViewProps = ViewProps & {
-    chat: NewChatInviteShape["chat"];
+    chat: ChatInviteShape["chat"];
 }
 export type PremiumViewProps = ViewProps
 export type ResetPasswordViewProps = ViewProps

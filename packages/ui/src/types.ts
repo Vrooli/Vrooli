@@ -10,7 +10,12 @@ import { ListObject } from "utils/display/listTools";
  * Useful when the object has not been fully loaded
  */
 export type PartialWithType<T extends { __typename: string }> = Partial<T> & { __typename: T["__typename"] };
-
+export type PartialArrayWithType<T extends { __typename: string }[]> = Array<PartialWithType<T[number]>>;
+export type PartialOrArrayWithType<T> = T extends { __typename: string }[] ?
+    PartialArrayWithType<T> :
+    T extends { __typename: string } ?
+    PartialWithType<T> :
+    never;
 export interface SvgProps {
     fill?: string;
     iconTitle?: string;

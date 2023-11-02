@@ -142,6 +142,11 @@ export function SearchList<DataType extends ListObject>({
         // Determine object from selected label
         const selectedItem = allData.find(o => (o as any)?.id === newValue?.id);
         if (!selectedItem) return;
+        // If in selection mode, toggle selection instead of navigating
+        if (isSelecting) {
+            typeof handleToggleSelect === "function" && handleToggleSelect(selectedItem);
+            return;
+        }
         // If onItemClick is supplied, call it instead of navigating
         if (typeof onItemClick === "function") {
             onItemClick(selectedItem);
@@ -154,7 +159,7 @@ export function SearchList<DataType extends ListObject>({
         }
         // Navigate to the object's page
         openObject(selectedItem as NavigableObject, setLocation);
-    }, [allData, canNavigate, onItemClick, setLocation]);
+    }, [allData, canNavigate, handleToggleSelect, isSelecting, onItemClick, setLocation]);
 
     return (
         <>

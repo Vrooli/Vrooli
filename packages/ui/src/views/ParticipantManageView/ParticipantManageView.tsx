@@ -1,4 +1,3 @@
-import { GqlModelType, User } from "@local/shared";
 import { ChatInviteStatus, DUMMY_ID, GqlModelType, noop, User } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -15,7 +14,8 @@ import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
-import { ChatInviteUpsert, NewChatInviteShape } from "views/objects/chatInvite";
+import { ChatInviteShape } from "utils/shape/models/chatInvite";
+import { ChatInviteUpsert } from "views/objects/chatInvite";
 import { ParticipantManageViewProps } from "../types";
 
 /**
@@ -75,15 +75,19 @@ export const ParticipantManageView = ({
     }, [currTab.tabType]);
 
     // Handle add/update invite dialog
-    const [invitesToUpsert, setInvitesToUpsert] = useState<NewChatInviteShape[]>([]);
+    const [invitesToUpsert, setInvitesToUpsert] = useState<ChatInviteShape[]>([]);
     const handleInvitesUpdate = useCallback(() => {
         if (currTab.tabType !== ParticipantManagePageTabOption.ChatInvite) return;
-        setInvitesToUpsert(selectedData as NewChatInviteShape[]);
+        setInvitesToUpsert(selectedData as ChatInviteShape[]);
     }, [currTab.tabType, selectedData]);
     const handleInvitesCreate = useCallback(() => {
         if (currTab.tabType !== ParticipantManagePageTabOption.Add) return;
-        const asInvites = (selectedData as User[]).map(user => ({
+        const asInvites: ChatInviteShape[] = (selectedData as User[]).map(user => ({
             __typename: "ChatInvite",
+            id: DUMMY_ID,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            status: ChatInviteStatus.Pending,
             chat: { __typename: "Chat", id: chat.id },
             user,
         } as const));

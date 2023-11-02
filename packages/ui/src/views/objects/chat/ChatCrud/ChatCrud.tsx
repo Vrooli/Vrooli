@@ -2,7 +2,7 @@ import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMes
 import { Box, Checkbox, IconButton, InputAdornment, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { ChatBubble } from "components/ChatBubble/ChatBubble";
+import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -17,7 +17,6 @@ import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ChatFormProps } from "forms/types";
 import { useDeleter } from "hooks/useDeleter";
-import { useDimensions } from "hooks/useDimensions";
 import { useFormDialog } from "hooks/useFormDialog";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
@@ -33,7 +32,7 @@ import { useLocation } from "route";
 import { FormContainer, FormSection, pagePaddingBottom } from "styles";
 import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, getYou, ListObject } from "utils/display/listTools";
+import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { uuidToBase36 } from "utils/navigation/urlTools";
@@ -137,45 +136,6 @@ export const assistantChatInfo: ChatCrudProps["overrideObject"] = {
     }] as unknown as ChatInviteShape[],
 };
 
-const getTypingIndicatorText = (participants: ListObject[], maxChars: number) => {
-    if (participants.length === 0) return "";
-    if (participants.length === 1) return `${getDisplay(participants[0]).title} is typing`;
-    if (participants.length === 2) return `${getDisplay(participants[0]).title}, ${getDisplay(participants[1]).title} are typing`;
-    let text = `${getDisplay(participants[0]).title}, ${getDisplay(participants[1]).title}`;
-    let remainingCount = participants.length - 2;
-    while (remainingCount > 0 && (text.length + getDisplay(participants[remainingCount]).title.length + 5) <= maxChars) {
-        text += `, ${participants[remainingCount]}`;
-        remainingCount--;
-    }
-    if (remainingCount === 0) return `${text} are typing`;
-    return `${text}, +${remainingCount} are typing`;
-};
-
-const TypingIndicator = ({
-    maxChars = 30,
-    participants,
-}: {
-    maxChars?: number,
-    participants: ListObject[]
-}) => {
-    const [dots, setDots] = useState("");
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (dots.length < 3) setDots(dots + ".");
-            else setDots("");
-        }, 500);
-
-        return () => clearInterval(interval);
-    }, [dots]);
-
-    const displayText = getTypingIndicatorText(participants, maxChars);
-
-    if (!displayText) return null;
-
-    return <Typography variant="body2" p={1}>{displayText} {dots}</Typography>;
-};
-
 const ChatForm = ({
     context,
     disabled,
@@ -196,22 +156,20 @@ const ChatForm = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const { dimensions, ref: dimRef } = useDimensions();
 
     const [message, setMessage] = useState<string>(context ?? "");
-    const isCreate = useMemo(() => existing.id === DUMMY_ID, [existing.id]);
-    const [typing, setTyping] = useState<ChatParticipant[]>([]);
+    const isCreate = useMemo(() => !existing.id || existing.id === DUMMY_ID, [existing.id]);
+    const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
 
     usePromptBeforeUnload({ shouldPrompt: message.length > 0 }); //TODO doesn't work when clicking on link - just refresh
 
     // We query messages separate from the chat, since we must traverse the message tree
     const [getPageData, { data: searchTreeData, loading: isSearchTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
-    const [allMessages, setAllMessages] = useState<ChatMessageShape[]>([]);
+    const [allMessages, setAllMessages] = useState<ChatMessageShape[]>(existing.messages ?? []);
     useEffect(() => {
-        console.log("getting page data?", existing.id);
-        if (!existing.id || existing.id === DUMMY_ID) return;
+        if (isCreate) return;
         getPageData({ chatId: existing.id });
-    }, [existing.id, getPageData]);
+    }, [existing.id, isCreate, getPageData]);
     useEffect(() => {
         console.log("got search tree data", searchTreeData);
         if (!searchTreeData || searchTreeData.messages.length === 0) return;
@@ -232,11 +190,6 @@ const ChatForm = ({
             return Object.values(hash);
         });
     }, [searchTreeData]);
-    useEffect(() => {
-        // Build message tree
-        const temp = new MessageTree<ChatMessageShape>(allMessages);
-        console.log("building tree", temp, allMessages);
-    }, [allMessages]);
 
     const {
         fetch,
@@ -263,13 +216,12 @@ const ChatForm = ({
         }
         console.log("onsubmittttt values", updatedChat ?? values);
         console.log("onsubmittttt transformed", JSON.stringify(transformChatValues(updatedChat ?? values, existing, isCreate)));
-        // Filters out messages that aren't yours, except for ones marked as "isUnsent". This 
-        // flag is used both to show messages you sent that haven't been fully sent yet, but also 
-        // initial messages when chatting with a bot (which also haven't been sent yet, as the 
-        // chat is not created until you send the first message)
+        /**
+         * Finds messages that are yours or are unsent (i.e. bot's initial message), 
+         * to make sure you don't attempt to modify other people's messages
+         */
         const withoutOtherMessages = (chat: ChatShape) => ({
             ...chat,
-            // TODO should be using tree instead
             messages: chat.messages.filter(m => m.user?.id === getCurrentUser(session).id || m.isUnsent),
         });
         fetchLazyWrapper<ChatCreateInput | ChatUpdateInput, Chat>({
@@ -277,12 +229,7 @@ const ChatForm = ({
             inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values), withoutOtherMessages(existing), isCreate),
             onSuccess: (data) => {
                 console.log("update success!", data);
-                // Update, but make sure messages are in the correct order
-                handleUpdate({
-                    ...data,
-                    // TODO should be adding messages to tree instead
-                    messages: data.messages?.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) ?? {},
-                });
+                handleUpdate(data);
                 setMessage("");
             },
             onCompleted: () => { props.setSubmitting(false); },
@@ -356,7 +303,7 @@ const ChatForm = ({
         socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
             console.log("chat room GOT TYPING", starting, stopping);
             // Add every user that's typing
-            const newTyping = [...typing];
+            const newTyping = [...usersTyping];
             for (const id of starting ?? []) {
                 // Never add yourself
                 if (id === getCurrentUser(session).id) continue;
@@ -371,14 +318,14 @@ const ChatForm = ({
                 if (index === -1) continue;
                 newTyping.splice(index, 1);
             }
-            setTyping(newTyping);
+            setUsersTyping(newTyping);
         });
         return () => {
             // Remove chat-specific event handlers
             socket.off("message");
             socket.off("typing");
         };
-    }, [existing.participants, handleUpdate, message, session, typing]);
+    }, [existing.participants, handleUpdate, message, session, usersTyping]);
 
     // Handle translations
     const {
@@ -427,11 +374,7 @@ const ChatForm = ({
             },
         } as any;
         console.log("updating messages", values.messages, newMessage);
-        onSubmit({
-            ...values,
-            //TODO chat tree
-            messages: [...values.messages, newMessage],
-        });
+        onSubmit({ ...values, messages: [...values.messages, newMessage] });
     }, [existing.id, language, onSubmit, session, values]);
 
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
@@ -476,15 +419,18 @@ const ChatForm = ({
                     paper: { minWidth: "100vw" },
                 }}
             >
-                <Box sx={{
+                <Box ref={formRef} sx={{
                     display: "flex",
                     flexDirection: "column",
-                    maxHeight: "100vh",
-                    height: "100vh",
                     overflow: "hidden",
+                    ...(display === "page" && {
+                        maxHeight: "100vh",
+                        height: "100vh",
+                    }),
                 }}>
                     <TopBar
                         display={display}
+                        onClose={handleClose}
                         startComponent={<IconButton
                             aria-label="Open chat menu"
                             onClick={openSideMenu}
@@ -558,14 +504,6 @@ const ChatForm = ({
                                                     <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
                                                 </Stack>
                                                 <Stack direction="row" spacing={0}>
-                                                    {/* Enable/disable */}
-                                                    {/* <Checkbox
-                                        id="open-to-anyone"
-                                        size="small"
-                                        name='openToAnyoneWithInvite'
-                                        color='secondary'
-            
-                                    /> */}
                                                     <Field
                                                         name="openToAnyoneWithInvite"
                                                         type="checkbox"
@@ -606,7 +544,7 @@ const ChatForm = ({
                             )}
                         />}
                     />
-                    <Box ref={dimRef} sx={{
+                    <Box sx={{
                         display: "flex",
                         flexDirection: "column",
                         flexGrow: 1,
@@ -614,37 +552,48 @@ const ChatForm = ({
                         overflowY: "auto",
                         width: "min(700px, 100%)",
                     }}>
-                        {/* {existing.messages.map((message: ChatMessageShape, index) => { */}
-                        {allMessages.map((message: ChatMessageShape, index) => {
-                            const isOwn = message.user?.id === getCurrentUser(session).id;
-                            return <ChatBubble
-                                key={index}
-                                chatWidth={dimensions.width}
-                                message={message}
-                                index={index}
-                                isOwn={isOwn}
-                                onDeleted={(deletedMessage) => {
-                                    handleUpdate(c => ({
-                                        ...c,
-                                        // TODO should be deleting messages in tree instead
-                                        messages: c.messages.filter(m => m.id !== deletedMessage.id),
-                                    }));
-                                }}
-                                onUpdated={(updatedMessage) => {
-                                    handleUpdate(c => ({
-                                        ...c,
-                                        // TODO should be updating messages in tree instead
-                                        messages: updateArray(
-                                            c.messages,
-                                            c.messages.findIndex(m => m.id === updatedMessage.id),
-                                            updatedMessage,
-                                        ),
-                                    }));
-                                }}
-                            />;
-                        })}
-                        <TypingIndicator participants={typing} />
+                        <ChatBubbleTree
+                            allMessages={allMessages}
+                            chatId={existing.id}
+                            usersTyping={usersTyping}
+                        />
+                        {/* <Box sx={{ minHeight: "min(400px, 33vh)" }}>
+                            {allMessages.map((message: ChatMessageShape, index) => {
+                                const isOwn = message.user?.id === getCurrentUser(session).id;
+                                return <ChatBubble
+                                    key={index}
+                                    chatWidth={dimensions.width}
+                                    message={message}
+                                    index={index}
+                                    isOwn={isOwn}
+                                    onDeleted={(deletedMessage) => {
+                                        handleUpdate(c => ({
+                                            ...c,
+                                            // TODO should be deleting messages in tree instead
+                                            messages: c.messages.filter(m => m.id !== deletedMessage.id),
+                                        }));
+                                    }}
+                                    onUpdated={(updatedMessage) => {
+                                        handleUpdate(c => ({
+                                            ...c,
+                                            // TODO should be updating messages in tree instead
+                                            messages: updateArray(
+                                                c.messages,
+                                                c.messages.findIndex(m => m.id === updatedMessage.id),
+                                                updatedMessage,
+                                            ),
+                                        }));
+                                    }}
+                                />;
+                            })}
+                            <TypingIndicator participants={typing} />
+                        </Box> */}
                     </Box>
+                    {/* If it's a new chat and the participants contain a bot, then add a warning that you are talking to a bot */}
+                    {isCreate &&
+                        (existing.participants?.some(p => p.user.isBot) || existing.invites?.some(i => i.user.id === VALYXA_ID)) &&
+                        <Typography variant="body2" p={1} sx={{ margin: "auto", maxWidth: "min(700px, 100%)" }}>{t("BotChatWarning")}</Typography>
+                    }
                     <RichInputBase
                         actionButtons={[{
                             Icon: SendIcon,
@@ -683,7 +632,7 @@ const ChatForm = ({
                                 maxHeight: "min(50vh, 500px)",
                                 width: "min(700px, 100%)",
                                 margin: "auto",
-                                marginBottom: { xs: pagePaddingBottom, md: "0" },
+                                marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
                             },
                             bar: { borderRadius: 0 },
                             textArea: { paddingRight: 4, border: "none" },

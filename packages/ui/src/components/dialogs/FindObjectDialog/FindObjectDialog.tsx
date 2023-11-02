@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { removeSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
-import { getDisplay } from "utils/display/listTools";
+import { getDisplay, ListObject } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { CalendarPageTabOption, findObjectTabParams, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
@@ -48,23 +48,25 @@ export type FindObjectTabOption = "All" |
     CalendarPageTabOption | `${CalendarPageTabOption}` |
     "ApiVersion" | "NoteVersion" | "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "StandardVersion";
 
+type UpsertView = (props: UpsertProps<ListObject>) => JSX.Element;
+
 /**
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
  */
-const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Element } = {
-    Api: ApiUpsert,
-    FocusMode: FocusModeUpsert,
-    Meeting: MeetingUpsert,
-    Note: NoteCrud,
-    Organization: OrganizationUpsert,
-    Project: ProjectUpsert,
-    Question: QuestionUpsert,
-    Routine: RoutineUpsert,
-    RunProject: RunProjectUpsert,
-    RunRoutine: RunRoutineUpsert,
-    SmartContract: SmartContractUpsert,
-    Standard: StandardUpsert,
-    User: BotUpsert,
+const createMap: { [K in CreateViewTypes]: UpsertView } = {
+    Api: ApiUpsert as UpsertView,
+    FocusMode: FocusModeUpsert as UpsertView,
+    Meeting: MeetingUpsert as UpsertView,
+    Note: NoteCrud as UpsertView,
+    Organization: OrganizationUpsert as UpsertView,
+    Project: ProjectUpsert as UpsertView,
+    Question: QuestionUpsert as UpsertView,
+    Routine: RoutineUpsert as UpsertView,
+    RunProject: RunProjectUpsert as UpsertView,
+    RunRoutine: RunRoutineUpsert as UpsertView,
+    SmartContract: SmartContractUpsert as UpsertView,
+    Standard: StandardUpsert as UpsertView,
+    User: BotUpsert as UpsertView,
 };
 
 const searchTitleId = "search-vrooli-for-link-title";
