@@ -16,7 +16,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { NoteFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useFormDialog } from "hooks/useConfirmBeforeLeave";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
@@ -204,7 +204,6 @@ const NoteForm = ({
                     DialogContentForm={() => (
                         <>
                             <BaseForm
-                                dirty={dirty}
                                 display="dialog"
                                 style={{
                                     width: "min(700px, 100vw)",
@@ -246,10 +245,8 @@ const NoteForm = ({
                 />}
             />
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
-                ref={formRef}
                 style={{
                     width: "min(800px, 100vw)",
                     height: "100%",
@@ -297,7 +294,7 @@ const NoteForm = ({
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 hideButtons={disabled}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
+                loading={isLoading}
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}

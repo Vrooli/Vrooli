@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, bookmarkListValidation, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPutBookmarkList, Session, uuid } from "@local/shared";
+import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, bookmarkListValidation, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPutBookmarkList, noopSubmit, Session, uuid } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemText, Stack, TextField, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -8,13 +8,13 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { BookmarkListFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { AddIcon, DeleteIcon } from "icons";
-import { forwardRef, useCallback, useContext, useRef, useState } from "react";
+import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
 import { getDisplay } from "utils/display/listTools";
@@ -46,17 +46,22 @@ const validateBookmarkListValues = async (values: BookmarkListShape, existing: B
     return result;
 };
 
-const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkListFormProps>(({
-    display,
+const BookmarkListForm = ({
+    disabled,
     dirty,
+    existing,
+    handleUpdate,
     isCreate,
-    isLoading,
     isOpen,
+    isReadLoading,
     onCancel,
+    onCompleted,
+    onDeleted,
     values,
     ...props
-}, ref) => {
+}: BookmarkListFormProps) => {
     const { palette } = useTheme();
+    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     const [idField, , idHelpers] = useField<string>("id");
@@ -89,8 +94,52 @@ const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkListFormPro
         }
     }, [addNewBookmark]);
 
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput>({
+        display,
+        endpointCreate: endpointPostBookmarkList,
+        endpointUpdate: endpointPutBookmarkList,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
+    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useCallback(() => {
+        if (disabled) {
+            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            return;
+        }
+        if (!isCreate && !existing) {
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<BookmarkListCreateInput | BookmarkListUpdateInput, BookmarkList>({
+            fetch,
+            inputs: transformBookmarkListValues(values, existing, isCreate),
+            onSuccess: (data) => { handleCompleted(data); },
+            onCompleted: () => { props.setSubmitting(false); },
+        });
+    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
+
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="bookmark-list-upsert-dialog"
+            isOpen={isOpen}
+            onClose={handleClose}
+        >
+            <TopBar
+                display={display}
+                onClose={handleClose}
+                title={t(isCreate ? "CreateBookmarkList" : "UpdateBookmarkList")}
+            />
             <FindObjectDialog
                 find="List"
                 isOpen={searchOpen}
@@ -98,11 +147,9 @@ const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkListFormPro
                 handleComplete={closeSearch}
             />
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
-                ref={ref}
             >
                 <Stack direction="column" spacing={2} m={2} mb={4}>
                     <Box mb={2} mt={2}>
@@ -173,91 +220,50 @@ const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkListFormPro
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={props.errors}
+                errors={props.errors as any}
+                hideButtons={disabled}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
+                loading={isLoading}
+                onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
+                onSubmit={onSubmit}
             />
-        </>
+        </MaybeLargeDialog>
     );
-});
+};
 
 export const BookmarkListUpsert = ({
     isCreate,
     isOpen,
-    onCancel,
-    onCompleted,
     overrideObject,
+    ...props
 }: BookmarkListUpsertProps) => {
-    const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<BookmarkList, BookmarkListShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<BookmarkList, BookmarkListShape>({
         ...endpointGetBookmarkList,
         objectType: "BookmarkList",
         overrideObject,
         transform: (data) => bookmarkListInitialValues(session, data),
     });
 
-    const {
-        fetch,
-        handleCancel,
-        handleCompleted,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertActions<BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput>({
-        display,
-        endpointCreate: endpointPostBookmarkList,
-        endpointUpdate: endpointPutBookmarkList,
-        isCreate,
-        onCancel,
-        onCompleted,
-    });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
-
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="bookmark-list-upsert-dialog"
-            isOpen={isOpen}
-            onClose={handleClose}
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateBookmarkListValues(values, existing, isCreate)}
         >
-            <TopBar
-                display={display}
-                onClose={handleClose}
-                title={t(isCreate ? "CreateBookmarkList" : "UpdateBookmarkList")}
-            />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<BookmarkListCreateInput | BookmarkListUpdateInput, BookmarkList>({
-                        fetch,
-                        inputs: transformBookmarkListValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateBookmarkListValues(values, existing, isCreate)}
-            >
-                {(formik) => <BookmarkListForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    {...formik}
-                />}
-            </Formik>
-        </MaybeLargeDialog>
+            {(formik) => <BookmarkListForm
+                disabled={false}
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

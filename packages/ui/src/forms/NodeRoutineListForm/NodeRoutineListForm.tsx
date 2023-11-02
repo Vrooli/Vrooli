@@ -86,10 +86,8 @@ export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRouti
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={"dialog"}
                 isLoading={isLoading}
-                ref={ref}
                 maxWidth={500}
             >
                 <FormContainer>

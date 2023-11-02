@@ -87,7 +87,6 @@ const SignupForm = () => {
                 validationSchema={emailSignUpFormValidation}
             >
                 {(formik) => <BaseForm
-                    dirty={formik.dirty}
                     display={"dialog"}
                     isLoading={loading}
                     style={{

@@ -191,8 +191,10 @@ export const endpoints = {
         return {
             findOne: toQuery("meetingInvite", "FindByIdInput", meetingInvitePartial, "full"),
             findMany: toQuery("meetingInvites", "MeetingInviteSearchInput", ...(await toSearch(meetingInvitePartial))),
-            create: toMutation("meetingInviteCreate", "MeetingInviteCreateInput", meetingInvitePartial, "full"),
-            update: toMutation("meetingInviteUpdate", "MeetingInviteUpdateInput", meetingInvitePartial, "full"),
+            createOne: toMutation("meetingInviteCreate", "MeetingInviteCreateInput", meetingInvitePartial, "full"),
+            createMany: toMutation("meetingInvitesCreate", "[MeetingInviteCreateInput!]", meetingInvitePartial, "full"),
+            updateOne: toMutation("meetingInviteUpdate", "MeetingInviteUpdateInput", meetingInvitePartial, "full"),
+            updateMany: toMutation("meetingInvitesUpdate", "[MeetingInviteUpdateInput!]", meetingInvitePartial, "full"),
             accept: toMutation("meetingInviteAccept", "FindByIdInput", meetingInvitePartial, "full"),
             decline: toMutation("meetingInviteDecline", "FindByIdInput", meetingInvitePartial, "full"),
         };
@@ -210,8 +212,10 @@ export const endpoints = {
         return {
             findOne: toQuery("memberInvite", "FindByIdInput", memberInvitePartial, "full"),
             findMany: toQuery("memberInvites", "MemberInviteSearchInput", ...(await toSearch(memberInvitePartial))),
-            create: toMutation("memberInviteCreate", "MemberInviteCreateInput", memberInvitePartial, "full"),
-            update: toMutation("memberInviteUpdate", "MemberInviteUpdateInput", memberInvitePartial, "full"),
+            createOne: toMutation("memberInviteCreate", "MemberInviteCreateInput", memberInvitePartial, "full"),
+            createMany: toMutation("memberInvitesCreate", "[MemberInviteCreateInput!]", memberInvitePartial, "full"),
+            updateOne: toMutation("memberInviteUpdate", "MemberInviteUpdateInput", memberInvitePartial, "full"),
+            updateMany: toMutation("memberInvitesUpdate", "[MemberInviteUpdateInput!]", memberInvitePartial, "full"),
             accept: toMutation("memberInviteAccept", "FindByIdInput", memberInvitePartial, "full"),
             decline: toMutation("memberInviteDecline", "FindByIdInput", memberInvitePartial, "full"),
         };

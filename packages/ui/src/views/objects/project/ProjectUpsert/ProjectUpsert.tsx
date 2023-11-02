@@ -14,7 +14,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ProjectFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useFormDialog } from "hooks/useConfirmBeforeLeave";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -119,11 +119,9 @@ const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>(({
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
-                ref={ref}
             >
                 <FormContainer>
                     <RelationshipList

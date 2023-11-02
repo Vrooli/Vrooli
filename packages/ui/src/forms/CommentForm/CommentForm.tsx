@@ -68,10 +68,8 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
-                ref={ref}
                 style={{ paddingBottom: 0 }}
             >
                 <TranslatedRichInput

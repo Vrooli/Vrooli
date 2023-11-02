@@ -71,6 +71,7 @@ export const useUpsertActions = <
                 break;
             case ObjectDialogAction.Cancel:
             case ObjectDialogAction.Close:
+                localStorage.removeItem("blockNavigation");
                 if (display === "page") {
                     if (!viewUrl && hasPreviousPage) window.history.back();
                     else setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });

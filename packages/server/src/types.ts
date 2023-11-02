@@ -101,11 +101,10 @@ export type FindManyResult<T> = {
     edges: Array<{ cursor: string, node: RecursivePartial<T> }>
 }
 
-/** Return type of create one mutations */
 export type CreateOneResult<T> = FindOneResult<T>
-
-/** Return type of update one mutations */
+export type CreateManyResult<T> = FindOneResult<T>[]
 export type UpdateOneResult<T> = FindOneResult<T>
+export type UpdateManyResult<T> = FindOneResult<T>[]
 
 export type GQLEndpoint<T, U> = (parent: undefined, data: IWrap<T>, context: Context, info: GraphQLResolveInfo) => Promise<U>;
 

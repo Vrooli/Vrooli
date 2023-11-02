@@ -61,10 +61,8 @@ export const CommentDialog = ({
                 titleId={titleId}
             />
             <BaseForm
-                dirty={dirty}
                 display="dialog"
                 isLoading={isLoading}
-                ref={ref}
                 style={{
                     width: "min(700px, 100vw)",
                     paddingBottom: 0,

@@ -8,7 +8,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeEndFormProps, NodeWithEndShape } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useFormDialog } from "hooks/useConfirmBeforeLeave";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { forwardRef, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -87,11 +87,9 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={500}
-                ref={ref}
             >
                 <FormContainer>
                     <EditableTextCollapse

@@ -61,7 +61,16 @@ export default function useLocation(): UseLocationResult {
     //
     // the function reference should stay the same between re-renders, so that
     // it can be passed down as an element prop without any performance concerns.
-    const setLocation = useCallback((to: string, { replace = false, searchParams = {} } = {}) => {
+    const setLocation = useCallback((to: string, { replace = false, searchParams = {}, bypassBlock = false } = {}) => {
+        const blockNavigation = localStorage.getItem("blockNavigation");
+        console.log("navigationblockprovider doing setlocation", blockNavigation, bypassBlock);
+        if (typeof blockNavigation === "string" && blockNavigation === "true" && !bypassBlock) {
+            if (window.confirm("You have unsaved changes. Are you sure you want to leave?")) {
+                localStorage.removeItem("blockNavigation");
+            } else {
+                return; // prevent navigation
+            }
+        }
         // Get last path and search params from sessionStorage
         const lastPath = sessionStorage.getItem("currentPath");
         const lastSearchParams = sessionStorage.getItem("currentSearchParams");

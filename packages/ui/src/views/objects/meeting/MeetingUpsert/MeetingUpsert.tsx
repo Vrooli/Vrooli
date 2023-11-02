@@ -5,7 +5,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { MeetingForm, meetingInitialValues, transformMeetingValues, validateMeetingValues } from "forms/MeetingForm/MeetingForm";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useFormDialog } from "hooks/useConfirmBeforeLeave";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useContext } from "react";

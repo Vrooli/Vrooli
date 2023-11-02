@@ -95,11 +95,9 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
             />
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
-                ref={ref}
             >
                 <Stack direction="column" spacing={4} padding={2}>
                     {/* TODO */}

@@ -53,7 +53,6 @@ const SettingsProfileForm = ({
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={600}

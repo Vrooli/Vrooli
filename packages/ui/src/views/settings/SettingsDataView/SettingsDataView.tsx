@@ -58,7 +58,6 @@ const SettingsDataForm = ({
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 style={{ margin: "auto" }}

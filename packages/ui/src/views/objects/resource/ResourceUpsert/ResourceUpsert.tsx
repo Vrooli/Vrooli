@@ -1,4 +1,4 @@
-import { CommonKey, DUMMY_ID, endpointGetResource, endpointPostResource, endpointPutResource, orDefault, Resource, ResourceCreateInput, ResourceListFor, ResourceUpdateInput, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
+import { CommonKey, DUMMY_ID, endpointGetResource, endpointPostResource, endpointPutResource, noopSubmit, orDefault, Resource, ResourceCreateInput, ResourceListFor, ResourceUpdateInput, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
 import { Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -10,15 +10,16 @@ import { TranslatedTextField } from "components/inputs/TranslatedTextField/Trans
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ResourceFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { forwardRef, useCallback, useContext } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
+import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
@@ -84,19 +85,24 @@ export const validateResourceValues = async (values: ResourceShape, existing: Re
     return result;
 };
 
-export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProps>(({
-    display,
+export const ResourceForm = ({
+    disabled,
     dirty,
+    existing,
+    handleUpdate,
     isCreate,
-    isLoading,
+    isMutate,
     isOpen,
+    isReadLoading,
     onCancel,
+    onCompleted,
+    onDeleted,
     values,
     ...props
-}, ref) => {
+}: ResourceFormProps) => {
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
     const { t } = useTranslation();
-    console.log("resource form", isCreate, values);
 
     // Handle translations
     const {
@@ -123,14 +129,65 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
         if (currDescription.length === 0) helpers.setValue(field.value.map((t) => t.language === language ? { ...t, description: subtitle } : t));
     }, [field, helpers, language]);
 
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Resource, ResourceCreateInput, ResourceUpdateInput>({
+        display,
+        endpointCreate: endpointPostResource,
+        endpointUpdate: endpointPutResource,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
+    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useCallback(() => {
+        if (disabled) {
+            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            return;
+        }
+        if (!isCreate && !existing) {
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+        if (isMutate) {
+            fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
+                fetch,
+                inputs: transformResourceValues(values, existing, isCreate),
+                onSuccess: (data) => { handleCompleted(data); },
+                onCompleted: () => { props.setSubmitting(false); },
+            });
+        } else {
+            handleCompleted({
+                ...values,
+                created_at: (existing as Resource)?.created_at ?? new Date().toISOString(),
+                updated_at: (existing as Resource)?.updated_at ?? new Date().toISOString(),
+            } as Resource);
+        }
+    }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, props, values]);
+
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="resource-upsert-dialog"
+            isOpen={isOpen}
+            onClose={handleClose}
+        >
+            <TopBar
+                display={display}
+                onClose={handleClose}
+                title={isCreate ? t("CreateResource") : t("UpdateResource")}
+                help={t("ResourceHelp")}
+            />
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={500}
-                ref={ref}
             >
                 <Stack direction="column" spacing={2} padding={2}>
                     {/* Language select */}
@@ -170,101 +227,52 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
             <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                hideButtons={disabled}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
+                loading={isLoading}
+                onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
+                onSubmit={onSubmit}
             />
-        </>
+        </MaybeLargeDialog>
     );
-});
+};
 
 export const ResourceUpsert = ({
     isCreate,
     isMutate,
     isOpen,
-    onCancel,
-    onCompleted,
     overrideObject,
+    ...props
 }: ResourceUpsertProps) => {
     const session = useContext(SessionContext);
-    const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Resource, ResourceShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Resource, ResourceShape>({
         ...endpointGetResource,
         objectType: "Resource",
         overrideObject: overrideObject as Resource,
         transform: (existing) => resourceInitialValues(session, existing as NewResourceShape),
     });
-
-    const {
-        fetch,
-        handleCancel,
-        handleCompleted,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertActions<Resource, ResourceCreateInput, ResourceUpdateInput>({
-        display,
-        endpointCreate: endpointPostResource,
-        endpointUpdate: endpointPutResource,
-        isCreate,
-        onCancel,
-        onCompleted,
-    });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="resource-upsert-dialog"
-            isOpen={isOpen}
-            onClose={handleClose}
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateResourceValues(values, existing, isCreate)}
         >
-            <TopBar
-                display={display}
-                onClose={handleClose}
-                title={isCreate ? t("CreateResource") : t("UpdateResource")}
-                help={t("ResourceHelp")}
-            />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    console.log("creating resource", values, transformResourceValues(values, existing, isCreate));
-                    if (isMutate) {
-                        fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
-                            fetch,
-                            inputs: transformResourceValues(values, existing, isCreate),
-                            onSuccess: (data) => { handleCompleted(data); },
-                            onCompleted: () => { helpers.setSubmitting(false); },
-                        });
-                    } else {
-                        handleCompleted({
-                            ...values,
-                            created_at: (existing as Resource)?.created_at ?? new Date().toISOString(),
-                            updated_at: (existing as Resource)?.updated_at ?? new Date().toISOString(),
-                        } as Resource);
-                    }
-                }}
-                validate={async (values) => await validateResourceValues(values, existing, isCreate)}
-            >
-                {(formik) => <ResourceForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    {...formik}
-                />}
-            </Formik>
-        </MaybeLargeDialog>
+            {(formik) => <ResourceForm
+                disabled={!(isCreate || canUpdate)}
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isMutate={isMutate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

@@ -16,7 +16,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useFormDialog } from "hooks/useConfirmBeforeLeave";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTabs } from "hooks/useTabs";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -103,11 +103,9 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
-                ref={ref}
             >
                 <Stack direction="column" spacing={4} padding={2}>
                     {canSetScheduleFor && <RelationshipList

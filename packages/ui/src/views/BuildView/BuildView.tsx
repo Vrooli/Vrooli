@@ -14,8 +14,8 @@ import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeR
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { NodeWithRoutineListShape } from "forms/types";
+import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useHotkeys } from "hooks/useHotkeys";
-import { usePromptBeforeUnload } from "hooks/usePromptBeforeUnload";
 import { useStableObject } from "hooks/useStableObject";
 import { CloseIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -129,7 +129,7 @@ export const BuildView = ({
         { keys: ["z"], ctrlKey: true, callback: undo },
     ]);
 
-    usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
+    useConfirmBeforeLeave({ shouldPrompt: isEditing && changeStack.length > 1 });
 
     /** Updates a node's data */
     const handleNodeUpdate = useCallback((node: Node) => {

@@ -12,7 +12,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ReminderFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -130,7 +130,7 @@ const ReminderForm = ({
         onCompleted,
         onDeleted,
     });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
 
     const onSubmit = useCallback(() => {
         if (disabled) {
@@ -241,11 +241,9 @@ const ReminderForm = ({
             />
             <DragDropContext onDragEnd={onDragEnd}>
                 <BaseForm
-                    dirty={dirty}
                     display={display}
                     isLoading={isLoading}
                     maxWidth={700}
-                    ref={formRef}
                 >
                     <FormContainer>
                         <RelationshipList

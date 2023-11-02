@@ -16,12 +16,11 @@ import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ChatFormProps } from "forms/types";
+import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useDeleter } from "hooks/useDeleter";
-import { useFormDialog } from "hooks/useFormDialog";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
-import { usePromptBeforeUnload } from "hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { TFunction } from "i18next";
@@ -161,8 +160,6 @@ const ChatForm = ({
     const isCreate = useMemo(() => !existing.id || existing.id === DUMMY_ID, [existing.id]);
     const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
 
-    usePromptBeforeUnload({ shouldPrompt: message.length > 0 }); //TODO doesn't work when clicking on link - just refresh
-
     // We query messages separate from the chat, since we must traverse the message tree
     const [getPageData, { data: searchTreeData, loading: isSearchTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
     const [allMessages, setAllMessages] = useState<ChatMessageShape[]>(existing.messages ?? []);
@@ -205,7 +202,7 @@ const ChatForm = ({
         onCompleted,
         onDeleted,
     });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: message.length > 0 });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isSearchTreeLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, isSearchTreeLoading, props.isSubmitting]);
 
@@ -419,7 +416,7 @@ const ChatForm = ({
                     paper: { minWidth: "100vw" },
                 }}
             >
-                <Box ref={formRef} sx={{
+                <Box sx={{
                     display: "flex",
                     flexDirection: "column",
                     overflow: "hidden",
@@ -458,7 +455,6 @@ const ChatForm = ({
                             DialogContentForm={() => (
                                 <>
                                     <BaseForm
-                                        dirty={dirty}
                                         display="dialog"
                                         maxWidth={600}
                                         style={{

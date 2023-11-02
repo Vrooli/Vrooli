@@ -1,4 +1,4 @@
-import { InputType, NoteVersion, Reminder } from "@local/shared";
+import { BookmarkList, ChatInvite, InputType, MemberInvite, NodeRoutineListItem, NoteVersion, OrArray, Reminder, Report, Resource, User } from "@local/shared";
 import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, ReactNode, SetStateAction } from "react";
@@ -41,14 +41,11 @@ import { ViewDisplayType } from "views/types";
 //==============================================================
 export interface BaseFormProps {
     children: ReactNode;
-    dirty?: boolean;
     display: ViewDisplayType;
     enableReinitialize?: boolean;
     isLoading?: boolean;
     maxWidth?: number;
     onClose?: () => unknown;
-    promptBeforeUnload?: boolean;
-    ref?: any;
     style?: { [x: string]: string | number | null };
     validationSchema?: any;
 }
@@ -63,7 +60,7 @@ export interface BaseObjectFormProps<T> extends FormikProps<T> {
     ref: React.RefObject<any>;
 }
 
-export interface ImprovedFormProps<Model extends ListObject, ModelShape> extends Omit<CrudProps<Model>, "isLoading">, FormikProps<ModelShape> {
+export interface ImprovedFormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> extends Omit<CrudProps<Model>, "isLoading">, FormikProps<ModelShape> {
     disabled: boolean;
     existing: ModelShape;
     handleUpdate: Dispatch<SetStateAction<ModelShape>>;
@@ -78,14 +75,14 @@ export interface BaseGeneratedFormProps {
 export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
     versions: string[];
 }
-export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
-export type BotFormProps = BaseObjectFormProps<BotShape>
+export type BookmarkListFormProps = ImprovedFormProps<BookmarkList, BookmarkListShape>
+export type BotFormProps = ImprovedFormProps<User, BotShape>
 export type ChatFormProps = ImprovedFormProps<ChatShape, ChatShape> & {
     context?: string | null | undefined;
     task?: AssistantTask;
 }
 /** Unlike other forms, this one does multiple invites at once */
-export type ChatInviteFormProps = BaseObjectFormProps<ChatInviteShape[]>
+export type ChatInviteFormProps = ImprovedFormProps<ChatInvite[], ChatInviteShape[]>
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
 export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };
@@ -97,7 +94,7 @@ export interface NodeRoutineListFormProps extends BaseObjectFormProps<NodeWithRo
 }
 export type FocusModeFormProps = BaseObjectFormProps<FocusModeShape>
 export type MeetingFormProps = BaseObjectFormProps<MeetingShape>
-export type MemberInviteFormProps = BaseObjectFormProps<MemberInviteShape>
+export type MemberInviteFormProps = ImprovedFormProps<MemberInvite[], MemberInviteShape[]>
 export type NoteFormProps = ImprovedFormProps<NoteVersion, NoteVersionShape>
 export type OrganizationFormProps = BaseObjectFormProps<OrganizationShape>
 export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShape> {
@@ -108,8 +105,10 @@ export interface ReminderFormProps extends ImprovedFormProps<Reminder, ReminderS
     index?: number;
     reminderListId?: string;
 }
-export type ReportFormProps = BaseObjectFormProps<ReportShape>
-export type ResourceFormProps = BaseObjectFormProps<ResourceShape>
+export type ReportFormProps = ImprovedFormProps<Report, ReportShape>
+export type ResourceFormProps = ImprovedFormProps<Resource, ResourceShape> & {
+    isMutate: boolean;
+}
 export interface RoutineFormProps extends BaseObjectFormProps<RoutineVersionShape> {
     isSubroutine: boolean;
     versions: string[];
@@ -129,6 +128,8 @@ export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutin
      * only node-level properties can be updated (e.g. index)
      */
     canUpdateRoutineVersion: boolean;
+    handleReorder: (oldIndex: number, newIndex: number) => unknown;
+    handleUpdate: (updatedSubroutine: NodeRoutineListItem) => unknown;
     handleViewFull: () => void;
     isEditing: boolean;
     /** Number of subroutines in parent routine list */

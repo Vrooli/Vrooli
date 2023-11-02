@@ -48,7 +48,6 @@ const ForgotPasswordForm = ({
                 validationSchema={emailRequestPasswordChangeSchema}
             >
                 {(formik) => <BaseForm
-                    dirty={formik.dirty}
                     display={"dialog"}
                     isLoading={loading}
                     style={{

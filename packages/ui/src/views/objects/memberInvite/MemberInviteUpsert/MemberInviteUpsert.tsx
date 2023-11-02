@@ -1,20 +1,16 @@
-import { DUMMY_ID, endpointGetMemberInvite, endpointPostMemberInvite, endpointPutMemberInvite, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, memberInviteValidation, Session } from "@local/shared";
-import { Checkbox, FormControlLabel, TextField } from "@mui/material";
+import { DUMMY_ID, endpointPostMemberInvites, endpointPutMemberInvites, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, memberInviteValidation, noop, noopSubmit, Session } from "@local/shared";
+import { Box, Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { MemberInviteFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { forwardRef, useContext } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FormContainer } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -43,93 +39,45 @@ const memberInviteInitialValues = (
     },
 });
 
-const transformMemberInviteValues = (values: MemberInviteShape, existing: MemberInviteShape, isCreate: boolean) =>
-    isCreate ? shapeMemberInvite.create(values) : shapeMemberInvite.update(existing, values);
+const transformMemberInviteValues = (values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) =>
+    isCreate ?
+        values.map((value) => shapeMemberInvite.create(value)) :
+        values.map((value, index) => shapeMemberInvite.update(existing[index], value)); // Assumes the dialog doesn't change the order or remove items
 
-const validateMemberInviteValues = async (values: MemberInviteShape, existing: MemberInviteShape, isCreate: boolean) => {
+const validateMemberInviteValues = async (values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) => {
     const transformedValues = transformMemberInviteValues(values, existing, isCreate);
     const validationSchema = memberInviteValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
+    const result = await Promise.all(transformedValues.map(async (value) => await validateAndGetYupErrors(validationSchema, value)));
+
+    // Filter and combine the result into one object with only error results
+    const combinedResult = result.reduce((acc, curr, index) => {
+        if (Object.keys(curr).length > 0) {  // check if the object has any keys (errors)
+            acc[index] = curr;
+        }
+        return acc;
+    }, {} as any);
+
+    return combinedResult;
 };
 
-const MemberInviteForm = forwardRef<BaseFormRef | undefined, MemberInviteFormProps>(({
-    display,
+const MemberInviteForm = ({
+    disabled,
     dirty,
-    isCreate,
-    isLoading,
-    isOpen,
-    onCancel,
-    values,
-    ...props
-}, ref) => {
-    const session = useContext(SessionContext);
-    const { t } = useTranslation();
-
-    return (
-        <>
-            <BaseForm
-                dirty={dirty}
-                display={display}
-                isLoading={isLoading}
-                maxWidth={700}
-                ref={ref}
-            >
-                <FormContainer>
-                    <RelationshipList
-                        isEditing={true}
-                        objectType={"MemberInvite"}
-                    />
-                    <Field
-                        fullWidth
-                        name="message"
-                        label={t("MessageOptional")}
-                        as={TextField}
-                    />
-                    <FormControlLabel
-                        control={<Field
-                            name="willBeAdmin"
-                            type="checkbox"
-                            as={Checkbox}
-                            size="large"
-                            color="secondary"
-                        />}
-                        label="User will be an administrator"
-                    />
-                    {/* TODO willHavePermissions */}
-                </FormContainer>
-            </BaseForm>
-            <BottomActionsButtons
-                display={display}
-                errors={props.errors as any}
-                isCreate={isCreate}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
-                onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
-            />
-        </>
-    );
-});
-
-
-export const MemberInviteUpsert = ({
+    existing,
+    handleUpdate,
     isCreate,
     isOpen,
+    isReadLoading,
     onCancel,
     onCompleted,
-    overrideObject,
-}: MemberInviteUpsertProps) => {
+    onDeleted,
+    values,
+    ...props
+}: MemberInviteFormProps) => {
     const { t } = useTranslation();
-    const session = useContext(SessionContext);
-
     const display = toDisplay(isOpen);
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<MemberInvite, MemberInviteShape>({
-        ...endpointGetMemberInvite,
-        objectType: "MemberInvite",
-        overrideObject: overrideObject as MemberInvite,
-        transform: (existing) => memberInviteInitialValues(session, existing as NewMemberInviteShape),
-    });
+    const { palette } = useTheme();
+    const [message, setMessage] = useState("");
 
     const {
         fetch,
@@ -137,15 +85,33 @@ export const MemberInviteUpsert = ({
         handleCompleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput>({
+    } = useUpsertActions<MemberInvite[], MemberInviteCreateInput[], MemberInviteUpdateInput[]>({
         display,
-        endpointCreate: endpointPostMemberInvite,
-        endpointUpdate: endpointPutMemberInvite,
+        endpointCreate: endpointPostMemberInvites,
+        endpointUpdate: endpointPutMemberInvites,
         isCreate,
         onCancel,
         onCompleted,
     });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useCallback(() => {
+        if (disabled) {
+            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            return;
+        }
+        if (!isCreate && existing.length === 0) {
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<MemberInviteCreateInput[] | MemberInviteUpdateInput[], MemberInvite[]>({
+            fetch,
+            inputs: transformMemberInviteValues(values, existing, isCreate) as MemberInviteCreateInput[] | MemberInviteUpdateInput[],
+            onSuccess: (data) => { handleCompleted(data); },
+            onCompleted: () => { props.setSubmitting(false); },
+        });
+    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
 
     return (
         <MaybeLargeDialog
@@ -157,36 +123,105 @@ export const MemberInviteUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleClose}
-            // title={t(isCreate ? "CreateInvite" : "UpdateInvite")}
+                title={t(isCreate ? "CreateInvites" : "UpdateInvites")}
             />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<MemberInviteCreateInput | MemberInviteUpdateInput, MemberInvite>({
-                        fetch,
-                        inputs: transformMemberInviteValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateMemberInviteValues(values, existing, isCreate)}
-            >
-                {(formik) => <MemberInviteForm
+            <Box sx={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+                overflow: "hidden",
+            }}>
+                <Typography variant="h5" p={2}>{t("InvitesGoingTo")}</Typography>
+                <Box sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    flexGrow: 1,
+                    margin: "auto",
+                    overflowY: "auto",
+                    width: "min(500px, 100vw)",
+                }}>
+                    <ObjectList
+                        loading={false}
+                        items={values}
+                        keyPrefix="invite-list-item"
+                        onAction={noop}
+                        onClick={noop}
+                    />
+                </Box>
+                <FormControlLabel
+                    control={<Field
+                        name="willBeAdmin"
+                        type="checkbox"
+                        as={Checkbox}
+                        size="large"
+                        color="secondary"
+                    />}
+                    label="User will be an administrator"
+                />
+                {/* TODO willHavePermissions */}
+                <Box mt={4}>
+                    <Typography variant="h6" p={2}>{t("MessageOptional")}</Typography>
+                    <RichInputBase
+                        disabled={values.length <= 0}
+                        fullWidth
+                        maxChars={4096}
+                        minRows={1}
+                        onChange={setMessage}
+                        name="message"
+                        sxs={{
+                            root: {
+                                background: palette.primary.main,
+                                color: palette.primary.contrastText,
+                                paddingBottom: 2,
+                                maxHeight: "min(50vh, 500px)",
+                                width: "-webkit-fill-available",
+                                margin: "0",
+                            },
+                            bar: { borderRadius: 0 },
+                            textArea: { paddingRight: 4, border: "none" },
+                        }}
+                        value={message}
+                    />
+                </Box>
+                <BottomActionsButtons
                     display={display}
+                    errors={props.errors as any}
+                    hideButtons={disabled}
                     isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
+                    loading={isLoading}
                     onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    {...formik}
-                />}
-            </Formik>
+                    onSetSubmitting={props.setSubmitting}
+                    onSubmit={onSubmit}
+                />
+            </Box>
         </MaybeLargeDialog>
+    );
+};
+
+export const MemberInviteUpsert = ({
+    invites,
+    isCreate,
+    isOpen,
+    ...props
+}: MemberInviteUpsertProps) => {
+
+    return (
+        <Formik
+            enableReinitialize={true}
+            initialValues={invites}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateMemberInviteValues(values, invites, isCreate)}
+        >
+            {(formik) => <MemberInviteForm
+                disabled={false}
+                existing={invites}
+                handleUpdate={() => { }}
+                isCreate={isCreate}
+                isReadLoading={false}
+                isOpen={isOpen}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

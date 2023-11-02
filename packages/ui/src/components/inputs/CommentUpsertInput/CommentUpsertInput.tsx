@@ -5,7 +5,7 @@ import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { CommentForm, commentInitialValues, transformCommentValues, validateCommentValues } from "forms/CommentForm/CommentForm";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useFormDialog } from "hooks/useConfirmBeforeLeave";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useWindowSize } from "hooks/useWindowSize";
 import { useContext, useMemo } from "react";

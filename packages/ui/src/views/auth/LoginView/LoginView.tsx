@@ -120,7 +120,6 @@ const LoginForm = ({
                 validationSchema={emailLogInFormValidation}
             >
                 {(formik) => <BaseForm
-                    dirty={formik.dirty}
                     display={"dialog"}
                     isLoading={loading}
                     style={{

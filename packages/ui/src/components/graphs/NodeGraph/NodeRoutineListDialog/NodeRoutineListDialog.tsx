@@ -3,7 +3,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { NodeRoutineListForm, nodeRoutineListInitialValues, validateNodeRoutineListValues } from "forms/NodeRoutineListForm/NodeRoutineListForm";
-import { useFormDialog } from "hooks/useFormDialog";
+import { useFormDialog } from "hooks/useConfirmBeforeLeave";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { NodeRoutineListDialogProps } from "../types";

@@ -66,7 +66,6 @@ const ResetPasswordForm = ({
                 validationSchema={emailResetPasswordSchema}
             >
                 {(formik) => <BaseForm
-                    dirty={formik.dirty}
                     display={"dialog"}
                     isLoading={loading}
                     style={{

@@ -38,7 +38,6 @@ const SettingsDisplayForm = ({
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
             >

@@ -260,7 +260,7 @@ export interface LargeDialogProps {
     children: ReactNode;
     id: string;
     isOpen: boolean;
-    onClose: () => unknown;
+    onClose: (_event: unknown, reason: "backdropClick" | "escapeKeyDown") => unknown;
     titleId?: string;
     sxs?: { paper?: SxType; }
 }

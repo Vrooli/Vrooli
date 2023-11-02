@@ -82,7 +82,9 @@ export const typeDef = gql`
 
     extend type Mutation {
         memberInviteCreate(input: MemberInviteCreateInput!): MemberInvite!
+        memberInvitesCreate(input: [MemberInviteCreateInput!]!): [MemberInvite!]!
         memberInviteUpdate(input: MemberInviteUpdateInput!): MemberInvite!
+        memberInvitesUpdate(input: [MemberInviteUpdateInput!]!): [MemberInvite!]!
         memberInviteAccept(input: FindByIdInput!): MemberInvite!
         memberInviteDecline(input: FindByIdInput!): MemberInvite!
     }
