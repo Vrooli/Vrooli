@@ -63,7 +63,7 @@ const SettingsDisplayForm = ({
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={props.errors as any}
+                errors={props.errors}
                 isCreate={false}
                 loading={props.isSubmitting}
                 onCancel={onCancel}

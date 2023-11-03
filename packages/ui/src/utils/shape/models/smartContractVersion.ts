@@ -13,7 +13,7 @@ export type SmartContractVersionShape = Pick<SmartContractVersion, "id" | "conte
     __typename: "SmartContractVersion";
     directoryListings?: ProjectVersionDirectoryShape[] | null;
     resourceList?: ResourceListShape | null;
-    root?: { id: string } | SmartContractShape | null;
+    root?: { __typename: "SmartContract", id: string } | SmartContractShape | null;
     suggestedNextBySmartContract?: { id: string }[] | null;
     translations?: SmartContractVersionTranslationShape[] | null;
 }

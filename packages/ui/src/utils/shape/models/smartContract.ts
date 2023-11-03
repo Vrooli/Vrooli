@@ -7,7 +7,7 @@ import { createOwner, createPrims, createRel, createVersion, shapeUpdate, update
 import { OwnerShape } from "./types";
 
 export type SmartContractShape = Pick<SmartContract, "id" | "isPrivate"> & {
-    __typename?: "SmartContract";
+    __typename: "SmartContract";
     labels?: ({ id: string } | LabelShape)[];
     owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
