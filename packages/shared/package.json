@@ -15,6 +15,8 @@
     },
     "dependencies": {
         "i18next": "^22.4.10",
+        "moment": "^2.29.4",
+        "moment-timezone": "^0.5.43",
         "uuid": "^9.0.0",
         "xmlbuilder2": "^3.0.2",
         "yup": "^0.32.9"
