@@ -2068,6 +2068,7 @@ model schedule_recurrence {
     dayOfMonth     Int?
     month          Int?
     endDate        DateTime?
+    duration       Int?
 }
 
 model smart_contract {
