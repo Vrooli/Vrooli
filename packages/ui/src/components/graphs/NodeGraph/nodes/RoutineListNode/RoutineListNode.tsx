@@ -10,6 +10,7 @@ import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
+import { NodeWithRoutineListCrud } from "views/objects/node/NodeWithRoutineListCrud/NodeWithRoutineListCrud";
 import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
 import { routineNodeActionStyle, routineNodeCheckboxOption } from "../styles";
@@ -98,10 +99,13 @@ export const RoutineListNode = ({
         });
     }, [handleUpdate, isEditing, node]);
 
-    const onEdit = useCallback(() => {
-        if (!isEditing) return;
-        handleAction(BuildAction.OpenRoutine, node.id);
-    }, [handleAction, isEditing, node.id]);
+    const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
+    const openEditDialog = useCallback(() => {
+        if (isLinked) {
+            setEditDialogOpen(!editDialogOpen);
+        }
+    }, [isLinked, editDialogOpen]);
+    const closeEditDialog = useCallback(() => { setEditDialogOpen(false); }, []);
 
     const handleSubroutineAction = useCallback((
         action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine,
@@ -139,7 +143,7 @@ export const RoutineListNode = ({
     const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 1.5em)`, [scale]);
     const addSize = useMemo(() => `max(min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 4}px, 48px), 24px)`, [scale]);
 
-    const confirmDelete = useCallback((event: any) => {
+    const confirmDelete = useCallback(() => {
         PubSub.get().publishAlertDialog({
             messageKey: "WhatWouldYouLikeToDo",
             buttons: [
@@ -188,8 +192,8 @@ export const RoutineListNode = ({
             </Tooltip>
             {isEditing && <Tooltip placement={"top"} title={t("NodeRoutineListInfo")}>
                 <Box
-                    onClick={() => { onEdit(); }}
-                    onTouchStart={() => { onEdit(); }}
+                    onClick={() => { openEditDialog(); }}
+                    onTouchStart={() => { openEditDialog(); }}
                     sx={routineNodeActionStyle(isEditing)}
                 >
                     <IconButton
@@ -209,7 +213,7 @@ export const RoutineListNode = ({
                 </Box>
             </Tooltip>}
         </Collapse>
-    ), [collapseOpen, palette.mode, palette.background.textPrimary, t, isEditing, node.routineList.isOrdered, node.routineList.isOptional, scale, label, onOrderedChange, onOptionalChange, onEdit]);
+    ), [collapseOpen, palette.mode, palette.background.textPrimary, t, isEditing, node.routineList.isOrdered, node.routineList.isOptional, scale, label, onOrderedChange, onOptionalChange, openEditDialog]);
 
     /** 
      * Subroutines, sorted from lowest to highest index
@@ -267,7 +271,7 @@ export const RoutineListNode = ({
     ) : null, [addSize, handleSubroutineAdd, isEditing]);
 
     // Right click context menu
-    const [contextAnchor, setContextAnchor] = useState<any>(null);
+    const [contextAnchor, setContextAnchor] = useState<any | null>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((target: EventTarget) => {
@@ -284,12 +288,23 @@ export const RoutineListNode = ({
 
     return (
         <>
+            {/* Right-click context menu */}
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
                 availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id); }}
+            />
+            {/* Normal-click menu */}
+            <NodeWithRoutineListCrud
+                onCancel={closeEditDialog}
+                onClose={closeEditDialog}
+                onCompleted={handleUpdate}
+                isEditing={isEditing}
+                isOpen={editDialogOpen}
+                language={language}
+                overrideObject={node}
             />
             <DraggableNode
                 className="handle"
@@ -357,8 +372,8 @@ export const RoutineListNode = ({
                                     ...(!collapseOpen ? multiLineEllipsis(1) : multiLineEllipsis(4)),
                                     textAlign: "center",
                                     width: "100%",
-                                    lineBreak: "anywhere" as any,
-                                    whiteSpace: "pre" as any,
+                                    lineBreak: "anywhere" as const,
+                                    whiteSpace: "pre" as const,
                                     fontSize,
                                     display: scale < -2 ? "none" : "block",
                                     "@media print": {

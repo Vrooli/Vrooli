@@ -1,5 +1,5 @@
 import { MemberInvite } from "@local/shared";
-import { Checkbox, FormControlLabel, Stack, useTheme } from "@mui/material";
+import { Checkbox, FormControlLabel, Stack } from "@mui/material";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -7,10 +7,9 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { Field } from "formik";
 import { useTabs } from "hooks/useTabs";
 import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
 import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
-import { MemberInviteUpsert } from "views/objects/memberInvite";
+import { MemberInvitesUpsert } from "views/objects/memberInvite";
 import { MemberManageViewProps } from "../types";
 
 /**
@@ -22,8 +21,6 @@ export const MemberManageView = ({
     isOpen,
 }: MemberManageViewProps) => {
     console.log("in MemberManageView", organization);
-    const { palette } = useTheme();
-    const { t } = useTranslation();
     const display = toDisplay(isOpen);
 
     const {
@@ -65,7 +62,7 @@ export const MemberManageView = ({
             }}
         >
             {/* Dialog for creating new member invite */}
-            <MemberInviteUpsert
+            <MemberInvitesUpsert
                 isCreate={true}
                 isOpen={isInviteDialogOpen}
                 onCompleted={onInviteCompleted}

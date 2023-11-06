@@ -117,7 +117,7 @@ const AdvancedSearchDialog = ({
                                 fullWidth
                                 startIcon={<SearchIcon />}
                                 type="submit"
-                                onClick={formik.handleSubmit as (() => void)}
+                                onClick={() => { formik.handleSubmit(); }}
                                 variant="contained"
                             >{t("Search")}</Button>
                         </Grid>

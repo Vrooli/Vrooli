@@ -1,10 +1,6 @@
 import { Form } from "formik";
 import { BaseFormProps } from "forms/types";
 
-export type BaseFormRef = {
-    handleClose: (onClose: () => void, closeAnyway?: boolean) => void
-}
-
 export const BaseForm = ({
     children,
     display,

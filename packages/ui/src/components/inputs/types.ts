@@ -1,4 +1,4 @@
-import { Comment, CommentFor, ResourceListFor, StandardVersion, Tag } from "@local/shared";
+import { ResourceListFor, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
@@ -17,17 +17,6 @@ export interface CharLimitIndicatorProps {
 export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
     label: string;
 };
-
-export interface CommentUpsertInputProps {
-    comment: Comment | undefined;
-    isOpen: boolean;
-    language: string;
-    objectId: string;
-    objectType: CommentFor;
-    onCancel: () => unknown;
-    onCompleted: (comment: Comment) => unknown;
-    parent: Comment | null;
-}
 
 export interface CodeInputBaseProps {
     defaultValue?: string;

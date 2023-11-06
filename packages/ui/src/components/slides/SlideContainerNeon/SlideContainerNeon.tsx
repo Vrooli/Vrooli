@@ -458,7 +458,7 @@ class ParticleCanvas {
         delay_after: number;
         last_changed_time: number;
     };
-    resizeListener: (() => void) | undefined;
+    resizeListener: (() => unknown) | undefined;
     tid: NodeJS.Timeout | number | undefined;
     constructor(canvasRef: HTMLCanvasElement | null) {
         this.c = {

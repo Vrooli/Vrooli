@@ -1,3 +1,4 @@
+import { noop } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
@@ -48,7 +49,7 @@ const ToolButton = forwardRef(({
     icon: React.ReactNode,
     isActive?: boolean,
     label: string,
-    onClick: (event: React.MouseEvent<HTMLElement>) => void,
+    onClick: (event: React.MouseEvent<HTMLElement>) => unknown,
     palette: Palette,
 }, ref: React.Ref<HTMLButtonElement>) => (
     <Tooltip title={label}>
@@ -166,8 +167,7 @@ const TablePopover = ({ isOpen, anchorEl, onClose, handleTableInsert, palette, t
                                     onMouseEnter={canHover ? () => {
                                         setHoveredRow(rowIndex + 1);
                                         setHoveredCol(colIndex + 1);
-                                        // eslint-disable-next-line @typescript-eslint/no-empty-function
-                                    } : () => { }}
+                                    } : noop}
                                     onClick={() => {
                                         setHoveredRow(rowIndex + 1);
                                         setHoveredCol(colIndex + 1);

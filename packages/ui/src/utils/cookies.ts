@@ -26,6 +26,7 @@ export const Cookies = {
     ShowMarkdown: "showMarkdown",
     SideMenuState: "sideMenuState",
     ChatMessageTree: "chatMessageTree",
+    FormData: "formData",
 };
 export type Cookies = ValueOf<typeof Cookies>;
 
@@ -182,6 +183,83 @@ export const getCookieLastTab = <T>(id: string, fallback?: T): T | undefined => 
 }, fallback);
 export const setCookieLastTab = <T>(id: string, tabType: T) => ifAllowed("functional", () => setCookie(`${Cookies.LastTab}-${id}`, tabType));
 
+
+
+
+
+/** Represents the stored values for a particular form identified by objectType and objectId */
+type FormCacheEntry = {
+    [key: string]: any; // This would be the form data
+}
+
+type FormCache = {
+    formData: { [formId: string]: FormCacheEntry };
+    order: string[]; // Order of formIds in cache, for FIFO
+};
+
+const MAX_FORM_CACHE_SIZE = 100; // You can set this to an appropriate limit
+
+/** Get the form data cache */
+const getFormDataCache = (): FormCache => getOrSetCookie(
+    Cookies.FormData,
+    (value: unknown): value is FormCache =>
+        typeof value === "object" &&
+        typeof (value as Partial<FormCache>)?.formData === "object" &&
+        Array.isArray((value as Partial<FormCache>)?.order),
+    {
+        formData: {},
+        order: [],
+    }, // Default value
+) as FormCache;
+
+export const getCookieFormData = (formId: string): FormCacheEntry | undefined =>
+    ifAllowed("functional", () => {
+        const cache = getFormDataCache();
+        return cache.formData[formId];
+    });
+
+export const setCookieFormData = (formId: string, data: FormCacheEntry) => ifAllowed("functional", () => {
+    const cache = getFormDataCache();
+
+    // If formId already exists, remove from order for reinsertion at end
+    const existingIndex = cache.order.indexOf(formId);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+    }
+
+    // If cache is full, remove the oldest form data
+    if (cache.order.length >= MAX_FORM_CACHE_SIZE) {
+        const oldestFormId = cache.order.shift();
+        if (oldestFormId) {
+            delete cache.formData[oldestFormId];
+        }
+    }
+
+    // Store the new/updated form data and update order
+    cache.formData[formId] = data;
+    cache.order.push(formId);
+
+    setCookie(Cookies.FormData, cache);
+});
+
+export const removeCookieFormData = (formId: string) => ifAllowed("functional", () => {
+    const cache = getFormDataCache();
+
+    // Remove form data from cache
+    const existingIndex = cache.order.indexOf(formId);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+        delete cache.formData[formId];
+
+        setCookie(Cookies.FormData, cache);
+    }
+});
+
+
+
+
+
+
 /** A chat message ID and which way it branches */
 export type ChatMessageBranch = {
     messageId: string;
@@ -242,6 +320,11 @@ export const setCookieMessageTree = (chatId: string, data: ChatMessageTreeCookie
 
     setCookie(Cookies.ChatMessageTree, cache);
 });
+
+
+
+
+
 
 /** Supports ID data from URL params, as well as partial object */
 export type CookiePartialData = {
@@ -375,4 +458,21 @@ export const setCookiePartialData = (partialData: CookiePartialData, dataType: D
 
         setCookie(Cookies.PartialData, cache);
     });
+});
+export const removeCookiePartialData = (partialData: CookiePartialData) => ifAllowed("functional", () => {
+    // Get the cache
+    const cache = getCache();
+    // Create a key that includes every identifier for the object
+    const key = `${partialData.id}|${partialData.handle}|${partialData.root?.id}|${partialData.root?.handle}`;
+    // Remove the object from the cache
+    delete cache.idMap[partialData.id || ""];
+    delete cache.handleMap[partialData.handle || ""];
+    delete cache.idRootMap[partialData.root?.id || ""];
+    delete cache.handleRootMap[partialData.root?.handle || ""];
+    // Remove the key from the order array
+    const existingIndex = cache.order.indexOf(key);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+    }
+    setCookie(Cookies.PartialData, cache);
 });

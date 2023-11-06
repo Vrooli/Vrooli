@@ -1,6 +1,6 @@
 import { Box, Button, IconButton, Palette, Typography, useTheme } from "@mui/material";
 import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SvgComponent } from "types";
 import { BasicSnackProps } from "../types";
 
@@ -56,7 +56,7 @@ export const BasicSnack = ({
 
     // Timout to close the snack, if not persistent
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const startAutoHideTimeout = () => {
+    const startAutoHideTimeout = useCallback(() => {
         // Certain snack types require manual closing
         if (autoHideDuration === "persist") return;
         timeoutRef.current = setTimeout(() => {
@@ -67,7 +67,7 @@ export const BasicSnack = ({
                 handleClose();
             }, 400);
         }, autoHideDuration ?? 5000);
-    };
+    }, [autoHideDuration, handleClose]);
     // Start close timeout automatically
     useEffect(() => {
         startAutoHideTimeout();

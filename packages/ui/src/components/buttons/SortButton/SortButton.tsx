@@ -16,7 +16,7 @@ const SortMenu = ({
 }: {
     sortOptions: LabelledSortOption<string>[];
     anchorEl: HTMLElement | null;
-    onClose: (label?: string, value?: string) => void;
+    onClose: (label?: string, value?: string) => unknown;
 }) => {
     const { t } = useTranslation();
     const open = Boolean(anchorEl);

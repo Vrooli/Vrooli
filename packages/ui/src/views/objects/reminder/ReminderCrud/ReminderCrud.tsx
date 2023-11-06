@@ -1,6 +1,6 @@
 import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, noopSubmit, Reminder, ReminderCreateInput, ReminderUpdateInput, reminderValidation, Session, Success, uuid } from "@local/shared";
 import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { DateInput } from "components/inputs/DateInput/DateInput";
@@ -11,11 +11,11 @@ import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ReminderFormProps } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, DragIcon, ListNumberIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
@@ -25,11 +25,10 @@ import { getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
-import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
 import { ReminderItemShape } from "utils/shape/models/reminderItem";
-import { ReminderCrudProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues";
+import { ReminderCrudProps, ReminderFormProps } from "../types";
 
 export type NewReminderShape = Partial<Omit<Reminder, "reminderList">> & { reminderList: Partial<Reminder["reminderList"]> & { id: string } };
 
@@ -84,13 +83,6 @@ const reminderInitialValues = (
 const transformReminderValues = (values: ReminderShape, existing: ReminderShape, isCreate: boolean) =>
     isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
 
-const validateReminderValues = async (values: ReminderShape, existing: ReminderShape, isCreate: boolean) => {
-    const transformedValues = transformReminderValues(values, existing, isCreate);
-    const validationSchema = reminderValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
 const ReminderForm = ({
     disabled,
     dirty,
@@ -100,52 +92,44 @@ const ReminderForm = ({
     isCreate,
     isOpen,
     isReadLoading,
-    onCancel,
-    onCompleted,
-    onDeleted,
+    onClose,
     reminderListId,
     values,
     ...props
 }: ReminderFormProps) => {
-    const session = useContext(SessionContext);
     const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
+    const { handleCancel, handleCreated, handleCompleted, handleDeleted } = useUpsertActions<Reminder>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "Reminder",
+        ...props,
+    });
     const {
         fetch,
         fetchCreate,
-        handleCancel,
-        handleCreated,
-        handleCompleted,
-        handleDeleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<Reminder, ReminderCreateInput, ReminderUpdateInput>({
-        display,
+    } = useUpsertFetch<Reminder, ReminderCreateInput, ReminderUpdateInput>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostReminder,
         endpointUpdate: endpointPutReminder,
-        isCreate,
-        onCancel,
-        onCompleted,
-        onDeleted,
     });
-    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Reminder" });
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        console.log("onsubmit values", values);
-        console.log("onsubmit transformed", transformReminderValues(values, existing, isCreate));
-        fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
-            fetch,
-            inputs: transformReminderValues(values, existing, isCreate),
-            onSuccess: (data) => { handleCompleted(data); handleUpdate(reminderInitialValues(session, data)); },
-            onCompleted: () => { props.setSubmitting(false); },
-        });
-    }, [disabled, existing, fetch, handleCompleted, handleUpdate, isCreate, props, session, values]);
+    const onSubmit = useSubmitHelper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformReminderValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
@@ -226,11 +210,11 @@ const ReminderForm = ({
             display={display}
             id="reminder-crud-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 title={firstString(getDisplay(values).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
                 // Show delete button only when updating
                 options={!isCreate ? [{
@@ -366,9 +350,9 @@ const ReminderForm = ({
             </DragDropContext>
             <BottomActionsButtons
                 display={display}
-                errors={props.errors as any}
+                errors={props.errors}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
+                loading={isLoading}
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
@@ -387,6 +371,7 @@ export const ReminderCrud = ({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Reminder, ReminderShape>({
         ...endpointGetReminder,
+        isCreate,
         objectType: "Reminder",
         overrideObject: overrideObject as Reminder,
         transform: (existing) => reminderInitialValues(session, existing),
@@ -397,7 +382,7 @@ export const ReminderCrud = ({
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateReminderValues(values, existing, isCreate)}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformReminderValues, reminderValidation)}
         >
             {(formik) => <ReminderForm
                 disabled={false} // Can always update reminders

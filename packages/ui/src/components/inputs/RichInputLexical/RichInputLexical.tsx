@@ -312,7 +312,7 @@ export function $createSpoilerNode(): SpoilerNode {
 const SPOILER_COMMAND: LexicalCommand<void> = createCommand("FORMAT_TEXT_COMMAND");
 
 /** Register commands for custom components (i.e. spoiler) */
-const registerCustomCommands = (editor: LexicalEditor): (() => void) => {
+const registerCustomCommands = (editor: LexicalEditor): (() => unknown) => {
     const removeListener = mergeRegister(
         editor.registerCommand<void>(
             SPOILER_COMMAND,

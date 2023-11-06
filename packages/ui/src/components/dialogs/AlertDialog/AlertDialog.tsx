@@ -9,7 +9,7 @@ import { DialogTitle } from "../DialogTitle/DialogTitle";
 
 interface StateButton {
     label: string;
-    onClick?: (() => void);
+    onClick?: (() => unknown);
 }
 
 export interface AlertDialogState {
@@ -48,7 +48,7 @@ export const AlertDialog = () => {
         return () => { PubSub.get().unsubscribe(dialogSub); };
     }, [t]);
 
-    const handleClick = useCallback((event: any, action: ((e?: any) => void) | null | undefined) => {
+    const handleClick = useCallback((event: any, action: ((e?: unknown) => unknown) | null | undefined) => {
         if (action) action(event);
         setOpen(false);
     }, []);

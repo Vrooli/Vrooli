@@ -2,7 +2,6 @@ import { IconButton, Slider, SliderThumb, useTheme } from "@mui/material";
 import { useThrottle } from "hooks/useThrottle";
 import { AddIcon, CaseSensitiveIcon, MinusIcon } from "icons";
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 import { getCookieFontSize } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 
@@ -24,7 +23,6 @@ const ThumbComponent = (props: React.HTMLAttributes<unknown>) => {
  */
 export const TextSizeButtons = () => {
     const { palette } = useTheme();
-    const { t } = useTranslation();
 
     const [size, setSize] = useState<number>(getCookieFontSize(14));
 
@@ -35,8 +33,12 @@ export const TextSizeButtons = () => {
         }
     };
 
-    const handleSliderChangeThrottled = useThrottle((event: Event, newValue: number | number[]) => {
-        handleSliderChange(newValue as number);
+    const handleSliderChangeThrottled = useThrottle<[Event, number | number[]]>((event, newValue) => {
+        handleSliderChange(Array.isArray(newValue) ?
+            newValue.length > 0 ?
+                newValue[0] :
+                size : // If array was empty (shouldn't ever occur), fallback to the current size
+            newValue);
     }, 50);
 
     return (

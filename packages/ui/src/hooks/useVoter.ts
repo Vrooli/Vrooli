@@ -8,7 +8,7 @@ import { useLazyFetch } from "./useLazyFetch";
 type UseVoterProps = {
     objectId: string | null | undefined;
     objectType: `${GqlModelType}`
-    onActionComplete: (action: ObjectActionComplete.VoteDown | ObjectActionComplete.VoteUp, data: Success) => void;
+    onActionComplete: (action: ObjectActionComplete.VoteDown | ObjectActionComplete.VoteUp, data: Success) => unknown;
 }
 
 /**

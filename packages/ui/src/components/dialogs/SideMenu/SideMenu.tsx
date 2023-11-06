@@ -21,6 +21,7 @@ import { useLocation } from "route";
 import { noSelect } from "styles";
 import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { Cookies } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getUserActions, NavAction, NAV_ACTION_TAGS } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
@@ -158,7 +159,10 @@ export const SideMenu = () => {
             fetch: logOut,
             inputs: { id: user.id },
             successMessage: () => ({ messageKey: "LoggedOutOf", messageVariables: { name: user.name ?? user.handle ?? "" } }),
-            onSuccess: (data) => { PubSub.get().publishSession(data); },
+            onSuccess: (data) => {
+                localStorage.removeItem(Cookies.FormData); // Clear old form data cache
+                PubSub.get().publishSession(data);
+            },
             // If error, log out anyway
             onError: () => { PubSub.get().publishSession(guestSession); },
         });

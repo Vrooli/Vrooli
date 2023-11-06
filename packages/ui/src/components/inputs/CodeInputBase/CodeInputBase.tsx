@@ -546,7 +546,7 @@ export const CodeInputBase = ({
     type Action = {
         label: string,
         Icon: SvgComponent,
-        onClick: () => void,
+        onClick: () => unknown,
     }
     const actions = useMemo(() => {
         const actions: Action[] = [];

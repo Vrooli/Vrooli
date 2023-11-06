@@ -4,7 +4,6 @@
 import { Comment, CommentThread as ThreadType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { Button, Palette, Stack, useTheme } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
-import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
 import { CommentThread } from "components/lists/comment";
 import { useFindMany } from "hooks/useFindMany";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -12,6 +11,7 @@ import { CreateIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { scrollIntoFocusedView } from "utils/display/scroll";
+import { CommentUpsert } from "views/objects/comment";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { CommentContainerProps } from "../types";
 
@@ -98,13 +98,13 @@ export function CommentContainer({
     return (
         <ContentCollapse isOpen={isOpen} title={`Comments (${allData.length})`}>
             {/* Add comment */}
-            <CommentUpsertInput
-                comment={undefined}
+            <CommentUpsert
                 isOpen={isAddCommentOpen}
                 language={language}
                 objectId={objectId}
                 objectType={objectType}
                 onCancel={handleAddCommentClose}
+                onClose={handleAddCommentClose}
                 onCompleted={onCommentAdd}
                 parent={null} // parent is the thread. This is a top-level comment, so no parent
             />

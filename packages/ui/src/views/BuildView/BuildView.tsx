@@ -1,4 +1,4 @@
-import { exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
+import { DUMMY_ID, exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { BuildEditButtons } from "components/buttons/BuildEditButtons/BuildEditButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -10,19 +10,20 @@ import { LinkDialog } from "components/dialogs/LinkDialog/LinkDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SubroutineInfoDialog } from "components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog";
 import { SubroutineInfoDialogProps } from "components/dialogs/types";
-import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeRoutineListDialog } from "components/graphs/NodeGraph";
+import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from "components/graphs/NodeGraph";
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { SessionContext } from "contexts/SessionContext";
 import { NodeWithRoutineListShape } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useStableObject } from "hooks/useStableObject";
 import { CloseIcon } from "icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
 import { BuildAction, Status } from "utils/consts";
 import { toDisplay } from "utils/display/pageTools";
+import { getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
@@ -60,6 +61,7 @@ export const BuildView = ({
     routineVersion,
     translationData,
 }: BuildViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -225,18 +227,6 @@ export const BuildView = ({
         setOpenedSubroutine(null);
     }, []);
 
-    // Routine list info dialog
-    const [openedRoutineList, setOpenedRoutineList] = useState<NodeWithRoutineListShape | null>(null);
-    const handleRoutineListOpen = useCallback((nodeId: string) => {
-        const node = nodesById[nodeId];
-        if (node && node.routineList) setOpenedRoutineList(node as NodeWithRoutineListShape);
-    }, [nodesById]);
-    const closeRoutineListDialog = useCallback((updatedNode?: NodeWithRoutineListShape) => {
-        console.log("close routine list dialog", updatedNode);
-        if (updatedNode) handleNodeUpdate(updatedNode as Node);
-        setOpenedRoutineList(null);
-    }, [handleNodeUpdate]);
-
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const [linkDialogFrom, setLinkDialogFrom] = useState<Node | null>(null);
     const [linkDialogTo, setLinkDialogTo] = useState<Node | null>(null);
@@ -366,19 +356,22 @@ export const BuildView = ({
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNodeId = uuid();
         const newNode: Omit<NodeShape, "routineVersion"> = {
+            __typename: "Node" as const,
             id: newNodeId,
             nodeType: NodeType.RoutineList,
             rowIndex,
             columnIndex,
             routineList: {
+                __typename: "NodeRoutineList" as const,
                 id: uuid(),
                 isOrdered: false,
                 isOptional: false,
                 items: [],
-                node: { id: newNodeId },
+                node: { __typename: "Node" as const, id: newNodeId },
             },
             // Generate unique placeholder name
             translations: [{
+                __typename: "NodeTranslation" as const,
                 id: uuid(),
                 language: translationData.language,
                 name: `Node ${(changedRoutineVersion.nodes?.length ?? 0) - 1}`,
@@ -397,17 +390,25 @@ export const BuildView = ({
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNodeId = uuid();
         const newNode: Omit<NodeShape, "routineVersion"> = {
+            __typename: "Node" as const,
             id: newNodeId,
             nodeType: NodeType.End,
             rowIndex,
             columnIndex,
             end: {
+                __typename: "NodeEnd" as const,
                 id: uuid(),
                 node: { id: newNodeId },
                 suggestedNextRoutineVersions: [],
                 wasSuccessful: true,
             },
-            translations: [],
+            translations: [{
+                __typename: "NodeTranslation" as const,
+                id: DUMMY_ID,
+                language: getUserLanguages(session)[0],
+                name: "End",
+                description: "",
+            }],
         };
         return newNode;
     }, [closestOpenPosition]);
@@ -867,9 +868,6 @@ export const BuildView = ({
             case BuildAction.DeleteSubroutine:
                 handleSubroutineDelete(nodeId, subroutineId ?? "");
                 break;
-            case BuildAction.OpenRoutine:
-                handleRoutineListOpen(nodeId);
-                break;
             case BuildAction.EditSubroutine:
                 handleSubroutineOpen(nodeId, subroutineId ?? "");
                 break;
@@ -892,7 +890,7 @@ export const BuildView = ({
                 if (node) setMoveNode(node);
                 break;
         }
-    }, [changedRoutineVersion.nodes, handleNodeDelete, handleSubroutineDelete, handleRoutineListOpen, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
+    }, [changedRoutineVersion.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
 
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
@@ -940,11 +938,13 @@ export const BuildView = ({
                     const rowIndex = (columnIndex >= 0 && columnIndex < columns.length) ? columns[columnIndex].length : 0;
                     const newLink: NodeLink = generateNewLink(node.id, newEndNodeId, changedRoutineVersion.id) as NodeLink;
                     const newEndNode: Omit<NodeShape, "routineVersion"> = {
+                        __typename: "Node" as const,
                         id: newEndNodeId,
                         nodeType: NodeType.End,
                         rowIndex,
                         columnIndex,
                         end: {
+                            __typename: "NodeEnd" as const,
                             id: uuid(),
                             node: { id: newEndNodeId },
                             suggestedNextRoutineVersions: [],
@@ -953,8 +953,8 @@ export const BuildView = ({
                         translations: [],
                     };
                     // Add link and end node to resultRoutine
-                    resultRoutine.nodeLinks.push(newLink as any);
-                    resultRoutine.nodes.push(newEndNode as any);
+                    resultRoutine.nodeLinks.push(newLink);
+                    resultRoutine.nodes.push(newEndNode);
                 }
             }
         }
@@ -1059,14 +1059,6 @@ export const BuildView = ({
                     handleViewFull={handleSubroutineViewFull}
                     open={Boolean(openedSubroutine)}
                     onClose={closeSubroutineDialog}
-                />
-                {/* Displays routine information when you click on a routine list*/}
-                <NodeRoutineListDialog
-                    handleClose={closeRoutineListDialog}
-                    isEditing={isEditing}
-                    isOpen={Boolean(openedRoutineList)}
-                    language={translationData.language}
-                    node={openedRoutineList}
                 />
                 {/* Navbar */}
                 <Stack

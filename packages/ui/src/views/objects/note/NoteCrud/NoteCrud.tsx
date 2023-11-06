@@ -1,6 +1,6 @@
 import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, NoteVersion, NoteVersionCreateInput, noteVersionTranslationValidation, NoteVersionUpdateInput, noteVersionValidation, orDefault, Session, Success } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -15,13 +15,13 @@ import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { NoteFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useConfirmBeforeLeave";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -32,10 +32,11 @@ import { getDisplay, getYou, ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { NoteVersionShape, shapeNoteVersion } from "utils/shape/models/noteVersion";
 import { OwnerShape } from "utils/shape/models/types";
+import { validateFormValues } from "utils/validateFormValues";
 import { NoteCrudProps } from "views/objects/note/types";
+import { NoteFormProps } from "../types";
 
 const noteInitialValues = (
     session: Session | undefined,
@@ -70,16 +71,8 @@ const noteInitialValues = (
     }]),
 });
 
-const transformNoteValues = (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) =>
+const transformNoteVersionValues = (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) =>
     isCreate ? shapeNoteVersion.create(values) : shapeNoteVersion.update(existing, values);
-
-const validateNoteValues = async (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) => {
-    const transformedValues = transformNoteValues(values, existing, isCreate);
-    console.log("validating note value", values, transformedValues);
-    const validationSchema = noteVersionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
 
 const NoteForm = ({
     disabled,
@@ -90,6 +83,7 @@ const NoteForm = ({
     isOpen,
     isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
     onDeleted,
     values,
@@ -101,38 +95,34 @@ const NoteForm = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
+    const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<NoteVersion>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "NoteVersion",
+        ...props,
+    });
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
-        handleDeleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput>({
-        display,
+    } = useUpsertFetch<NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostNoteVersion,
         endpointUpdate: endpointPutNoteVersion,
-        isCreate,
-        onCancel,
-        onCompleted,
-        onDeleted,
     });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "NoteVersion" });
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        console.log("in onSubmit - values: ", values);
-        console.log("in onSubmit - transformNoteValues: ", transformNoteValues(values, existing, isCreate));
-        fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
-            fetch,
-            inputs: transformNoteValues(values, existing, isCreate),
-            onSuccess: (data) => { handleCompleted(data); },
-            onCompleted: () => { props.setSubmitting(false); },
-        });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
+    const onSubmit = useSubmitHelper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformNoteVersionValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     const {
         handleAddLanguage,
@@ -146,7 +136,6 @@ const NoteForm = ({
         fields: ["description", "name", "pages[0].text"],
         validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
-    console.log("noteform", props.errors, translationErrors);
 
     const actionData = useObjectActions({
         object: existing as ListObject,
@@ -179,19 +168,19 @@ const NoteForm = ({
         });
     }, [deleteMutation, values, t, handleDeleted]);
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isDeleteLoading, isUpdateLoading, props.isSubmitting]);
+    const isLoading = useMemo(() => isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     return (
         <MaybeLargeDialog
             display={display}
             id="note-crud-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
             sxs={{ paper: { height: "100%" } }}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 titleComponent={<EditableTitle
                     handleDelete={handleDelete}
                     isDeletable={!(isCreate || disabled)}
@@ -337,19 +326,19 @@ export const NoteCrud = ({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
         ...endpointGetNoteVersion,
+        isCreate,
         objectType: "NoteVersion",
         overrideObject,
         transform: (data) => noteInitialValues(session, data),
     });
     const { canUpdate } = useMemo(() => getYou(existing as ListObject), [existing]);
-    console.log("EXISTING", existing);
 
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateNoteValues(values, existing, isCreate)}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformNoteVersionValues, noteVersionValidation)}
         >
             {(formik) =>
                 <>

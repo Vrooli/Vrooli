@@ -8,7 +8,7 @@ type RequestState<TData> = {
     errors: ServerResponse["errors"] | undefined;
 };
 
-type UseLazyFetchProps<TInput extends Record<string, any> | undefined, TData> = {
+export type UseLazyFetchProps<TInput extends Record<string, any> | undefined, TData> = {
     endpoint?: string | undefined;
     inputs?: TInput;
     method?: Method;

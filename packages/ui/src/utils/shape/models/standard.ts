@@ -8,7 +8,7 @@ import { OwnerShape } from "./types";
 
 
 export type StandardShape = Pick<Standard, "id" | "isInternal" | "isPrivate" | "permissions"> & {
-    __typename?: "Standard";
+    __typename: "Standard";
     parent?: { id: string } | null;
     owner?: OwnerShape | null;
     labels?: ({ id: string } | LabelShape)[] | null;

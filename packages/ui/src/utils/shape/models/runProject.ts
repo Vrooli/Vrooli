@@ -10,7 +10,7 @@ export type RunProjectShape = Pick<RunProject, "id" | "isPrivate" | "completedCo
     __typename: "RunProject";
     steps?: RunProjectStepShape[] | null;
     schedule?: ScheduleShape | null;
-    projectVersion?: { id: string } | ProjectVersionShape | null;
+    projectVersion?: { __typename: "ProjectVersion", id: string } | ProjectVersionShape | null;
     organization?: { id: string } | OrganizationShape | null;
 }
 

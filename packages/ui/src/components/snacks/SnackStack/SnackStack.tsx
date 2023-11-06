@@ -36,7 +36,7 @@ export const SnackStack = () => {
                 const id = o.id ?? uuid();
                 let newSnacks = [...snacks, {
                     autoHideDuration: o.autoHideDuration,
-                    buttonClicked: o.buttonClicked,
+                    buttonClicked: (props) => { o.buttonClicked?.(props); handleClose(id); },
                     buttonText: o.buttonKey ? t(o.buttonKey, { ...o.buttonVariables, defaultValue: o.buttonKey }) : undefined,
                     data: o.data,
                     handleClose: () => handleClose(id),

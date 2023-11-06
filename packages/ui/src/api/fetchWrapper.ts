@@ -1,6 +1,7 @@
 import { CommonKey, ErrorKey, exists } from "@local/shared";
 import { Method, ServerResponse } from "api";
 import { MakeLazyRequest } from "hooks/useLazyFetch";
+import { useCallback } from "react";
 import { PubSub } from "utils/pubsub";
 import { errorToMessage } from "./errorParser";
 import { fetchData } from "./fetchData";
@@ -185,4 +186,30 @@ export const fetchWrapper = <Input extends object | undefined, Output>({
         fetch: (inputs) => fetchData<Input | undefined, Output>({ endpoint, method, inputs }),
         ...rest,
     });
+};
+
+type UseSubmitHelperProps<Input extends object | undefined, Output> = FetchLazyWrapperProps<Input, Output> & {
+    disabled?: boolean,
+    existing?: object,
+    isCreate: boolean,
+}
+
+/** Wraps around fetchLazyWrapper to provide common checks before submitting */
+export const useSubmitHelper = <Input extends object | undefined, Output>({
+    disabled,
+    existing,
+    isCreate,
+    ...props
+}: UseSubmitHelperProps<Input, Output>) => {
+    return useCallback(() => {
+        if (disabled === false) {
+            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            return;
+        }
+        if (!isCreate && (Array.isArray(existing) ? existing.length === 0 : !exists(existing))) {
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<Input, Output>(props);
+    }, [disabled, existing, isCreate, props]);
 };

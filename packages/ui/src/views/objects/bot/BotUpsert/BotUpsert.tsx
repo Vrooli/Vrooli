@@ -1,6 +1,6 @@
 import { BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, noopSubmit, Session, User } from "@local/shared";
 import { InputAdornment, Slider, Stack, TextField, Typography } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
@@ -13,23 +13,22 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { BotFormProps } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon } from "icons";
-import { useCallback, useContext, useMemo } from "react";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { findBotData } from "utils/botUtils";
 import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { BotShape, shapeBot } from "utils/shape/models/bot";
-import { BotUpsertProps } from "../types";
+import { BotFormProps, BotUpsertProps } from "../types";
 
 const botInitialValues = (
     session: Session | undefined,
@@ -70,6 +69,7 @@ const BotForm = ({
     isOpen,
     isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
     onDeleted,
     values,
@@ -96,50 +96,47 @@ const BotForm = ({
         validationSchema: botTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
+    const { handleCancel, handleCompleted } = useUpsertActions<User>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "User",
+        ...props,
+    });
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<User, BotCreateInput, BotUpdateInput>({
-        display,
+    } = useUpsertFetch<User, BotCreateInput, BotUpdateInput>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostBot,
         endpointUpdate: endpointPutBot,
-        isCreate,
-        onCancel,
-        onCompleted,
     });
-    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "User" });
+
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        if (!isCreate && !existing) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-            return;
-        }
-        fetchLazyWrapper<BotCreateInput | BotUpdateInput, User>({
-            fetch,
-            inputs: transformBotValues(session, values, existing, isCreate),
-            onSuccess: (data) => { handleCompleted(data); },
-            onCompleted: () => { props.setSubmitting(false); },
-        });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, session, values]);
+    const onSubmit = useSubmitHelper<BotCreateInput | BotUpdateInput, User>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformBotValues(session, values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="bot-upsert-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 title={t(isCreate ? "CreateBot" : "UpdateBot")}
             />
             <BaseForm
@@ -386,7 +383,7 @@ const BotForm = ({
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={props.errors as any}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 hideButtons={disabled}
                 isCreate={isCreate}
                 loading={isLoading}
@@ -408,6 +405,7 @@ export const BotUpsert = ({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<User, BotShape>({
         ...endpointGetUser,
+        isCreate,
         objectType: "User",
         overrideObject,
         transform: (data) => botInitialValues(session, data),

@@ -1,8 +1,9 @@
-import { Node, NodeEnd, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from "@local/shared";
+import { Node, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from "@local/shared";
 import { BoxProps } from "@mui/material";
 import { MouseEvent, ReactNode } from "react";
 import { BuildAction } from "utils/consts";
 import { NodeShape } from "utils/shape/models/node";
+import { NodeWithEnd } from "views/objects/node/types";
 
 /**
  * Props for all scalable objects
@@ -42,18 +43,18 @@ interface DraggableProps {
  */
 export interface AddNodeProps extends ScaleProps, EditableProps {
     options: NodeType[];
-    onAdd: (nodeType: NodeType) => void;
+    onAdd: (nodeType: NodeType) => unknown;
 }
 
 /**
  * Props for the End node
  */
 export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    handleAction: (action: BuildAction, nodeId: string) => void;
-    handleUpdate: (updatedNode: Node & { end: NodeEnd }) => void;
+    handleAction: (action: BuildAction, nodeId: string) => unknown;
+    handleUpdate: (updatedNode: NodeWithEnd) => unknown;
     language: string;
     linksIn: NodeLink[];
-    node: Node & { end: NodeEnd };
+    node: NodeWithEnd;
 }
 
 /**
@@ -67,7 +68,7 @@ export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps,
  * Props for the Redirect node
  */
 export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    handleAction: (action: BuildAction, nodeId: string) => void;
+    handleAction: (action: BuildAction, nodeId: string) => unknown;
     node: NodeShape;// & { redirect: NodeRedirectShape }; TODO
 }
 
@@ -76,8 +77,8 @@ export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditablePr
  */
 export interface RoutineListNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     canExpand: boolean;
-    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
-    handleUpdate: (updatedNode: Node & { routineList: NodeRoutineList }) => void;
+    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => unknown;
+    handleUpdate: (updatedNode: Node & { routineList: NodeRoutineList }) => unknown;
     language: string;
     linksIn: NodeLink[];
     linksOut: NodeLink[];
@@ -90,8 +91,8 @@ export interface RoutineListNodeProps extends ScaleProps, LabelledProps, Editabl
 export interface SubroutineNodeProps extends ScaleProps, LabelledProps, EditableProps {
     data: NodeRoutineListItem;
     isOpen: boolean;
-    handleAction: (action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine, subroutineId: string) => void;
-    handleUpdate: (subroutineId: string, updatedItem: NodeRoutineListItem) => void;
+    handleAction: (action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine, subroutineId: string) => unknown;
+    handleUpdate: (subroutineId: string, updatedItem: NodeRoutineListItem) => unknown;
     language: string;
 }
 
@@ -99,7 +100,7 @@ export interface SubroutineNodeProps extends ScaleProps, LabelledProps, Editable
  * Props for a Start node
  */
 export interface StartNodeProps extends ScaleProps, LabelledProps, EditableProps {
-    handleAction: (action: BuildAction.AddOutgoingLink, subroutineId: string) => void;
+    handleAction: (action: BuildAction.AddOutgoingLink, subroutineId: string) => unknown;
     linksOut: NodeLink[];
     node: NodeShape;
 }
@@ -111,5 +112,5 @@ export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, "isLi
     /** Threshold for dragging to start */
     dragThreshold?: number;
     /** Callback when the node is clicked, but not dragged */
-    onClick?: (event: MouseEvent) => void;
+    onClick?: (event: MouseEvent) => unknown;
 }

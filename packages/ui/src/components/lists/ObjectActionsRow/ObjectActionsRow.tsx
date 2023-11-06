@@ -86,7 +86,7 @@ export const ObjectActionsRow = <T extends ListObject>({
             );
         }
         return displayedActions;
-    }, [actionData, actionsDisplayed, actionsExtra.length, openOverflowMenu, palette]);
+    }, [actionData, actionsDisplayed, actionsExtra.length, openOverflowMenu, palette, t]);
 
     return (
         <Stack

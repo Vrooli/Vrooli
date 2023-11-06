@@ -56,7 +56,7 @@ export const ChatBubbleTree = ({
 }: {
     allMessages: ChatMessageShape[];
     chatId: string;
-    // handleUpdate: (message: ChatMessageShape) => void;
+    // handleUpdate: (message: ChatMessageShape) => unknown;
     usersTyping: ChatParticipant[];
 }) => {
     const session = useContext(SessionContext);

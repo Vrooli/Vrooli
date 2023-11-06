@@ -38,7 +38,6 @@ export enum BuildAction {
     EditSubroutine = "EditSubroutine",
     DeleteSubroutine = "DeleteSubroutine",
     OpenSubroutine = "OpenSubroutine",
-    OpenRoutine = "OpenRoutine",
     DeleteNode = "DeleteNode",
     UnlinkNode = "UnlinkNode",
     AddEndAfterNode = "AddEndAfterNode",

@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, pagePaddingBottom } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { Cookies } from "utils/cookies";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { SettingsAuthenticationFormProps, SettingsAuthenticationViewProps } from "../types";
@@ -98,7 +99,10 @@ export const SettingsAuthenticationView = ({
         fetchLazyWrapper<LogOutInput, Session>({
             fetch: logOut,
             inputs: { id },
-            onSuccess: (data) => { PubSub.get().publishSession(data); },
+            onSuccess: (data) => {
+                localStorage.removeItem(Cookies.FormData); // Clear old form data cache
+                PubSub.get().publishSession(data);
+            },
             // If error, log out anyway
             onError: () => { PubSub.get().publishSession(guestSession); },
         });

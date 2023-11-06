@@ -1,6 +1,7 @@
 /**
  * Drawer to display the steps of a routine, displayed as a vertical tree
  */
+import { noop } from "@local/shared";
 import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
 import { alpha, Box, Checkbox, IconButton, Palette, styled, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
@@ -19,8 +20,8 @@ interface StyledTreeItemProps {
     isComplete: boolean;
     isSelected: boolean;
     nodeId: string;
-    onLoad?: (ev: React.MouseEvent) => void;
-    onToStep?: (ev: React.MouseEvent) => void;
+    onLoad?: (ev: React.MouseEvent) => unknown;
+    onToStep?: (ev: React.MouseEvent) => unknown;
     palette: Palette;
     type: RoutineStepType | ProjectStepType | "placeholder";
 }
@@ -264,8 +265,7 @@ export const RunStepsDialog = ({
             <SwipeableDrawer
                 anchor="right"
                 open={isOpen}
-                // eslint-disable-next-line @typescript-eslint/no-empty-function
-                onOpen={() => { }}
+                onOpen={noop}
                 onClose={closeDialog}
                 sx={{
                     zIndex,

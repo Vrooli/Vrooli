@@ -1,13 +1,20 @@
 import { useCallback, useRef } from "react";
 
-/** Hook for throttling a function */
-export const useThrottle = <F extends (...args: any[]) => void>(callback: F, delay: number): F => {
-    const lastCallRef = useRef(Date.now());
+/** 
+ * Hook for throttling a function.
+ * Throttling means that the function will only be called once every `delay` milliseconds. 
+ * This is different than debouncing, which means that the function will only be called once
+ * after the last call within `delay` milliseconds.
+ */
+export const useThrottle = <T extends unknown[]>(callback: (...args: T) => unknown, delay: number) => {
+    const lastCallRef = useRef<number>(Date.now());
 
-    return useCallback((...args: Parameters<F>) => {
+    const throttledFunction = useCallback((...args: T) => {
         if (Date.now() - lastCallRef.current >= delay) {
             callback(...args);
             lastCallRef.current = Date.now();
         }
-    }, [callback, delay]) as F;
+    }, [callback, delay]);
+
+    return throttledFunction as ((...args: T) => unknown);
 };

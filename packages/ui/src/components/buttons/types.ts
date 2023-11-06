@@ -2,7 +2,7 @@ import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVe
 import { ButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
-import { NavigableObject, PartialWithType, SvgProps, SxType } from "types";
+import { FormErrors, NavigableObject, PartialWithType, SvgProps, SxType } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
@@ -53,7 +53,7 @@ export interface BottomActionsButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
     display: ViewDisplayType;
-    errors?: { [key: string]: string | string[] | null | undefined };
+    errors?: FormErrors | undefined;
     hideButtons?: boolean;
     /** Hides button text on mobile */
     hideTextOnMobile?: boolean;

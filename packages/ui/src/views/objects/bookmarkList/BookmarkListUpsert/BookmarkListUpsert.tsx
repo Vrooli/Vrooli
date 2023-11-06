@@ -1,6 +1,6 @@
 import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, bookmarkListValidation, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPutBookmarkList, noopSubmit, Session, uuid } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemText, Stack, TextField, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -9,21 +9,20 @@ import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { BookmarkListFormProps } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon } from "icons";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
-import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { BookmarkShape } from "utils/shape/models/bookmark";
 import { BookmarkListShape, shapeBookmarkList } from "utils/shape/models/bookmarkList";
-import { BookmarkListUpsertProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues";
+import { BookmarkListFormProps, BookmarkListUpsertProps } from "../types";
 
 const bookmarkListInitialValues = (
     session: Session | undefined,
@@ -39,13 +38,6 @@ const bookmarkListInitialValues = (
 const transformBookmarkListValues = (values: BookmarkListShape, existing: BookmarkListShape, isCreate: boolean) =>
     isCreate ? shapeBookmarkList.create(values) : shapeBookmarkList.update(existing, values);
 
-const validateBookmarkListValues = async (values: BookmarkListShape, existing: BookmarkListShape, isCreate: boolean) => {
-    const transformedValues = transformBookmarkListValues(values, existing, isCreate);
-    const validationSchema = bookmarkListValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
 const BookmarkListForm = ({
     disabled,
     dirty,
@@ -55,6 +47,7 @@ const BookmarkListForm = ({
     isOpen,
     isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
     onDeleted,
     values,
@@ -64,17 +57,16 @@ const BookmarkListForm = ({
     const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
-    const [idField, , idHelpers] = useField<string>("id");
-    const [bookmarksField, bookmarksMeta, bookmarksHelpers] = useField<BookmarkShape[]>("bookmarks");
+    const [bookmarksField, , bookmarksHelpers] = useField<BookmarkShape[]>("bookmarks");
 
     const addNewBookmark = useCallback((to: BookmarkShape) => {
         bookmarksHelpers.setValue([...bookmarksField.value, {
             __typename: "Bookmark" as const,
             id: uuid(),
             to,
-            list: { __typename: "BookmarkList", id: idField.value },
+            list: { __typename: "BookmarkList", id: values.id },
         } as any]);
-    }, [bookmarksField, bookmarksHelpers, idField]);
+    }, [bookmarksField.value, bookmarksHelpers, values.id]);
 
     const removeBookmark = useCallback((index: number) => {
         const newBookmarks = [...bookmarksField.value];
@@ -94,50 +86,47 @@ const BookmarkListForm = ({
         }
     }, [addNewBookmark]);
 
+    const { handleCancel, handleCompleted } = useUpsertActions<BookmarkList>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "BookmarkList",
+        ...props,
+    });
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput>({
-        display,
+    } = useUpsertFetch<BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostBookmarkList,
         endpointUpdate: endpointPutBookmarkList,
-        isCreate,
-        onCancel,
-        onCompleted,
     });
-    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "BookmarkList" });
+
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        if (!isCreate && !existing) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-            return;
-        }
-        fetchLazyWrapper<BookmarkListCreateInput | BookmarkListUpdateInput, BookmarkList>({
-            fetch,
-            inputs: transformBookmarkListValues(values, existing, isCreate),
-            onSuccess: (data) => { handleCompleted(data); },
-            onCompleted: () => { props.setSubmitting(false); },
-        });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
+    const onSubmit = useSubmitHelper<BookmarkListCreateInput | BookmarkListUpdateInput, BookmarkList>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformBookmarkListValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="bookmark-list-upsert-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 title={t(isCreate ? "CreateBookmarkList" : "UpdateBookmarkList")}
             />
             <FindObjectDialog
@@ -220,7 +209,7 @@ const BookmarkListForm = ({
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={props.errors as any}
+                errors={props.errors}
                 hideButtons={disabled}
                 isCreate={isCreate}
                 loading={isLoading}
@@ -242,6 +231,7 @@ export const BookmarkListUpsert = ({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<BookmarkList, BookmarkListShape>({
         ...endpointGetBookmarkList,
+        isCreate,
         objectType: "BookmarkList",
         overrideObject,
         transform: (data) => bookmarkListInitialValues(session, data),
@@ -252,7 +242,7 @@ export const BookmarkListUpsert = ({
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateBookmarkListValues(values, existing, isCreate)}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformBookmarkListValues, bookmarkListValidation)}
         >
             {(formik) => <BookmarkListForm
                 disabled={false}

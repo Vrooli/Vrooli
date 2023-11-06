@@ -12,7 +12,7 @@ export type NavbarProps = {
     options?: {
         Icon: SvgComponent;
         label: string;
-        onClick: (e?: any) => void;
+        onClick: (e?: any) => unknown;
     }[];
     shouldHideTitle?: boolean;
     startComponent?: JSX.Element;
@@ -27,7 +27,7 @@ export type SettingsTopBarProps = TopBarProps
 
 export interface TopBarProps extends TitleProps {
     display: ViewDisplayType
-    onClose?: () => void,
+    onClose?: () => unknown,
     below?: JSX.Element | boolean
     hideTitleOnDesktop?: boolean,
     startComponent?: JSX.Element;

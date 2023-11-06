@@ -1,22 +1,21 @@
 import { ChatInvite, ChatInviteCreateInput, ChatInviteUpdateInput, chatInviteValidation, endpointPostChatInvites, endpointPutChatInvites, noop, noopSubmit } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
-import { ChatInviteFormProps } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useCallback, useMemo, useState } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { PubSub } from "utils/pubsub";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ChatInviteShape, shapeChatInvite } from "utils/shape/models/chatInvite";
-import { ChatInviteUpsertProps } from "../types";
+import { ChatInvitesFormProps, ChatInvitesUpsertProps } from "../types";
 
 const transformChatInviteValues = (values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) =>
     isCreate ?
@@ -39,7 +38,7 @@ const validateChatInviteValues = async (values: ChatInviteShape[], existing: Cha
     return combinedResult;
 };
 
-const ChatInviteForm = ({
+const ChatInvitesForm = ({
     disabled,
     dirty,
     existing,
@@ -48,60 +47,57 @@ const ChatInviteForm = ({
     isOpen,
     isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
     onDeleted,
     values,
     ...props
-}: ChatInviteFormProps) => {
+}: ChatInvitesFormProps) => {
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const [message, setMessage] = useState("");
 
+    const { handleCancel, handleCompleted } = useUpsertActions<ChatInvite[]>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "ChatInvite",
+        ...props,
+    });
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<ChatInvite[], ChatInviteCreateInput[], ChatInviteUpdateInput[]>({
-        display,
+    } = useUpsertFetch<ChatInvite[], ChatInviteCreateInput[], ChatInviteUpdateInput[]>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostChatInvites,
         endpointUpdate: endpointPutChatInvites,
-        isCreate,
-        onCancel,
-        onCompleted,
     });
-    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ChatInvite" });
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        if (!isCreate && existing.length === 0) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-            return;
-        }
-        fetchLazyWrapper<ChatInviteCreateInput[] | ChatInviteUpdateInput[], ChatInvite[]>({
-            fetch,
-            inputs: transformChatInviteValues(values, existing, isCreate) as ChatInviteCreateInput[] | ChatInviteUpdateInput[],
-            onSuccess: (data) => { handleCompleted(data); },
-            onCompleted: () => { props.setSubmitting(false); },
-        });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
+    const onSubmit = useSubmitHelper<ChatInviteCreateInput[] | ChatInviteUpdateInput[], ChatInvite[]>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformChatInviteValues(values, existing, isCreate) as ChatInviteCreateInput[] | ChatInviteUpdateInput[],
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="chat-invite-upsert-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 title={t(isCreate ? "CreateInvites" : "UpdateInvites")}
             />
             <Box sx={{
@@ -153,7 +149,7 @@ const ChatInviteForm = ({
                 </Box>
                 <BottomActionsButtons
                     display={display}
-                    errors={props.errors as any}
+                    errors={props.errors}
                     hideButtons={disabled}
                     isCreate={isCreate}
                     loading={isLoading}
@@ -166,12 +162,12 @@ const ChatInviteForm = ({
     );
 };
 
-export const ChatInviteUpsert = ({
+export const ChatInvitesUpsert = ({
     invites,
     isCreate,
     isOpen,
     ...props
-}: ChatInviteUpsertProps) => {
+}: ChatInvitesUpsertProps) => {
 
     return (
         <Formik
@@ -180,7 +176,7 @@ export const ChatInviteUpsert = ({
             onSubmit={noopSubmit}
             validate={async (values) => await validateChatInviteValues(values, invites, isCreate)}
         >
-            {(formik) => <ChatInviteForm
+            {(formik) => <ChatInvitesForm
                 disabled={false}
                 existing={invites}
                 handleUpdate={() => { }}

@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import { PartialOrArrayWithType, SxType } from "types";
 import { ListObject } from "utils/display/listTools";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
-import { NewMemberInviteShape } from "./objects/memberInvite";
+import { NewMemberInviteShape } from "./objects/memberInvite/MemberInvitesUpsert/MemberInvitesUpsert";
 
 /**
  * Views can be displayed as full pages or as dialogs
@@ -55,16 +55,16 @@ export interface StatsObjectViewProps<T extends ListObject> extends ViewProps {
 }
 export type ReportsViewProps = ViewProps
 export interface BuildViewProps extends ViewProps {
-    handleCancel: () => void;
-    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">) => void;
+    handleCancel: () => unknown;
+    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">) => unknown;
     isEditing: boolean;
     loading: boolean;
     routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
     translationData: {
         language: string;
-        setLanguage: (language: string) => void;
-        handleAddLanguage: (language: string) => void;
-        handleDeleteLanguage: (language: string) => void;
+        setLanguage: (language: string) => unknown;
+        handleAddLanguage: (language: string) => unknown;
+        handleDeleteLanguage: (language: string) => unknown;
         languages: string[];
     };
 }

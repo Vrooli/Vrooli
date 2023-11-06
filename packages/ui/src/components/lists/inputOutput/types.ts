@@ -3,7 +3,7 @@ import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 
 export interface InputOutputContainerProps {
-    handleUpdate: (updatedList: (RoutineVersionInputShape | RoutineVersionOutputShape)[]) => void;
+    handleUpdate: (updatedList: (RoutineVersionInputShape | RoutineVersionOutputShape)[]) => unknown;
     isEditing: boolean;
     isInput: boolean;
     language: string;
@@ -18,9 +18,9 @@ export interface InputOutputListItemProps {
     isInput: boolean;
     isOpen: boolean;
     item: RoutineVersionInputShape | RoutineVersionOutputShape;
-    handleOpen: (index: number) => void;
-    handleClose: (index: number) => void;
-    handleDelete: (index: number) => void;
-    handleUpdate: (index: number, updatedItem: RoutineVersionInputShape | RoutineVersionOutputShape) => void;
+    handleOpen: (index: number) => unknown;
+    handleClose: (index: number) => unknown;
+    handleDelete: (index: number) => unknown;
+    handleUpdate: (index: number, updatedItem: RoutineVersionInputShape | RoutineVersionOutputShape) => unknown;
     language: string;
 }

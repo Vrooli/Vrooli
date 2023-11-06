@@ -1,5 +1,4 @@
 import { endpointGetRunRoutine, RunRoutine } from "@local/shared";
-import { useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
@@ -15,7 +14,6 @@ export const RunRoutineView = ({
     isOpen,
     onClose,
 }: RunRoutineViewProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const display = toDisplay(isOpen);

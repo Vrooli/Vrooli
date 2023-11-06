@@ -1142,6 +1142,30 @@
             "description": "Default response. Replace this with real responses."
           }
         }
+      },
+      "post": {
+        "operationId": "endpointPostMeetingInvites",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutMeetingInvites",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
       }
     },
     "/meetingInvite": {
@@ -1255,6 +1279,30 @@
     "/memberInvites": {
       "get": {
         "operationId": "endpointGetMemberInvites",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "post": {
+        "operationId": "endpointPostMemberInvites",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutMemberInvites",
         "tags": [
           "memberInvite"
         ],

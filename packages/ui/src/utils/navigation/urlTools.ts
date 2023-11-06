@@ -138,7 +138,7 @@ export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname
  * Otherwise, navigate to the home page.
  */
 export const tryOnClose = (
-    onClose: (() => void) | null | undefined,
+    onClose: (() => unknown) | null | undefined,
     setLocation: SetLocation,
 ) => {
     if (typeof onClose === "function") {

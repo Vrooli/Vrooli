@@ -148,7 +148,7 @@ const FindInPage = () => {
     /**
      * Handles dialog close. Ignores backdrop click
      */
-    const handleClose = useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>, reason: "backdropClick" | "escapeKeyDown") => {
+    const onClose = useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>, reason: "backdropClick" | "escapeKeyDown") => {
         if (reason === "backdropClick") return;
         close();
     }, [close]);
@@ -156,7 +156,7 @@ const FindInPage = () => {
     return (
         <Dialog
             open={open}
-            onClose={handleClose}
+            onClose={onClose}
             ref={ref}
             disableScrollLock={true}
             BackdropProps={{ invisible: true }}

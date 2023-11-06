@@ -1,15 +1,13 @@
-import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, CommonKey, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
-import { BaseObjectFormProps } from "forms/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
 import { DirectoryStep, RoutineListStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObject } from "utils/display/listTools";
-import { CommentShape } from "utils/shape/models/comment";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { ViewDisplayType } from "views/types";
@@ -22,10 +20,6 @@ export interface BulkDeleteDialogProps {
     handleClose: (selectedForDelete: ListObject[]) => unknown;
     isOpen: boolean;
     selectedData: ListObject[];
-}
-
-export interface CommentDialogProps extends Omit<BaseObjectFormProps<CommentShape>, "display"> {
-    parent: Comment | null;
 }
 
 export interface CookieSettingsDialogProps {
@@ -145,7 +139,7 @@ export enum ObjectDialogAction {
 }
 
 export interface ReorderInputDialogProps {
-    handleClose: (toIndex?: number) => void;
+    handleClose: (toIndex?: number) => unknown;
     isInput: boolean;
     listLength: number;
     startIndex: number;
@@ -158,7 +152,7 @@ export interface ShareObjectDialogProps extends DialogProps {
 }
 
 export interface TranscriptDialogProps {
-    handleClose: () => void;
+    handleClose: () => unknown;
     isListening: boolean;
     showHint: boolean;
     transcript: string;
@@ -177,8 +171,8 @@ export interface ObjectActionMenuProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (newLink?: NodeLinkShape) => void;
-    handleDelete: (link: NodeLinkShape) => void;
+    handleClose: (newLink?: NodeLinkShape) => unknown;
+    handleDelete: (link: NodeLinkShape) => unknown;
     isAdd: boolean;
     isOpen: boolean;
     language: string; // Language to display/edit

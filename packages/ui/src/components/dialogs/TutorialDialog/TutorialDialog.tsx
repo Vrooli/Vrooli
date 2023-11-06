@@ -16,7 +16,7 @@ type TutorialStep = {
     text: string;
     page?: LINKS;
     element?: string;
-    action?: () => void;
+    action?: () => unknown;
 }
 
 type TutorialSection = {

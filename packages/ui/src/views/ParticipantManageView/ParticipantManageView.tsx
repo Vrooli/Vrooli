@@ -15,7 +15,7 @@ import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
-import { ChatInviteUpsert } from "views/objects/chatInvite";
+import { ChatInvitesUpsert } from "views/objects/chatInvite";
 import { ParticipantManageViewProps } from "../types";
 
 /**
@@ -171,7 +171,7 @@ export const ParticipantManageView = ({
             }}
         >
             {/* Dialog for creating/updating invites */}
-            <ChatInviteUpsert
+            <ChatInvitesUpsert
                 invites={invitesToUpsert}
                 isCreate={true}
                 isOpen={invitesToUpsert.length > 0}

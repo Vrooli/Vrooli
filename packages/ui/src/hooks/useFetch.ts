@@ -39,7 +39,7 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
     omitRestBase = false,
     debounceMs = 0,
 }: UseFetchProps<TInput, TData>, deps: any[] = []):
-    RequestState<TData> & { refetch: (input?: TInput) => void } {
+    RequestState<TData> & { refetch: (input?: TInput) => unknown } {
     const [state, setState] = useState<RequestState<TData>>({
         loading: false,
         data: undefined,

@@ -2118,11 +2118,15 @@ export type Mutation = {
   meetingInviteCreate: MeetingInvite;
   meetingInviteDecline: MeetingInvite;
   meetingInviteUpdate: MeetingInvite;
+  meetingInvitesCreate: Array<MeetingInvite>;
+  meetingInvitesUpdate: Array<MeetingInvite>;
   meetingUpdate: Meeting;
   memberInviteAccept: MemberInvite;
   memberInviteCreate: MemberInvite;
   memberInviteDecline: MemberInvite;
   memberInviteUpdate: MemberInvite;
+  memberInvitesCreate: Array<MemberInvite>;
+  memberInvitesUpdate: Array<MemberInvite>;
   memberUpdate: Member;
   nodeCreate: Node;
   nodeUpdate: Node;
@@ -2469,6 +2473,16 @@ export type MutationMeetingInviteUpdateArgs = {
 };
 
 
+export type MutationMeetingInvitesCreateArgs = {
+  input: Array<MeetingInviteCreateInput>;
+};
+
+
+export type MutationMeetingInvitesUpdateArgs = {
+  input: Array<MeetingInviteUpdateInput>;
+};
+
+
 export type MutationMeetingUpdateArgs = {
   input: MeetingUpdateInput;
 };
@@ -2491,6 +2505,16 @@ export type MutationMemberInviteDeclineArgs = {
 
 export type MutationMemberInviteUpdateArgs = {
   input: MemberInviteUpdateInput;
+};
+
+
+export type MutationMemberInvitesCreateArgs = {
+  input: Array<MemberInviteCreateInput>;
+};
+
+
+export type MutationMemberInvitesUpdateArgs = {
+  input: Array<MemberInviteUpdateInput>;
 };
 
 
@@ -8106,6 +8130,7 @@ export type ScheduleRecurrence = {
   __typename: 'ScheduleRecurrence';
   dayOfMonth?: Maybe<Scalars['Int']>;
   dayOfWeek?: Maybe<Scalars['Int']>;
+  duration: Scalars['Int'];
   endDate?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
   interval: Scalars['Int'];
@@ -8117,6 +8142,7 @@ export type ScheduleRecurrence = {
 export type ScheduleRecurrenceCreateInput = {
   dayOfMonth?: InputMaybe<Scalars['Int']>;
   dayOfWeek?: InputMaybe<Scalars['Int']>;
+  duration: Scalars['Int'];
   endDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   interval: Scalars['Int'];
@@ -8173,6 +8199,7 @@ export enum ScheduleRecurrenceType {
 export type ScheduleRecurrenceUpdateInput = {
   dayOfMonth?: InputMaybe<Scalars['Int']>;
   dayOfWeek?: InputMaybe<Scalars['Int']>;
+  duration?: InputMaybe<Scalars['Int']>;
   endDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   interval?: InputMaybe<Scalars['Int']>;
@@ -12105,11 +12132,15 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   meetingInviteCreate?: Resolver<ResolversTypes['MeetingInvite'], ParentType, ContextType, RequireFields<MutationMeetingInviteCreateArgs, 'input'>>;
   meetingInviteDecline?: Resolver<ResolversTypes['MeetingInvite'], ParentType, ContextType, RequireFields<MutationMeetingInviteDeclineArgs, 'input'>>;
   meetingInviteUpdate?: Resolver<ResolversTypes['MeetingInvite'], ParentType, ContextType, RequireFields<MutationMeetingInviteUpdateArgs, 'input'>>;
+  meetingInvitesCreate?: Resolver<Array<ResolversTypes['MeetingInvite']>, ParentType, ContextType, RequireFields<MutationMeetingInvitesCreateArgs, 'input'>>;
+  meetingInvitesUpdate?: Resolver<Array<ResolversTypes['MeetingInvite']>, ParentType, ContextType, RequireFields<MutationMeetingInvitesUpdateArgs, 'input'>>;
   meetingUpdate?: Resolver<ResolversTypes['Meeting'], ParentType, ContextType, RequireFields<MutationMeetingUpdateArgs, 'input'>>;
   memberInviteAccept?: Resolver<ResolversTypes['MemberInvite'], ParentType, ContextType, RequireFields<MutationMemberInviteAcceptArgs, 'input'>>;
   memberInviteCreate?: Resolver<ResolversTypes['MemberInvite'], ParentType, ContextType, RequireFields<MutationMemberInviteCreateArgs, 'input'>>;
   memberInviteDecline?: Resolver<ResolversTypes['MemberInvite'], ParentType, ContextType, RequireFields<MutationMemberInviteDeclineArgs, 'input'>>;
   memberInviteUpdate?: Resolver<ResolversTypes['MemberInvite'], ParentType, ContextType, RequireFields<MutationMemberInviteUpdateArgs, 'input'>>;
+  memberInvitesCreate?: Resolver<Array<ResolversTypes['MemberInvite']>, ParentType, ContextType, RequireFields<MutationMemberInvitesCreateArgs, 'input'>>;
+  memberInvitesUpdate?: Resolver<Array<ResolversTypes['MemberInvite']>, ParentType, ContextType, RequireFields<MutationMemberInvitesUpdateArgs, 'input'>>;
   memberUpdate?: Resolver<ResolversTypes['Member'], ParentType, ContextType, RequireFields<MutationMemberUpdateArgs, 'input'>>;
   nodeCreate?: Resolver<ResolversTypes['Node'], ParentType, ContextType, RequireFields<MutationNodeCreateArgs, 'input'>>;
   nodeUpdate?: Resolver<ResolversTypes['Node'], ParentType, ContextType, RequireFields<MutationNodeUpdateArgs, 'input'>>;
@@ -14045,6 +14076,7 @@ export type ScheduleExceptionSearchResultResolvers<ContextType = any, ParentType
 export type ScheduleRecurrenceResolvers<ContextType = any, ParentType extends ResolversParentTypes['ScheduleRecurrence'] = ResolversParentTypes['ScheduleRecurrence']> = {
   dayOfMonth?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   dayOfWeek?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  duration?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   endDate?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   interval?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;

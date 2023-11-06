@@ -44,7 +44,7 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     loading: boolean;
     data: T | null;
     objectType: T["__typename"];
-    onClick?: (data: T) => void;
+    onClick?: (data: T) => unknown;
     subtitleOverride?: string;
     titleOverride?: string;
     toTheRight?: React.ReactNode;
@@ -52,8 +52,8 @@ type ObjectListItemBaseProps<T extends ListObject> = {
 export type ObjectListItemProps<T extends ListObject> = ObjectListItemBaseProps<T> & ActionsType<T>;
 
 export type ObjectListActions<T> = {
-    Deleted: (id: string) => void;
-    Updated: (data: T) => void;
+    Deleted: (id: string) => unknown;
+    Updated: (data: T) => unknown;
 };
 
 export type BookmarkListListItemProps = ObjectListItemProps<BookmarkList>
@@ -70,8 +70,8 @@ export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
 export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;
-    onClose: () => void;
-    onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
+    onClose: () => unknown;
+    onSubmit: (after?: Date | undefined, before?: Date | undefined) => unknown;
     minDate?: Date;
     maxDate?: Date;
     range?: { after: Date | undefined, before: Date | undefined };
@@ -239,6 +239,6 @@ export interface TIDCardProps {
     key: string | number;
     Icon: SvgComponent | null | undefined;
     id?: string;
-    onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
+    onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
     title: string;
 }

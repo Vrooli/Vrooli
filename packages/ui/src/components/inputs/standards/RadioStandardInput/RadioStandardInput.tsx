@@ -34,8 +34,8 @@ const RadioOption = ({
     isEditing: boolean;
     label: string,
     value: any,
-    onChange: (index: number, label: string, defaultValue: boolean) => void,
-    onDelete: () => void,
+    onChange: (index: number, label: string, defaultValue: boolean) => unknown,
+    onDelete: () => unknown,
 }) => {
     const { palette } = useTheme();
 

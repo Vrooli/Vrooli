@@ -1,3 +1,3 @@
 
-export * from "./ChatInviteUpsert/ChatInviteUpsert";
+export * from "./ChatInvitesUpsert/ChatInvitesUpsert";
 

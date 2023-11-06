@@ -16,7 +16,7 @@ import { useVoter } from "./useVoter";
 export type UseObjectActionsProps = {
     object: ListObject | null | undefined;
     objectType: ListObject["__typename"];
-    openAddCommentDialog?: () => void;
+    openAddCommentDialog?: () => unknown;
     setLocation: SetLocation;
     setObject: Dispatch<SetStateAction<any>>;
 } & Pick<ObjectListItemProps<any>, "canNavigate" | "onClick"> & {
@@ -43,7 +43,7 @@ export type UseObjectActionsReturn = {
     onActionComplete: (action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => unknown;
 }
 
-const callIfExists = (callback: (() => void) | null | undefined) => {
+const callIfExists = (callback: (() => unknown) | null | undefined) => {
     if (!exists(callback)) {
         PubSub.get().publishSnack({ messageKey: "ActionNotSupported", severity: "Error" });
         return;

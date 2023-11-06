@@ -1,6 +1,5 @@
-import { DUMMY_ID, endpointGetProjectVersion, endpointPostProjectVersion, endpointPutProjectVersion, orDefault, ProjectVersion, ProjectVersionCreateInput, projectVersionTranslationValidation, ProjectVersionUpdateInput, projectVersionValidation, Session } from "@local/shared";
-import { useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { DUMMY_ID, endpointGetProjectVersion, endpointPostProjectVersion, endpointPutProjectVersion, noopSubmit, orDefault, ProjectVersion, ProjectVersionCreateInput, projectVersionTranslationValidation, ProjectVersionUpdateInput, projectVersionValidation, Session } from "@local/shared";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -12,23 +11,24 @@ import { RelationshipList } from "components/lists/RelationshipList/Relationship
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
-import { ProjectFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useConfirmBeforeLeave";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { forwardRef, useContext } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { ProjectShape } from "utils/shape/models/project";
 import { ProjectVersionShape, shapeProjectVersion } from "utils/shape/models/projectVersion";
-import { ProjectUpsertProps } from "../types";
+import { ProjectVersionDirectoryShape } from "utils/shape/models/projectVersionDirectory";
+import { validateFormValues } from "utils/validateFormValues";
+import { ProjectFormProps, ProjectUpsertProps } from "../types";
 
 const projectInitialValues = (
     session: Session | undefined,
@@ -48,7 +48,7 @@ const projectInitialValues = (
         __typename: "Project" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
         parent: null,
         tags: [],
         ...existing?.root,
@@ -64,7 +64,7 @@ const projectInitialValues = (
         childRoutineVersions: [],
         childSmartContractVersions: [],
         childStandardVersions: [],
-    } as any]),
+    } as ProjectVersionDirectoryShape]),
     translations: orDefault(existing?.translations, [{
         __typename: "ProjectVersionTranslation" as const,
         id: DUMMY_ID,
@@ -74,29 +74,27 @@ const projectInitialValues = (
     }]),
 });
 
-const transformProjectValues = (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) =>
+const transformProjectVersionValues = (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) =>
     isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
 
-const validateProjectValues = async (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) => {
-    const transformedValues = transformProjectValues(values, existing, isCreate);
-    const validationSchema = projectVersionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
-const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>(({
-    display,
+const ProjectForm = ({
+    disabled,
     dirty,
+    existing,
+    handleUpdate,
     isCreate,
-    isLoading,
     isOpen,
+    isReadLoading,
     onCancel,
+    onClose,
+    onCompleted,
+    onDeleted,
     values,
     versions,
     ...props
-}, ref) => {
+}: ProjectFormProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle translations
@@ -116,8 +114,49 @@ const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>(({
     // For now, we'll only deal with one directory listing
     const [directoryField, , directoryHelpers] = useField("directories[0]");
 
+    const { handleCancel, handleCompleted } = useUpsertActions<ProjectVersion>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "ProjectVersion",
+        ...props,
+    });
+    const {
+        fetch,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertFetch<ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput>({
+        isCreate,
+        isMutate: true,
+        endpointCreate: endpointPostProjectVersion,
+        endpointUpdate: endpointPutProjectVersion,
+    });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ProjectVersion" });
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useSubmitHelper<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformProjectVersionValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
+
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="project-upsert-dialog"
+            isOpen={isOpen}
+            onClose={onClose}
+        >
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t(isCreate ? "CreateProject" : "UpdateProject")}
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
@@ -168,91 +207,52 @@ const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>(({
             <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                hideButtons={disabled}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
+                loading={isLoading}
+                onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
+                onSubmit={onSubmit}
             />
-        </>
+        </MaybeLargeDialog>
     );
-});
+};
 
 export const ProjectUpsert = ({
     isCreate,
     isOpen,
-    onCancel,
-    onCompleted,
     overrideObject,
+    ...props
 }: ProjectUpsertProps) => {
-    const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<ProjectVersion, ProjectVersionShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<ProjectVersion, ProjectVersionShape>({
         ...endpointGetProjectVersion,
+        isCreate,
         objectType: "ProjectVersion",
         overrideObject,
         transform: (existing) => projectInitialValues(session, existing),
     });
-
-    const {
-        fetch,
-        handleCancel,
-        handleCompleted,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertActions<ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput>({
-        display,
-        endpointCreate: endpointPostProjectVersion,
-        endpointUpdate: endpointPutProjectVersion,
-        isCreate,
-        onCancel,
-        onCompleted,
-    });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="project-upsert-dialog"
-            isOpen={isOpen}
-            onClose={handleClose}
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformProjectVersionValues, projectVersionValidation)}
         >
-            <TopBar
-                display={display}
-                onClose={handleClose}
-                title={t(isCreate ? "CreateProject" : "UpdateProject")}
-            />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>({
-                        fetch,
-                        inputs: transformProjectValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateProjectValues(values, existing, isCreate)}
-            >
-                {(formik) => <ProjectForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    versions={(existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? []}
-                    {...formik}
-                />}
-            </Formik>
-        </MaybeLargeDialog>
+            {(formik) => <ProjectForm
+                disabled={!(isCreate || canUpdate)}
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                versions={(existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? []}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

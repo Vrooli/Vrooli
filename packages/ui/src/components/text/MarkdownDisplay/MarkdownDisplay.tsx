@@ -310,7 +310,7 @@ export const MarkdownDisplay = ({
 }: {
     content: string | undefined;
     isEditable?: boolean;
-    onChange?: (content: string) => void;
+    onChange?: (content: string) => unknown;
     sx?: SxType;
     variant?: TypographyProps["variant"];
 }) => {

@@ -1,5 +1,4 @@
 import { endpointGetMeeting, Meeting } from "@local/shared";
-import { useTheme } from "@mui/material";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
@@ -19,7 +18,6 @@ export const MeetingView = ({
     onClose,
 }: MeetingViewProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);

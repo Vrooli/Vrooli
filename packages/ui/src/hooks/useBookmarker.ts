@@ -54,6 +54,7 @@ export const useBookmarker = ({
             }
         }
         console.log("adding bookmark", bookmarkListId, shapeBookmark.create({
+            __typename: "Bookmark",
             id: uuid(),
             to: {
                 __typename: BookmarkFor[objectType],
@@ -70,6 +71,7 @@ export const useBookmarker = ({
         fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
             fetch: addBookmark,
             inputs: shapeBookmark.create({
+                __typename: "Bookmark",
                 id: uuid(),
                 to: {
                     __typename: BookmarkFor[objectType],

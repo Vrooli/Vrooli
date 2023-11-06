@@ -5,7 +5,6 @@ import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton
 import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
-import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { OwnerLabel } from "components/text/OwnerLabel/OwnerLabel";
 import { SessionContext } from "contexts/SessionContext";
@@ -18,6 +17,7 @@ import { displayDate } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
+import { CommentUpsert } from "views/objects/comment";
 import { CommentThreadItemProps } from "../types";
 
 export function CommentThreadItem({
@@ -188,13 +188,14 @@ export function CommentThreadItem({
                     </Stack>}
                     {/* Add/Update comment */}
                     {
-                        objectId && objectType && <CommentUpsertInput
-                            comment={commentToUpdate}
+                        objectId && objectType && <CommentUpsert
+                            overrideObject={commentToUpdate}
                             isOpen={isUpsertCommentOpen}
                             language={language}
                             objectId={objectId}
                             objectType={objectType}
                             onCancel={handleUpsertCommentClose}
+                            onClose={handleUpsertCommentClose}
                             onCompleted={handleCommentUpsert}
                             parent={(object as any) ?? null}
                         />

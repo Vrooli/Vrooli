@@ -4,4 +4,4 @@ export type SetLocationOptions = {
     /** True if navigation-related confirmation prompts (e.g. dirty form) should be ignored */
     bypassBlock?: boolean;
 };
-export type SetLocation = (to: string, options?: SetLocationOptions) => void;
+export type SetLocation = (to: string, options?: SetLocationOptions) => unknown;

@@ -28,8 +28,8 @@ export const ObjectActionDialogs = ({
 }: ObjectActionDialogsProps) => {
     return (
         <>
-            {/* openAddCommentDialog?: () => void; //TODO: implement
-    openDonateDialog?: () => void; //TODO: implement
+            {/* openAddCommentDialog?: () => unknown; //TODO: implement
+    openDonateDialog?: () => unknown; //TODO: implement
     */}
             {object?.id && (availableActions.includes(ObjectAction.Bookmark) || availableActions.includes(ObjectAction.BookmarkUndo)) && <SelectBookmarkListDialog
                 objectId={object.id}

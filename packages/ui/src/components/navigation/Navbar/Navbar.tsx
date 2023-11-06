@@ -20,7 +20,7 @@ const LogoComponent = ({
     state,
 }: {
     isLeftHanded: boolean;
-    onClick: () => void;
+    onClick: () => unknown;
     state: "full" | "icon" | "none";
 }) => {
     const { palette } = useTheme();

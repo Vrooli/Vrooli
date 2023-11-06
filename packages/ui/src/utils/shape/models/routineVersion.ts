@@ -21,7 +21,7 @@ export type RoutineVersionShape = Pick<RoutineVersion, "id" | "isAutomatable" | 
     nodeLinks?: NodeLinkShape[] | null;
     outputs?: RoutineVersionOutputShape[] | null;
     resourceList?: ResourceListShape | null;
-    root?: { id: string } | RoutineShape | null;
+    root?: { __typename: "Routine", id: string } | RoutineShape | null;
     smartContractVersion?: { id: string } | null;
     suggestedNextByRoutineVersion?: { id: string }[] | null;
     translations?: RoutineVersionTranslationShape[] | null;

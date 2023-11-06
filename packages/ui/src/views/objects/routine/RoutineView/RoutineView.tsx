@@ -1,4 +1,4 @@
-import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noopSubmit, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
+import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
 import { Box, Button, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { RunButton } from "components/buttons/RunButton/RunButton";
@@ -137,7 +137,7 @@ export const RoutineView = ({
             return acc;
         }, {}),
         enableReinitialize: true,
-        onSubmit: () => { },
+        onSubmit: noopSubmit,
     });
 
     const [runComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
@@ -219,9 +219,7 @@ export const RoutineView = ({
                     <BuildView
                         handleCancel={stopBuild}
                         onClose={stopBuild}
-                        // Intentionally blank, since this is a read-only view
-                        // eslint-disable-next-line @typescript-eslint/no-empty-function
-                        handleSubmit={() => { }}
+                        handleSubmit={noop}
                         isEditing={false}
                         isOpen={isBuildOpen}
                         loading={isLoading}
@@ -230,10 +228,8 @@ export const RoutineView = ({
                             language,
                             languages: availableLanguages,
                             setLanguage,
-                            // eslint-disable-next-line @typescript-eslint/no-empty-function
-                            handleAddLanguage: () => { },
-                            // eslint-disable-next-line @typescript-eslint/no-empty-function
-                            handleDeleteLanguage: () => { },
+                            handleAddLanguage: noop,
+                            handleDeleteLanguage: noop,
                         }}
                     />
                     {/* Relationships */}

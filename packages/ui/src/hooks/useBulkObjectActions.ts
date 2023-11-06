@@ -32,7 +32,7 @@ export type UseBulkObjectActionsReturn<T extends ListObject = ListObject> = {
     onBulkActionComplete: (action: BulkObjectActionComplete | `${BulkObjectActionComplete}`, data: any) => unknown;
 };
 
-const callIfExists = (callback: (() => void) | null | undefined) => {
+const callIfExists = (callback: (() => unknown) | null | undefined) => {
     if (!exists(callback)) {
         PubSub.get().publishSnack({ messageKey: "ActionNotSupported", severity: "Error" });
         return;

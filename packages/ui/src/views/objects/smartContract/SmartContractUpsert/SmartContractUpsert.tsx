@@ -1,6 +1,5 @@
-import { DUMMY_ID, endpointGetSmartContractVersion, endpointPostSmartContractVersion, endpointPutSmartContractVersion, orDefault, Session, SmartContractVersion, SmartContractVersionCreateInput, smartContractVersionTranslationValidation, SmartContractVersionUpdateInput, smartContractVersionValidation } from "@local/shared";
-import { useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { DUMMY_ID, endpointGetSmartContractVersion, endpointPostSmartContractVersion, endpointPutSmartContractVersion, noopSubmit, orDefault, Session, SmartContractVersion, SmartContractVersionCreateInput, smartContractVersionTranslationValidation, SmartContractVersionUpdateInput, smartContractVersionValidation } from "@local/shared";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CodeInput } from "components/inputs/CodeInput/CodeInput";
@@ -15,23 +14,23 @@ import { RelationshipList } from "components/lists/RelationshipList/Relationship
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
-import { SmartContractFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useConfirmBeforeLeave";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { forwardRef, useContext } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { SmartContractShape } from "utils/shape/models/smartContract";
 import { shapeSmartContractVersion, SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
-import { SmartContractUpsertProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues";
+import { SmartContractFormProps, SmartContractUpsertProps } from "../types";
 
 const smartContractInitialValues = (
     session: Session | undefined,
@@ -73,29 +72,27 @@ const smartContractInitialValues = (
     }]),
 });
 
-const transformSmartContractValues = (values: SmartContractVersionShape, existing: SmartContractVersionShape, isCreate: boolean) =>
+const transformSmartContractVersionValues = (values: SmartContractVersionShape, existing: SmartContractVersionShape, isCreate: boolean) =>
     isCreate ? shapeSmartContractVersion.create(values) : shapeSmartContractVersion.update(existing, values);
 
-const validateSmartContractValues = async (values: SmartContractVersionShape, existing: SmartContractVersionShape, isCreate: boolean) => {
-    const transformedValues = transformSmartContractValues(values, existing, isCreate);
-    const validationSchema = smartContractVersionValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
-const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContractFormProps>(({
-    display,
+const SmartContractForm = ({
+    disabled,
     dirty,
+    existing,
+    handleUpdate,
     isCreate,
-    isLoading,
     isOpen,
+    isReadLoading,
     onCancel,
+    onClose,
+    onCompleted,
+    onDeleted,
     values,
     versions,
     ...props
-}, ref) => {
+}: SmartContractFormProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle translations
@@ -112,8 +109,49 @@ const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContractFormP
         validationSchema: smartContractVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
+    const { handleCancel, handleCompleted } = useUpsertActions<SmartContractVersion>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "SmartContractVersion",
+        ...props,
+    });
+    const {
+        fetch,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertFetch<SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput>({
+        isCreate,
+        isMutate: true,
+        endpointCreate: endpointPostSmartContractVersion,
+        endpointUpdate: endpointPutSmartContractVersion,
+    });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "SmartContractVersion" });
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useSubmitHelper<SmartContractVersionCreateInput | SmartContractVersionUpdateInput, SmartContractVersion>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformSmartContractVersionValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
+
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="smart-contract-upsert-dialog"
+            isOpen={isOpen}
+            onClose={onClose}
+        >
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t(isCreate ? "CreateSmartContract" : "UpdateSmartContract")}
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
@@ -166,91 +204,52 @@ const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContractFormP
             <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                hideButtons={disabled}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
+                loading={isLoading}
+                onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
+                onSubmit={onSubmit}
             />
-        </>
+        </MaybeLargeDialog>
     );
-});
+};
 
 export const SmartContractUpsert = ({
     isCreate,
     isOpen,
-    onCancel,
-    onCompleted,
     overrideObject,
+    ...props
 }: SmartContractUpsertProps) => {
-    const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<SmartContractVersion, SmartContractVersionShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<SmartContractVersion, SmartContractVersionShape>({
         ...endpointGetSmartContractVersion,
+        isCreate,
         objectType: "SmartContractVersion",
         overrideObject,
         transform: (existing) => smartContractInitialValues(session, existing),
     });
-
-    const {
-        fetch,
-        handleCancel,
-        handleCompleted,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertActions<SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput>({
-        display,
-        endpointCreate: endpointPostSmartContractVersion,
-        endpointUpdate: endpointPutSmartContractVersion,
-        isCreate,
-        onCancel,
-        onCompleted,
-    });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="smart-contract-upsert-dialog"
-            isOpen={isOpen}
-            onClose={handleClose}
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformSmartContractVersionValues, smartContractVersionValidation)}
         >
-            <TopBar
-                display={display}
-                onClose={handleClose}
-                title={t(isCreate ? "CreateSmartContract" : "UpdateSmartContract")}
-            />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<SmartContractVersionCreateInput | SmartContractVersionUpdateInput, SmartContractVersion>({
-                        fetch,
-                        inputs: transformSmartContractValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateSmartContractValues(values, existing, isCreate)}
-            >
-                {(formik) => <SmartContractForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    versions={(existing?.root as SmartContractShape)?.versions?.map(v => v.versionLabel) ?? []}
-                    {...formik}
-                />}
-            </Formik>
-        </MaybeLargeDialog>
+            {(formik) => <SmartContractForm
+                disabled={!(isCreate || canUpdate)}
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                versions={(existing?.root as SmartContractShape)?.versions?.map(v => v.versionLabel) ?? []}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

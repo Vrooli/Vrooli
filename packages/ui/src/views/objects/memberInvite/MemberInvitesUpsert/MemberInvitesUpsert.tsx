@@ -1,21 +1,21 @@
 import { DUMMY_ID, endpointPostMemberInvites, endpointPutMemberInvites, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, memberInviteValidation, noop, noopSubmit, Session } from "@local/shared";
 import { Box, Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
-import { MemberInviteFormProps } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useCallback, useMemo, useState } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
-import { PubSub } from "utils/pubsub";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { MemberInviteShape, shapeMemberInvite } from "utils/shape/models/memberInvite";
-import { MemberInviteUpsertProps } from "../types";
+import { MemberInvitesFormProps, MemberInvitesUpsertProps } from "../types";
 
 /** New resources must include an organization */
 export type NewMemberInviteShape = Partial<Omit<MemberInvite, "organization">> & {
@@ -60,7 +60,7 @@ const validateMemberInviteValues = async (values: MemberInviteShape[], existing:
     return combinedResult;
 };
 
-const MemberInviteForm = ({
+const MemberInvitesForm = ({
     disabled,
     dirty,
     existing,
@@ -69,60 +69,57 @@ const MemberInviteForm = ({
     isOpen,
     isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
     onDeleted,
     values,
     ...props
-}: MemberInviteFormProps) => {
+}: MemberInvitesFormProps) => {
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const [message, setMessage] = useState("");
 
+    const { handleCancel, handleCompleted } = useUpsertActions<MemberInvite[]>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "MemberInvite",
+        ...props,
+    });
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<MemberInvite[], MemberInviteCreateInput[], MemberInviteUpdateInput[]>({
-        display,
+    } = useUpsertFetch<MemberInvite[], MemberInviteCreateInput[], MemberInviteUpdateInput[]>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostMemberInvites,
         endpointUpdate: endpointPutMemberInvites,
-        isCreate,
-        onCancel,
-        onCompleted,
     });
-    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "MemberInvite" });
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        if (!isCreate && existing.length === 0) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-            return;
-        }
-        fetchLazyWrapper<MemberInviteCreateInput[] | MemberInviteUpdateInput[], MemberInvite[]>({
-            fetch,
-            inputs: transformMemberInviteValues(values, existing, isCreate) as MemberInviteCreateInput[] | MemberInviteUpdateInput[],
-            onSuccess: (data) => { handleCompleted(data); },
-            onCompleted: () => { props.setSubmitting(false); },
-        });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
+    const onSubmit = useSubmitHelper<MemberInviteCreateInput[] | MemberInviteUpdateInput[], MemberInvite[]>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformMemberInviteValues(values, existing, isCreate) as MemberInviteCreateInput[] | MemberInviteUpdateInput[],
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="member-invite-upsert-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 title={t(isCreate ? "CreateInvites" : "UpdateInvites")}
             />
             <Box sx={{
@@ -185,7 +182,7 @@ const MemberInviteForm = ({
                 </Box>
                 <BottomActionsButtons
                     display={display}
-                    errors={props.errors as any}
+                    errors={props.errors}
                     hideButtons={disabled}
                     isCreate={isCreate}
                     loading={isLoading}
@@ -198,12 +195,12 @@ const MemberInviteForm = ({
     );
 };
 
-export const MemberInviteUpsert = ({
+export const MemberInvitesUpsert = ({
     invites,
     isCreate,
     isOpen,
     ...props
-}: MemberInviteUpsertProps) => {
+}: MemberInvitesUpsertProps) => {
 
     return (
         <Formik
@@ -212,7 +209,7 @@ export const MemberInviteUpsert = ({
             onSubmit={noopSubmit}
             validate={async (values) => await validateMemberInviteValues(values, invites, isCreate)}
         >
-            {(formik) => <MemberInviteForm
+            {(formik) => <MemberInvitesForm
                 disabled={false}
                 existing={invites}
                 handleUpdate={() => { }}

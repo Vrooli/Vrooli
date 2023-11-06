@@ -1,11 +1,11 @@
-import { Node, NodeEnd } from "@local/shared";
 import { Box, Tooltip, Typography } from "@mui/material";
 import usePress from "hooks/usePress";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
-import { calculateNodeSize, DraggableNode, NodeContextMenu, NodeEndDialog, NodeWidth } from "../..";
+import { NodeWithEndCrud } from "views/objects/node";
+import { calculateNodeSize, DraggableNode, NodeContextMenu, NodeWidth } from "../..";
 import { nodeLabel } from "../styles";
 import { EndNodeProps } from "../types";
 
@@ -58,15 +58,12 @@ export const EndNode = ({
 
     // Normal click edit menu (title, wasSuccessful, etc.)
     const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
-    const openEditDialog = useCallback((event: any) => {
+    const openEditDialog = useCallback(() => {
         if (isLinked) {
             setEditDialogOpen(!editDialogOpen);
         }
     }, [isLinked, editDialogOpen]);
-    const handleEditDialogClose = useCallback((updatedNode?: Node & { end: NodeEnd }) => {
-        if (updatedNode) handleUpdate(updatedNode);
-        setEditDialogOpen(false);
-    }, [handleUpdate]);
+    const closeEditDialog = useCallback(() => { setEditDialogOpen(false); }, []);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -95,12 +92,14 @@ export const EndNode = ({
                 handleSelect={(option) => { handleAction(option, node.id); }}
             />
             {/* Normal-click menu */}
-            <NodeEndDialog
-                handleClose={handleEditDialogClose}
+            <NodeWithEndCrud
+                onCancel={closeEditDialog}
+                onClose={closeEditDialog}
+                onCompleted={handleUpdate}
                 isEditing={isEditing}
                 isOpen={editDialogOpen}
                 language={language}
-                node={node}
+                overrideObject={node}
             />
             <DraggableNode
                 className="handle"

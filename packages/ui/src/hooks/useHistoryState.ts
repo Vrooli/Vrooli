@@ -1,18 +1,15 @@
 import { useState } from "react";
 
 /**
- * Stores the sate in the browser history,
+ * Stores the state in the browser history,
  * making the state reusable across refreshes, navigation
  * and even closing and reopening the window!
  *
  * @param key The key to store it in history
  * @param defaultTo A default value if nothing exists in history
  */
-export function useHistoryState(
-    key,
-    defaultTo,
-) {
-    const [state, rawSetState] = useState(() => {
+export const useHistoryState = <T>(key: string, defaultTo: T) => {
+    const [state, rawSetState] = useState<T>(() => {
         const value = window.history.state && window.history.state[key];
         return value || defaultTo;
     });
@@ -25,5 +22,5 @@ export function useHistoryState(
         rawSetState(value);
     }
 
-    return [state, setState];
-}
+    return [state, setState] as const;
+};

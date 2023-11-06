@@ -2,7 +2,7 @@ import { createContext, useMemo, useRef } from "react";
 
 type ZIndexContextType = {
     getZIndex: () => number;
-    releaseZIndex: () => void;
+    releaseZIndex: () => unknown;
 };
 
 export const DEFAULT_Z_INDEX = 1000;

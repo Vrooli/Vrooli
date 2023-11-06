@@ -47,18 +47,18 @@ export interface NodeEdgeProps {
      * Adding a node always creates a routine list node. 
      * Other node types are created automatically in other places.
      */
-    handleAdd: (link: NodeLink) => void;
+    handleAdd: (link: NodeLink) => unknown;
     /**
      * Creates a new node in the same column as the "to" node. 
      * This creates a new branch
      */
-    handleBranch: (link: NodeLink) => void;
+    handleBranch: (link: NodeLink) => unknown;
     /**
      * Deletes a link and its conditions. 
      * Does not delete any nodes
      */
-    handleDelete: (link: NodeLink) => void;
-    handleEdit: (link: NodeLink) => void;
+    handleDelete: (link: NodeLink) => unknown;
+    handleEdit: (link: NodeLink) => unknown;
     /** Determines if editing popup can be displayed. */
     isEditing: boolean;
     /** If true, puts edit button further to the right */

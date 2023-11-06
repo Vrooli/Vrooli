@@ -5,9 +5,9 @@ type Dimensions = { width: number, height: number };
 type UseDimensionsReturn<T extends HTMLElement> = {
     dimensions: Dimensions;
     /** Uses Material UI spacing syntax to style based on the dimensions, rather than the page's dimensions */
-    fromDims: (spacingObj: { [key in Breakpoint]?: any }) => any;
+    fromDims: (spacingObj: { [key in Breakpoint]?: unknown }) => any;
     ref: React.RefObject<T>;
-    refreshDimensions: () => void;
+    refreshDimensions: () => unknown;
 }
 
 /**
@@ -21,8 +21,8 @@ export const useDimensions = <T extends HTMLElement>(): UseDimensionsReturn<T> =
     const ref = useRef<T>(null);
     const { breakpoints } = useTheme();
 
-    const fromDims = useCallback((spacingObj: { [key in Breakpoint]?: any }): any => {
-        let appliedSpacing = spacingObj.xs;  // default to xs
+    const fromDims = useCallback((spacingObj: { [key in Breakpoint]?: unknown }): any => {
+        let appliedSpacing = spacingObj.xs;  // Default to xs
         for (const [breakpoint, value] of Object.entries(breakpoints.values)) {
             if (dimensions.width >= value && spacingObj[breakpoint] !== undefined) {
                 appliedSpacing = spacingObj[breakpoint];

@@ -9,7 +9,7 @@ type UseCopierProps = {
     objectId: string | null | undefined;
     objectName: string | null | undefined;
     objectType: `${GqlModelType}`
-    onActionComplete: (action: ObjectActionComplete.Fork, data: CopyResult) => void;
+    onActionComplete: (action: ObjectActionComplete.Fork, data: CopyResult) => unknown;
 }
 
 /**

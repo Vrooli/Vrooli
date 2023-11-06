@@ -15,22 +15,21 @@ import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { SubroutineFormProps } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CloseIcon, OpenInNewIcon } from "icons";
-import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "utils/shape/models/nodeRoutineListItem";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 import { TagShape } from "utils/shape/models/tag";
+import { validateFormValues } from "utils/validateFormValues";
 import { routineInitialValues } from "views/objects/routine";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { SubroutineInfoDialogProps } from "../types";
@@ -57,14 +56,7 @@ export const subroutineInitialValues = (
 export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape | undefined, isCreate: boolean) =>
     isCreate ? shapeNodeRoutineListItem.create(values) : shapeNodeRoutineListItem.update(existing as NodeRoutineListItemShape, values);
 
-export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape | undefined, isCreate: boolean) => {
-    const transformedValues = transformSubroutineValues(values, existing, isCreate);
-    const validationSchema = nodeRoutineListItemValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
-export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineFormProps>(({
+const SubroutineForm = ({
     canUpdateRoutineVersion,
     dirty,
     handleReorder,
@@ -75,10 +67,11 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
     isOpen,
     numSubroutines,
     onCancel,
+    onClose,
     values,
     versions,
     ...props
-}, ref) => {
+}: SubroutineFormProps) => {
     const session = useContext(SessionContext);
     const theme = useTheme();
     const { t } = useTranslation();
@@ -97,7 +90,6 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
         validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
-    const { handleClose } = useConfirmBeforeLeave({ handleCancel: onCancel, shouldPrompt: dirty });
     const isLoading = useMemo(() => props.isSubmitting, [props.isSubmitting]);
 
     const [indexField] = useField<number>("index");
@@ -149,12 +141,12 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
         handleUpdate(values as any);
         // If the index has changed, reorder the subroutine
         originalIndex !== values.index && handleReorder(originalIndex, values.index);
-    }, []);
+    }, [handleReorder, handleUpdate, isEditing, values]);
 
     return (
         <LargeDialog
             id="subroutine-dialog"
-            onClose={handleClose}
+            onClose={onClose}
             isOpen={isOpen}
             titleId={""}
         >
@@ -349,7 +341,7 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
             />}
         </LargeDialog>
     );
-});
+};
 
 /**
  * Drawer to display a routine list item's info on the build page. 
@@ -383,11 +375,11 @@ export const SubroutineInfoDialog = ({
             enableReinitialize={true}
             initialValues={initialValues}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateSubroutineValues(values, subroutine, false)}
+            validate={async (values) => await validateFormValues(values, subroutine, false, transformSubroutineValues, nodeRoutineListItemValidation)}
         >
             {(formik) => <SubroutineForm
                 canUpdateRoutineVersion={canUpdate}
-                handleReorder={(props) => { handleReorder(nodeId, ...props); }}
+                handleReorder={(oldIndex, newIndx) => { handleReorder(nodeId, oldIndex, newIndx); }}
                 handleUpdate={handleUpdate}
                 handleViewFull={handleViewFull}
                 isCreate={false}

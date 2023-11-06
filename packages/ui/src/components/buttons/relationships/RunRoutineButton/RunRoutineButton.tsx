@@ -1,4 +1,4 @@
-import { exists } from "@local/shared";
+import { exists, noop } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
@@ -56,8 +56,7 @@ export function RunRoutineButton({
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isDialogOpen) return ["RunRoutine", handleSelect, closeDialog];
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        return [null, () => { }, () => { }];
+        return [null, noop, noop];
     }, [isDialogOpen, handleSelect, closeDialog]);
 
     const { Icon, tooltip } = useMemo(() => {

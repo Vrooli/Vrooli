@@ -5,7 +5,7 @@ type HotkeyConfig = {
     ctrlKey?: boolean,
     altKey?: boolean,
     shiftKey?: boolean,
-    callback: () => void
+    callback: () => unknown
 };
 
 export const useHotkeys = (hotkeys: HotkeyConfig[], condition = true, targetRef: React.RefObject<HTMLElement> | null = null) => {

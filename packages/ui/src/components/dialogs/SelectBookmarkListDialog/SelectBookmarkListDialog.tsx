@@ -61,6 +61,7 @@ export const SelectBookmarkListDialog = ({
             // If the list was not already selected, add the bookmark
             if (isCreate || !data?.edges.some(e => e.node.id === list.id)) {
                 await create(shapeBookmark.create({
+                    __typename: "Bookmark",
                     id: uuid(),
                     to: {
                         __typename: objectType as BookmarkFor,

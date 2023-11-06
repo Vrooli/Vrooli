@@ -1,8 +1,8 @@
-import { exists, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, GqlModelType } from "@local/shared";
-import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
+import { DUMMY_ID, exists, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, GqlModelType, uuidValidate } from "@local/shared";
+import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
 import { ParseSearchParamsResult, useLocation } from "route";
 import { PartialWithType } from "types";
-import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
+import { getCookieFormData, getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { defaultYou, getYou, YouInflated } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -37,14 +37,18 @@ export function useObjectFromUrl<
     TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
 >({
     endpoint,
+    isCreate,
     objectType,
     onInvalidUrlParams,
     overrideObject,
     transform,
 }: {
     endpoint: string,
-    objectType: PData["__typename"],
-    onInvalidUrlParams?: (params: ParseSearchParamsResult) => void,
+    /** If passed, tries to find existing form data in cache */
+    isCreate?: boolean,
+    /** Typically the type of the object being used, but is also sometimes the parent object (comments do this, for example) */
+    objectType: GqlModelType | `${GqlModelType}`,
+    onInvalidUrlParams?: (params: ParseSearchParamsResult) => unknown,
     /** If passed, uses this instead of fetching from server or cache */
     overrideObject?: Partial<PData>,
     /** Used by forms to properly shape the data for formik */
@@ -57,15 +61,35 @@ export function useObjectFromUrl<
     const stableOnInvalidUrlParams = useStableCallback(onInvalidUrlParams);
     const stableTransform = useStableCallback(transform);
 
+    /** Either applies the transform or returns the input data directly */
+    const applyTransform = useCallback((data: Partial<PData>) => {
+        return typeof stableTransform === "function" ? stableTransform(data) : data;
+    }, [stableTransform]);
+
     // Fetch data
     const [getData, { data, loading: isLoading }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
     const [object, setObject] = useState<ObjectReturnType<TData, TFunc>>(() => {
         // If overrideObject provided, use it. Also use transform if provided
-        if (typeof overrideObject === "object") return (typeof stableTransform === "function" ? stableTransform(overrideObject) : overrideObject) as ObjectReturnType<TData, TFunc>;
+        if (typeof overrideObject === "object") return applyTransform(overrideObject) as ObjectReturnType<TData, TFunc>;
         // Try to find object in cache
         const storedData = getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         // If transform provided, use it
-        const data = (typeof stableTransform === "function" ? stableTransform(storedData) : storedData) as ObjectReturnType<TData, TFunc>;
+        const data = applyTransform(storedData) as ObjectReturnType<TData, TFunc>;
+        // Try to find form data in cache
+        const storedForm = getCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : urlParams.id}`);
+        if (storedForm) {
+            if (isCreate) return applyTransform(storedForm as Partial<PData>) as ObjectReturnType<TData, TFunc>;
+            else if (JSON.stringify(storedForm) === JSON.stringify(data)) return data;
+            PubSub.get().publishSnack({
+                autoHideDuration: "persist",
+                messageKey: "FormDataFound",
+                buttonKey: "Yes",
+                buttonClicked: () => {
+                    setObject(applyTransform(storedForm as Partial<PData>) as ObjectReturnType<TData, TFunc>);
+                },
+                severity: "Warning",
+            });
+        }
         // Return data
         return data;
     });
@@ -88,17 +112,19 @@ export function useObjectFromUrl<
     useEffect(() => {
         // If overrideObject provided, use it
         if (typeof overrideObject === "object") {
-            setObject((typeof stableTransform === "function" ? stableTransform(overrideObject) : overrideObject) as ObjectReturnType<TData, TFunc>);
+            setObject(applyTransform(overrideObject) as ObjectReturnType<TData, TFunc>);
             return;
         }
         // If data was queried (i.e. object exists), store it in local state
         if (data) setCookiePartialData(data, "full");
         const knownData = data ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
-        // If transform provided, use it
-        const changedData = (typeof stableTransform === "function" ? stableTransform(knownData) : knownData) as ObjectReturnType<TData, TFunc>;
-        // Set object
-        setObject(changedData as ObjectReturnType<TData, TFunc>);
-    }, [data, objectType, overrideObject, stableTransform, urlParams]);
+        if (knownData && typeof knownData === "object" && uuidValidate(knownData.id)) {
+            // If transform provided, use it
+            const changedData = applyTransform(knownData) as ObjectReturnType<TData, TFunc>;
+            // Set object
+            setObject(changedData as ObjectReturnType<TData, TFunc>);
+        }
+    }, [applyTransform, data, objectType, overrideObject, urlParams]);
 
 
     // If object found, get permissions

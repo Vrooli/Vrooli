@@ -11,11 +11,11 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ResourceFormProps } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
@@ -23,9 +23,9 @@ import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { ResourceShape, shapeResource } from "utils/shape/models/resource";
-import { ResourceUpsertProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues";
+import { ResourceFormProps, ResourceUpsertProps } from "../types";
 
 /** New resources must include a list ID and an index */
 export type NewResourceShape = Partial<Omit<Resource, "list">> & {
@@ -76,16 +76,7 @@ export const resourceInitialValues = (
 export const transformResourceValues = (values: ResourceShape, existing: ResourceShape, isCreate: boolean) =>
     isCreate ? shapeResource.create(values) : shapeResource.update(existing, values);
 
-export const validateResourceValues = async (values: ResourceShape, existing: ResourceShape, isCreate: boolean) => {
-    const transformedValues = transformResourceValues(values, existing, isCreate);
-    console.log("validateResourceValues: values", values);
-    console.log("validateResourceValues: transformedValues", transformedValues);
-    const validationSchema = resourceValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
-export const ResourceForm = ({
+const ResourceForm = ({
     disabled,
     dirty,
     existing,
@@ -95,6 +86,7 @@ export const ResourceForm = ({
     isOpen,
     isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
     onDeleted,
     values,
@@ -129,21 +121,25 @@ export const ResourceForm = ({
         if (currDescription.length === 0) helpers.setValue(field.value.map((t) => t.language === language ? { ...t, description: subtitle } : t));
     }, [field, helpers, language]);
 
+    const { handleCancel, handleCompleted } = useUpsertActions<Resource>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "Resource",
+        ...props,
+    });
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<Resource, ResourceCreateInput, ResourceUpdateInput>({
-        display,
+    } = useUpsertFetch<Resource, ResourceCreateInput, ResourceUpdateInput>({
+        isCreate,
+        isMutate,
         endpointCreate: endpointPostResource,
         endpointUpdate: endpointPutResource,
-        isCreate,
-        onCancel,
-        onCompleted,
     });
-    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Resource" });
+
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useCallback(() => {
@@ -176,11 +172,11 @@ export const ResourceForm = ({
             display={display}
             id="resource-upsert-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 title={isCreate ? t("CreateResource") : t("UpdateResource")}
                 help={t("ResourceHelp")}
             />
@@ -249,6 +245,7 @@ export const ResourceUpsert = ({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Resource, ResourceShape>({
         ...endpointGetResource,
+        isCreate,
         objectType: "Resource",
         overrideObject: overrideObject as Resource,
         transform: (existing) => resourceInitialValues(session, existing as NewResourceShape),
@@ -260,7 +257,7 @@ export const ResourceUpsert = ({
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateResourceValues(values, existing, isCreate)}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformResourceValues, resourceValidation)}
         >
             {(formik) => <ResourceForm
                 disabled={!(isCreate || canUpdate)}

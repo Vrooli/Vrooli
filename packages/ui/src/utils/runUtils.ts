@@ -46,7 +46,7 @@ export const routineVersionHasSubroutines = (routineVersion: Partial<RoutineVers
     // If routineVersion has nodes or links, we know it has subroutines
     if (routineVersion.nodes && routineVersion.nodes.length > 0) return true;
     if (routineVersion.nodeLinks && routineVersion.nodeLinks.length > 0) return true;
-    if ((routineVersion as any).nodesCount && (routineVersion as any).nodesCount > 0) return true;
+    if (routineVersion.nodesCount && routineVersion.nodesCount > 0) return true;
     return false;
 };
 
@@ -250,28 +250,32 @@ export const getProjectVersionStatus = (projectVersion?: Partial<ProjectVersion>
  */
 export const initializeRoutineGraph = (language: string, routineVersionId: string): { nodes: NodeShape[], nodeLinks: NodeLinkShape[] } => {
     const startNode: NodeShape = {
+        __typename: "Node" as const,
         id: uuid(),
         nodeType: NodeType.Start,
         columnIndex: 0,
         rowIndex: 0,
-        routineVersion: { id: routineVersionId },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
         translations: [],
     };
     const routineListNodeId = uuid();
     const routineListNode: NodeShape = {
+        __typename: "Node",
         id: routineListNodeId,
         nodeType: NodeType.RoutineList,
         columnIndex: 1,
         rowIndex: 0,
         routineList: {
+            __typename: "NodeRoutineList",
             id: uuid(),
             isOptional: false,
             isOrdered: false,
             items: [],
             node: { id: routineListNodeId },
         },
-        routineVersion: { id: routineVersionId },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
         translations: [{
+            __typename: "NodeTranslation",
             id: uuid(),
             language,
             name: "Subroutine 1",
@@ -285,28 +289,31 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         columnIndex: 2,
         rowIndex: 0,
         end: {
+            __typename: "NodeEnd",
             id: uuid(),
             wasSuccessful: true,
             node: { id: endNodeId },
         },
-        routineVersion: { id: routineVersionId },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
         translations: [],
     };
     const link1: NodeLinkShape = {
+        __typename: "NodeLink",
         id: uuid(),
         from: startNode,
         to: routineListNode,
         whens: [],
         operation: null,
-        routineVersion: { id: routineVersionId },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
     };
     const link2: NodeLinkShape = {
+        __typename: "NodeLink",
         id: uuid(),
         from: routineListNode,
         to: endNode,
         whens: [],
         operation: null,
-        routineVersion: { id: routineVersionId },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
     };
     return {
         nodes: [startNode, routineListNode, endNode],

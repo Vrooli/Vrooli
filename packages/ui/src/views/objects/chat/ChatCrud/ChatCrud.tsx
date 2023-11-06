@@ -15,14 +15,13 @@ import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ChatFormProps } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useDeleter } from "hooks/useDeleter";
+import { useHistoryState } from "hooks/useHistoryState";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { TFunction } from "i18next";
 import { CopyIcon, ListIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -31,16 +30,18 @@ import { useLocation } from "route";
 import { FormContainer, FormSection, pagePaddingBottom } from "styles";
 import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
+import { removeCookieFormData } from "utils/cookies";
 import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { addToArray, updateArray, validateAndGetYupErrors } from "utils/shape/general";
+import { addToArray, updateArray } from "utils/shape/general";
 import { ChatShape, shapeChat } from "utils/shape/models/chat";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
-import { ChatCrudProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues";
+import { ChatCrudProps, ChatFormProps } from "../types";
 
 export const chatInitialValues = (
     session: Session | undefined,
@@ -113,13 +114,6 @@ export const chatInitialValues = (
 export const transformChatValues = (values: ChatShape, existing: ChatShape, isCreate: boolean) =>
     isCreate ? shapeChat.create(values) : shapeChat.update(existing, values);
 
-export const validateChatValues = async (values: ChatShape, existing: ChatShape, isCreate: boolean) => {
-    const transformedValues = transformChatValues(values, existing, isCreate);
-    const validationSchema = chatValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
 /** Basic chatInfo for a new convo with Valyxa */
 export const assistantChatInfo: ChatCrudProps["overrideObject"] = {
     __typename: "Chat" as const,
@@ -141,9 +135,11 @@ const ChatForm = ({
     dirty,
     existing,
     handleUpdate,
+    isCreate,
     isOpen,
     isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
     onDeleted,
     task,
@@ -156,8 +152,7 @@ const ChatForm = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
-    const [message, setMessage] = useState<string>(context ?? "");
-    const isCreate = useMemo(() => !existing.id || existing.id === DUMMY_ID, [existing.id]);
+    const [message, setMessage] = useHistoryState<string>("chatMessage", context ?? "");
     const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
 
     // We query messages separate from the chat, since we must traverse the message tree
@@ -190,19 +185,14 @@ const ChatForm = ({
 
     const {
         fetch,
-        handleCancel,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<Chat, ChatCreateInput, ChatUpdateInput>({
-        display,
+    } = useUpsertFetch<Chat, ChatCreateInput, ChatUpdateInput>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostChat,
         endpointUpdate: endpointPutChat,
-        isCreate,
-        onCancel,
-        onCompleted,
-        onDeleted,
     });
-    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: message.length > 0 });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isSearchTreeLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, isSearchTreeLoading, props.isSubmitting]);
 
@@ -228,6 +218,7 @@ const ChatForm = ({
                 console.log("update success!", data);
                 handleUpdate(data);
                 setMessage("");
+                removeCookieFormData(`Chat-${isCreate ? DUMMY_ID : data.id}`);
             },
             onCompleted: () => { props.setSubmitting(false); },
             onError: (data) => {
@@ -238,7 +229,7 @@ const ChatForm = ({
                 });
             },
         });
-    }, [disabled, existing, fetch, handleUpdate, isCreate, props, session, values]);
+    }, [disabled, existing, fetch, handleUpdate, isCreate, props, session, setMessage, values]);
 
     // Handle websocket connection/disconnection
     useEffect(() => {
@@ -411,7 +402,7 @@ const ChatForm = ({
                 display={display}
                 id="chat-dialog"
                 isOpen={isOpen}
-                onClose={handleClose}
+                onClose={onClose}
                 sxs={{
                     paper: { minWidth: "100vw" },
                 }}
@@ -427,7 +418,7 @@ const ChatForm = ({
                 }}>
                     <TopBar
                         display={display}
-                        onClose={handleClose}
+                        onClose={onClose}
                         startComponent={<IconButton
                             aria-label="Open chat menu"
                             onClick={openSideMenu}
@@ -654,6 +645,7 @@ export const ChatCrud = ({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Chat, ChatShape>({
         ...endpointGetChat,
+        isCreate,
         objectType: "Chat",
         overrideObject: overrideObject as unknown as Chat,
         transform: (data) => chatInitialValues(session, task, t, getUserLanguages(session)[0], data),
@@ -665,7 +657,7 @@ export const ChatCrud = ({
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateChatValues(values, existing, isCreate)}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformChatValues, chatValidation)}
         >
             {(formik) =>
                 <>

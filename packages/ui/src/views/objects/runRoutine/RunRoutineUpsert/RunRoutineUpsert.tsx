@@ -1,94 +1,268 @@
-import { endpointGetRunRoutine, endpointPostRunRoutine, endpointPutRunRoutine, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/shared";
-import { fetchLazyWrapper } from "api";
+import { DUMMY_ID, endpointGetRunRoutine, endpointPostRunRoutine, endpointPutRunRoutine, noopSubmit, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput, runRoutineValidation, RunStatus, Schedule, Session } from "@local/shared";
+import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
+import { useSubmitHelper } from "api";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
-import { Formik } from "formik";
-import { RunRoutineForm, runRoutineInitialValues, transformRunRoutineValues, validateRunRoutineValues } from "forms/RunRoutineForm/RunRoutineForm";
-import { useFormDialog } from "hooks/useConfirmBeforeLeave";
+import { Formik, useField } from "formik";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useContext } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { AddIcon, DeleteIcon, EditIcon } from "icons";
+import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getDisplay, getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
-import { PubSub } from "utils/pubsub";
-import { RunRoutineShape } from "utils/shape/models/runRoutine";
-import { RunRoutineUpsertProps } from "../types";
+import { getUserLanguages } from "utils/display/translationTools";
+import { CalendarPageTabOption } from "utils/search/objectToSearch";
+import { RunRoutineShape, shapeRunRoutine } from "utils/shape/models/runRoutine";
+import { validateFormValues } from "utils/validateFormValues";
+import { ScheduleUpsert } from "views/objects/schedule";
+import { RunRoutineFormProps, RunRoutineUpsertProps } from "../types";
 
-export const RunRoutineUpsert = ({
+export const runRoutineInitialValues = (
+    session: Session | undefined,
+    existing?: Partial<RunRoutine> | null | undefined,
+): RunRoutineShape => ({
+    __typename: "RunRoutine" as const,
+    id: DUMMY_ID,
+    completedComplexity: 0,
+    contextSwitches: 0,
+    isPrivate: true,
+    name: existing?.name ?? getDisplay(existing?.routineVersion, getUserLanguages(session)).title ?? "Run",
+    schedule: null,
+    status: RunStatus.Scheduled,
+    steps: [],
+    timeElapsed: 0,
+    ...existing,
+});
+
+export const transformRunRoutineValues = (values: RunRoutineShape, existing: RunRoutineShape, isCreate: boolean) =>
+    isCreate ? shapeRunRoutine.create(values) : shapeRunRoutine.update(existing, values);
+
+const RunRoutineForm = ({
+    disabled,
+    dirty,
+    existing,
+    handleUpdate,
     isCreate,
     isOpen,
+    isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
-    overrideObject,
-}: RunRoutineUpsertProps) => {
-    const { t } = useTranslation();
-    const session = useContext(SessionContext);
+    onDeleted,
+    values,
+    ...props
+}: RunRoutineFormProps) => {
+    const { palette } = useTheme();
     const display = toDisplay(isOpen);
+    const { t } = useTranslation();
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<RunRoutine, RunRoutineShape>({
-        ...endpointGetRunRoutine,
+    // Handle scheduling
+    const [scheduleField, , scheduleHelpers] = useField<Schedule | null>("schedule");
+    const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+    const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+    const handleAddSchedule = () => { setIsScheduleDialogOpen(true); };
+    const handleUpdateSchedule = () => {
+        setEditingSchedule(scheduleField.value);
+        setIsScheduleDialogOpen(true);
+    };
+    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
+    const handleScheduleCompleted = (created: Schedule) => {
+        scheduleHelpers.setValue(created);
+        setIsScheduleDialogOpen(false);
+    };
+    const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
+
+    const { handleCancel, handleCompleted } = useUpsertActions<RunRoutine>({
+        display,
+        isCreate,
+        objectId: values.id,
         objectType: "RunRoutine",
-        overrideObject,
-        transform: (existing) => runRoutineInitialValues(session, existing),
+        ...props,
     });
-
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput>({
-        display,
+    } = useUpsertFetch<RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostRunRoutine,
         endpointUpdate: endpointPutRunRoutine,
-        isCreate,
-        onCancel,
-        onCompleted,
     });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RunRoutine" });
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useSubmitHelper<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformRunRoutineValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="run-routine-upsert-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 title={t(isCreate ? "CreateRun" : "UpdateRun")}
             />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>({
-                        fetch,
-                        inputs: transformRunRoutineValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateRunRoutineValues(values, existing, isCreate)}
+            {/* Dialog to create/update schedule */}
+            <ScheduleUpsert
+                canChangeTab={false}
+                canSetScheduleFor={false}
+                defaultTab={CalendarPageTabOption.RunRoutine}
+                handleDelete={handleDeleteSchedule}
+                isCreate={editingSchedule === null}
+                isMutate={false}
+                isOpen={isScheduleDialogOpen}
+                onCancel={handleCloseScheduleDialog}
+                onCompleted={handleScheduleCompleted}
+                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
+            />
+            <BaseForm
+                display={display}
+                isLoading={isLoading}
+                maxWidth={600}
             >
-                {(formik) => <RunRoutineForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    {...formik}
-                />}
-            </Formik>
+                <Stack direction="column" spacing={4} padding={2}>
+                    {/* TODO */}
+                    {/* Handle adding, updating, and removing schedule */}
+                    {!scheduleField.value && (
+                        <Button
+                            onClick={handleAddSchedule}
+                            startIcon={<AddIcon />}
+                            variant="outlined"
+                            sx={{
+                                display: "flex",
+                                margin: "auto",
+                            }}
+                        >{t("ScheduleCreate")}</Button>
+                    )}
+                    {scheduleField.value && <ListContainer
+                        isEmpty={false}
+                    >
+                        {scheduleField.value && (
+                            <ListItem>
+                                <Stack
+                                    direction="column"
+                                    spacing={1}
+                                    pl={2}
+                                    sx={{
+                                        width: "-webkit-fill-available",
+                                        display: "grid",
+                                        pointerEvents: "none",
+                                    }}
+                                >
+                                    {/* TODO */}
+                                </Stack>
+                                <Stack
+                                    direction="column"
+                                    spacing={1}
+                                    sx={{
+                                        pointerEvents: "none",
+                                        justifyContent: "center",
+                                        alignItems: "start",
+                                    }}
+                                >
+                                    {/* Edit */}
+                                    <Box
+                                        component="a"
+                                        onClick={handleUpdateSchedule}
+                                        sx={{
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            pointerEvents: "all",
+                                            paddingBottom: "4px",
+                                        }}>
+                                        <EditIcon fill={palette.secondary.main} />
+                                    </Box>
+                                    {/* Delete */}
+                                    <Box
+                                        component="a"
+                                        onClick={handleDeleteSchedule}
+                                        sx={{
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            pointerEvents: "all",
+                                            paddingBottom: "4px",
+                                        }}>
+                                        <DeleteIcon fill={palette.secondary.main} />
+                                    </Box>
+                                </Stack>
+                            </ListItem>
+                        )}
+                    </ListContainer>}
+                    {/* TODO */}
+                </Stack>
+            </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={props.errors}
+                hideButtons={disabled}
+                isCreate={isCreate}
+                loading={isLoading}
+                onCancel={handleCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={onSubmit}
+            />
         </MaybeLargeDialog>
+    );
+};
+
+export const RunRoutineUpsert = ({
+    isCreate,
+    isOpen,
+    overrideObject,
+    ...props
+}: RunRoutineUpsertProps) => {
+    const session = useContext(SessionContext);
+
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<RunRoutine, RunRoutineShape>({
+        ...endpointGetRunRoutine,
+        isCreate,
+        objectType: "RunRoutine",
+        overrideObject,
+        transform: (existing) => runRoutineInitialValues(session, existing),
+    });
+    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
+
+    return (
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformRunRoutineValues, runRoutineValidation)}
+        >
+            {(formik) => <RunRoutineForm
+                disabled={!(isCreate || canUpdate)}
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

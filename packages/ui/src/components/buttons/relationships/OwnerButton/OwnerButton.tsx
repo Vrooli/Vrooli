@@ -1,4 +1,4 @@
-import { exists } from "@local/shared";
+import { exists, noop } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
@@ -85,8 +85,7 @@ export function OwnerButton({
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isOrganizationDialogOpen) return ["Organization", handleOwnerSelect, closeOrganizationDialog];
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        return [null, () => { }, () => { }];
+        return [null, noop, noop];
     }, [isOrganizationDialogOpen, handleOwnerSelect, closeOrganizationDialog]);
 
     const { Icon, tooltip } = useMemo(() => {

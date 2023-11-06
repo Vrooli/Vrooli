@@ -1,4 +1,4 @@
-import { CommentFor, exists, ResourceList, RoutineVersion, Tag } from "@local/shared";
+import { CommentFor, exists, noop, ResourceList, RoutineVersion, Tag } from "@local/shared";
 import { Box, Button, LinearProgress, Palette, Stack, Typography, useTheme } from "@mui/material";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -128,8 +128,7 @@ export const SubroutineView = ({
             return acc;
         }, {}),
         enableReinitialize: true,
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onSubmit: () => { },
+        onSubmit: noop,
     });
 
     /**
@@ -180,8 +179,7 @@ export const SubroutineView = ({
                         fieldData={fieldData}
                         index={index}
                         textPrimary={palette.background.textPrimary}
-                        // eslint-disable-next-line @typescript-eslint/no-empty-function
-                        onUpload={() => { }}
+                        onUpload={noop}
                     />
                 ))}
             </Box>
@@ -259,8 +257,7 @@ export const SubroutineView = ({
                     title={"Resources"}
                     list={resourceList as unknown as ResourceList}
                     canUpdate={false}
-                    // eslint-disable-next-line @typescript-eslint/no-empty-function
-                    handleUpdate={() => { }} // Intentionally blank
+                    handleUpdate={noop}
                     loading={loading}
                     parent={{ __typename: "RoutineVersion", id: routineVersion?.id ?? "" }}
                 />}

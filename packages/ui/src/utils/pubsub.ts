@@ -57,7 +57,7 @@ export type AlertDialogPub = {
     buttons: {
         labelKey: CommonKey;
         labelVariables?: { [key: string]: string | number };
-        onClick?: (() => void);
+        onClick?: (() => unknown);
     }[];
 }
 
@@ -161,61 +161,61 @@ export class PubSub {
         this.subscribers[key].push([token, subscriber]);
         return token;
     }
-    subscribeAlertDialog(subscriber: (data: AlertDialogPub) => void) {
+    subscribeAlertDialog(subscriber: (data: AlertDialogPub) => unknown) {
         return this.subscribe("AlertDialog", subscriber);
     }
-    subscribeCelebration(subscriber: (duration?: number) => void) {
+    subscribeCelebration(subscriber: (duration?: number) => unknown) {
         return this.subscribe("Celebration", subscriber);
     }
-    subscribeCommandPalette(subscriber: () => void) {
+    subscribeCommandPalette(subscriber: () => unknown) {
         return this.subscribe("CommandPalette", subscriber);
     }
-    subscribeCookies(subscriber: () => void) {
+    subscribeCookies(subscriber: () => unknown) {
         return this.subscribe("Cookies", subscriber);
     }
-    subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => void) {
+    subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => unknown) {
         return this.subscribe("FastUpdate", subscriber);
     }
-    subscribeFindInPage(subscriber: () => void) {
+    subscribeFindInPage(subscriber: () => unknown) {
         return this.subscribe("FindInPage", subscriber);
     }
-    subscribeFocusMode(subscriber: (mode: ActiveFocusMode) => void) {
+    subscribeFocusMode(subscriber: (mode: ActiveFocusMode) => unknown) {
         return this.subscribe("FocusMode", subscriber);
     }
-    subscribeFontSize(subscriber: (fontSize: number) => void) {
+    subscribeFontSize(subscriber: (fontSize: number) => unknown) {
         return this.subscribe("FontSize", subscriber);
     }
-    subscribeIsLeftHanded(subscriber: (isLeftHanded: boolean) => void) {
+    subscribeIsLeftHanded(subscriber: (isLeftHanded: boolean) => unknown) {
         return this.subscribe("IsLeftHanded", subscriber);
     }
-    subscribeLanguage(subscriber: (language: string) => void) {
+    subscribeLanguage(subscriber: (language: string) => unknown) {
         return this.subscribe("Language", subscriber);
     }
-    subscribeLoading(subscriber: (spinnerDelay: number | boolean) => void) {
+    subscribeLoading(subscriber: (spinnerDelay: number | boolean) => unknown) {
         return this.subscribe("Loading", subscriber);
     }
-    subscribeLogOut(subscriber: () => void) {
+    subscribeLogOut(subscriber: () => unknown) {
         return this.subscribe("LogOut", subscriber);
     }
-    subscribeNodeDrag(subscriber: (data: { nodeId: string }) => void) {
+    subscribeNodeDrag(subscriber: (data: { nodeId: string }) => unknown) {
         return this.subscribe("NodeDrag", subscriber);
     }
-    subscribeNodeDrop(subscriber: (data: { nodeId: string, position: { x: number, y: number } }) => void) {
+    subscribeNodeDrop(subscriber: (data: { nodeId: string, position: { x: number, y: number } }) => unknown) {
         return this.subscribe("NodeDrop", subscriber);
     }
-    subscribeSession(subscriber: (session: Session | undefined) => void) {
+    subscribeSession(subscriber: (session: Session | undefined) => unknown) {
         return this.subscribe("Session", subscriber);
     }
-    subscribeSideMenu(subscriber: (data: SideMenuPub) => void) {
+    subscribeSideMenu(subscriber: (data: SideMenuPub) => unknown) {
         return this.subscribe("SideMenu", subscriber);
     }
-    subscribeSnack(subscriber: (data: SnackPub) => void) {
+    subscribeSnack(subscriber: (data: SnackPub) => unknown) {
         return this.subscribe("Snack", subscriber);
     }
-    subscribeTheme(subscriber: (theme: "light" | "dark") => void) {
+    subscribeTheme(subscriber: (theme: "light" | "dark") => unknown) {
         return this.subscribe("Theme", subscriber);
     }
-    subscribeTutorial(subscriber: () => void) {
+    subscribeTutorial(subscriber: () => unknown) {
         return this.subscribe("Tutorial", subscriber);
     }
 

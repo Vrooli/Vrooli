@@ -1,11 +1,12 @@
 /**
  * Displays a list of nodes vertically.
  */
-import { Node, NodeEnd, NodeRoutineList, NodeType } from "@local/shared";
+import { Node, NodeRoutineList, NodeType } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { useMemo } from "react";
 import { getTranslation } from "utils/display/translationTools";
 import { NodeShape } from "utils/shape/models/node";
+import { NodeWithEnd } from "views/objects/node/types";
 import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from "../nodes";
 import { NodeColumnProps } from "../types";
 
@@ -72,7 +73,7 @@ export const NodeColumn = ({
                         handleUpdate={handleNodeUpdate}
                         language={language}
                         linksIn={links.filter(l => l.to.id === node.id)}
-                        node={node as Node & { end: NodeEnd }}
+                        node={node as NodeWithEnd}
                     />;
                 case NodeType.Redirect:
                     return <RedirectNode

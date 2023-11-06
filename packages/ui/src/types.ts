@@ -38,6 +38,8 @@ export type CalendarEvent = {
     schedule: Schedule;
 }
 
+export type FormErrors = { [key: string]: string | string[] | null | undefined | FormErrors | FormErrors[] };
+
 /**
  * Data to display title information for a component, which may not
  * always be translated.

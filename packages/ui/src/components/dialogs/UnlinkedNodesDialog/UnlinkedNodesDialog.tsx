@@ -1,7 +1,7 @@
 /**
  * Displays nodes associated with a routine, but that are not linked to any other nodes.
  */
-import { Node, NodeEnd, NodeRoutineList, NodeType } from "@local/shared";
+import { Node, NodeRoutineList, NodeType, noop } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { EndNode, RedirectNode, RoutineListNode } from "components/graphs/NodeGraph";
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from "icons";
@@ -9,6 +9,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
 import { getTranslation } from "utils/display/translationTools";
+import { NodeWithEnd } from "views/objects/node/types";
 import { UnlinkedNodesDialogProps } from "../types";
 
 export const UnlinkedNodesDialog = ({
@@ -28,7 +29,7 @@ export const UnlinkedNodesDialog = ({
         // Common node props
         const nodeProps = {
             canDrag: true,
-            handleAction: () => { },
+            handleAction: noop,
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
@@ -41,11 +42,10 @@ export const UnlinkedNodesDialog = ({
             case NodeType.End:
                 return <EndNode
                     {...nodeProps}
-                    // eslint-disable-next-line @typescript-eslint/no-empty-function
-                    handleUpdate={() => { }} // Intentionally blank
+                    handleUpdate={noop}
                     language={language}
                     linksIn={[]}
-                    node={node as Node & { end: NodeEnd }}
+                    node={node as NodeWithEnd}
                 />;
             case NodeType.Redirect:
                 return <RedirectNode
@@ -58,8 +58,7 @@ export const UnlinkedNodesDialog = ({
                     canExpand={false}
                     labelVisible={true}
                     language={language}
-                    // eslint-disable-next-line @typescript-eslint/no-empty-function
-                    handleUpdate={() => { }} // Intentionally blank
+                    handleUpdate={noop}
                     linksIn={[]}
                     linksOut={[]}
                     node={node as Node & { routineList: NodeRoutineList }}

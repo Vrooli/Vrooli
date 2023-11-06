@@ -12,7 +12,7 @@ export type ApiVersionShape = Pick<ApiVersion, "id" | "callLink" | "documentatio
     __typename: "ApiVersion";
     directoryListings?: { id: string }[] | null;
     resourceList?: ResourceListShape | null;
-    root?: { id: string } | ApiShape | null;
+    root?: { __typename: "Api", id: string } | ApiShape | null;
     translations?: ApiVersionTranslationShape[] | null;
 }
 

@@ -1,6 +1,6 @@
 import { DUMMY_ID, endpointGetReport, endpointPostReport, endpointPutReport, noopSubmit, Report, ReportCreateInput, ReportFor, ReportUpdateInput, reportValidation, Session } from "@local/shared";
 import { Link, TextField, Typography } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -11,21 +11,20 @@ import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { formNavLink } from "forms/styles";
-import { ReportFormProps } from "forms/types";
-import { useConfirmBeforeLeave } from "hooks/useConfirmBeforeLeave";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize, FormContainer } from "styles";
 import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { ReportShape, shapeReport } from "utils/shape/models/report";
-import { ReportUpsertProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues";
+import { ReportFormProps, ReportUpsertProps } from "../types";
 
 enum ReportOptions {
     Inappropriate = "Inappropriate",
@@ -62,14 +61,6 @@ export const reportInitialValues = (
 export const transformReportValues = (values: ReportShape, existing: ReportShape, isCreate: boolean) =>
     isCreate ? shapeReport.create(values) : shapeReport.update(existing, values);
 
-export const validateReportValues = async (values: ReportShape, existing: ReportShape, isCreate: boolean) => {
-    const transformedValues = transformReportValues(values, existing, isCreate);
-    console.log("transformed report", transformedValues);
-    const validationSchema = reportValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
 const ReportForm = ({
     disabled,
     dirty,
@@ -79,6 +70,7 @@ const ReportForm = ({
     isOpen,
     isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
     onDeleted,
     values,
@@ -108,50 +100,47 @@ const ReportForm = ({
 
     const [reasonField] = useField("reason");
 
+    const { handleCancel, handleCompleted } = useUpsertActions<Report>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "Report",
+        ...props,
+    });
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<Report, ReportCreateInput, ReportUpdateInput>({
-        display,
+    } = useUpsertFetch<Report, ReportCreateInput, ReportUpdateInput>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostReport,
         endpointUpdate: endpointPutReport,
-        isCreate,
-        onCancel,
-        onCompleted,
     });
-    const { handleClose } = useConfirmBeforeLeave({ handleCancel, shouldPrompt: dirty });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Report" });
+
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        if (!isCreate && !existing) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-            return;
-        }
-        fetchLazyWrapper<ReportCreateInput | ReportUpdateInput, Report>({
-            fetch,
-            inputs: transformReportValues(values, existing, isCreate),
-            onSuccess: (data) => { handleCompleted(data); },
-            onCompleted: () => { props.setSubmitting(false); },
-        });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
+    const onSubmit = useSubmitHelper<ReportCreateInput | ReportUpdateInput, Report>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformReportValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="report-upsert-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 title={t("Report", { count: 1 })}
                 help={t("ReportsHelp")}
             />
@@ -204,7 +193,7 @@ const ReportForm = ({
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={props.errors as any}
+                errors={props.errors}
                 hideButtons={disabled}
                 isCreate={isCreate}
                 loading={isLoading}
@@ -226,6 +215,7 @@ export const ReportUpsert = ({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Report, ReportShape>({
         ...endpointGetReport,
+        isCreate,
         objectType: "Report",
         overrideObject,
         transform: (existing) => reportInitialValues(session, existing as NewReportShape),
@@ -237,7 +227,7 @@ export const ReportUpsert = ({
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateReportValues(values, existing, isCreate)}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformReportValues, reportValidation)}
         >
             {(formik) => <ReportForm
                 disabled={!(isCreate || canUpdate)}
