@@ -53,7 +53,7 @@ export const subroutineInitialValues = (
     }]),
 });
 
-export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape | undefined, isCreate: boolean) =>
+export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape, isCreate: boolean) =>
     isCreate ? shapeNodeRoutineListItem.create(values) : shapeNodeRoutineListItem.update(existing as NodeRoutineListItemShape, values);
 
 const SubroutineForm = ({
@@ -66,7 +66,6 @@ const SubroutineForm = ({
     isEditing,
     isOpen,
     numSubroutines,
-    onCancel,
     onClose,
     values,
     versions,
@@ -138,9 +137,9 @@ const SubroutineForm = ({
         // Check if subroutine index has changed
         const originalIndex = values.index;
         // Update the subroutine
-        handleUpdate(values as any);
+        handleUpdate(values);
         // If the index has changed, reorder the subroutine
-        originalIndex !== values.index && handleReorder(originalIndex, values.index);
+        originalIndex !== values.index && handleReorder(values.id, originalIndex, values.index);
     }, [handleReorder, handleUpdate, isEditing, values]);
 
     return (
@@ -198,7 +197,7 @@ const SubroutineForm = ({
                         </Tooltip>
                     )}
                     {/* Close button */}
-                    <IconButton onClick={onCancel} sx={{
+                    <IconButton onClick={onClose} sx={{
                         color: theme.palette.primary.contrastText,
                         borderBottom: `1px solid ${theme.palette.primary.dark}`,
                     }}>
@@ -335,7 +334,7 @@ const SubroutineForm = ({
                 hideButtons={!isEditing}
                 isCreate={isCreate}
                 loading={isLoading}
-                onCancel={onCancel}
+                onCancel={onClose}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
             />}
@@ -349,13 +348,12 @@ const SubroutineForm = ({
  */
 export const SubroutineInfoDialog = ({
     data,
-    defaultLanguage,
     handleUpdate,
     handleReorder,
     handleViewFull,
     isEditing,
-    open,
     onClose,
+    ...props
 }: SubroutineInfoDialogProps) => {
     const session = useContext(SessionContext);
 
@@ -375,18 +373,17 @@ export const SubroutineInfoDialog = ({
             enableReinitialize={true}
             initialValues={initialValues}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, subroutine, false, transformSubroutineValues, nodeRoutineListItemValidation)}
+            validate={async (values) => await validateFormValues(values, subroutine!, false, transformSubroutineValues, nodeRoutineListItemValidation)}
         >
             {(formik) => <SubroutineForm
                 canUpdateRoutineVersion={canUpdate}
-                handleReorder={(oldIndex, newIndx) => { handleReorder(nodeId, oldIndex, newIndx); }}
-                handleUpdate={handleUpdate}
+                handleReorder={(_, oldIndex, newIndex) => { handleReorder(nodeId, oldIndex, newIndex); }}
+                handleUpdate={handleUpdate as any}
                 handleViewFull={handleViewFull}
                 isCreate={false}
                 isEditing={isEditing}
                 isOpen={true}
                 numSubroutines={numSubroutines}
-                onCancel={onClose}
                 onClose={onClose}
                 versions={[]}
                 {...formik}

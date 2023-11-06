@@ -17,33 +17,38 @@ export const useSaveToCache = <T>({
     debounceTime,
     objectType,
     isCreate,
+    disabled = false,
 }: {
     values: T;
     objectId: string;
     debounceTime?: number;
     objectType: GqlModelType | `${GqlModelType}`;
     isCreate: boolean;
+    disabled?: boolean;
 }) => {
     // Create a unique cache key using the objectType and objectId (if it exists)
     const formCacheId = isCreate ? `${objectType}-${DUMMY_ID}` : `${objectType}-${objectId}`;
 
     // Define the function that will handle the cache saving logic
-    const saveToCache = useCallback((currentValues: T) => { console.log("saving to cache...", formCacheId, currentValues); setCookieFormData(formCacheId, currentValues as any); }, [formCacheId]);
+    const saveToCache = useCallback((currentValues: T) => {
+        if (disabled) return;
+        setCookieFormData(formCacheId, currentValues as any);
+    }, [disabled, formCacheId]);
 
     const [saveToCacheDebounced] = useDebounce(saveToCache, debounceTime ?? 200);
 
     // Effect to handle saving values to cache whenever they change
     useEffect(() => {
         // Check if values are not empty or match some condition to be saved
-        if (shouldValuesBeSaved(values)) {
+        if (!disabled && shouldValuesBeSaved(values)) {
             saveToCacheDebounced(values);
         }
 
         // Cleanup function to save the cache when the component unmounts or values change
         return () => {
-            if (shouldValuesBeSaved(values)) {
+            if (!disabled && shouldValuesBeSaved(values)) {
                 saveToCache(values);
             }
         };
-    }, [values, saveToCacheDebounced, saveToCache]);
+    }, [disabled, values, saveToCacheDebounced, saveToCache]);
 };

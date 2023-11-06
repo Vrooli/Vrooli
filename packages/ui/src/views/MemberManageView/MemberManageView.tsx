@@ -1,4 +1,3 @@
-import { MemberInvite } from "@local/shared";
 import { Checkbox, FormControlLabel, Stack } from "@mui/material";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -9,7 +8,6 @@ import { useTabs } from "hooks/useTabs";
 import { useCallback, useEffect, useState } from "react";
 import { toDisplay } from "utils/display/pageTools";
 import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
-import { MemberInvitesUpsert } from "views/objects/memberInvite";
 import { MemberManageViewProps } from "../types";
 
 /**
@@ -31,14 +29,29 @@ export const MemberManageView = ({
         where,
     } = useTabs<MemberManagePageTabOption>({ id: "member-manage-tabs", tabParams: memberTabParams, display });
 
-    const [isInviteDialogOpen, setInviteDialogOpen] = useState(false);
-    const onInviteStart = useCallback(() => {
-        setInviteDialogOpen(true);
-    }, []);
-    const onInviteCompleted = useCallback((invite: MemberInvite) => {
-        setInviteDialogOpen(false);
-        // TODO add or update list
-    }, []);
+    //    // Handle add/update invite dialog
+    //    const [invitesToUpsert, setInvitesToUpsert] = useState<MemberInviteShape[]>([]);
+    //    const handleInvitesUpdate = useCallback(() => {
+    //        if (currTab.tabType !== ParticipantManagePageTabOption.MemberInvite) return;
+    //        setInvitesToUpsert(selectedData as MemberInviteShape[]);
+    //    }, [currTab.tabType, selectedData]);
+    //    const handleInvitesCreate = useCallback(() => {
+    //        if (currTab.tabType !== ParticipantManagePageTabOption.Add) return;
+    //        const asInvites: MemberInviteShape[] = (selectedData as User[]).map(user => ({
+    //            __typename: "MemberInvite",
+    //            id: DUMMY_ID,
+    //            created_at: new Date().toISOString(),
+    //            updated_at: new Date().toISOString(),
+    //            status: MemberInviteStatus.Pending,
+    //            organization: { __typename: "Organization", id: organization.id },
+    //            user,
+    //        } as const));
+    //        setInvitesToUpsert(asInvites);
+    //    }, [organization.id, currTab.tabType, selectedData]);
+    //    const onInviteCompleted = () => {
+    //        // TODO Handle any post-completion tasks here, if necessary
+    //        setInvitesToUpsert([]);
+    //    };
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -62,13 +75,13 @@ export const MemberManageView = ({
             }}
         >
             {/* Dialog for creating new member invite */}
-            <MemberInvitesUpsert
+            {/* <MemberInvitesUpsert
                 isCreate={true}
+                invites={invites}
                 isOpen={isInviteDialogOpen}
                 onCompleted={onInviteCompleted}
                 onCancel={() => setInviteDialogOpen(false)}
-                overrideObject={{ organization }}
-            />
+            />  */}
             {/* Main dialog */}
             <TopBar
                 display={display}

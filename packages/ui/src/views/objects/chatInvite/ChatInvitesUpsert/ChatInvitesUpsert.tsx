@@ -7,10 +7,10 @@ import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
-import { useSaveToCache } from "hooks/useSaveToCache";
+import { useHistoryState } from "hooks/useHistoryState";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -56,12 +56,11 @@ const ChatInvitesForm = ({
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
     const { palette } = useTheme();
-    const [message, setMessage] = useState("");
+    const [message, setMessage] = useHistoryState("chat-invite-message", "");
 
     const { handleCancel, handleCompleted } = useUpsertActions<ChatInvite[]>({
         display,
         isCreate,
-        objectId: values.id,
         objectType: "ChatInvite",
         ...props,
     });
@@ -75,7 +74,6 @@ const ChatInvitesForm = ({
         endpointCreate: endpointPostChatInvites,
         endpointUpdate: endpointPutChatInvites,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ChatInvite" });
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<ChatInviteCreateInput[] | ChatInviteUpdateInput[], ChatInvite[]>({
@@ -149,7 +147,7 @@ const ChatInvitesForm = ({
                 </Box>
                 <BottomActionsButtons
                     display={display}
-                    errors={props.errors}
+                    errors={props.errors as any}
                     hideButtons={disabled}
                     isCreate={isCreate}
                     loading={isLoading}

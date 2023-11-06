@@ -16,6 +16,7 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { SessionContext } from "contexts/SessionContext";
 import { NodeWithRoutineListShape } from "forms/types";
 import { useHotkeys } from "hooks/useHotkeys";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useStableObject } from "hooks/useStableObject";
 import { CloseIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -131,7 +132,7 @@ export const BuildView = ({
         { keys: ["z"], ctrlKey: true, callback: undo },
     ]);
 
-    useConfirmBeforeLeave({ shouldPrompt: isEditing && changeStack.length > 1 });
+    useSaveToCache({ disabled: !isEditing, isCreate: changedRoutineVersion.id === DUMMY_ID, values: changedRoutineVersion, objectId: changedRoutineVersion.id, objectType: "Routine" });
 
     /** Updates a node's data */
     const handleNodeUpdate = useCallback((node: Node) => {

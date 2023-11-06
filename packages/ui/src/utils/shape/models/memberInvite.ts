@@ -4,8 +4,8 @@ import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type MemberInviteShape = Pick<MemberInvite, "id" | "message" | "willBeAdmin" | "willHavePermissions"> & {
     __typename: "MemberInvite";
-    organization: { id: string };
-    user: { id: string };
+    organization: { __typename: "Organization", id: string };
+    user: { __typename: "User", id: string };
 }
 
 export const shapeMemberInvite: ShapeModel<MemberInviteShape, MemberInviteCreateInput, MemberInviteUpdateInput> = {

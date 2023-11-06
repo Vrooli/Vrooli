@@ -1,4 +1,5 @@
 import { InputType, Node, OrArray } from "@local/shared";
+import { SubroutineInfoDialogProps } from "components/dialogs/types";
 import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, ReactNode, SetStateAction } from "react";
@@ -7,7 +8,7 @@ import { NodeShape } from "utils/shape/models/node";
 import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { TagShape } from "utils/shape/models/tag";
-import { NodeWithEndShape } from "views/objects/node/types";
+import { NodeWithEndCrudProps, NodeWithEndShape } from "views/objects/node/types";
 import { CrudProps } from "views/objects/types";
 import { ViewDisplayType } from "views/types";
 
@@ -38,23 +39,21 @@ export interface BaseGeneratedFormProps {
 }
 
 export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };
-export type NodeEndFormProps = Omit<FormProps<Node, NodeWithEndShape>, "onCancel" | "onClose" | "onCompleted"> & Pick<NodeEndUpsertProps, "onCancel" | "onClose" | "onCompleted"> & {
+export type NodeEndFormProps = Omit<FormProps<Node, NodeWithEndShape>, "onCancel" | "onClose" | "onCompleted"> & Pick<NodeWithEndCrudProps, "onCancel" | "onClose" | "onCompleted"> & {
     isEditing: boolean;
 }
 export interface NodeRoutineListFormProps extends FormProps<Node, NodeWithRoutineListShape> {
     isEditing: boolean;
 }
 
-export interface SubroutineFormProps extends Omit<FormProps<Node, NodeRoutineListItemShape>, "display" | "isLoading"> {
+export type SubroutineFormProps = Omit<FormProps<Node, NodeRoutineListItemShape>, "disabled" | "display" | "existing" | "isLoading" | "isOpen" | "onCancel" | "isReadLoading" | "onClose" | "onCompleted"> & Required<Pick<SubroutineInfoDialogProps, "handleUpdate" | "handleReorder" | "handleViewFull" | "onClose">> & {
     /**
      * True if the routine version itself can be updated. Otherwise, 
      * only node-level properties can be updated (e.g. index)
      */
     canUpdateRoutineVersion: boolean;
-    handleReorder: (oldIndex: number, newIndex: number) => unknown;
-    handleUpdate: (updatedSubroutine: NodeRoutineListItemShape) => unknown;
-    handleViewFull: () => unknown;
     isEditing: boolean;
+    isOpen: boolean;
     /** Number of subroutines in parent routine list */
     numSubroutines: number;
     versions: string[];

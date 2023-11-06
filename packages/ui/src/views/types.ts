@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import { PartialOrArrayWithType, SxType } from "types";
 import { ListObject } from "utils/display/listTools";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
-import { NewMemberInviteShape } from "./objects/memberInvite/MemberInvitesUpsert/MemberInvitesUpsert";
+import { MemberInviteShape } from "utils/shape/models/memberInvite";
 
 /**
  * Views can be displayed as full pages or as dialogs
@@ -39,7 +39,7 @@ export type ForgotPasswordViewProps = ViewProps
 export type HistorySearchViewProps = ViewProps
 export type LoginViewProps = ViewProps
 export type MemberManageViewProps = ViewProps & {
-    organization: NewMemberInviteShape["organization"];
+    organization: MemberInviteShape["organization"];
 }
 export type ParticipantManageViewProps = ViewProps & {
     chat: ChatInviteShape["chat"];

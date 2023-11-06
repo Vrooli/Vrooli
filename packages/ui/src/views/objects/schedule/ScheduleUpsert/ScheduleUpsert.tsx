@@ -22,6 +22,7 @@ import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { getYou } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
@@ -52,10 +53,11 @@ export const transformScheduleValues = (values: ScheduleShape, existing: Schedul
 const ScheduleForm = ({
     canChangeTab,
     canSetScheduleFor,
-    defaultTab,
+    currTab,
     disabled,
     dirty,
     existing,
+    handleTabChange,
     handleUpdate,
     isCreate,
     isMutate,
@@ -65,11 +67,13 @@ const ScheduleForm = ({
     onClose,
     onCompleted,
     onDeleted,
+    tabs,
     values,
     ...props
 }: ScheduleFormProps) => {
     const { palette } = useTheme();
     const display = toDisplay(isOpen);
+    const { t } = useTranslation();
 
     const [exceptionsField, , exceptionsHelpers] = useField<ScheduleException[]>("exceptions");
     const [recurrencesField, , recurrencesHelpers] = useField<ScheduleRecurrence[]>("recurrences");
@@ -97,17 +101,6 @@ const ScheduleForm = ({
     const removeRecurrence = (index: number) => {
         recurrencesHelpers.setValue(recurrencesField.value.filter((_, idx) => idx !== index));
     };
-
-    const {
-        currTab,
-        handleTabChange,
-        tabs,
-    } = useTabs<CalendarPageTabOption>({
-        id: "schedule-tabs",
-        tabParams,
-        defaultTab,
-        display,
-    });
 
     const { handleCancel, handleCompleted } = useUpsertActions<Schedule>({
         display,
@@ -183,7 +176,7 @@ const ScheduleForm = ({
                 <Stack direction="column" spacing={4} padding={2}>
                     {canSetScheduleFor && <RelationshipList
                         isEditing={true}
-                        limitTo={[currTabType] as RelationshipButtonType[]}
+                        limitTo={[currTab.tabType] as RelationshipButtonType[]}
                         objectType={"Schedule"}
                         sx={{ marginBottom: 4 }}
                     />}
@@ -346,17 +339,27 @@ const tabParams = calendarTabParams.filter(tp => tp.tabType !== "All");
 export const ScheduleUpsert = ({
     canChangeTab = true,
     canSetScheduleFor = true,
-    currTab,
     defaultTab,
     handleDelete,
     isCreate,
-    isMutate,
     isOpen,
     listId,
     overrideObject,
     ...props
 }: ScheduleUpsertProps) => {
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
+
+    const {
+        currTab,
+        handleTabChange,
+        tabs,
+    } = useTabs<CalendarPageTabOption>({
+        id: "schedule-tabs",
+        tabParams,
+        defaultTab,
+        display,
+    });
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Schedule, ScheduleShape>({
         ...endpointGetSchedule,
@@ -388,13 +391,15 @@ export const ScheduleUpsert = ({
         >
             {(formik) => <ScheduleForm
                 canSetScheduleFor={canSetScheduleFor}
-                defaultTab={defaultTab}
+                currTab={currTab}
                 disabled={!(isCreate || canUpdate)}
                 existing={existing}
+                handleTabChange={handleTabChange}
                 handleUpdate={setExisting}
                 isCreate={isCreate}
                 isReadLoading={isReadLoading}
                 isOpen={isOpen}
+                tabs={tabs}
                 {...props}
                 {...formik}
             />}

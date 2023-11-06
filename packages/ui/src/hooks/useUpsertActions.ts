@@ -32,7 +32,7 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
 }: {
     display: ViewDisplayType,
     isCreate: boolean,
-    objectId: string,
+    objectId?: string,
     objectType: ListObject["__typename"],
     onCancel?: () => unknown, // Only used for dialog display
     onCompleted?: (data: T) => unknown, // Only used for dialog display
@@ -72,8 +72,13 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
         let canStore = false;
         if (item && !Array.isArray(item)) {
             viewUrl = getObjectUrl(item);
-            objectId = item.id;
-            canStore = true;
+            // Should hopefully have id if not an array
+            if (item.id) {
+                objectId = item.id;
+                canStore = true;
+            } else {
+                console.warn("No id found on object. This may be a mistake.", item);
+            }
         }
 
         const handleAddOrUpdate = (messageType: "Created" | "Updated") => {

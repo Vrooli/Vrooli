@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointPostMemberInvites, endpointPutMemberInvites, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, memberInviteValidation, noop, noopSubmit, Session } from "@local/shared";
+import { endpointPostMemberInvites, endpointPutMemberInvites, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, memberInviteValidation, noop, noopSubmit } from "@local/shared";
 import { Box, Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -7,37 +7,30 @@ import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
-import { useSaveToCache } from "hooks/useSaveToCache";
+import { useHistoryState } from "hooks/useHistoryState";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { MemberInviteShape, shapeMemberInvite } from "utils/shape/models/memberInvite";
 import { MemberInvitesFormProps, MemberInvitesUpsertProps } from "../types";
 
-/** New resources must include an organization */
-export type NewMemberInviteShape = Partial<Omit<MemberInvite, "organization">> & {
-    organization: Partial<MemberInvite["organization"]> & ({ id: string })
-};
-
-const memberInviteInitialValues = (
-    session: Session | undefined,
-    existing: NewMemberInviteShape,
-): MemberInviteShape => ({
-    __typename: "MemberInvite" as const,
-    id: DUMMY_ID,
-    message: "",
-    willBeAdmin: false,
-    willHavePermissions: JSON.stringify({}),
-    ...existing,
-    user: {
-        __typename: "User" as const,
-        ...existing.user,
-        id: existing.user?.id ?? DUMMY_ID,
-    },
-});
+// const memberInviteInitialValues = (
+//     session: Session | undefined,
+//     existing: NewMemberInviteShape,
+// ): MemberInviteShape => ({
+//     message: "",
+//     willBeAdmin: false,
+//     willHavePermissions: JSON.stringify({}),
+//     ...existing,
+//     user: {
+//         __typename: "User" as const,
+//         ...existing.user,
+//         id: existing.user?.id ?? DUMMY_ID,
+//     },
+// });
 
 const transformMemberInviteValues = (values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) =>
     isCreate ?
@@ -78,12 +71,11 @@ const MemberInvitesForm = ({
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
     const { palette } = useTheme();
-    const [message, setMessage] = useState("");
+    const [message, setMessage] = useHistoryState("member-invite-message", "");
 
     const { handleCancel, handleCompleted } = useUpsertActions<MemberInvite[]>({
         display,
         isCreate,
-        objectId: values.id,
         objectType: "MemberInvite",
         ...props,
     });
@@ -97,7 +89,6 @@ const MemberInvitesForm = ({
         endpointCreate: endpointPostMemberInvites,
         endpointUpdate: endpointPutMemberInvites,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "MemberInvite" });
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<MemberInviteCreateInput[] | MemberInviteUpdateInput[], MemberInvite[]>({
@@ -182,7 +173,7 @@ const MemberInvitesForm = ({
                 </Box>
                 <BottomActionsButtons
                     display={display}
-                    errors={props.errors}
+                    errors={props.errors as any}
                     hideButtons={disabled}
                     isCreate={isCreate}
                     loading={isLoading}

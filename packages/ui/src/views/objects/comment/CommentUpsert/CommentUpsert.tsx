@@ -82,7 +82,6 @@ const CommentForm = ({
     const { handleCancel, handleCompleted } = useUpsertActions<Comment>({
         display: "dialog", // Set this to dialog, since it's more correct than page (there is no option for in-page yet)
         isCreate,
-        objectId: values.id,
         objectType: "Comment",
         ...props,
     });
@@ -183,7 +182,6 @@ export const CommentDialog = ({
     const { handleCancel, handleCompleted } = useUpsertActions<Comment>({
         display: "dialog",
         isCreate,
-        objectId: values.id,
         objectType: "Comment",
         ...props,
     });
