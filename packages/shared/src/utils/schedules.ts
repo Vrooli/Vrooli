@@ -256,8 +256,8 @@ export const jumpToFirstRelevantMonthlyOccurrence = (
     timeframeStart: Date,
     timeZone = "UTC",
 ): Date => {
-    const relevantStart = moment.utc(scheduleStart).tz(timeZone);
-    let timeframeStartMoment = moment.utc(timeframeStart).tz(timeZone);
+    const relevantStart = moment.utc(scheduleStart);
+    let timeframeStartMoment = moment.utc(timeframeStart);
 
     // Check if the timeframe start is before the schedule start
     if (timeframeStartMoment.isBefore(relevantStart)) {
@@ -285,7 +285,8 @@ export const jumpToFirstRelevantMonthlyOccurrence = (
         nextOccurrence.add(recurrence.interval, "months");
     }
 
-    return nextOccurrence.toDate();
+    // Convert the result to the desired time zone and return.
+    return nextOccurrence.tz(timeZone).toDate();
 };
 
 /**
@@ -379,9 +380,10 @@ export const jumpToFirstRelevantYearlyOccurrence = (
  *    - `null` if the occurrence is cancelled,
  *    - `undefined` if no exceptions apply to the current occurrence.
  */
-export const applyExceptions = ( //TODO change to moment instead of Date
+export const applyExceptions = (
     currentStartTime: Date,
     schedule: Schedule,
+    duration: number,
     timeZone: string,
 ): { start: Date; end: Date } | null | undefined => {
     // Iterate through the list of exceptions in the schedule
@@ -395,7 +397,7 @@ export const applyExceptions = ( //TODO change to moment instead of Date
                 // If there's a new start time, use it, otherwise set it original start time
                 const newStart = exception.newStartTime ? new Date(exception.newStartTime) : exceptionOriginalStartTime;
                 // If there's a new end time, use it, otherwise set it to 1 hour after the new start time
-                const newEnd = exception.newEndTime ? new Date(exception.newEndTime) : new Date(newStart.getTime() + ONE_HOUR_IN_MS);
+                const newEnd = exception.newEndTime ? new Date(exception.newEndTime) : new Date(newStart.getTime() + duration);
 
                 return { start: newStart, end: newEnd }; // Return the rescheduled occurrence
             } else {
@@ -404,6 +406,21 @@ export const applyExceptions = ( //TODO change to moment instead of Date
         }
     }
     return undefined; // No exceptions apply, return undefined
+};
+
+const calculateNextOccurrence = (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone?: string): Date => {
+    switch (recurrence.recurrenceType) {
+        case "Daily":
+            return calculateNextDailyOccurrence(currentStartTime, recurrence, timeZone);
+        case "Weekly":
+            return calculateNextWeeklyOccurrence(currentStartTime, recurrence, timeZone);
+        case "Monthly":
+            return calculateNextMonthlyOccurrence(currentStartTime, recurrence, timeZone);
+        case "Yearly":
+            return calculateNextYearlyOccurrence(currentStartTime, recurrence, timeZone);
+        default:
+            throw new Error("Invalid recurrence type");
+    }
 };
 
 /**
@@ -428,7 +445,6 @@ export const calculateOccurrences = (
         console.error("calculateOccurrences time frame to large", { trace: "0432", timeframeStart, timeframeEnd });
         return occurrences;
     }
-    // Convert schedule start time to Date object with the correct timezone
     const startTime = new Date(schedule.startTime.toLocaleString("en-US", { timeZone: schedule.timezone }));
     // Calcuate occurrences for each recurrence
     for (const recurrence of schedule.recurrences) {
@@ -453,13 +469,20 @@ export const calculateOccurrences = (
         // While the current start time is before the end of the time frame (and also while we haven't maxed out the loop)
         while (currentStartTime <= timeframeEnd && occurrences.length < 5000) {
             const currentEndTime = new Date(currentStartTime.getTime() + duration);
+
+            // Check if the currentStartTime is after the recurrence endDate, if so break the loop before adding to occurrences
+            if (recurrence.endDate && currentStartTime.getTime() >= new Date(recurrence.endDate).getTime()) {
+                break;
+            }
+
             const prevStartTime = currentStartTime; // Store the previous start time to compare later
 
             // Apply exceptions (if any) to the current occurrence
-            const exceptionResult = applyExceptions(currentStartTime, schedule, schedule.timezone);
+            const exceptionResult = applyExceptions(currentStartTime, schedule, duration, schedule.timezone);
             // If null, the occurrence was canceled
             if (exceptionResult === null) {
-                continue;
+                // Move to the next occurrence immediately since this one is cancelled, but do not break, continue evaluating
+                currentStartTime = calculateNextOccurrence(currentStartTime, recurrence, schedule.timezone);
             }
             // If a start and end time are returned, the occurrence was rescheduled
             else if (exceptionResult) {
@@ -471,26 +494,12 @@ export const calculateOccurrences = (
             }
 
             // Move to the next occurrence
-            switch (recurrence.recurrenceType) {
-                case "Daily":
-                    currentStartTime = calculateNextDailyOccurrence(currentStartTime, recurrence);
-                    break;
-                case "Weekly":
-                    currentStartTime = calculateNextWeeklyOccurrence(currentStartTime, recurrence);
-                    break;
-                case "Monthly":
-                    currentStartTime = calculateNextMonthlyOccurrence(currentStartTime, recurrence);
-                    break;
-                case "Yearly":
-                    currentStartTime = calculateNextYearlyOccurrence(currentStartTime, recurrence);
-                    break;
-            }
+            currentStartTime = calculateNextOccurrence(currentStartTime, recurrence, schedule.timezone);
+
             // Break the loop early if:
-            // - The recurrence end date is before the current occurrence start time
             // - The schedule end time is before the current occurrence start time
             // - The current start time hasn't changed (to prevent an infinite loop)
-            if ((recurrence.endDate && new Date(recurrence.endDate).getTime() < currentStartTime.getTime()) ||
-                (schedule.endTime && new Date(schedule.endTime).getTime() < currentStartTime.getTime()) ||
+            if ((schedule.endTime && new Date(schedule.endTime).getTime() < currentStartTime.getTime()) ||
                 prevStartTime.getTime() === currentStartTime.getTime()) {
                 break;
             }

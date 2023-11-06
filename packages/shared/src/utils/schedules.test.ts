@@ -873,16 +873,18 @@ describe("jumpToFirstRelevantYearlyOccurrence", () => {
 const testApplyException = ({
     currentStartTime,
     schedule,
+    duration,
     timeZone,
     expected,
 }: {
     currentStartTime: string,
     schedule: Schedule,
+    duration: number,
     timeZone: string,
     expected: { start: string, end: string } | null | undefined,
 }): void => {
     const current = new Date(currentStartTime);
-    const result = applyExceptions(current, schedule, timeZone);
+    const result = applyExceptions(current, schedule, duration, timeZone);
 
     if (expected === null) {
         expect(result).toBeNull();
@@ -924,6 +926,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2023-12-31T23:59:59Z", // A time before the schedule's start
             schedule,
+            duration: 60,
             timeZone: "Canada/Pacific",
             expected: undefined, // No occurrence should be returned
         });
@@ -933,6 +936,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2025-07-26T00:00:00Z", // A time after the schedule's end
             schedule,
+            duration: 10000,
             timeZone: "Europe/Dublin",
             expected: undefined, // No occurrence should be returned
         });
@@ -942,6 +946,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2025-07-25T23:59:59Z", // A time after the schedule's end
             schedule,
+            duration: 10,
             timeZone: "Japan",
             expected: undefined, // No occurrence should be returned
         });
@@ -951,6 +956,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-02-01T00:01:00Z",
             schedule,
+            duration: 40,
             timeZone: "Iran",
             expected: undefined,
         });
@@ -965,6 +971,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:00Z",
             schedule,
+            duration: 90000,
             timeZone: "Israel",
             expected: undefined,
         });
@@ -979,6 +986,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:00Z",
             schedule,
+            duration: 420,
             timeZone: "Libya",
             expected: undefined,
         });
@@ -993,14 +1001,15 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:00Z",
             schedule,
+            duration: 69,
             timeZone: "Libya",
             expected: null,
         });
     });
 
-    it("should return the an end time in one hour if none was set", () => {
+    it("should return the end time using duration if no explicit end time was set", () => {
         const exceptionStartTime = new Date("2024-01-01T00:00:11Z").toISOString();
-        const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+        const TWO_HOURS_IN_MS = 2 * 60 * 60 * 1000;
         schedule.exceptions.push({
             originalStartTime: exceptionStartTime,
             newStartTime: exceptionStartTime,
@@ -1009,10 +1018,11 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:00Z",
             schedule,
+            duration: TWO_HOURS_IN_MS,
             timeZone: "Europe/Zurich",
             expected: {
                 start: "2024-01-01T00:00:11Z",
-                end: new Date(new Date(exceptionStartTime).getTime() + ONE_HOUR_IN_MS).toISOString(),
+                end: new Date(new Date(exceptionStartTime).getTime() + TWO_HOURS_IN_MS).toISOString(),
             },
         });
     });
@@ -1026,6 +1036,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:02Z",
             schedule,
+            duration: 10000,
             timeZone: "Canada/Saskatchewan",
             expected: {
                 start: "2023-12-31T23:59:59Z", // Exception's originalStartTime, not currentStartTime
@@ -1043,6 +1054,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:01Z",
             schedule,
+            duration: 420,
             timeZone: "Europe/Vatican",
             expected: {
                 start: "2024-01-02T00:00:00Z",
@@ -1068,6 +1080,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:01Z",
             schedule,
+            duration: 69,
             timeZone: "Europe/Berlin",
             // Expect to match the first exception, not the second
             expected: {
@@ -1086,6 +1099,7 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:01Z",
             schedule,
+            duration: 20,
             timeZone: "America/New_York",
             expected: {
                 start: "2023-12-31T22:00:00Z",
@@ -1098,7 +1112,7 @@ describe("applyExceptions", () => {
 type OccurrenceTestParams = {
     startTime: string;
     endTime: string;
-    recurrence: Partial<ScheduleRecurrence>;
+    recurrences: Partial<ScheduleRecurrence>[];
     exceptions?: Partial<ScheduleException>[];
     timeframeStart: string;
     timeframeEnd: string;
@@ -1112,7 +1126,7 @@ type OccurrenceTestParams = {
 const testCalculateOccurrences = ({
     startTime,
     endTime,
-    recurrence,
+    recurrences,
     exceptions = [],
     timeframeStart,
     timeframeEnd,
@@ -1133,7 +1147,7 @@ const testCalculateOccurrences = ({
         runProjects: [],
         runRoutines: [],
         timezone: timeZone,
-        recurrences: [recurrence as ScheduleRecurrence],
+        recurrences: recurrences as ScheduleRecurrence[],
         exceptions: exceptions as ScheduleException[],
     };
 
@@ -1157,17 +1171,48 @@ const testCalculateOccurrences = ({
 };
 
 describe("calculateOccurrences", () => {
-    it("calculates a weekly occurrences, which is far ahead of the startTime", () => {
+    beforeAll(() => {
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        jest.spyOn(console, "error").mockImplementation(() => { });
+    });
+
+    afterAll(() => {
+        jest.restoreAllMocks();
+    });
+
+    it("calculates daily occurrence", () => {
         testCalculateOccurrences({
             // The schedule is very long
-            startTime: "1800-01-01T00:00:00Z",
+            startTime: "2023-04-20T12:12:12Z",
+            endTime: "9999-01-01T00:00:00Z",
+            recurrences: [{
+                recurrenceType: "Daily",
+                interval: 15,
+                duration: 2 * 60 * 60 * 1000, // 2 hours
+            }] as ScheduleRecurrence[],
+            timeframeStart: "2023-01-01T00:00:00Z",
+            timeframeEnd: "2023-04-30T23:59:37Z",
+            expectedOccurrences: [
+                {
+                    start: "2023-04-20T12:12:12Z", // startTime, since startTime is after timeframeStart
+                    end: "2023-04-20T14:12:12Z", // 2 hours later
+                },
+            ],
+            timeZone: "Europe/London",
+        });
+    });
+
+    it("calculates weekly occurrences", () => {
+        testCalculateOccurrences({
+            // The schedule is very long
+            startTime: "0720-01-01T00:00:00Z",
             endTime: "2040-01-01T00:00:00Z",
-            recurrence: {
+            recurrences: [{
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 1, // Monday
 
-            } as ScheduleRecurrence,
+            }] as ScheduleRecurrence[],
             // The time frame we're looking at is very short
             timeframeStart: "2023-01-01T00:00:00Z",
             timeframeEnd: "2023-01-08T00:00:00Z",
@@ -1185,12 +1230,12 @@ describe("calculateOccurrences", () => {
         testCalculateOccurrences({
             startTime: "2023-01-01T00:00:10Z",
             endTime: "2023-12-31T00:00:00Z",
-            recurrence: {
+            recurrences: [{
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 3, // Wednesday
                 duration: 2 * 60 * 60 * 1000, // 2 hours
-            } as ScheduleRecurrence,
+            }] as ScheduleRecurrence[],
             timeframeStart: "2023-02-28T00:00:00Z",
             timeframeEnd: "2023-04-01T00:00:00Z",
             expectedOccurrences: [
@@ -1204,17 +1249,60 @@ describe("calculateOccurrences", () => {
         });
     });
 
+
+    it("calculates monthly occurrences", () => {
+        testCalculateOccurrences({
+            startTime: "2023-01-01T00:00:00Z",
+            endTime: "2023-12-31T00:00:00Z",
+            recurrences: [{
+                recurrenceType: "Monthly",
+                interval: 1,
+                dayOfMonth: 1,
+                duration: 2 * 60 * 60 * 1000, // 2 hours
+            }] as ScheduleRecurrence[],
+            timeframeStart: "2023-01-01T00:00:00Z",
+            timeframeEnd: "2023-04-01T00:00:00Z",
+            expectedOccurrences: [
+                { start: "2023-01-01T00:00:00Z", end: "2023-01-01T02:00:00Z" },
+                { start: "2023-02-01T00:00:00Z", end: "2023-02-01T02:00:00Z" },
+                { start: "2023-03-01T00:00:00Z", end: "2023-03-01T02:00:00Z" },
+                { start: "2023-04-01T00:00:00Z", end: "2023-04-01T02:00:00Z" },
+            ],
+            timeZone: "US/Alaska",
+        });
+    });
+
+    it("calculates yearly occurrences", () => {
+        testCalculateOccurrences({
+            startTime: "2023-01-01T00:14:00Z",
+            endTime: "2023-12-31T00:00:00Z",
+            recurrences: [{
+                recurrenceType: "Yearly",
+                interval: 1,
+                month: 0,
+                dayOfMonth: 2,
+                duration: (3 * 60 * 60 * 1000) + (60 * 1000), // 3 hours and 1 minute
+            }] as ScheduleRecurrence[],
+            timeframeStart: "2023-01-01T00:00:00Z",
+            timeframeEnd: "2023-04-01T00:00:00Z",
+            expectedOccurrences: [
+                { start: "2023-01-02T00:14:00Z", end: "2023-01-02T03:15:00Z" },
+            ],
+            timeZone: "UTC",
+        });
+    });
+
     it("calculates an occurrence which starts exactly at the timeframe start", () => {
         testCalculateOccurrences({
             startTime: "2023-01-01T00:00:00Z",
             endTime: "2023-06-01T00:00:00Z", // Schedule ends on June 1st, 2023
-            recurrence: {
+            recurrences: [{
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 5, // Friday
                 endDate: "2023-02-15T00:00:00Z", // Recurrence ends earlier on Feb 15th, 2023
                 // No duration, so it should default to 1 hour
-            } as ScheduleRecurrence,
+            }] as ScheduleRecurrence[],
             timeframeStart: "2023-01-01T00:00:00Z",
             timeframeEnd: "2023-12-31T00:00:00Z",
             expectedOccurrences: [
@@ -1234,12 +1322,12 @@ describe("calculateOccurrences", () => {
         testCalculateOccurrences({
             startTime: "2023-01-01T13:00:00Z",
             endTime: "2023-06-02T13:00:00Z",
-            recurrence: {
+            recurrences: [{
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 5, // Friday
                 duration: 5 * 60 * 1000, // 5 minutes
-            } as ScheduleRecurrence,
+            }] as ScheduleRecurrence[],
             timeframeStart: "2023-05-27T00:00:00Z",
             timeframeEnd: "2023-06-02T13:00:00Z", // End of the timeframe is on June 2nd
             expectedOccurrences: [
@@ -1248,64 +1336,159 @@ describe("calculateOccurrences", () => {
             ],
             timeZone: "US/Michigan",
         });
+
     });
 
     it("Returns no occurrences for a schedule with no applicable recurrences", () => {
         // Same as previous test, but the recurrence ends just before the occurrence would start
         testCalculateOccurrences({
-            startTime: "2023-01-01T13:00:00Z",
+            startTime: "1923-01-01T13:00:00Z",
             endTime: "2023-06-02T13:00:00Z",
-            recurrence: {
+            recurrences: [{
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 5, // Friday
                 duration: 5 * 60 * 1000, // 5 minutes
-                endDate: new Date("2023-06-02T12:55:00Z").toISOString(),
-            } as ScheduleRecurrence,
+                endDate: new Date("2023-06-02T12:55:00Z").toISOString(), // Just before the occurrence would start
+            }] as ScheduleRecurrence[],
             timeframeStart: "2023-05-27T00:00:00Z",
             timeframeEnd: "2023-06-02T13:00:00Z", // End of the timeframe is on June 2nd
             expectedOccurrences: [],
             timeZone: "US/Michigan",
         });
-    }); //TODO none of the occurrence functions are handling endDates
-
-    it("calculates daily occurrences", () => {
-        //...
-    });
-
-    it("calculates weekly occurrences", () => {
-        //...
-    });
-
-    it("calculates monthly occurrences", () => {
-        //...
-    });
-
-    it("calculates yearly occurrences", () => {
-        //...
     });
 
     it("Returns no occurrences for a schedule with no recurrences", () => {
-        //...
-    });
-
-    it("Stops early when the recurrence end time exceeds the schedule end time", () => {
-        //...
+        testCalculateOccurrences({
+            startTime: "2023-01-01T13:00:00Z",
+            endTime: "2023-06-02T13:00:00Z",
+            recurrences: [],
+            timeframeStart: "2023-05-27T00:00:00Z",
+            timeframeEnd: "2023-06-02T13:00:00Z", // End of the timeframe is on June 2nd
+            expectedOccurrences: [],
+            timeZone: "US/Michigan",
+        });
     });
 
     it("Returns no occurrences for a schedule with an applicable recurrence, but an exception which cancels it out", () => {
-        //...
+        testCalculateOccurrences({
+            startTime: "1920-01-01T00:00:12Z",
+            endTime: "2040-12-21T00:00:00Z",
+            recurrences: [{
+                recurrenceType: "Weekly",
+                interval: 1,
+                dayOfWeek: 1, // Monday
+
+            }] as ScheduleRecurrence[],
+            timeframeStart: "2023-01-01T00:00:00Z",
+            timeframeEnd: "2023-01-08T00:00:00Z",
+            exceptions: [{
+                originalStartTime: new Date("2023-01-02T00:00:12Z").toISOString(),
+                newStartTime: null,
+                newEndTime: null,
+            }] as ScheduleException[],
+            expectedOccurrences: [],
+            timeZone: "Europe/London",
+        });
     });
 
-    it("Ensures an error is logged and no occurrences are returned if the time frame is longer than a year", () => {
-        //...
+    it("Exceptions reschedule correctly using newEndTime", () => {
+        testCalculateOccurrences({
+            startTime: "1920-01-01T00:00:12Z",
+            endTime: "2040-12-21T00:00:00Z",
+            recurrences: [{
+                recurrenceType: "Weekly",
+                interval: 1,
+                dayOfWeek: 1, // Monday
+                duration: 5 * 60 * 1000, // 5 minutes
+            }] as ScheduleRecurrence[],
+            timeframeStart: "2023-01-01T00:00:00Z",
+            timeframeEnd: "2023-01-08T00:00:00Z",
+            exceptions: [{
+                originalStartTime: new Date("2023-01-02T00:00:12Z").toISOString(),
+                newStartTime: null,
+                newEndTime: new Date("2023-01-02T02:01:01Z").toISOString(), // Should use this instead of the recurrence duration
+            }] as ScheduleException[],
+            expectedOccurrences: [
+                { start: "2023-01-02T00:00:12Z", end: "2023-01-02T02:01:01Z" },
+            ],
+            timeZone: "Europe/London",
+        });
     });
 
-    it("Ensures an error is logged and no occurrences are returned if the time frame start is after the time frame end", () => {
-        //...
+    it("Exceptions reschedule correctly using recurrence duration", () => {
+        testCalculateOccurrences({
+            startTime: "1920-01-01T00:00:12Z",
+            endTime: "2040-12-21T00:00:00Z",
+            recurrences: [{
+                recurrenceType: "Weekly",
+                interval: 1,
+                dayOfWeek: 1, // Monday
+                duration: 17 * 60 * 1000, // 17 minutes
+            }] as ScheduleRecurrence[],
+            timeframeStart: "2023-01-01T00:00:00Z",
+            timeframeEnd: "2023-01-08T00:00:00Z",
+            exceptions: [{
+                originalStartTime: new Date("2023-01-02T00:00:12Z").toISOString(),
+                newStartTime: new Date("2023-01-02T02:01:01Z").toISOString(),
+                newEndTime: null, // Should use the recurrence duration instead of this
+            }] as ScheduleException[],
+            expectedOccurrences: [
+                { start: "2023-01-02T02:01:01Z", end: "2023-01-02T02:18:01Z" },
+            ],
+            timeZone: "Europe/London",
+        });
+    });
+
+    it("No occurrences are returned if the time frame is longer than a year", () => {
+        testCalculateOccurrences({
+            startTime: "0001-01-01T00:00:00Z",
+            endTime: "9999-01-01T00:00:00Z",
+            recurrences: [{
+                recurrenceType: "Weekly",
+                interval: 1,
+                dayOfWeek: 1,
+            }] as ScheduleRecurrence[],
+            timeframeStart: "2023-01-01T00:00:00Z",
+            timeframeEnd: "2024-01-01T00:00:01Z",
+            expectedOccurrences: [],
+            timeZone: "UTC",
+        });
+    });
+
+    it("No occurrences are returned if the time frame start is after the time frame end", () => {
+        testCalculateOccurrences({
+            startTime: "0001-01-01T00:00:00Z",
+            endTime: "9999-01-01T00:00:00Z",
+            recurrences: [{
+                recurrenceType: "Weekly",
+                interval: 1,
+                dayOfWeek: 1,
+            }] as ScheduleRecurrence[],
+            timeframeStart: "2023-01-01T00:00:00Z",
+            timeframeEnd: "2022-01-01T00:00:01Z",
+            expectedOccurrences: [],
+            timeZone: "UTC",
+        });
     });
 
     it("Ensures that we handle leap years correctly", () => {
-        //...
+        testCalculateOccurrences({
+            startTime: "2020-02-29T10:00:10Z",
+            endTime: "2029-02-29T00:00:00Z",
+            recurrences: [{
+                recurrenceType: "Yearly",
+                interval: 1,
+                month: 1, // February
+                dayOfMonth: 31,
+                duration: 24 * 60 * 60 * 1000, // 24 hours
+            }] as ScheduleRecurrence[],
+            timeframeStart: "2024-02-15T00:00:00Z",
+            timeframeEnd: "2024-03-01T00:00:00Z",
+            expectedOccurrences: [
+                { start: "2024-02-29T10:00:10Z", end: "2024-03-01T10:00:10Z" },
+            ],
+            timeZone: "UTC",
+        });
     });
 });
