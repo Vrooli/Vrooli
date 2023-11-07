@@ -8,6 +8,7 @@ import { SearchButtonsProps } from "../types";
 export const SearchButtons = ({
     advancedSearchParams,
     advancedSearchSchema,
+    controlsUrl,
     searchType,
     setAdvancedSearchParams,
     setSortBy,
@@ -31,6 +32,7 @@ export const SearchButtons = ({
             {searchType !== SearchType.Popular && <AdvancedSearchButton
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
+                controlsUrl={controlsUrl}
                 searchType={searchType}
                 setAdvancedSearchParams={setAdvancedSearchParams}
             />}

@@ -102,7 +102,6 @@ export const LandingView = ({
             const earthHorizonSlide = document.getElementById(slide5Id);
             const earthFullSlide = document.getElementById(slide6Id);
             if (inView(earthFullSlide)) {
-                console.log("setting earth full view");
                 setEarthTransform("translate(25%, 25%) scale(0.8)");
                 setIsSkyVisible(true);
             } else if (inView(earthHorizonSlide)) {

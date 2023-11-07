@@ -57,6 +57,7 @@ export function SearchList<DataType extends ListObject>({
         updateItem,
     } = useFindMany<DataType>({
         canSearch,
+        controlsUrl: display === "page", // Only update URL if this component is used for a page
         resolve,
         searchType,
         take,
@@ -186,6 +187,7 @@ export function SearchList<DataType extends ListObject>({
             <SearchButtons
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
+                controlsUrl={display === "page"}
                 searchType={searchType}
                 setAdvancedSearchParams={setAdvancedSearchParams}
                 setSortBy={setSortBy}

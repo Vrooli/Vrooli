@@ -56,7 +56,6 @@ export function FocusModeButton({
     }, [isAvailable, focusModeField.value, allFocusModes, isEditing, reminderListField?.value, setLocation, focusModeHelpers]);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, [setDialogOpen]);
     const handleSelect = useCallback((focusMode: RelationshipItemFocusMode) => {
-        console.log("setting focus mode", focusMode, focusModeField.value, reminderListField.value);
         if (focusModeField.value !== undefined && focusModeHelpers) focusModeHelpers.setValue(focusMode);
         else if (reminderListField.value !== undefined && reminderListHelpers) {
             // Add focus mode to reminder list
@@ -74,7 +73,6 @@ export function FocusModeButton({
 
     const { Icon, tooltip } = useMemo(() => {
         const focusMode = focusModeField?.value ?? reminderListField?.value?.focusMode ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id);
-        console.log("getting icon and tooltip", focusMode);
         // If no data, marked as unset
         if (!focusMode) return {
             Icon: AddIcon,

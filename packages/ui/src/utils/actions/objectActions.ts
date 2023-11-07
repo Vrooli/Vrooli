@@ -48,7 +48,6 @@ export enum ObjectActionComplete {
  * @param exclude Actions to exclude from the list (useful when other components on the page handle those actions, like a bookmark button)
  */
 export const getAvailableActions = (object: ListObject | null | undefined, session: Session | undefined, exclude: ObjectAction[] = []): ObjectAction[] => {
-    console.log("checking available actions", object);
     if (!object) return [];
     const isLoggedIn = checkIfLoggedIn(session);
     const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canReact, isBookmarked, reaction } = getYou(object);

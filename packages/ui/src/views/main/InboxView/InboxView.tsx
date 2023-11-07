@@ -54,7 +54,6 @@ export const InboxView = ({
         searchType,
         where: where(),
     });
-    console.log("alldata", allData);
 
     const [isSelecting, setIsSelecting] = useState(false);
     const [selectedData, setSelectedData] = useState<InboxObject[]>([]);
@@ -111,7 +110,6 @@ export const InboxView = ({
     }, [currTab.tabType, onMarkAllAsRead, openCreateChat]);
 
     const onAction = useCallback((action: keyof ObjectListActions<InboxObject>, ...data: unknown[]) => {
-        console.log("inboxview onaction", action, data);
         switch (action) {
             case "Deleted":
                 removeItem(...(data as ArgsType<ObjectListActions<InboxObject>["Deleted"]>));

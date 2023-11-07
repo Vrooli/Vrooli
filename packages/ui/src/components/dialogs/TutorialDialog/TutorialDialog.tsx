@@ -393,7 +393,6 @@ export const TutorialDialog = ({
 
         // If next step has a page and it's the current page, advance
         if (currPage && nextPage && nextPage === pathname) {
-            console.log("handling next", currPage, nextPage);
             handleNext();
         }
     }, [handleNext, pathname, nextStep?.page, place, setLocation]);

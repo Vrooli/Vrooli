@@ -77,7 +77,6 @@ export const useTabs = <T, S extends boolean = true>({
     });
 
     useEffect(() => {
-        console.log("useLocation useTabs location changed", location, display);
         if (display === "page") {
             const searchParams = parseSearchParams();
             const tabFromParams = tabs.find(tab => tab.tabType === searchParams.type);

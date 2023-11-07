@@ -49,7 +49,6 @@ export function ListMenu<T>({
                 event.preventDefault(); // Stop the default behavior
                 const direction = event.shiftKey ? -1 : 1;
                 const nextElement = document.getElementById(`${id}-list-item-${index + direction}`);
-                console.log("key down?", nextElement, (index + direction), event);
                 nextElement && nextElement.focus();
             }
         };

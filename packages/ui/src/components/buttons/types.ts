@@ -10,6 +10,7 @@ import { ViewDisplayType } from "views/types";
 export interface AdvancedSearchButtonProps {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
+    controlsUrl: boolean;
     searchType: SearchType | `${SearchType}`;
     setAdvancedSearchParams: (params: object | null) => unknown;
 }
@@ -113,6 +114,7 @@ export interface RunButtonProps {
 export interface SearchButtonsProps {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
+    controlsUrl: boolean;
     searchType: SearchType | `${SearchType}`;
     setAdvancedSearchParams: (params: object | null) => unknown;
     setSortBy: (sortBy: string) => unknown;

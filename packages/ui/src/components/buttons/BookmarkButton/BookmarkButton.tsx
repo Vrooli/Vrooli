@@ -36,7 +36,6 @@ export const BookmarkButton = ({
     const closeSelect = useCallback(() => { setIsSelectOpen(false); }, []);
 
     const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
-        console.log("action complete", action, data);
         switch (action) {
             // When a bookmark is created, we assign a list automatically. 
             // So we must show a snackbar to inform the user that the bookmark was created, 
@@ -69,7 +68,6 @@ export const BookmarkButton = ({
     });
 
     const handleClick = useCallback((event: any) => {
-        console.log("bookmark button click", objectId, internalIsBookmarked, userId, bookmarkFor);
         if (!userId) return;
         const isBookmarked = !internalIsBookmarked;
         setInternalIsBookmarked(isBookmarked);

@@ -139,6 +139,7 @@ const AdvancedSearchDialog = ({
 export const AdvancedSearchButton = ({
     advancedSearchParams,
     advancedSearchSchema,
+    controlsUrl,
     searchType,
     setAdvancedSearchParams,
 }: AdvancedSearchButtonProps) => {
@@ -170,20 +171,21 @@ export const AdvancedSearchButton = ({
         setAdvancedSearchDialogOpen(false);
     }, []);
     const handleAdvancedSearchDialogSubmit = useCallback((values: SearchQuery) => {
+        if (!controlsUrl) return;
         // Remove 0 values
         const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== 0));
         // Remove schema fields from search params
         removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
         // Add set fields to search params
         addSearchParams(setLocation, valuesWithoutBlanks);
-        console.log("setting advanced search params 3", valuesWithoutBlanks);
         setAdvancedSearchParams(valuesWithoutBlanks);
-    }, [advancedSearchSchema?.fields, setAdvancedSearchParams, setLocation]);
+    }, [advancedSearchSchema?.fields, controlsUrl, setAdvancedSearchParams, setLocation]);
 
     // Set dialog open stats in url search params
     useEffect(() => {
+        if (!controlsUrl) return;
         addSearchParams(setLocation, { advanced: advancedSearchDialogOpen });
-    }, [advancedSearchDialogOpen, setLocation]);
+    }, [advancedSearchDialogOpen, controlsUrl, setLocation]);
 
     return (
         <>

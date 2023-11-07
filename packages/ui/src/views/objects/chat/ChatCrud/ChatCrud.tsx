@@ -89,7 +89,6 @@ export const chatInitialValues = (
             },
         });
     }
-    console.log("initializing chat values", messages);
     return {
         __typename: "Chat" as const,
         id: DUMMY_ID,
@@ -163,7 +162,6 @@ const ChatForm = ({
         getPageData({ chatId: existing.id });
     }, [existing.id, isCreate, getPageData]);
     useEffect(() => {
-        console.log("got search tree data", searchTreeData);
         if (!searchTreeData || searchTreeData.messages.length === 0) return;
         // Add to all messages, making sure to only add messages that aren't already there
         setAllMessages(curr => {
@@ -257,7 +255,6 @@ const ChatForm = ({
     useEffect(() => {
         // When a message is received, add it to the chat
         socket.on("message", (message: ChatMessage) => {
-            console.log("chat room GOT MESSAGE", message);
             // Make sure it's inserted in the correct order, using the created_at field.
             handleUpdate(c => ({
                 ...c,
@@ -269,7 +266,6 @@ const ChatForm = ({
         });
         // When a message is updated, update it in the chat
         socket.on("editMessage", (message: ChatMessage) => {
-            console.log("chat room GOT MESSAGE UPDATE", message);
             handleUpdate(c => ({
                 ...c,
                 messages: updateArray(
@@ -281,7 +277,6 @@ const ChatForm = ({
         });
         // When a message is deleted, remove it from the chat
         socket.on("deleteMessage", (id: string) => {
-            console.log("chat room GOT MESSAGE DELETE", message);
             handleUpdate(c => ({
                 ...c,
                 messages: c.messages.filter(m => m.id !== id),
@@ -289,7 +284,6 @@ const ChatForm = ({
         });
         // Show the status of users typing
         socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
-            console.log("chat room GOT TYPING", starting, stopping);
             // Add every user that's typing
             const newTyping = [...usersTyping];
             for (const id of starting ?? []) {

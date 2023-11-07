@@ -118,13 +118,10 @@ function parseNativeEmoji(unified: string): string {
 
 const emojiNames = (emoji: WithName): string[] => emoji[EmojiProperties.name] ?? [];
 
-console.time("all emojis");
 const allEmojis = Object.values(emojis).map(category => category.map(emoji => ({
     ...emoji,
     name: (i18next.t(`emojis:${emoji.u.toLowerCase() as unknown as EmojisKey}`, { ns: "emojis" }) ?? "").split(", "),
 }))) as unknown as Record<CategoryTabOption, DataEmoji[]>;
-console.timeEnd("all emojis");
-console.log("got all emojis", allEmojis, i18next.t("common:Submit"), i18next.t("emojis:1f606", { ns: "emojis" }));
 
 const allEmojisByUnified = new Map<string, DataEmoji>();
 const allEmojisByName = new Map<string, DataEmoji>();
@@ -136,12 +133,10 @@ function indexEmoji(emoji: DataEmoji): void {
 }
 
 setTimeout(() => {
-    console.time("indexing");
     Object.values(allEmojis).forEach(emojis => emojis.forEach(emoji => {
         indexEmoji(emoji);
         allEmojisByUnified.set(emoji[EmojiProperties.unified], emoji);
     }));
-    console.timeEnd("indexing");
 });
 
 function unifiedWithoutSkinTone(unified: string): string {

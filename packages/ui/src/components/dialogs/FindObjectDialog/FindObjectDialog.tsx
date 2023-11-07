@@ -185,14 +185,11 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
         const appendVersion = typeof versionId === "string" && !item.__typename.endsWith("Version");
         const { findOneEndpoint } = searchTypeToParams[`${item.__typename}${appendVersion ? "Version" : ""}` as SearchType]!();
-        console.log("fetching full data", findOneEndpoint, find, item);
         if (!findOneEndpoint || find !== "Full") return false;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
         if (itemData && itemData.id === item.id && (!versionId || (itemData as any).versionId === versionId)) {
-            console.log("full data was already known!", itemData, item);
             onClose(itemData);
         } else {
-            console.log("fetching full data!", item);
             queryingRef.current = true;
             if (versionId) {
                 getItem({ id: versionId }, { endpointOverride: findOneEndpoint });
@@ -218,7 +215,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     useEffect(() => {
         if (!findOneEndpoint) return;
         if (itemData && find === "Full" && queryingRef.current) {
-            console.log("full data fetched! closing now...", itemData);
             onClose(itemData);
         }
         queryingRef.current = false;

@@ -86,7 +86,7 @@ export default function useLocation(): UseLocationResult {
             null,
             "",
             // Combine path and search params
-            currSearchParams ? `${currPath}${currSearchParams}` : currPath,
+            (currSearchParams && replace) ? `${currPath}${currSearchParams}` : currPath,
         );
         // Update location
         const { href, pathname, search } = location;

@@ -65,7 +65,6 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
     };
 
     const makeRequest = useCallback<MakeLazyRequest<TInput, TData>>(async (input, inputOptions) => {
-        console.log("makeRequest start", input, inputOptions, fetchParamsRef.current);
         // Update the inputs stored in the ref if a new input is provided
         if (input) {
             fetchParamsRef.current.inputs = input;
