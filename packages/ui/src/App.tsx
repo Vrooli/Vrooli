@@ -375,7 +375,7 @@ export function App() {
     // Handle websocket connection for tracking notifications
     useEffect(() => {
         socket.on("connect", () => {
-            console.log("connected to server");
+            console.info("websocket connected to server");
         });
 
         socket.on("notification", (notification) => {

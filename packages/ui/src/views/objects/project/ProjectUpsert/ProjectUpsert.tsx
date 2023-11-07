@@ -114,7 +114,7 @@ const ProjectForm = ({
     // For now, we'll only deal with one directory listing
     const [directoryField, , directoryHelpers] = useField("directories[0]");
 
-    const { handleCancel, handleCompleted } = useUpsertActions<ProjectVersion>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<ProjectVersion>({
         display,
         isCreate,
         objectId: values.id,
@@ -131,7 +131,7 @@ const ProjectForm = ({
         endpointCreate: endpointPostProjectVersion,
         endpointUpdate: endpointPutProjectVersion,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ProjectVersion" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "ProjectVersion" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

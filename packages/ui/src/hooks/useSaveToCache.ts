@@ -1,5 +1,5 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
-import { useCallback, useEffect } from "react";
+import { MutableRefObject, useCallback, useEffect } from "react";
 import { setCookieFormData } from "utils/cookies";
 import { useDebounce } from "./useDebounce";
 
@@ -16,6 +16,7 @@ export const useSaveToCache = <T>({
     objectId,
     debounceTime,
     objectType,
+    isCacheOn,
     isCreate,
     disabled = false,
 }: {
@@ -23,6 +24,7 @@ export const useSaveToCache = <T>({
     objectId: string;
     debounceTime?: number;
     objectType: GqlModelType | `${GqlModelType}`;
+    isCacheOn: MutableRefObject<boolean>;
     isCreate: boolean;
     disabled?: boolean;
 }) => {
@@ -31,24 +33,27 @@ export const useSaveToCache = <T>({
 
     // Define the function that will handle the cache saving logic
     const saveToCache = useCallback((currentValues: T) => {
-        if (disabled) return;
+        if (disabled || !isCacheOn.current) return;
         setCookieFormData(formCacheId, currentValues as any);
-    }, [disabled, formCacheId]);
+    }, [disabled, formCacheId, isCacheOn]);
 
     const [saveToCacheDebounced] = useDebounce(saveToCache, debounceTime ?? 200);
 
     // Effect to handle saving values to cache whenever they change
     useEffect(() => {
+        // Copy the ref value to a variable inside the effect
+        const cacheOn = isCacheOn.current;
+
         // Check if values are not empty or match some condition to be saved
-        if (!disabled && shouldValuesBeSaved(values)) {
+        if (!disabled && cacheOn && shouldValuesBeSaved(values)) {
             saveToCacheDebounced(values);
         }
 
         // Cleanup function to save the cache when the component unmounts or values change
         return () => {
-            if (!disabled && shouldValuesBeSaved(values)) {
+            if (!disabled && cacheOn && shouldValuesBeSaved(values)) {
                 saveToCache(values);
             }
         };
-    }, [disabled, values, saveToCacheDebounced, saveToCache]);
+    }, [disabled, values, saveToCacheDebounced, saveToCache, isCacheOn]);
 };

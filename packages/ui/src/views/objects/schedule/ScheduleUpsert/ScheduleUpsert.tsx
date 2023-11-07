@@ -102,7 +102,7 @@ const ScheduleForm = ({
         recurrencesHelpers.setValue(recurrencesField.value.filter((_, idx) => idx !== index));
     };
 
-    const { handleCancel, handleCompleted } = useUpsertActions<Schedule>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Schedule>({
         display,
         isCreate,
         objectId: values.id,
@@ -119,7 +119,7 @@ const ScheduleForm = ({
         endpointCreate: endpointPostSchedule,
         endpointUpdate: endpointPutSchedule,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Schedule" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Schedule" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

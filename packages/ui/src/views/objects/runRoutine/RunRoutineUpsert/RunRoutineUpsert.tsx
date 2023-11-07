@@ -79,7 +79,7 @@ const RunRoutineForm = ({
     };
     const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
 
-    const { handleCancel, handleCompleted } = useUpsertActions<RunRoutine>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<RunRoutine>({
         display,
         isCreate,
         objectId: values.id,
@@ -96,7 +96,7 @@ const RunRoutineForm = ({
         endpointCreate: endpointPostRunRoutine,
         endpointUpdate: endpointPutRunRoutine,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RunRoutine" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "RunRoutine" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

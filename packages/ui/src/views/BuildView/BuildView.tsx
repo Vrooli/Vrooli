@@ -132,7 +132,8 @@ export const BuildView = ({
         { keys: ["z"], ctrlKey: true, callback: undo },
     ]);
 
-    useSaveToCache({ disabled: !isEditing, isCreate: changedRoutineVersion.id === DUMMY_ID, values: changedRoutineVersion, objectId: changedRoutineVersion.id, objectType: "Routine" });
+    const isCacheOn = useRef(true);
+    useSaveToCache({ disabled: !isEditing, isCacheOn, isCreate: changedRoutineVersion.id === DUMMY_ID, values: changedRoutineVersion, objectId: changedRoutineVersion.id, objectType: "Routine" });
 
     /** Updates a node's data */
     const handleNodeUpdate = useCallback((node: Node) => {

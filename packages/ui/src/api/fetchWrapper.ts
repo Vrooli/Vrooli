@@ -202,7 +202,7 @@ export const useSubmitHelper = <Input extends object | undefined, Output>({
     ...props
 }: UseSubmitHelperProps<Input, Output>) => {
     return useCallback(() => {
-        if (disabled === false) {
+        if (disabled === true) {
             PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
             return;
         }

@@ -1,6 +1,6 @@
 import { DUMMY_ID, LINKS, OrArray } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { NavigableObject } from "types";
@@ -40,6 +40,8 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
 }) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+
+    const isCacheOn = useRef(true);
 
     /** Helper function to navigate back or to a specific URL */
     const goBack = useCallback((targetUrl?: string) => {
@@ -85,6 +87,7 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
             if (canStore) {
                 setCookiePartialData(item as NavigableObject, "full"); // Update cache to view object more quickly
                 removeCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : objectId}`); // Remove form backup data from cache
+                isCacheOn.current = false;
             }
 
             if (display === "page") { setLocation(viewUrl ?? LINKS.Home, { replace: true }); }
@@ -101,7 +104,10 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
                 break;
             case ObjectDialogAction.Cancel:
                 // Remove form backup data from cache
-                if (canStore) removeCookieFormData(`${objectType}-${objectId}`);
+                if (canStore) {
+                    removeCookieFormData(`${objectType}-${objectId}`);
+                    isCacheOn.current = false;
+                }
                 if (display === "page") goBack(isCreate ? undefined : viewUrl);
                 else onCancel?.();
                 break;
@@ -115,6 +121,7 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
                 if (canStore) {
                     removeCookiePartialData(item as NavigableObject);
                     removeCookieFormData(`${objectType}-${objectId}`);
+                    isCacheOn.current = false;
                 }
                 if (display === "page") goBack();
                 else onDeleted?.((Array.isArray(item) ? item.map(i => i.id) : item.id) as string & string[]);
@@ -138,5 +145,6 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
         handleDeleted,
         handleUpdated,
         handleCompleted,
+        isCacheOn,
     };
 };

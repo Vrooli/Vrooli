@@ -59,14 +59,14 @@ const NodeWithEndForm = ({
 
     const [wasSuccessfulField] = useField<boolean>("end.wasSuccessful");
 
-    const { handleCancel, handleCompleted } = useUpsertActions<NodeWithEndShape>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<NodeWithEndShape>({
         display,
         isCreate,
         objectId: values.id,
         objectType: "Node",
         ...props,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Node" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Node" });
 
     const onSubmit = useCallback(() => {
         handleCompleted(values);

@@ -77,6 +77,9 @@ export function useObjectFromUrl<
         const data = applyTransform(storedData) as ObjectReturnType<TData, TFunc>;
         // Try to find form data in cache
         const storedForm = getCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : urlParams.id}`);
+        console.log("useObjectFromUrl storedData", storedData);
+        console.log("useObjectFromUrl storedForm", storedForm);
+        console.log("useObjectFromUrl data", data);
         if (storedForm) {
             if (isCreate) return applyTransform(storedForm as Partial<PData>) as ObjectReturnType<TData, TFunc>;
             else if (JSON.stringify(storedForm) === JSON.stringify(data)) return data;

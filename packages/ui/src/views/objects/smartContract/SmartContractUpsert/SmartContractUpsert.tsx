@@ -109,7 +109,7 @@ const SmartContractForm = ({
         validationSchema: smartContractVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
-    const { handleCancel, handleCompleted } = useUpsertActions<SmartContractVersion>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<SmartContractVersion>({
         display,
         isCreate,
         objectId: values.id,
@@ -126,7 +126,7 @@ const SmartContractForm = ({
         endpointCreate: endpointPostSmartContractVersion,
         endpointUpdate: endpointPutSmartContractVersion,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "SmartContractVersion" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "SmartContractVersion" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

@@ -113,7 +113,7 @@ const StandardForm = ({
         validationSchema: standardVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
-    const { handleCancel, handleCompleted } = useUpsertActions<StandardVersion>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<StandardVersion>({
         display,
         isCreate,
         objectId: values.id,
@@ -130,7 +130,7 @@ const StandardForm = ({
         endpointCreate: endpointPostStandardVersion,
         endpointUpdate: endpointPutStandardVersion,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "StandardVersion" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "StandardVersion" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

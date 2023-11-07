@@ -96,7 +96,7 @@ const BotForm = ({
         validationSchema: botTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
-    const { handleCancel, handleCompleted } = useUpsertActions<User>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<User>({
         display,
         isCreate,
         objectId: values.id,
@@ -113,7 +113,7 @@ const BotForm = ({
         endpointCreate: endpointPostBot,
         endpointUpdate: endpointPutBot,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "User" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "User" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

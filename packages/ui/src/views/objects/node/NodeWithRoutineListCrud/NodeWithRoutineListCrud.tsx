@@ -60,14 +60,14 @@ const NodeWithRoutineListForm = ({
     const [isOrderedField] = useField<boolean>("routineList.isOrdered");
     const [isOptionalField, , isOptionalHelpers] = useField<boolean>("routineList.isOptional");
 
-    const { handleCancel, handleCompleted } = useUpsertActions<NodeWithRoutineListShape>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<NodeWithRoutineListShape>({
         display,
         isCreate,
         objectId: values.id,
         objectType: "Node",
         ...props,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Node" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Node" });
 
     const onSubmit = useCallback(() => {
         handleCompleted(values);

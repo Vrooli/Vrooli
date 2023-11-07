@@ -79,7 +79,7 @@ const RunProjectForm = ({
     };
     const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
 
-    const { handleCancel, handleCompleted } = useUpsertActions<RunProject>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<RunProject>({
         display,
         isCreate,
         objectId: values.id,
@@ -96,7 +96,7 @@ const RunProjectForm = ({
         endpointCreate: endpointPostRunProject,
         endpointUpdate: endpointPutRunProject,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RunProject" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "RunProject" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

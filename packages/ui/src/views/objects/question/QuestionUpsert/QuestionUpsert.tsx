@@ -84,7 +84,7 @@ const QuestionForm = ({
         validationSchema: questionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
-    const { handleCancel, handleCompleted } = useUpsertActions<Question>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Question>({
         display,
         isCreate,
         objectId: values.id,
@@ -101,7 +101,7 @@ const QuestionForm = ({
         endpointCreate: endpointPostQuestion,
         endpointUpdate: endpointPutQuestion,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Question" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Question" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

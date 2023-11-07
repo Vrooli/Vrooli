@@ -21,7 +21,6 @@ import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { shapeProfile } from "utils/shape/models/profile";
-import { createPrims } from "utils/shape/models/tools";
 import { SettingsProfileFormProps, SettingsProfileViewProps } from "../types";
 
 const SettingsProfileForm = ({
@@ -167,13 +166,6 @@ export const SettingsProfileView = ({
                                 PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
-                            console.log("submitting profile update: values", values);
-                            console.log("submitting profile update: profile", profile);
-                            console.log("submitting profile update: shapeProfile.update(profile, values)", shapeProfile.update(profile, {
-                                id: profile.id,
-                                ...values,
-                            }));
-                            console.log("test1", createPrims(values, "profileImage"));
                             fetchLazyWrapper<ProfileUpdateInput, User>({
                                 fetch,
                                 inputs: shapeProfile.update(profile, {

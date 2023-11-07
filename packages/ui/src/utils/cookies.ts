@@ -239,6 +239,7 @@ export const setCookieFormData = (formId: string, data: FormCacheEntry) => ifAll
     cache.formData[formId] = data;
     cache.order.push(formId);
 
+    console.log("setting cookie form data", formId, data);
     setCookie(Cookies.FormData, cache);
 });
 
@@ -247,9 +248,11 @@ export const removeCookieFormData = (formId: string) => ifAllowed("functional", 
 
     // Remove form data from cache
     const existingIndex = cache.order.indexOf(formId);
+    console.log("removing cookie form data", formId, existingIndex);
     if (existingIndex !== -1) {
         cache.order.splice(existingIndex, 1);
         delete cache.formData[formId];
+        console.log("cache now", cache);
 
         setCookie(Cookies.FormData, cache);
     }

@@ -184,7 +184,7 @@ const RoutineForm = ({
         }
     }, [nodesField.value.length, nodeLinksField.value.length, inputsField.value.length, outputsField.value.length, handleGraphClose, handleGraphOpen]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<RoutineVersion>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<RoutineVersion>({
         display,
         isCreate,
         objectId: values.id,
@@ -201,7 +201,7 @@ const RoutineForm = ({
         endpointCreate: endpointPostRoutineVersion,
         endpointUpdate: endpointPutRoutineVersion,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

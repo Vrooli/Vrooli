@@ -89,7 +89,7 @@ const MeetingForm = ({
     };
     const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
 
-    const { handleCancel, handleCompleted } = useUpsertActions<Meeting>({
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Meeting>({
         display,
         isCreate,
         objectId: values.id,
@@ -106,7 +106,7 @@ const MeetingForm = ({
         endpointCreate: endpointPostMeeting,
         endpointUpdate: endpointPutMeeting,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Meeting" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Meeting" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

@@ -95,7 +95,7 @@ const NoteForm = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<NoteVersion>({
+    const { handleCancel, handleCompleted, handleDeleted, isCacheOn } = useUpsertActions<NoteVersion>({
         display,
         isCreate,
         objectId: values.id,
@@ -112,7 +112,7 @@ const NoteForm = ({
         endpointCreate: endpointPostNoteVersion,
         endpointUpdate: endpointPutNoteVersion,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "NoteVersion" });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "NoteVersion" });
 
     const onSubmit = useSubmitHelper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
         disabled,
