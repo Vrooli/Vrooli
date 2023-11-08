@@ -1,7 +1,7 @@
 import { EmailResetPasswordInput, emailResetPasswordSchema, endpointPostAuthEmailResetPassword, LINKS, Session, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -75,7 +75,7 @@ const ResetPasswordForm = ({
                 >
                     <Grid container spacing={2}>
                         <Grid item xs={12}>
-                            <PasswordTextField
+                            <PasswordTextInput
                                 fullWidth
                                 autoFocus
                                 name="newPassword"
@@ -84,7 +84,7 @@ const ResetPasswordForm = ({
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            <PasswordTextField
+                            <PasswordTextInput
                                 fullWidth
                                 name="confirmNewPassword"
                                 autoComplete="new-password"

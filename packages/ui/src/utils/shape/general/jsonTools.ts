@@ -246,7 +246,7 @@ export const jsonToMarkdown = (value: { [x: string]: any } | string | null): str
  * Converts a JSON object to a pretty-printed JSON string. This includes adding 
  * newlines and indentation to make the JSON more readable.
  * @param value The JSON object to convert.
- * @returns The pretty-printed JSON string, to be rendered in multiline <TextField />.
+ * @returns The pretty-printed JSON string, to be rendered in multiline <TextInput />.
  */
 export const jsonToString = (value: { [x: string]: any } | string | null | undefined): string | null => {
     try {

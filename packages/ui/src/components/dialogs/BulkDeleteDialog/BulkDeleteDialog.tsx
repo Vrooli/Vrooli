@@ -1,5 +1,6 @@
-import { Button, Checkbox, DialogContent, FormControlLabel, Grid, List, ListItem, TextField, Typography, useTheme } from "@mui/material";
+import { Button, Checkbox, DialogContent, FormControlLabel, Grid, List, ListItem, Typography, useTheme } from "@mui/material";
 import { BottomActionsGrid } from "components/buttons/BottomActionsGrid/BottomActionsGrid";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { CancelIcon, DeleteIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
@@ -100,7 +101,7 @@ export const BulkDeleteDialog = ({
                 <Typography variant="body2">
                     Type the words "{randomWords}" to confirm deletion:
                 </Typography>
-                <TextField
+                <TextInput
                     fullWidth
                     value={confirmationInput}
                     onChange={(e) => setConfirmationInput(e.target.value)}

@@ -1,13 +1,14 @@
 import { BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, noopSubmit, Session, User } from "@local/shared";
-import { InputAdornment, Slider, Stack, TextField, Typography } from "@mui/material";
+import { InputAdornment, Slider, Stack, Typography } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
@@ -172,7 +173,7 @@ const BotForm = ({
                             name="name"
                             label={t("Name")}
                             placeholder={t("NamePlaceholder")}
-                            as={TextField}
+                            as={TextInput}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
@@ -194,7 +195,7 @@ const BotForm = ({
                             name="handle"
                             label={t("Handle")}
                             placeholder={t("HandlePlaceholder")}
-                            as={TextField}
+                            as={TextInput}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
@@ -212,7 +213,7 @@ const BotForm = ({
                             name="bio"
                             placeholder={t("Bio")}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Occupation")}
                             placeholder={t("OccupationPlaceholderBot")}
@@ -226,7 +227,7 @@ const BotForm = ({
                                 ),
                             }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Persona")}
                             placeholder={t("PersonaPlaceholderBot")}
@@ -240,7 +241,7 @@ const BotForm = ({
                                 ),
                             }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("StartMessage")}
                             placeholder={t("StartMessagePlaceholder")}
@@ -254,7 +255,7 @@ const BotForm = ({
                                 ),
                             }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Tone")}
                             placeholder={t("TonePlaceholderBot")}
@@ -268,7 +269,7 @@ const BotForm = ({
                                 ),
                             }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("KeyPhrases")}
                             placeholder={t("KeyPhrasesPlaceholderBot")}
@@ -282,7 +283,7 @@ const BotForm = ({
                                 ),
                             }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("DomainKnowledge")}
                             placeholder={t("DomainKnowledgePlaceholderBot")}
@@ -296,7 +297,7 @@ const BotForm = ({
                                 ),
                             }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Bias")}
                             placeholder={t("BiasPlaceholderBot")}

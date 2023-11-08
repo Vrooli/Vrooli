@@ -158,6 +158,7 @@ export const SettingsFocusModesView = ({
                 isCreate={editingFocusMode === null}
                 isOpen={isDialogOpen}
                 onCancel={handleCloseDialog}
+                onClose={handleCloseDialog}
                 onCompleted={handleCompleted}
                 overrideObject={editingFocusMode ?? { __typename: "FocusMode" }}
             />

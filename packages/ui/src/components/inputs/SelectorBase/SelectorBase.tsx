@@ -106,7 +106,6 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 variant="outlined"
                 sx={{
                     ...sx,
-                    background: palette.background.paper,
                     color: palette.background.textPrimary,
                     "& .MuiSelect-select": {
                         paddingTop: "12px",

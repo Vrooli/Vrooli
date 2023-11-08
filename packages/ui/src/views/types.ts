@@ -9,11 +9,15 @@ import { MemberInviteShape } from "utils/shape/models/memberInvite";
  * Views can be displayed as full pages or as dialogs
  */
 export type ViewDisplayType = "dialog" | "page";
-export type ViewProps = {
-    /** Treated as a dialog when provided */
-    isOpen?: boolean;
-    onClose?: () => unknown;
+type ViewPropsPage = {
+    isOpen: undefined;
+    onClose: undefined;
 }
+type ViewPropsDialog = {
+    isOpen: boolean;
+    onClose: () => unknown;
+}
+export type ViewProps = ViewPropsPage | ViewPropsDialog;
 export type ObjectViewProps<T extends OrArray<ListObject>> = ViewProps & {
     /**
     * Data known about the object, which cannot be fetched from the server or cache. 
@@ -49,12 +53,12 @@ export type ResetPasswordViewProps = ViewProps
 export type SearchViewProps = ViewProps
 export type SignupViewProps = ViewProps
 export type StatsSiteViewProps = ViewProps
-export interface StatsObjectViewProps<T extends ListObject> extends ViewProps {
+export type StatsObjectViewProps<T extends ListObject> = ViewProps & {
     handleObjectUpdate: (object: T) => unknown;
     object: T | null | undefined;
 }
 export type ReportsViewProps = ViewProps
-export interface BuildViewProps extends ViewProps {
+export type BuildViewProps = ViewProps & {
     handleCancel: () => unknown;
     handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">) => unknown;
     isEditing: boolean;

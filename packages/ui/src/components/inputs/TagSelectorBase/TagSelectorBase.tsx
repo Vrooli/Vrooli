@@ -1,5 +1,5 @@
 import { BookmarkFor, DUMMY_ID, endpointGetTags, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
-import { Autocomplete, Chip, InputAdornment, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
+import { Autocomplete, Chip, InputAdornment, ListItemText, MenuItem, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useFetch } from "hooks/useFetch";
 import { TagIcon } from "icons";
@@ -7,11 +7,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
 import { TagShape } from "utils/shape/models/tag";
+import { TextInput } from "../TextInput/TextInput";
 import { TagSelectorBaseProps } from "../types";
 
 export const TagSelectorBase = ({
     disabled,
     handleTagsUpdate,
+    isOptional = true,
     tags,
     placeholder,
 }: TagSelectorBaseProps) => {
@@ -182,9 +184,10 @@ export const TagSelectorBase = ({
                 </MenuItem>
             )}
             renderInput={(params) => (
-                <TextField
+                <TextInput
                     value={inputValue}
                     onChange={onChange}
+                    isOptional={isOptional}
                     label={t("Tag", { count: 2 })}
                     placeholder={placeholder ?? t("TagSelectorPlaceholder")}
                     InputProps={{

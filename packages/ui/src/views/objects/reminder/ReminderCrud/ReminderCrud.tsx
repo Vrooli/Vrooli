@@ -1,10 +1,11 @@
 import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, noopSubmit, Reminder, ReminderCreateInput, ReminderUpdateInput, reminderValidation, Session, Success, uuid } from "@local/shared";
-import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
+import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { RichInput } from "components/inputs/RichInput/RichInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
@@ -238,18 +239,22 @@ const ReminderForm = ({
                             fullWidth
                             name="name"
                             label={t("Name")}
-                            as={TextField}
+                            placeholder={t("NamePlaceholder")}
+                            as={TextInput}
                         />
                         <RichInput
+                            isOptional
                             maxChars={2048}
                             maxRows={10}
                             minRows={4}
                             name="description"
-                            placeholder={t("DescriptionOptional")}
+                            label={t("Description")}
+                            placeholder={t("DescriptionPlaceholder")}
                         />
                         <DateInput
+                            isOptional
                             name="dueDate"
-                            label={t("DueDateOptional")}
+                            label={t("DueDate")}
                             type="datetime-local"
                         />
                         {/* Steps to complete reminder */}
@@ -286,18 +291,21 @@ const ReminderForm = ({
                                                                         fullWidth
                                                                         name={`reminderItems[${i}].name`}
                                                                         label={t("Name")}
-                                                                        as={TextField}
+                                                                        placeholder={t("NamePlaceholder")}
+                                                                        as={TextInput}
                                                                     />
                                                                     <RichInput
                                                                         maxChars={2048}
                                                                         maxRows={6}
                                                                         minRows={2}
                                                                         name={`reminderItems[${i}].description`}
-                                                                        placeholder={t("Description")}
+                                                                        label={t("Description")}
+                                                                        placeholder={t("DescriptionPlaceholder")}
                                                                     />
                                                                     <DateInput
                                                                         name={`reminderItems[${i}].dueDate`}
-                                                                        label={t("DueDateOptional")}
+                                                                        isOptional
+                                                                        label={t("DueDate")}
                                                                         type="datetime-local"
                                                                     />
                                                                     <FormControlLabel

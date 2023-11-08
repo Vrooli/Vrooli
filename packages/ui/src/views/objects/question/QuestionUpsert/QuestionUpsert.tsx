@@ -6,7 +6,7 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
@@ -146,7 +146,7 @@ const QuestionForm = ({
                             handleCurrent={setLanguage}
                             languages={languages}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Name")}
                             language={language}

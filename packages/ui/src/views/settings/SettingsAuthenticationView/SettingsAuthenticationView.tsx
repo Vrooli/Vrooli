@@ -1,9 +1,10 @@
 import { Email, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutInput, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
-import { Box, Button, Stack, TextField, useTheme } from "@mui/material";
+import { Box, Button, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
-import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { EmailList, WalletList } from "components/lists/devices";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
@@ -42,25 +43,25 @@ const SettingsAuthenticationForm = ({
                 isLoading={isLoading}
             >
                 {/* Hidden username input because some password managers require it */}
-                <TextField
+                <TextInput
                     name="username"
                     autoComplete="username"
                     sx={{ display: "none" }}
                 />
                 <FormSection>
-                    <PasswordTextField
+                    <PasswordTextInput
                         fullWidth
                         name="currentPassword"
                         label={t("PasswordCurrent")}
                         autoComplete="current-password"
                     />
-                    <PasswordTextField
+                    <PasswordTextInput
                         fullWidth
                         name="newPassword"
                         label={t("PasswordNew")}
                         autoComplete="new-password"
                     />
-                    <PasswordTextField
+                    <PasswordTextInput
                         fullWidth
                         name="newPasswordConfirmation"
                         autoComplete="new-password"

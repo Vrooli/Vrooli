@@ -2,9 +2,10 @@
  * Displays a list of emails for the user to manage
  */
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
-import { IconButton, InputAdornment, Stack, TextField, useTheme } from "@mui/material";
+import { IconButton, InputAdornment, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useFormik } from "formik";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon, EmailIcon } from "icons";
@@ -114,7 +115,7 @@ export const EmailList = ({
                 justifyContent: "center",
                 paddingTop: 4,
             }}>
-                <TextField
+                <TextInput
                     autoComplete='email'
                     fullWidth
                     id="emailAddress"

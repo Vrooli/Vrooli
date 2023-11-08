@@ -1,6 +1,7 @@
 import { endpointGetTranslate, Translate, TranslateInput } from "@local/shared";
-import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { IconButton, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useZIndex } from "hooks/useZIndex";
@@ -227,7 +228,7 @@ export const SelectLanguageMenu = ({
                     borderRadius: "0 4px 4px",
                     padding: "8px",
                 }}>
-                    <TextField
+                    <TextInput
                         placeholder={t("LanguageEnter")}
                         autoFocus={true}
                         value={searchString}
@@ -320,7 +321,7 @@ export const SelectLanguageMenu = ({
                     borderRadius: "50px",
                     cursor: "pointer",
                     background: "#4e7d31",
-                    boxShadow: 4,
+                    boxShadow: 2,
                     "&:hover": {
                         filter: "brightness(120%)",
                     },

@@ -1,13 +1,13 @@
-import { TextField } from "@mui/material";
 import { useField } from "formik";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
-import { TranslatedTextFieldProps } from "../types";
+import { TextInput } from "../TextInput/TextInput";
+import { TranslatedTextInputProps } from "../types";
 
-export const TranslatedTextField = ({
+export const TranslatedTextInput = ({
     language,
     name,
     ...props
-}: TranslatedTextFieldProps) => {
+}: TranslatedTextInputProps) => {
     const [field, meta, helpers] = useField("translations");
     const { value, error, touched } = getTranslationData(field, meta, language);
 
@@ -20,7 +20,7 @@ export const TranslatedTextField = ({
     };
 
     return (
-        <TextField
+        <TextInput
             {...props}
             id={name}
             name={name}

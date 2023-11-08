@@ -17,7 +17,7 @@ export const BaseForm = ({
             justifyContent: "center",
             width: maxWidth ? `min(${maxWidth}px, 100vw - ${display === "page" ? "16px" : "64px"})` : "-webkit-fill-available",
             maxWidth: "100%",
-            paddingBottom: "64px", // Make room for the submit buttons
+            paddingBottom: display === "dialog" ? "16px" : "64px", // Make room for the submit buttons
             paddingLeft: display === "dialog" ? "env(safe-area-inset-left)" : undefined,
             paddingRight: display === "dialog" ? "env(safe-area-inset-right)" : undefined,
             ...(style ?? {}),

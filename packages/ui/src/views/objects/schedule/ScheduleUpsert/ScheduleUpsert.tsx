@@ -1,11 +1,12 @@
 import { DUMMY_ID, endpointGetSchedule, endpointPostSchedule, endpointPutSchedule, noopSubmit, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleUpdateInput, scheduleValidation, Session, uuid } from "@local/shared";
-import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
+import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector } from "components/inputs/Selector/Selector";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSelector";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { RelationshipButtonType } from "components/lists/types";
@@ -180,7 +181,7 @@ const ScheduleForm = ({
                         objectType={"Schedule"}
                         sx={{ marginBottom: 4 }}
                     />}
-                    <Stack direction="column" spacing={2}>
+                    <Stack direction="column" spacing={4}>
                         <Title
                             title="Schedule Time Frame"
                             help="This section is used to define the overall time frame for the schedule.\n\n*Start time* and *End time* specify the beginning and the end of the period during which the schedule is active.\n\nThe *Timezone* is used to set the time zone for the entire schedule."
@@ -232,7 +233,7 @@ const ScheduleForm = ({
                                                     <MenuItem value={ScheduleRecurrenceType.Yearly}>{"Yearly"}</MenuItem>
                                                 </Select>
                                             </FormControl>
-                                            <TextField
+                                            <TextInput
                                                 fullWidth
                                                 label={"Interval"}
                                                 type="number"

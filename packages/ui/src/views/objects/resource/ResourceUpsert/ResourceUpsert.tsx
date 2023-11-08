@@ -1,12 +1,12 @@
 import { CommonKey, DUMMY_ID, endpointGetResource, endpointPostResource, endpointPutResource, noopSubmit, orDefault, Resource, ResourceCreateInput, ResourceListFor, ResourceUpdateInput, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
-import { Stack } from "@mui/material";
+import { Divider, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector } from "components/inputs/Selector/Selector";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
@@ -185,17 +185,9 @@ const ResourceForm = ({
                 isLoading={isLoading}
                 maxWidth={500}
             >
-                <Stack direction="column" spacing={2} padding={2}>
-                    {/* Language select */}
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                    />
+                <Stack direction="column" spacing={4} padding={2}>
                     {/* Enter link or search for object */}
-                    <LinkInput onObjectData={foundLinkData} />
+                    <LinkInput onObjectData={foundLinkData} tabIndex={0} />
                     <Selector
                         name="usedFor"
                         options={Object.keys(ResourceUsedFor)}
@@ -204,19 +196,31 @@ const ResourceForm = ({
                         fullWidth
                         label={t("Type")}
                     />
-                    <TranslatedTextField
+                    <Divider />
+                    <TranslatedTextInput
                         fullWidth
-                        label={t("NameOptional")}
+                        isOptional
+                        label={t("Name")}
                         language={language}
                         name="name"
                     />
-                    <TranslatedTextField
+                    <TranslatedTextInput
                         fullWidth
-                        label={t("DescriptionOptional")}
+                        isOptional
+                        label={t("Description")}
                         language={language}
                         multiline
+                        minRows={2}
                         maxRows={8}
                         name="description"
+                    />
+                    {/* Language select */}
+                    <LanguageInput
+                        currentLanguage={language}
+                        handleAdd={handleAddLanguage}
+                        handleDelete={handleDeleteLanguage}
+                        handleCurrent={setLanguage}
+                        languages={languages}
                     />
                 </Stack>
             </BaseForm>

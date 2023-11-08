@@ -10,21 +10,26 @@ import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem
 import { TagShape } from "utils/shape/models/tag";
 import { NodeWithEndCrudProps, NodeWithEndShape } from "views/objects/node/types";
 import { CrudProps } from "views/objects/types";
-import { ViewDisplayType } from "views/types";
 
 //==============================================================
 /* #region Specific Form Props */
 //==============================================================
-export interface BaseFormProps {
+interface BaseFormPropsBase {
     children: ReactNode;
-    display: ViewDisplayType;
     enableReinitialize?: boolean;
     isLoading?: boolean;
     maxWidth?: number;
-    onClose?: () => unknown;
     style?: { [x: string]: string | number | null };
     validationSchema?: any;
 }
+interface BaseFormPropsPage extends BaseFormPropsBase {
+    display: "page";
+}
+interface BaseFormPropsDialog extends BaseFormPropsBase {
+    display: "dialog";
+    onClose?: () => unknown;
+}
+export type BaseFormProps = BaseFormPropsPage | BaseFormPropsDialog;
 
 export interface FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> extends Omit<CrudProps<Model>, "isLoading">, FormikProps<ModelShape> {
     disabled: boolean;
@@ -161,7 +166,7 @@ export interface TextProps {
     defaultValue?: string;
     /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
     autoComplete?: string;
-    /** If true, displays RichInput instead of TextField */
+    /** If true, displays RichInput instead of TextInput */
     isMarkdown?: boolean;
     /** Maximum number of characters for the text field. Defaults to 1000 */
     maxChars?: number;
@@ -333,7 +338,7 @@ export interface FieldDataTagSelector extends FieldDataBase {
 }
 
 /**
- * Field data type and props for TextField input components
+ * Field data type and props for text input components
  */
 export interface FieldDataText extends FieldDataBase {
     /**

@@ -82,7 +82,7 @@ export interface CodeInputBaseProps {
 export type CodeInputProps = Omit<CodeInputBaseProps, "defaultValue" | "format" | "variables">
 
 export interface DateInputProps {
-    fullWidth?: boolean;
+    isOptional?: boolean;
     label: string;
     name: string;
     type?: "date" | "datetime-local";
@@ -120,9 +120,10 @@ export interface LinkInputProps {
     label?: string;
     name?: string;
     onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => unknown;
+    tabIndex?: number;
 }
 
-export type RichInputBaseProps = Omit<TextFieldProps, "onChange"> & {
+export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
@@ -197,7 +198,7 @@ export type RichInputAction =
     "Undo";
 export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo" | "SetValue">]: boolean };
 
-export type PasswordTextFieldProps = TextFieldProps & {
+export type PasswordTextInputProps = TextInputProps & {
     autoComplete?: string;
     autoFocus?: boolean;
     fullWidth?: boolean;
@@ -298,8 +299,13 @@ export interface TagSelectorProps {
 export interface TagSelectorBaseProps {
     disabled?: boolean;
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => unknown;
+    isOptional?: boolean;
     placeholder?: string;
     tags: (TagShape | Tag)[];
+}
+
+export type TextInputProps = TextFieldProps & {
+    isOptional?: boolean;
 }
 
 export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
@@ -324,6 +330,7 @@ export interface TranslatedRichInputProps {
         tooltip?: string;
     }>;
     disabled?: boolean;
+    isOptional?: boolean;
     language: string;
     maxChars?: number;
     maxRows?: number;
@@ -337,8 +344,9 @@ export interface TranslatedRichInputProps {
     };
 }
 
-export interface TranslatedTextFieldProps {
+export interface TranslatedTextInputProps {
     fullWidth?: boolean;
+    isOptional?: boolean;
     label?: string;
     language: string;
     maxRows?: number;
@@ -346,19 +354,15 @@ export interface TranslatedTextFieldProps {
     multiline?: boolean;
     name: string;
     placeholder?: string;
-    InputProps?: TextFieldProps["InputProps"];
+    InputProps?: TextInputProps["InputProps"];
 }
 
-export type VersionInputProps = Omit<TextFieldProps, "helperText" | "onBlur" | "onChange" | "value"> & {
+export type VersionInputProps = Omit<TextInputProps, "helperText" | "onBlur" | "onChange" | "value"> & {
     autoFocus?: boolean;
     fullWidth?: boolean;
-    /**
-     * Label for input component, NOT the version label.
-     */
+    /** Label for input component, NOT the version label. */
     label?: string;
     name?: string;
-    /**
-     * Existing versions of the object. Used to determine mimum version number.
-     */
+    /** Existing versions of the object. Used to determine mimum version number. */
     versions: string[];
 }

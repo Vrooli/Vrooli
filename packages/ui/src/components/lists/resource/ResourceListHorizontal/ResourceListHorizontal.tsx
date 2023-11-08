@@ -290,6 +290,7 @@ export const ResourceListHorizontal = ({
             isOpen={isDialogOpen}
             isMutate={mutate}
             onCancel={closeDialog}
+            onClose={closeDialog}
             onCompleted={onCompleted}
             overrideObject={editingIndex >= 0 && list?.resources ?
                 { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :

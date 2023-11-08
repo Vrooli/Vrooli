@@ -321,7 +321,10 @@ export const DashboardView = ({
                         marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
                     },
                     bar: { borderRadius: 0 },
-                    textArea: { paddingRight: 4, border: "none" },
+                    textArea: {
+                        border: "none",
+                        background: palette.background.paper,
+                    },
                 }}
                 value={message}
             />

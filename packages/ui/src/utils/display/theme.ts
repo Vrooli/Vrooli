@@ -45,6 +45,7 @@ const lightPalette = {
         textPrimary: "#000000",
         textSecondary: "#6f6f6f",
     },
+    divider: "rgba(0, 0, 0, 0.23)",
 } as const;
 const lightTheme = createTheme({
     ...commonTheme,
@@ -55,7 +56,7 @@ const lightTheme = createTheme({
             styleOverrides: {
                 root: {
                     "& .MuiOutlinedInput-root": {
-                        backgroundColor: lightPalette.background.paper,
+                        // backgroundColor: lightPalette.background.paper,
                         color: lightPalette.background.textPrimary,
                     },
                 },
@@ -117,6 +118,7 @@ const darkPalette = {
         textPrimary: "#ffffff",
         textSecondary: "#c3c3c3",
     },
+    divider: "rgba(255, 255, 255, 0.23)",
 } as const;
 const darkTheme = createTheme({
     ...commonTheme,
@@ -127,7 +129,7 @@ const darkTheme = createTheme({
             styleOverrides: {
                 root: {
                     "& .MuiOutlinedInput-root": {
-                        backgroundColor: darkPalette.background.paper,
+                        // backgroundColor: darkPalette.background.paper,
                         color: darkPalette.background.textPrimary,
                     },
                 },

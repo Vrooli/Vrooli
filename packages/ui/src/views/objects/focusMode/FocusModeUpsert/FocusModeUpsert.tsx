@@ -1,11 +1,12 @@
 import { DUMMY_ID, endpointGetFocusMode, endpointPostFocusMode, endpointPutFocusMode, FocusMode, FocusModeCreateInput, FocusModeUpdateInput, focusModeValidation, noopSubmit, Schedule, Session } from "@local/shared";
-import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
+import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
@@ -157,13 +158,13 @@ const FocusModeForm = ({
                             fullWidth
                             name="name"
                             label={t("Name")}
-                            as={TextField}
+                            as={TextInput}
                         />
                         <Field
                             fullWidth
                             name="description"
                             label={t("Description")}
-                            as={TextField}
+                            as={TextInput}
                         />
                     </Stack>
                     {/* Handle adding, updating, and removing schedule */}

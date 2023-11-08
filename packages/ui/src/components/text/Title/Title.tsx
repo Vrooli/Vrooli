@@ -50,7 +50,7 @@ export const Title = ({
     return (
         <Stack
             direction={numberOfLines >= 2 ? "column" : "row"}
-            justifyContent="center"
+            justifyContent={variant === "header" ? "center" : "flex-start"}
             alignItems="center"
             sx={{
                 padding: 1,

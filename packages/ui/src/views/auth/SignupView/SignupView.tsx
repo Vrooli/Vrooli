@@ -1,12 +1,13 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session } from "@local/shared";
-import { Box, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, InputAdornment, keyframes, Link, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, InputAdornment, keyframes, Link, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import Blob1 from "assets/img/blob1.svg";
 import Blob2 from "assets/img/blob2.svg";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
 import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
-import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Testimonials } from "components/Testimonials/Testimonials";
 import { Field, Formik } from "formik";
@@ -104,7 +105,7 @@ const SignupForm = () => {
                                 name="name"
                                 label={t("Name")}
                                 placeholder={t("NamePlaceholder")}
-                                as={TextField}
+                                as={TextInput}
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
@@ -121,7 +122,7 @@ const SignupForm = () => {
                                 name="email"
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
-                                as={TextField}
+                                as={TextInput}
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
@@ -134,7 +135,7 @@ const SignupForm = () => {
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            <PasswordTextField
+                            <PasswordTextInput
                                 fullWidth
                                 name="password"
                                 autoComplete="new-password"
@@ -142,7 +143,7 @@ const SignupForm = () => {
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            <PasswordTextField
+                            <PasswordTextInput
                                 fullWidth
                                 name="confirmPassword"
                                 autoComplete="new-password"

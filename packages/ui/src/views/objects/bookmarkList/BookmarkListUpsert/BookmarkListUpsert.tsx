@@ -1,9 +1,10 @@
 import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, bookmarkListValidation, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPutBookmarkList, noopSubmit, Session, uuid } from "@local/shared";
-import { Box, Button, IconButton, List, ListItem, ListItemText, Stack, TextField, useTheme } from "@mui/material";
+import { Box, Button, IconButton, List, ListItem, ListItemText, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
@@ -146,7 +147,7 @@ const BookmarkListForm = ({
                             fullWidth
                             name="label"
                             label={t("Label")}
-                            as={TextField}
+                            as={TextInput}
                         />
                     </Box>
                     {bookmarksField.value.length ? <List>

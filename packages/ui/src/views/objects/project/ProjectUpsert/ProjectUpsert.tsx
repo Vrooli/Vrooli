@@ -4,7 +4,7 @@ import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/Bo
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { DirectoryListHorizontal } from "components/lists/directory";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -169,16 +169,10 @@ const ProjectForm = ({
                         sx={{ marginBottom: 4 }}
                     />
                     <FormSection>
-                        <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleDeleteLanguage}
-                            handleCurrent={setLanguage}
-                            languages={languages}
-                        />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Name")}
+                            placeholder={t("NamePlaceholder")}
                             language={language}
                             name="name"
                         />
@@ -188,7 +182,14 @@ const ProjectForm = ({
                             maxChars={2048}
                             minRows={4}
                             maxRows={8}
-                            placeholder={t("Description")}
+                            placeholder={t("DescriptionPlaceholder")}
+                        />
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
                         />
                     </FormSection>
                     <DirectoryListHorizontal

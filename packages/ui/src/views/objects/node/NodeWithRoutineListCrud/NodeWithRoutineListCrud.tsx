@@ -94,7 +94,7 @@ const NodeWithRoutineListForm = ({
             >
                 <FormContainer>
                     <EditableTextCollapse
-                        component='TranslatedTextField'
+                        component="TranslatedTextInput"
                         isEditing={isEditing}
                         name="name"
                         props={{

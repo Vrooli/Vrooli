@@ -148,7 +148,7 @@ const MemberInvitesForm = ({
                 />
                 {/* TODO willHavePermissions */}
                 <Box mt={4}>
-                    <Typography variant="h6" p={2}>{t("MessageOptional")}</Typography>
+                    <Typography variant="h6" p={2}>{t("Message", { count: 1 })}</Typography>
                     <RichInputBase
                         disabled={values.length <= 0}
                         fullWidth
@@ -166,7 +166,10 @@ const MemberInvitesForm = ({
                                 margin: "0",
                             },
                             bar: { borderRadius: 0 },
-                            textArea: { paddingRight: 4, border: "none" },
+                            textArea: {
+                                border: "none",
+                                background: palette.background.paper,
+                            },
                         }}
                         value={message}
                     />

@@ -2,7 +2,8 @@
  * Input for entering (and viewing format of) Radio data that 
  * must match a certain schema.
  */
-import { Button, IconButton, Radio, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Button, IconButton, Radio, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
 import { RadioProps } from "forms/types";
 import { AddIcon, DeleteIcon } from "icons";
@@ -20,7 +21,7 @@ export const emptyRadioOption = (index: number) => ({
 });
 
 /**
- * Radio option with delete icon, TextField for label, and Checkbox for default value.
+ * Radio option with delete icon, TextInput for label, and Checkbox for default value.
  */
 const RadioOption = ({
     index,
@@ -62,7 +63,7 @@ const RadioOption = ({
                     onChange={handleCheckboxChange}
                 />
             </Tooltip>{isEditing ? (
-                <TextField
+                <TextInput
                     label="Label"
                     value={label}
                     fullWidth

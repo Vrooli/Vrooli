@@ -7,7 +7,7 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -213,7 +213,7 @@ const NoteForm = ({
                                             handleCurrent={setLanguage}
                                             languages={languages}
                                         />
-                                        <TranslatedTextField
+                                        <TranslatedTextInput
                                             fullWidth
                                             label={t("Name")}
                                             language={language}

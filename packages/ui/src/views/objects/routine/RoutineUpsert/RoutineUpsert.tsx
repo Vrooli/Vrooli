@@ -7,7 +7,7 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -249,7 +249,7 @@ const RoutineForm = ({
                             handleCurrent={setLanguage}
                             languages={languages}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Name")}
                             language={language}

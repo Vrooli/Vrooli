@@ -16,7 +16,7 @@ import { RichInputAction, RichInputActiveStates, RichInputBaseProps } from "../t
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
 
 
-/** TextField for entering rich text. Supports markdown and WYSIWYG */
+/** TextInput for entering rich text. Supports markdown and WYSIWYG */
 export const RichInputBase = ({
     actionButtons,
     autoFocus = false,
@@ -72,6 +72,7 @@ export const RichInputBase = ({
         isCreate: true,
         isOpen: false,
         onCancel: closeAssistantDialog,
+        onClose: closeAssistantDialog,
         overrideObject: assistantChatInfo,
         task: "note",
         onCompleted: closeAssistantDialog,

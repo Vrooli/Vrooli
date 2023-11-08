@@ -245,7 +245,7 @@ const SubroutineForm = ({
                             {/* Name */}
                             <Grid item xs={12}>
                                 <EditableTextCollapse
-                                    component='TranslatedTextField'
+                                    component='TranslatedTextInput'
                                     isEditing={isEditing}
                                     name="name"
                                     props={{

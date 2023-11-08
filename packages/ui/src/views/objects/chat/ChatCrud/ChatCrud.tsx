@@ -1,5 +1,5 @@
 import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
-import { Box, Checkbox, IconButton, InputAdornment, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
@@ -7,8 +7,9 @@ import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
@@ -464,7 +465,7 @@ const ChatForm = ({
                                                     handleCurrent={setLanguage}
                                                     languages={languages}
                                                 />
-                                                <TranslatedTextField
+                                                <TranslatedTextInput
                                                     fullWidth
                                                     label={t("Name")}
                                                     language={language}
@@ -496,7 +497,7 @@ const ChatForm = ({
                                                         }}
                                                     />
                                                     {/* Show link with copy adornment*/}
-                                                    <TextField
+                                                    <TextInput
                                                         disabled
                                                         fullWidth
                                                         id="invite-link"
@@ -616,7 +617,10 @@ const ChatForm = ({
                                 marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
                             },
                             bar: { borderRadius: 0 },
-                            textArea: { paddingRight: 4, border: "none" },
+                            textArea: {
+                                border: "none",
+                                background: palette.background.paper,
+                            },
                         }}
                         value={message}
                     />

@@ -743,14 +743,20 @@ const RichInputLexicalComponents = ({
                 padding: "16.5px 14px",
                 minWidth: "-webkit-fill-available",
                 maxWidth: "-webkit-fill-available",
-                borderColor: error ? palette.error.main : palette.divider,
                 borderRadius: "0 0 4px 4px",
                 borderTop: "none",
                 fontFamily: typography.fontFamily,
                 fontSize: typography.fontSize + 2,
                 lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
-                backgroundColor: palette.background.paper,
+                backgroundColor: "transparent",
                 color: palette.text.primary,
+                border: `1px solid ${palette.divider}`,
+                "&:hover": {
+                    border: `1px solid ${palette.background.textPrimary}`,
+                },
+                "&:focus-within": {
+                    border: `2px solid ${palette.primary.main}`,
+                },
                 ...sx,
             }}>
             <RichTextPlugin
@@ -787,7 +793,7 @@ const RichInputLexicalComponents = ({
     );
 };
 
-/** TextField for entering WYSIWYG text */
+/** TextInput for entering WYSIWYG text */
 export const RichInputLexical = ({
     value,
     ...props

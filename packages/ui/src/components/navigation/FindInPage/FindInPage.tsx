@@ -1,5 +1,6 @@
-import { Box, Dialog, DialogContent, IconButton, Palette, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Dialog, DialogContent, IconButton, Palette, Tooltip, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useHotkeys } from "hooks/useHotkeys";
 import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "icons";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -195,7 +196,7 @@ const FindInPage = () => {
                         border: `1px solid ${searchString.length > 0 && results.length === 0 ? "red" : palette.background.textPrimary}`,
                     }}>
                         {/* Search bar */}
-                        <TextField
+                        <TextInput
                             id="command-palette-search"
                             autoComplete='off'
                             autoFocus={true}

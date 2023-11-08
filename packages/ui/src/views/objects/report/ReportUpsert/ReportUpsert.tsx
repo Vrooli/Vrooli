@@ -1,11 +1,12 @@
 import { DUMMY_ID, endpointGetReport, endpointPostReport, endpointPutReport, noopSubmit, Report, ReportCreateInput, ReportFor, ReportUpdateInput, reportValidation, Session } from "@local/shared";
-import { Link, TextField, Typography } from "@mui/material";
+import { Link, Typography } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { RichInput } from "components/inputs/RichInput/RichInput";
 import { Selector } from "components/inputs/Selector/Selector";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
@@ -180,14 +181,15 @@ const ReportForm = ({
                         name="otherReason"
                         label={t("ReasonCustom")}
                         helperText={t("ReasonCustomHelp")}
-                        as={TextField}
+                        as={TextInput}
                     />}
                     <RichInput
+                        isOptional
                         maxChars={8192}
                         maxRows={10}
                         minRows={4}
                         name="details"
-                        placeholder={t("DetailsOptional")}
+                        placeholder={t("Details")}
                     />
                 </FormContainer>
             </BaseForm>

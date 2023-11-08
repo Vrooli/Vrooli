@@ -1,7 +1,8 @@
 import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@local/shared";
-import { Box, Button, Grid, InputAdornment, Link, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Button, Grid, InputAdornment, Link, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode } from "api";
-import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik } from "formik";
@@ -137,7 +138,7 @@ const LoginForm = ({
                                 name="email"
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
-                                as={TextField}
+                                as={TextInput}
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
@@ -150,7 +151,7 @@ const LoginForm = ({
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            <PasswordTextField
+                            <PasswordTextInput
                                 fullWidth
                                 name="password"
                                 autoComplete="current-password"

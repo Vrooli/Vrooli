@@ -1,6 +1,7 @@
 import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success } from "@local/shared";
-import { Box, Button, Grid, InputAdornment, Link, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Button, Grid, InputAdornment, Link, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -63,7 +64,7 @@ const ForgotPasswordForm = ({
                                 name="email"
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
-                                as={TextField}
+                                as={TextInput}
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">

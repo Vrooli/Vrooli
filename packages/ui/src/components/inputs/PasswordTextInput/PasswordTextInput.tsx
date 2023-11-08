@@ -4,16 +4,16 @@ import { InvisibleIcon, LockIcon, VisibleIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import zxcvbn from "zxcvbn";
-import { PasswordTextFieldProps } from "../types";
+import { PasswordTextInputProps } from "../types";
 
-export const PasswordTextField = ({
+export const PasswordTextInput = ({
     autoComplete = "current-password",
     autoFocus = false,
     fullWidth = true,
     label,
     name,
     ...props
-}: PasswordTextFieldProps) => {
+}: PasswordTextInputProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [field, meta] = useField(name);

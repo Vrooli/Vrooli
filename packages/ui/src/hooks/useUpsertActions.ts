@@ -46,10 +46,12 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
     /** Helper function to navigate back or to a specific URL */
     const goBack = useCallback((targetUrl?: string) => {
         const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
-        console.log("in goback", targetUrl, hasPreviousPage, sessionStorage.getItem("lastPath"));
+        console.log("in goback a", targetUrl, hasPreviousPage, sessionStorage.getItem("lastPath"));
         if (!targetUrl && hasPreviousPage) {
+            console.log("in goback history.back!");
             window.history.back();
         } else {
+            console.log("in goback setlocation! replacing?", !hasPreviousPage);
             setLocation(targetUrl ?? LINKS.Home, { replace: !hasPreviousPage });
         }
     }, [setLocation]);

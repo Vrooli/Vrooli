@@ -1,5 +1,5 @@
 import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
-import { Box, IconButton, InputAdornment, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
@@ -7,6 +7,7 @@ import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -316,7 +317,7 @@ export const UserView = ({
                         marginTop: 0,
                         borderRadius: "0px",
                     }}>
-                        {botData.occupation && <TextField
+                        {botData.occupation && <TextInput
                             disabled
                             fullWidth
                             label={t("Occupation")}
@@ -329,7 +330,7 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        {botData.persona && <TextField
+                        {botData.persona && <TextInput
                             disabled
                             fullWidth
                             label={t("Persona")}
@@ -342,7 +343,7 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        {botData.startMessage && <TextField
+                        {botData.startMessage && <TextInput
                             disabled
                             fullWidth
                             label={t("StartMessage")}
@@ -355,7 +356,7 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        {botData.tone && <TextField
+                        {botData.tone && <TextInput
                             disabled
                             fullWidth
                             label={t("Tone")}
@@ -368,7 +369,7 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        {botData.keyPhrases && <TextField
+                        {botData.keyPhrases && <TextInput
                             disabled
                             fullWidth
                             label={t("KeyPhrases")}
@@ -381,7 +382,7 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        {botData.domainKnowledge && <TextField
+                        {botData.domainKnowledge && <TextInput
                             disabled
                             fullWidth
                             label={t("DomainKnowledge")}
@@ -394,7 +395,7 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        {botData.bias && <TextField
+                        {botData.bias && <TextInput
                             disabled
                             fullWidth
                             label={t("Bias")}

@@ -1,9 +1,10 @@
 import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, profileValidation, User, userTranslationValidation } from "@local/shared";
-import { Box, InputAdornment, Stack, TextField } from "@mui/material";
+import { Box, InputAdornment, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
@@ -76,7 +77,7 @@ const SettingsProfileForm = ({
                         name="name"
                         label={t("Name")}
                         placeholder={t("NamePlaceholder")}
-                        as={TextField}
+                        as={TextInput}
                         InputProps={{
                             startAdornment: (
                                 <InputAdornment position="start">
@@ -93,7 +94,7 @@ const SettingsProfileForm = ({
                         name="handle"
                         label={t("Handle")}
                         placeholder={t("HandlePlaceholder")}
-                        as={TextField}
+                        as={TextInput}
                         InputProps={{
                             startAdornment: (
                                 <InputAdornment position="start">

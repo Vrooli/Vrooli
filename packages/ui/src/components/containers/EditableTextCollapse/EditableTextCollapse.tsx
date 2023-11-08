@@ -1,8 +1,9 @@
 import { isOfType } from "@local/shared";
-import { TextField, Typography, useTheme } from "@mui/material";
+import { Typography, useTheme } from "@mui/material";
 import { RichInput } from "components/inputs/RichInput/RichInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
 import { linkColors } from "styles";
@@ -11,7 +12,7 @@ import { EditableTextCollapseProps, EditTextComponent, PropsByComponentType } fr
 
 /**
  * A text collapse that supports editing mode, either with 
- * a TextField or RichInput
+ * a TextInput or RichInput
  */
 export function EditableTextCollapse<T extends EditTextComponent>({
     component,
@@ -42,11 +43,11 @@ export function EditableTextCollapse<T extends EditTextComponent>({
             {/* Editing components */}
             {isEditing && component === "Markdown" && <RichInput name={name} {...(props as PropsByComponentType["Markdown"])} />}
             {isEditing && component === "TranslatedMarkdown" && <TranslatedRichInput name={name} {...(props as PropsByComponentType["TranslatedMarkdown"])} />}
-            {isEditing && component === "TranslatedTextField" && <TranslatedTextField name={name} {...(props as PropsByComponentType["TranslatedTextField"])} />}
-            {isEditing && component === "TextField" && <Field name={name} as={TextField} {...(props as PropsByComponentType["TextField"])} />}
+            {isEditing && component === "TranslatedTextInput" && <TranslatedTextInput name={name} {...(props as PropsByComponentType["TranslatedTextInput"])} />}
+            {isEditing && component === "TextInput" && <Field name={name} as={TextInput} {...(props as PropsByComponentType["TextInput"])} />}
             {/* Display components */}
             {!isEditing && isOfType(component, "Markdown", "TranslatedMarkdown") && <MarkdownDisplay variant={variant} content={field.value} />}
-            {!isEditing && isOfType("TextField", "TranslatedTextField") && <Typography variant={variant}>{field.value}</Typography>}
+            {!isEditing && isOfType("TextInput", "TranslatedTextInput") && <Typography variant={variant}>{field.value}</Typography>}
         </ContentCollapse>
     );
 }

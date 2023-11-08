@@ -1,5 +1,5 @@
 import { ApiVersion, ApiVersionCreateInput, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, noopSubmit, orDefault, Session } from "@local/shared";
-import { Button, Grid, InputAdornment, Stack, TextField } from "@mui/material";
+import { Button, Grid, InputAdornment, Stack } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -7,8 +7,9 @@ import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -175,7 +176,7 @@ const ApiForm = ({
                             handleCurrent={setLanguage}
                             languages={languages}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Name")}
                             language={language}
@@ -204,7 +205,7 @@ const ApiForm = ({
                             name="callLink"
                             label={"Endpoint URL"}
                             placeholder={"https://example.com"}
-                            as={TextField}
+                            as={TextInput}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
@@ -246,7 +247,7 @@ const ApiForm = ({
                                     name="documentationLink"
                                     label={"Schema URL (Optional)"}
                                     helperText={"The full URL to the schema"}
-                                    as={TextField}
+                                    as={TextInput}
                                 />
                             )
                         }
