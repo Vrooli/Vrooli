@@ -11,6 +11,10 @@ nav:
       - Overview: about/overview.md
       - Background: about/background.md
       - Resources: about/resources.md
+  - Routines:
+      - Overview: routines/overview.md
+      - Framework: routines/framework.md
+      - Routine Complexity: testing/routine_complexity.md
   - Valyxa:
       - Overview: valyxa/overview.md
   - API Reference:
@@ -34,7 +38,6 @@ nav:
       - Overview: testing/overview.md
       - Logs: testing/logs.md
       - Profiling: testing/profiling.md
-      - Routine Complexity: testing/routine_complexity.md
   - Deployment:
       - Overview: deployment/overview.md
       - Secrets Management: deployment/secrets_management.md
