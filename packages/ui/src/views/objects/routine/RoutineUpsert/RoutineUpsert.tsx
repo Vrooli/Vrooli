@@ -27,7 +27,6 @@ import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
@@ -92,6 +91,7 @@ const helpTextSubroutines = "A routine can be made from scratch (single-step), o
 const RoutineForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -107,7 +107,6 @@ const RoutineForm = ({
     ...props
 }: RoutineFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle translations
@@ -326,8 +325,8 @@ const RoutineForm = ({
                         {
                             isMultiStep === true && (
                                 <>
-                                    {/* Dialog for building routine graph */}
                                     <BuildView
+                                        display="dialog"
                                         handleCancel={handleGraphClose}
                                         onClose={handleGraphClose}
                                         handleSubmit={handleGraphSubmit}

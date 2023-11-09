@@ -21,7 +21,6 @@ import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize, FormContainer } from "styles";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { ReportShape, shapeReport } from "utils/shape/models/report";
 import { validateFormValues } from "utils/validateFormValues";
@@ -65,6 +64,7 @@ export const transformReportValues = (values: ReportShape, existing: ReportShape
 const ReportForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -78,7 +78,6 @@ const ReportForm = ({
     ...props
 }: ReportFormProps) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const session = useContext(SessionContext);
 
     /**

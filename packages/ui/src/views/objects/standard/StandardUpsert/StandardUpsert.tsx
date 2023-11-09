@@ -25,7 +25,6 @@ import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { InputTypeOptions } from "utils/consts";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { shapeStandardVersion, StandardVersionShape } from "utils/shape/models/standardVersion";
 import { validateFormValues } from "utils/validateFormValues";
@@ -82,6 +81,7 @@ const transformStandardVersionValues = (values: StandardVersionShape, existing: 
 const StandardForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -96,7 +96,6 @@ const StandardForm = ({
     ...props
 }: StandardFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle translations

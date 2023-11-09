@@ -11,7 +11,6 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -22,14 +21,13 @@ import { SearchViewProps } from "../types";
  * Search page for organizations, projects, routines, standards, users, and other main objects
  */
 export const SearchView = ({
-    isOpen,
+    display,
     onClose,
 }: SearchViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     const {

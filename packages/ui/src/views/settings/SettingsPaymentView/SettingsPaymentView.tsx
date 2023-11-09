@@ -7,17 +7,15 @@ import { CancelIcon, OpenInNewIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { pagePaddingBottom } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { SettingsPaymentViewProps } from "../types";
 
 export const SettingsPaymentView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsPaymentViewProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const {
         currentUser,

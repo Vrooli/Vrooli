@@ -51,6 +51,7 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
  */
 export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     handleAction: (action: BuildAction, nodeId: string) => unknown;
+    handleDelete: (node: NodeShape) => unknown;
     handleUpdate: (updatedNode: NodeWithEnd) => unknown;
     language: string;
     linksIn: NodeLink[];
@@ -78,6 +79,7 @@ export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditablePr
 export interface RoutineListNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     canExpand: boolean;
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => unknown;
+    handleDelete: (node: NodeShape) => unknown;
     handleUpdate: (updatedNode: Node & { routineList: NodeRoutineList }) => unknown;
     language: string;
     linksIn: NodeLink[];

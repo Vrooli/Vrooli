@@ -169,9 +169,9 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                             <EditableText
                                 component="TranslatedTextInput"
                                 isEditing={isEditing}
-                                isOptional
                                 name='description'
                                 props={{
+                                    isOptional: true,
                                     label: t("Description"),
                                     language,
                                     fullWidth: true,

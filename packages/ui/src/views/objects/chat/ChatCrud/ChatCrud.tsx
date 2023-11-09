@@ -33,7 +33,6 @@ import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { removeCookieFormData } from "utils/cookies";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -133,6 +132,7 @@ const ChatForm = ({
     context,
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -147,7 +147,6 @@ const ChatForm = ({
     ...props
 }: ChatFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();

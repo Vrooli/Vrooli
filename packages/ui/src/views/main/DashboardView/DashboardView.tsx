@@ -19,7 +19,6 @@ import { pagePaddingBottom } from "styles";
 import { CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
@@ -29,6 +28,7 @@ import { DashboardViewProps } from "../types";
 
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
+    display,
     isOpen,
     onClose,
 }: DashboardViewProps) => {
@@ -36,7 +36,6 @@ export const DashboardView = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const [message, setMessage] = useState<string>("");
     const [refetch, { data, loading }] = useLazyFetch<any, HomeResult>(endpointGetFeedHome);

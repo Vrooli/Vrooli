@@ -10,7 +10,6 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toDisplay } from "utils/display/pageTools";
 import { statsDisplay } from "utils/display/statsDisplay";
 import { displayDate } from "utils/display/stringTools";
 import { StatsSiteViewProps } from "../types";
@@ -81,12 +80,11 @@ const MIN_DATE = new Date(2023, 1, 1);
  * Displays site-wide statistics, organized by time period.
  */
 export const StatsSiteView = ({
-    isOpen,
+    display,
     onClose,
 }: StatsSiteViewProps) => {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     // Period time frame. Defaults to past 24 hours.
     const [period, setPeriod] = useState<{ after: Date, before: Date }>({

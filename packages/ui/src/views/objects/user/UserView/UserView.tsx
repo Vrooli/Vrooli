@@ -30,7 +30,6 @@ import { findBotData } from "utils/botUtils";
 import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { parseSingleItemUrl, UrlInfo } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -38,14 +37,13 @@ import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
 import { UserViewProps } from "../types";
 
 export const UserView = ({
-    isOpen,
+    display,
     onClose,
 }: UserViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [{ pathname }, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
 
     // Parse information from URL

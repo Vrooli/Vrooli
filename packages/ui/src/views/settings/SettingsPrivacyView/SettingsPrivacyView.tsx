@@ -12,7 +12,6 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { useTranslation } from "react-i18next";
 import { pagePaddingBottom } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { SettingsPrivacyFormProps, SettingsPrivacyViewProps } from "../types";
 
@@ -101,11 +100,10 @@ const SettingsPrivacyForm = ({
 
 
 export const SettingsPrivacyView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsPrivacyViewProps) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);

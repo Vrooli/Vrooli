@@ -16,7 +16,6 @@ import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay, getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { RunProjectShape, shapeRunProject } from "utils/shape/models/runProject";
@@ -47,6 +46,7 @@ export const transformRunProjectValues = (values: RunProjectShape, existing: Run
 const RunProjectForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -60,7 +60,6 @@ const RunProjectForm = ({
     ...props
 }: RunProjectFormProps) => {
     const { palette } = useTheme();
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle scheduling
@@ -77,7 +76,10 @@ const RunProjectForm = ({
         scheduleHelpers.setValue(created);
         setIsScheduleDialogOpen(false);
     };
-    const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
+    const handleScheduleDeleted = () => {
+        scheduleHelpers.setValue(null);
+        setIsScheduleDialogOpen(false);
+    };
 
     const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<RunProject>({
         display,
@@ -127,12 +129,14 @@ const RunProjectForm = ({
                 canChangeTab={false}
                 canSetScheduleFor={false}
                 defaultTab={CalendarPageTabOption.RunProject}
-                handleDelete={handleDeleteSchedule}
+                display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
                 isOpen={isScheduleDialogOpen}
                 onCancel={handleCloseScheduleDialog}
+                onClose={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
+                onDeleted={handleScheduleDeleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
             />
             <BaseForm
@@ -197,7 +201,7 @@ const RunProjectForm = ({
                                     {/* Delete */}
                                     <Box
                                         component="a"
-                                        onClick={handleDeleteSchedule}
+                                        onClick={handleScheduleDeleted}
                                         sx={{
                                             display: "flex",
                                             justifyContent: "center",

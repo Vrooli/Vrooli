@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, SessionUser, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, noop, SessionUser, Success } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -12,20 +12,18 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { multiLineEllipsis, pagePaddingBottom } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { FocusModeUpsert } from "views/objects/focusMode";
 import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsFocusModesViewProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const [focusModes, setFocusModes] = useState<FocusMode[]>([]);
     useEffect(() => {
@@ -153,13 +151,14 @@ export const SettingsFocusModesView = ({
 
     return (
         <>
-            {/* Dialog to create/update focus modes */}
             <FocusModeUpsert
+                display="dialog"
                 isCreate={editingFocusMode === null}
                 isOpen={isDialogOpen}
                 onCancel={handleCloseDialog}
                 onClose={handleCloseDialog}
                 onCompleted={handleCompleted}
+                onDeleted={noop}
                 overrideObject={editingFocusMode ?? { __typename: "FocusMode" }}
             />
             <SettingsTopBar

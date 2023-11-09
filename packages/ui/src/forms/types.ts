@@ -2,7 +2,7 @@ import { InputType, Node, OrArray } from "@local/shared";
 import { SubroutineInfoDialogProps } from "components/dialogs/types";
 import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
-import { Dispatch, ReactNode, SetStateAction } from "react";
+import { Dispatch, SetStateAction } from "react";
 import { ListObject } from "utils/display/listTools";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
@@ -14,24 +14,7 @@ import { CrudProps } from "views/objects/types";
 //==============================================================
 /* #region Specific Form Props */
 //==============================================================
-interface BaseFormPropsBase {
-    children: ReactNode;
-    enableReinitialize?: boolean;
-    isLoading?: boolean;
-    maxWidth?: number;
-    style?: { [x: string]: string | number | null };
-    validationSchema?: any;
-}
-interface BaseFormPropsPage extends BaseFormPropsBase {
-    display: "page";
-}
-interface BaseFormPropsDialog extends BaseFormPropsBase {
-    display: "dialog";
-    onClose?: () => unknown;
-}
-export type BaseFormProps = BaseFormPropsPage | BaseFormPropsDialog;
-
-export interface FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> extends Omit<CrudProps<Model>, "isLoading">, FormikProps<ModelShape> {
+export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {
     disabled: boolean;
     existing: ModelShape;
     handleUpdate: Dispatch<SetStateAction<ModelShape>>;
@@ -47,7 +30,7 @@ export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineLis
 export type NodeEndFormProps = Omit<FormProps<Node, NodeWithEndShape>, "onCancel" | "onClose" | "onCompleted"> & Pick<NodeWithEndCrudProps, "onCancel" | "onClose" | "onCompleted"> & {
     isEditing: boolean;
 }
-export interface NodeRoutineListFormProps extends FormProps<Node, NodeWithRoutineListShape> {
+export type NodeRoutineListFormProps = FormProps<Node, NodeWithRoutineListShape> & {
     isEditing: boolean;
 }
 

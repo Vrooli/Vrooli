@@ -19,7 +19,6 @@ import { pagePaddingBottom } from "styles";
 import { ArgsType } from "types";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { ListObject } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { InboxPageTabOption, inboxTabParams } from "utils/search/objectToSearch";
 import { InboxViewProps } from "../types";
@@ -27,13 +26,13 @@ import { InboxViewProps } from "../types";
 type InboxObject = Chat | Notification;
 
 export const InboxView = ({
+    display,
     isOpen,
     onClose,
 }: InboxViewProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const {
         currTab,

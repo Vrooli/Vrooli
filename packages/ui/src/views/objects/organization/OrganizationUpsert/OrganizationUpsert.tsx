@@ -22,7 +22,6 @@ import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { OrganizationShape, shapeOrganization } from "utils/shape/models/organization";
 import { validateFormValues } from "utils/validateFormValues";
@@ -53,6 +52,7 @@ const transformOrganizationValues = (values: OrganizationShape, existing: Organi
 const OrganizationForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -66,7 +66,6 @@ const OrganizationForm = ({
     ...props
 }: OrganizationFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isCreate);
     const { t } = useTranslation();
 
     // Handle translations

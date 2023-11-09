@@ -1,4 +1,4 @@
-import { Comment, CommentCreateInput, CommentFor, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointGetComment, endpointPostComment, endpointPutComment, exists, noopSubmit, orDefault, Session } from "@local/shared";
+import { Comment, CommentCreateInput, CommentFor, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointGetComment, endpointPostComment, endpointPutComment, noopSubmit, orDefault, Session } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -80,7 +80,6 @@ const CommentForm = ({
     });
 
     const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Comment>({
-        display: "dialog", // Set this to dialog, since it's more correct than page (there is no option for in-page yet)
         isCreate,
         objectType: "Comment",
         ...props,
@@ -180,7 +179,6 @@ export const CommentDialog = ({
     const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);
 
     const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Comment>({
-        display: "dialog",
         isCreate,
         objectType: "Comment",
         ...props,
@@ -212,7 +210,7 @@ export const CommentDialog = ({
         <LargeDialog
             id="comment-dialog"
             isOpen={Boolean(isOpen)}
-            onClose={onClose}
+            onClose={onClose!}
             titleId={titleId}
         >
             <TopBar
@@ -285,6 +283,7 @@ export const CommentDialog = ({
  * RichInput/CommentContainer wrapper for creating comments
  */
 export const CommentUpsert = ({
+    isCreate,
     isOpen,
     language,
     objectId,
@@ -295,7 +294,6 @@ export const CommentUpsert = ({
     const session = useContext(SessionContext);
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
-    const isCreate = !exists(overrideObject);
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Comment, CommentShape>({
         ...endpointGetComment, // Should never be used, but we still need to pass it

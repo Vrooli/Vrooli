@@ -21,7 +21,6 @@ import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
 import { validateFormValues } from "utils/validateFormValues";
@@ -53,6 +52,7 @@ const transformQuestionValues = (values: QuestionShape, existing: QuestionShape,
 const QuestionForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -66,7 +66,6 @@ const QuestionForm = ({
     ...props
 }: QuestionFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const { t } = useTranslation();
 

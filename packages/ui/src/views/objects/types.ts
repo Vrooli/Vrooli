@@ -1,30 +1,34 @@
 import { OrArray } from "@local/shared";
 import { ListObject } from "utils/display/listTools";
-import { ObjectViewProps } from "views/types";
+import { ObjectViewPropsDialog, ObjectViewPropsPage, ObjectViewPropsPartial } from "views/types";
 
-type UpsertPropsBase<T extends OrArray<ListObject>> = Omit<ObjectViewProps<T>, "display" | "onClose"> & {
+export type CrudPropsBase = {
+    display: "dialog" | "page" | "partial";
     isCreate: boolean;
 }
-type UpsertPropsPage<T extends OrArray<ListObject>> = UpsertPropsBase<T> & {
-    onCancel: undefined;
-    onClose: undefined;
-    onCompleted: undefined;
+export type CrudPropsPage = CrudPropsBase & ObjectViewPropsPage & {
+    display: "page";
+    onCancel?: never;
+    onClose?: never;
+    onCompleted?: never;
+    onDeleted?: never;
 }
-type UpsertPropsDialog<T extends OrArray<ListObject>> = UpsertPropsBase<T> & {
+export type CrudPropsDialog<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsDialog<T> & {
+    display: "dialog";
     /** Closes the view and clears cached data */
     onCancel: () => unknown;
     /** Closes the view without clearing cached data */
     onClose: () => unknown;
     /** Closes the view, clears cached data, and returns created/updated data */
     onCompleted: (data: T) => unknown;
+    /** Closes the view, clears cached data, and returns deleted object (or objects if arrray) */
+    onDeleted: (data: T) => unknown;
 }
-export type UpsertProps<T extends OrArray<ListObject>> = UpsertPropsPage<T> | UpsertPropsDialog<T>;
-
-type CrudPropsBase<T extends OrArray<ListObject>> = UpsertProps<T>;
-type CrudPropsPage<T extends OrArray<ListObject>> = CrudPropsBase<T> & {
-    onDeleted: undefined;
+export type CrudPropsPartial<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsPartial<T> & {
+    display: "partial";
+    onCancel?: never;
+    onClose?: never;
+    onCompleted?: never;
+    onDeleted?: never;
 }
-type CrudPropsDialog<T extends OrArray<ListObject>> = CrudPropsBase<T> & {
-    onDeleted: (id: string) => unknown;
-}
-export type CrudProps<T extends OrArray<ListObject>> = CrudPropsPage<T> | CrudPropsDialog<T>;
+export type CrudProps<T extends OrArray<ListObject>> = CrudPropsPage | CrudPropsDialog<T> | CrudPropsPartial<T>;

@@ -11,16 +11,16 @@ import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { DeleteIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { getDisplay, getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { shapeNode } from "utils/shape/models/node";
 import { validateFormValues } from "utils/validateFormValues";
-import { NodeWithEndCrudProps, NodeWithEndFormProps, NodeWithEndShape } from "../types";
+import { NodeWithEnd, NodeWithEndCrudProps, NodeWithEndFormProps, NodeWithEndShape } from "../types";
 
 export const nodeWithEndInitialValues = (existing: NodeWithEndShape): NodeWithEndShape => ({ ...existing });
 
@@ -30,6 +30,7 @@ export const transformNodeWithEndValues = (values: NodeWithEndShape, existing: N
 const NodeWithEndForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -44,7 +45,6 @@ const NodeWithEndForm = ({
     ...props
 }: NodeWithEndFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle translations
@@ -59,14 +59,14 @@ const NodeWithEndForm = ({
 
     const [wasSuccessfulField] = useField<boolean>("end.wasSuccessful");
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<NodeWithEndShape>({
+    const { handleCancel, handleCompleted } = useUpsertActions<NodeWithEndShape>({
         display,
         isCreate,
         objectId: values.id,
         objectType: "Node",
         ...props,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Node" });
+    useSaveToCache({ isCacheOn: false, isCreate, values, objectId: values.id, objectType: "Node" });
 
     const onSubmit = useCallback(() => {
         handleCompleted(values);
@@ -85,6 +85,11 @@ const NodeWithEndForm = ({
                 display="dialog"
                 onClose={onClose}
                 title={firstString(getDisplay(values).title, t(isCreate ? "CreateNodeEnd" : "UpdateNodeEnd"))}
+                options={!isCreate ? [{
+                    Icon: DeleteIcon,
+                    label: t("Delete"),
+                    onClick: () => { onDeleted?.(existing as NodeWithEnd); },
+                }] : []}
             />
             <BaseForm
                 display={display}
@@ -147,44 +152,44 @@ const NodeWithEndForm = ({
     );
 };
 
-export const NodeWithEndCrud = ({
-    isEditing,
-    isOpen,
-    overrideObject,
-    ...props
-}: NodeWithEndCrudProps) => {
+export const
+    NodeWithEndCrud = ({
+        isEditing,
+        isOpen,
+        overrideObject,
+        ...props
+    }: NodeWithEndCrudProps) => {
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<NodeWithEndShape, NodeWithEndShape>({
-        ...endpointGetApi, // Won't be used. Need to pass an endpoint to useObjectFromUrl
-        isCreate: false,
-        objectType: "Node",
-        overrideObject: overrideObject as NodeWithEndShape,
-        transform: (existing) => nodeWithEndInitialValues(existing as NodeWithEndShape),
-    });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
+        const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<NodeWithEndShape, NodeWithEndShape>({
+            ...endpointGetApi, // Won't be used. Need to pass an endpoint to useObjectFromUrl
+            isCreate: false,
+            objectType: "Node",
+            overrideObject: overrideObject as NodeWithEndShape,
+            transform: (existing) => nodeWithEndInitialValues(existing as NodeWithEndShape),
+        });
+        const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
-    return (
-        <Formik
-            enableReinitialize={true}
-            initialValues={existing}
-            onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, false, transformNodeWithEndValues, nodeValidation)}
-        >
-            {(formik) =>
-                <>
-                    <NodeWithEndForm
-                        disabled={!(canUpdate || isEditing)}
-                        existing={existing}
-                        handleUpdate={setExisting}
-                        isCreate={false}
-                        isEditing={isEditing}
-                        isReadLoading={isReadLoading}
-                        isOpen={isOpen}
-                        {...props}
-                        {...formik}
-                    />
-                </>
-            }
-        </Formik>
-    );
-};
+        return (
+            <Formik
+                enableReinitialize={true}
+                initialValues={existing}
+                onSubmit={noopSubmit}
+                validate={async (values) => await validateFormValues(values, existing, false, transformNodeWithEndValues, nodeValidation)}
+            >
+                {(formik) =>
+                    <>
+                        <NodeWithEndForm
+                            disabled={!(canUpdate || isEditing)}
+                            existing={existing}
+                            handleUpdate={setExisting}
+                            isEditing={isEditing}
+                            isReadLoading={isReadLoading}
+                            isOpen={isOpen}
+                            {...props}
+                            {...formik}
+                        />
+                    </>
+                }
+            </Formik>
+        );
+    };

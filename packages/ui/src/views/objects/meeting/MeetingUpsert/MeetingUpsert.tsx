@@ -16,7 +16,6 @@ import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { MeetingShape, shapeMeeting } from "utils/shape/models/meeting";
@@ -57,6 +56,7 @@ export const transformMeetingValues = (values: MeetingShape, existing: MeetingSh
 const MeetingForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -70,7 +70,6 @@ const MeetingForm = ({
     ...props
 }: MeetingFormProps) => {
     const { palette } = useTheme();
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle scheduling
@@ -87,7 +86,10 @@ const MeetingForm = ({
         scheduleHelpers.setValue(created);
         setIsScheduleDialogOpen(false);
     };
-    const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
+    const handleScheduleDeleted = () => {
+        scheduleHelpers.setValue(null);
+        setIsScheduleDialogOpen(false);
+    };
 
     const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Meeting>({
         display,
@@ -132,17 +134,18 @@ const MeetingForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateMeeting" : "UpdateMeeting")}
             />
-            {/* Dialog to create/update schedule */}
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
                 defaultTab={CalendarPageTabOption.Meeting}
-                handleDelete={handleDeleteSchedule}
+                display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
                 isOpen={isScheduleDialogOpen}
                 onCancel={handleCloseScheduleDialog}
+                onClose={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
+                onDeleted={handleScheduleDeleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
             />
             <BaseForm
@@ -207,7 +210,7 @@ const MeetingForm = ({
                                     {/* Delete */}
                                     <Box
                                         component="a"
-                                        onClick={handleDeleteSchedule}
+                                        onClick={handleScheduleDeleted}
                                         sx={{
                                             display: "flex",
                                             justifyContent: "center",

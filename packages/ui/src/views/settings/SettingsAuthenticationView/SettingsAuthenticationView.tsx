@@ -21,7 +21,6 @@ import { useLocation } from "route";
 import { FormSection, pagePaddingBottom } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { Cookies } from "utils/cookies";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { SettingsAuthenticationFormProps, SettingsAuthenticationViewProps } from "../types";
 
@@ -83,14 +82,13 @@ const SettingsAuthenticationForm = ({
 };
 
 export const SettingsAuthenticationView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsAuthenticationViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
 

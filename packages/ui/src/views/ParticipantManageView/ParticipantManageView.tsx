@@ -12,7 +12,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { ListObject } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { ChatInvitesUpsert } from "views/objects/chatInvite";
@@ -23,12 +22,12 @@ import { ParticipantManageViewProps } from "../types";
  */
 export const ParticipantManageView = ({
     chat,
+    display,
     onClose,
     isOpen,
 }: ParticipantManageViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const {
         changeTab,
@@ -172,11 +171,14 @@ export const ParticipantManageView = ({
         >
             {/* Dialog for creating/updating invites */}
             <ChatInvitesUpsert
+                display="dialog"
                 invites={invitesToUpsert}
                 isCreate={true}
                 isOpen={invitesToUpsert.length > 0}
-                onCompleted={onInviteCompleted}
                 onCancel={() => setInvitesToUpsert([])}
+                onClose={() => setInvitesToUpsert([])}
+                onCompleted={onInviteCompleted}
+                onDeleted={() => setInvitesToUpsert([])}
             />
             {BulkDeleteDialogComponent}
             {/* Main dialog */}

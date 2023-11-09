@@ -18,7 +18,6 @@ import { HandleIcon, UserIcon } from "icons";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSection, pagePaddingBottom } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { shapeProfile } from "utils/shape/models/profile";
@@ -128,12 +127,11 @@ const SettingsProfileForm = ({
 };
 
 export const SettingsProfileView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsProfileViewProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);

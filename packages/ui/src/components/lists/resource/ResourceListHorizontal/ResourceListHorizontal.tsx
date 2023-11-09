@@ -283,15 +283,25 @@ export const ResourceListHorizontal = ({
             });
         }
     }, [closeDialog, handleUpdate, list]);
+    const onDeleted = useCallback((resource: Resource) => {
+        closeDialog();
+        if (!list || !handleUpdate) return;
+        handleUpdate({
+            ...list,
+            resources: list.resources.filter(r => r.id !== resource.id) as any,
+        });
+    }, [closeDialog, handleUpdate, list]);
 
     const dialog = useMemo(() => (
         list ? <ResourceUpsert
+            display="dialog"
             isCreate={editingIndex < 0}
             isOpen={isDialogOpen}
             isMutate={mutate}
             onCancel={closeDialog}
             onClose={closeDialog}
             onCompleted={onCompleted}
+            onDeleted={onDeleted}
             overrideObject={editingIndex >= 0 && list?.resources ?
                 { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
                 resourceInitialValues(undefined, {
@@ -299,7 +309,7 @@ export const ResourceListHorizontal = ({
                     list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listForType: parent.__typename as ResourceListFor, listForId: parent.id },
                 }) as NewResourceShape}
         /> : null
-    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id]);
+    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, onDeleted, parent.__typename, parent.id]);
 
     return (
         <>

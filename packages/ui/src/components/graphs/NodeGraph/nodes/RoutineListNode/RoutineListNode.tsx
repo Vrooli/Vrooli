@@ -37,6 +37,7 @@ export const RoutineListNode = ({
     canDrag,
     canExpand,
     handleAction,
+    handleDelete,
     handleUpdate,
     isLinked,
     labelVisible,
@@ -298,9 +299,12 @@ export const RoutineListNode = ({
             />
             {/* Normal-click menu */}
             <NodeWithRoutineListCrud
+                display="dialog"
                 onCancel={closeEditDialog}
                 onClose={closeEditDialog}
                 onCompleted={handleUpdate}
+                onDeleted={handleDelete}
+                isCreate={false}
                 isEditing={isEditing}
                 isOpen={editDialogOpen}
                 language={language}

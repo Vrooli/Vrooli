@@ -8,16 +8,15 @@ import { useTabs } from "hooks/useTabs";
 import { AddIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { toDisplay } from "utils/display/pageTools";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { HistoryPageTabOption, historyTabParams, SearchType } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 
 export const HistoryView = ({
+    display,
     isOpen,
     onClose,
 }: HistoryViewProps) => {
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();

@@ -352,7 +352,6 @@ export const SubroutineInfoDialog = ({
     handleReorder,
     handleViewFull,
     isEditing,
-    onClose,
     ...props
 }: SubroutineInfoDialogProps) => {
     const session = useContext(SessionContext);
@@ -382,11 +381,11 @@ export const SubroutineInfoDialog = ({
                 handleViewFull={handleViewFull}
                 isCreate={false}
                 isEditing={isEditing}
-                isOpen={true}
+                isOpen={!!data}
                 numSubroutines={numSubroutines}
-                onClose={onClose}
                 versions={[]}
                 {...formik}
+                {...props}
             />}
         </Formik>
     );

@@ -16,7 +16,6 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { EmailIcon, PhoneIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { pagePaddingBottom } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "../types";
 
 const SettingsNotificationForm = ({
@@ -109,11 +108,10 @@ const SettingsNotificationForm = ({
 };
 
 export const SettingsNotificationsView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsNotificationsViewProps) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const { data, refetch, loading: isLoading } = useFetch<undefined, NotificationSettings>(endpointGetNotificationSettings);
     const [updateFetch, { loading: isUpdating }] = useLazyFetch<NotificationSettingsUpdateInput, NotificationSettings>(endpointPutNotificationSettings);

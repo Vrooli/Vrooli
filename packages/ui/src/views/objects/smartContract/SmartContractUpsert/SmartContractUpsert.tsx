@@ -25,7 +25,6 @@ import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { SmartContractShape } from "utils/shape/models/smartContract";
 import { shapeSmartContractVersion, SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
@@ -78,6 +77,7 @@ const transformSmartContractVersionValues = (values: SmartContractVersionShape, 
 const SmartContractForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -92,7 +92,6 @@ const SmartContractForm = ({
     ...props
 }: SmartContractFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle translations

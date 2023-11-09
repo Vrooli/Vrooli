@@ -11,7 +11,6 @@ import { EmailIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { ForgotPasswordViewProps } from "views/types";
 
 interface ForgotPasswordFormProps {
@@ -122,10 +121,9 @@ const ForgotPasswordForm = ({
 };
 
 export const ForgotPasswordView = ({
-    isOpen,
+    display,
     onClose,
 }: ForgotPasswordViewProps) => {
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
 
     return (

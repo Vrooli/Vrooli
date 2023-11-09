@@ -12,7 +12,6 @@ import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { toDisplay } from "utils/display/pageTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { MemberInviteShape, shapeMemberInvite } from "utils/shape/models/memberInvite";
 import { MemberInvitesFormProps, MemberInvitesUpsertProps } from "../types";
@@ -56,6 +55,7 @@ const validateMemberInviteValues = async (values: MemberInviteShape[], existing:
 const MemberInvitesForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -69,7 +69,6 @@ const MemberInvitesForm = ({
     ...props
 }: MemberInvitesFormProps) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const [message, setMessage] = useHistoryState("member-invite-message", "");
 

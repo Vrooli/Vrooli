@@ -81,6 +81,15 @@ export function CommentThreadItem({
         setCommentToUpdate(undefined);
         setIsUpsertCommentOpen(false);
     }, []);
+    const handleCommentCreated = useCallback((comment: Comment) => {
+        handleUpsertCommentClose();
+        handleCommentUpsert(comment);
+    }, [handleCommentUpsert, handleUpsertCommentClose]);
+    const handleCommentDeleted = useCallback(() => {
+        handleUpsertCommentClose();
+        if (!commentToUpdate) return;
+        handleCommentRemove(commentToUpdate);
+    }, [commentToUpdate, handleCommentRemove, handleUpsertCommentClose]);
 
     return (
         <>
@@ -189,14 +198,17 @@ export function CommentThreadItem({
                     {/* Add/Update comment */}
                     {
                         objectId && objectType && <CommentUpsert
+                            display="dialog"
                             overrideObject={commentToUpdate}
+                            isCreate={!commentToUpdate}
                             isOpen={isUpsertCommentOpen}
                             language={language}
                             objectId={objectId}
                             objectType={objectType}
                             onCancel={handleUpsertCommentClose}
                             onClose={handleUpsertCommentClose}
-                            onCompleted={handleCommentUpsert}
+                            onCompleted={handleCommentCreated}
+                            onDeleted={handleCommentDeleted}
                             parent={(object as any) ?? null}
                         />
                     }

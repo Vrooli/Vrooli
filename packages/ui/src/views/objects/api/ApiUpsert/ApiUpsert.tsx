@@ -28,7 +28,6 @@ import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { ApiShape } from "utils/shape/models/api";
 import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion";
@@ -79,6 +78,7 @@ const transformApiVersionValues = (values: ApiVersionShape, existing: ApiVersion
 const ApiForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -90,7 +90,6 @@ const ApiForm = ({
     ...props
 }: ApiFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // useEffect(() => {

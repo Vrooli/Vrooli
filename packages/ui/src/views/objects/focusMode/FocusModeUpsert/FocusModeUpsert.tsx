@@ -19,7 +19,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toDisplay } from "utils/display/pageTools";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { FocusModeShape, shapeFocusMode } from "utils/shape/models/focusMode";
 import { validateFormValues } from "utils/validateFormValues";
@@ -59,6 +58,7 @@ export const transformFocusModeValues = (values: FocusModeShape, existing: Focus
 const FocusModeForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -72,7 +72,6 @@ const FocusModeForm = ({
     ...props
 }: FocusModeFormProps) => {
     const { palette } = useTheme();
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle scheduling
@@ -89,7 +88,10 @@ const FocusModeForm = ({
         scheduleHelpers.setValue(created);
         setIsScheduleDialogOpen(false);
     };
-    const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
+    const handleScheduleDeleted = () => {
+        scheduleHelpers.setValue(null);
+        setIsScheduleDialogOpen(false);
+    };
 
     const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<FocusMode>({
         display,
@@ -134,17 +136,18 @@ const FocusModeForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateFocusMode" : "UpdateFocusMode")}
             />
-            {/* Dialog to create/update schedule */}
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
                 defaultTab={CalendarPageTabOption.FocusMode}
-                handleDelete={handleDeleteSchedule}
+                display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
                 isOpen={isScheduleDialogOpen}
                 onCancel={handleCloseScheduleDialog}
+                onClose={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
+                onDeleted={handleScheduleDeleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
             />
             <BaseForm
@@ -222,7 +225,7 @@ const FocusModeForm = ({
                                     {/* Delete */}
                                     <Box
                                         component="a"
-                                        onClick={handleDeleteSchedule}
+                                        onClick={handleScheduleDeleted}
                                         sx={{
                                             display: "flex",
                                             justifyContent: "center",

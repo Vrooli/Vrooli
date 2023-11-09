@@ -8,7 +8,6 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { SvgComponent } from "types";
-import { toDisplay } from "utils/display/pageTools";
 import { CreateViewProps } from "../types";
 
 type CreateType = "Api" | "Bot" | "Chat" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";
@@ -90,12 +89,11 @@ const createCards: CreateInfo[] = [
 ];
 
 export const CreateView = ({
-    isOpen,
+    display,
     onClose,
 }: CreateViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const onSelect = useCallback((objectType: CreateType) => {
         setLocation(`${LINKS[objectType === "Bot" ? "User" : objectType]}/add`);

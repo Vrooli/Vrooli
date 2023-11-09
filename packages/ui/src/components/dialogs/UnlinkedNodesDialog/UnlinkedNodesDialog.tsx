@@ -43,6 +43,7 @@ export const UnlinkedNodesDialog = ({
                 return <EndNode
                     {...nodeProps}
                     handleUpdate={noop}
+                    handleDelete={noop}
                     language={language}
                     linksIn={[]}
                     node={node as NodeWithEnd}
@@ -58,6 +59,7 @@ export const UnlinkedNodesDialog = ({
                     canExpand={false}
                     labelVisible={true}
                     language={language}
+                    handleDelete={noop}
                     handleUpdate={noop}
                     linksIn={[]}
                     linksOut={[]}

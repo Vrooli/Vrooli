@@ -20,7 +20,6 @@ import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { pagePaddingBottom } from "styles";
 import { getSiteLanguage } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
 import { SettingsDisplayFormProps, SettingsDisplayViewProps } from "../types";
@@ -76,13 +75,12 @@ const SettingsDisplayForm = ({
 
 
 export const SettingsDisplayView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsDisplayViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);

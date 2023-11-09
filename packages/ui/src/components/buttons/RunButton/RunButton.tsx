@@ -122,6 +122,7 @@ export const RunButton = ({
             >{t("RoutineCannotRunInvalid", { ns: "error" })}</PopoverWithArrow>
             {/* Run dialog */}
             {runnableObject && <RunView
+                display="dialog"
                 isOpen={isRunOpen}
                 onClose={runStop}
                 runnableObject={runnableObject}

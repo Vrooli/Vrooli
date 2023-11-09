@@ -10,7 +10,6 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AwardDisplay } from "types";
 import { awardToDisplay } from "utils/display/awardsDisplay";
-import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { AwardsViewProps } from "views/types";
 
@@ -123,13 +122,12 @@ const AwardCard = ({
 };
 
 export const AwardsView = ({
-    isOpen,
+    display,
     onClose,
 }: AwardsViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
-    const display = toDisplay(isOpen);
 
     // All awards. Combined with you award progress fetched from the backend.
     const [awards, setAwards] = useState<AwardDisplay[]>(() => {

@@ -11,16 +11,16 @@ import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { DeleteIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { getDisplay, getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { shapeNode } from "utils/shape/models/node";
 import { validateFormValues } from "utils/validateFormValues";
-import { NodeWithRoutineListCrudProps, NodeWithRoutineListFormProps, NodeWithRoutineListShape } from "../types";
+import { NodeWithRoutineList, NodeWithRoutineListCrudProps, NodeWithRoutineListFormProps, NodeWithRoutineListShape } from "../types";
 
 export const nodeWithRoutineListInitialValues = (existing: NodeWithRoutineListShape): NodeWithRoutineListShape => ({ ...existing });
 
@@ -30,6 +30,7 @@ export const transformNodeWithRoutineListValues = (values: NodeWithRoutineListSh
 const NodeWithRoutineListForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -44,7 +45,6 @@ const NodeWithRoutineListForm = ({
     ...props
 }: NodeWithRoutineListFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle translations
@@ -60,14 +60,14 @@ const NodeWithRoutineListForm = ({
     const [isOrderedField] = useField<boolean>("routineList.isOrdered");
     const [isOptionalField, , isOptionalHelpers] = useField<boolean>("routineList.isOptional");
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<NodeWithRoutineListShape>({
+    const { handleCancel, handleCompleted } = useUpsertActions<NodeWithRoutineListShape>({
         display,
         isCreate,
         objectId: values.id,
         objectType: "Node",
         ...props,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Node" });
+    useSaveToCache({ isCacheOn: false, isCreate, values, objectId: values.id, objectType: "Node" });
 
     const onSubmit = useCallback(() => {
         handleCompleted(values);
@@ -86,6 +86,11 @@ const NodeWithRoutineListForm = ({
                 display="dialog"
                 onClose={onClose}
                 title={firstString(getDisplay(values).title, t(isCreate ? "CreateNodeRoutineList" : "UpdateNodeRoutineList"))}
+                options={!isCreate ? [{
+                    Icon: DeleteIcon,
+                    label: t("Delete"),
+                    onClick: () => { onDeleted?.(existing as NodeWithRoutineList); },
+                }] : []}
             />
             <BaseForm
                 display={display}
@@ -187,7 +192,6 @@ export const NodeWithRoutineListCrud = ({
                         disabled={!(canUpdate || isEditing)}
                         existing={existing}
                         handleUpdate={setExisting}
-                        isCreate={false}
                         isEditing={isEditing}
                         isReadLoading={isReadLoading}
                         isOpen={isOpen}

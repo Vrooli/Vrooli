@@ -21,7 +21,6 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { ResourceListShape } from "utils/shape/models/resourceList";
@@ -41,14 +40,13 @@ const containerProps = (palette: Palette) => ({
 });
 
 export const StandardView = ({
-    isOpen,
+    display,
     onClose,
 }: StandardViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion>({
         ...endpointGetStandardVersion,

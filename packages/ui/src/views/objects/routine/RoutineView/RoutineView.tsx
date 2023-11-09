@@ -29,7 +29,6 @@ import { useTranslation } from "react-i18next";
 import { parseSearchParams, setSearchParams, useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
@@ -47,6 +46,7 @@ const statsHelpText =
     "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
 export const RoutineView = ({
+    display,
     isOpen,
     onClose,
 }: RoutineViewProps) => {
@@ -55,7 +55,6 @@ export const RoutineView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion>({
         ...endpointGetRoutineVersion,
@@ -215,8 +214,8 @@ export const RoutineView = ({
                     width: "min(100%, 700px)",
                     padding: 2,
                 }}>
-                    {/* Dialog for building routine */}
                     <BuildView
+                        display="dialog"
                         handleCancel={stopBuild}
                         onClose={stopBuild}
                         handleSubmit={noop}

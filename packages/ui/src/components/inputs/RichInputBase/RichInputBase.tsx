@@ -64,18 +64,20 @@ export const RichInputBase = ({
     }, [isMarkdownOn]);
 
     const closeAssistantDialog = useCallback(() => {
-        setAssistantDialogProps(props => ({ ...props, isOpen: false }));
+        setAssistantDialogProps(props => ({ ...props, isOpen: false } as ChatCrudProps));
         PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: "note", isOpen: false });
     }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
+        display: "dialog",
         isCreate: true,
         isOpen: false,
         onCancel: closeAssistantDialog,
         onClose: closeAssistantDialog,
+        onCompleted: closeAssistantDialog,
+        onDeleted: closeAssistantDialog,
         overrideObject: assistantChatInfo,
         task: "note",
-        onCompleted: closeAssistantDialog,
     });
     const openAssistantDialog = useCallback((highlighted: string) => {
         if (disabled) return;
@@ -88,7 +90,7 @@ export const RichInputBase = ({
         // Otherwise, provide the last 1500 characters
         else context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
         // Open the assistant dialog
-        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `"""\n${context}\n"""\n` : undefined }));
+        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `"""\n${context}\n"""\n` : undefined } as ChatCrudProps));
     }, [disabled, internalValue]);
 
     // Resize input area to fit content

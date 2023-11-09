@@ -78,7 +78,7 @@ export const BookmarkButton = ({
         if (!uuidValidate(objectId)) return;
         // Call handleBookmark
         handleBookmark(isBookmarked);
-    }, [objectId, internalIsBookmarked, userId, bookmarkFor, handleBookmark]);
+    }, [objectId, internalIsBookmarked, userId, handleBookmark]);
 
     const Icon = internalIsBookmarked ? BookmarkFilledIcon : BookmarkOutlineIcon;
     const fill = useMemo<string>(() => {

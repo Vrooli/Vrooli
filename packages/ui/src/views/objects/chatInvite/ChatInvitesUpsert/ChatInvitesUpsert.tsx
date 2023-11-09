@@ -12,7 +12,6 @@ import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { toDisplay } from "utils/display/pageTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ChatInviteShape, shapeChatInvite } from "utils/shape/models/chatInvite";
 import { ChatInvitesFormProps, ChatInvitesUpsertProps } from "../types";
@@ -41,6 +40,7 @@ const validateChatInviteValues = async (values: ChatInviteShape[], existing: Cha
 const ChatInvitesForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -54,7 +54,6 @@ const ChatInvitesForm = ({
     ...props
 }: ChatInvitesFormProps) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const [message, setMessage] = useHistoryState("chat-invite-message", "");
 

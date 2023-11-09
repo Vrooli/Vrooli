@@ -7,16 +7,16 @@ import { CrudProps } from "../types";
 
 export type NodeWithEnd = Node & { end: NodeEnd };
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
-export type NodeWithEndCrudProps = Omit<CrudProps<NodeWithEnd>, "isCreate" | "onCancel" | "onClose" | "onCompleted" | "overrideObject"> & Required<Pick<CrudProps<NodeWithEnd>, "onCancel" | "onClose" | "onCompleted" | "overrideObject">> & {
+export type NodeWithEndCrudProps = CrudProps<NodeWithEnd> & {
     isEditing: boolean;
     language: string;
 }
-export type NodeWithEndFormProps = Omit<FormProps<NodeWithEnd, NodeWithEndShape>, "onCancel" | "onClose" | "onCompleted"> & Pick<NodeWithEndCrudProps, "isEditing" | "language" | "onCancel" | "onClose" | "onCompleted">;
+export type NodeWithEndFormProps = FormProps<NodeWithEnd, NodeWithEndShape> & Pick<NodeWithEndCrudProps, "isEditing" | "language">;
 
 export type NodeWithRoutineList = Node & { routineList: NodeRoutineList };
 export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };
-export type NodeWithRoutineListCrudProps = Omit<CrudProps<NodeWithRoutineList>, "isCreate" | "onCancel" | "onClose" | "onCompleted" | "overrideObject"> & Required<Pick<CrudProps<NodeWithRoutineList>, "onCancel" | "onClose" | "onCompleted" | "overrideObject">> & {
+export type NodeWithRoutineListCrudProps = CrudProps<NodeWithRoutineList> & {
     isEditing: boolean;
     language: string;
 }
-export type NodeWithRoutineListFormProps = Omit<FormProps<NodeWithRoutineList, NodeWithRoutineListShape>, "onCancel" | "onClose" | "onCompleted"> & Pick<NodeWithRoutineListCrudProps, "isEditing" | "language" | "onCancel" | "onClose" | "onCompleted">;
+export type NodeWithRoutineListFormProps = FormProps<NodeWithRoutineList, NodeWithRoutineListShape> & Pick<NodeWithRoutineListCrudProps, "isEditing" | "language">;

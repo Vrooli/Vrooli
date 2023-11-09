@@ -97,6 +97,10 @@ export const SelectBookmarkListDialog = ({
         setLists([...lists, bookmarkList]);
         setSelectedLists([bookmarkList]);
     }, [lists]);
+    const onDeleted = useCallback((bookmarkList: BookmarkList) => {
+        setLists(lists.filter(l => l.id !== bookmarkList.id));
+        setSelectedLists([]);
+    }, [lists]);
 
     const listItems = useMemo(() => lists.sort((a, b) => a.label.localeCompare(b.label)).map(list => (
         <ListItem key={list.id} onClick={() => {
@@ -119,12 +123,14 @@ export const SelectBookmarkListDialog = ({
 
     return (
         <>
-            {/* Dialog for creating a new bookmark list */}
             <BookmarkListUpsert
+                display="dialog"
                 isCreate={true}
                 isOpen={isCreateOpen && isOpen}
                 onCancel={closeCreate}
+                onClose={closeCreate}
                 onCompleted={onCreated}
+                onDeleted={onDeleted}
                 overrideObject={{ __typename: "BookmarkList" }}
             />
             {/* Main dialog */}

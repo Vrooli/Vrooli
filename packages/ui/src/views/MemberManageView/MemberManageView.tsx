@@ -6,7 +6,6 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { Field } from "formik";
 import { useTabs } from "hooks/useTabs";
 import { useCallback, useEffect, useState } from "react";
-import { toDisplay } from "utils/display/pageTools";
 import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
 import { MemberManageViewProps } from "../types";
 
@@ -14,12 +13,12 @@ import { MemberManageViewProps } from "../types";
  * View members and invited members of an organization
  */
 export const MemberManageView = ({
+    display,
     onClose,
     organization,
     isOpen,
 }: MemberManageViewProps) => {
     console.log("in MemberManageView", organization);
-    const display = toDisplay(isOpen);
 
     const {
         currTab,

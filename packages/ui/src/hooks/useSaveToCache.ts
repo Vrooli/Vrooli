@@ -1,5 +1,5 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
-import { MutableRefObject, useCallback, useEffect } from "react";
+import { MutableRefObject, useCallback, useEffect, useRef } from "react";
 import { setCookieFormData } from "utils/cookies";
 import { useDebounce } from "./useDebounce";
 
@@ -24,25 +24,33 @@ export const useSaveToCache = <T>({
     objectId: string;
     debounceTime?: number;
     objectType: GqlModelType | `${GqlModelType}`;
-    isCacheOn: MutableRefObject<boolean>;
+    isCacheOn: MutableRefObject<boolean> | boolean;
     isCreate: boolean;
     disabled?: boolean;
 }) => {
+    const isCacheOnValue = useRef(typeof isCacheOn === "boolean" ? isCacheOn : isCacheOn.current);
+
     // Create a unique cache key using the objectType and objectId (if it exists)
     const formCacheId = isCreate ? `${objectType}-${DUMMY_ID}` : `${objectType}-${objectId}`;
 
     // Define the function that will handle the cache saving logic
     const saveToCache = useCallback((currentValues: T) => {
-        if (disabled || !isCacheOn.current) return;
+        if (disabled || !isCacheOnValue.current) return;
         setCookieFormData(formCacheId, currentValues as any);
-    }, [disabled, formCacheId, isCacheOn]);
+    }, [disabled, formCacheId]);
 
     const [saveToCacheDebounced] = useDebounce(saveToCache, debounceTime ?? 200);
 
     // Effect to handle saving values to cache whenever they change
     useEffect(() => {
-        // Copy the ref value to a variable inside the effect
-        const cacheOn = isCacheOn.current;
+        let cacheOn;
+        // If isCacheOn is a ref, we need to update the ref value inside the effect
+        if (typeof isCacheOn !== "boolean") {
+            isCacheOnValue.current = isCacheOn.current;
+            cacheOn = isCacheOn.current;
+        } else {
+            cacheOn = isCacheOn;
+        }
 
         // Check if values are not empty or match some condition to be saved
         if (!disabled && cacheOn && shouldValuesBeSaved(values)) {

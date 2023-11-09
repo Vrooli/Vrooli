@@ -40,10 +40,13 @@ export const ObjectActionDialogs = ({
             />}
             {object?.id && DeleteDialogComponent}
             {object?.id && availableActions.includes(ObjectAction.Delete) && <ReportUpsert
+                display="dialog"
                 isCreate={true}
                 isOpen={isReportDialogOpen}
                 onCancel={closeReportDialog}
+                onClose={closeReportDialog}
                 onCompleted={closeReportDialog}
+                onDeleted={closeReportDialog}
                 overrideObject={{ createdFor: { __typename: objectType as unknown as ReportFor, id: object.id } }}
             />}
             {availableActions.includes(ObjectAction.Share) && <ShareObjectDialog
@@ -52,6 +55,7 @@ export const ObjectActionDialogs = ({
                 onClose={closeShareDialog}
             />}
             {availableActions.includes(ObjectAction.Stats) && <StatsObjectView
+                display="dialog"
                 handleObjectUpdate={() => { }} //TODO
                 isOpen={isStatsDialogOpen}
                 object={object as any}

@@ -5,7 +5,6 @@ import { useFetch } from "hooks/useFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getLastPathnamePart, useLocation } from "route";
-import { toDisplay } from "utils/display/pageTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { ReportsViewProps } from "../types";
 
@@ -23,12 +22,11 @@ const objectTypeToIdField = {
 };
 
 export const ReportsView = ({
-    isOpen,
+    display,
     onClose,
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const [{ pathname }] = useLocation();
     const { id } = useMemo(() => parseSingleItemUrl({ pathname }), [pathname]);

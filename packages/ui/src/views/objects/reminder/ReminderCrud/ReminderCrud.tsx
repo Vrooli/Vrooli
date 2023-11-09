@@ -24,7 +24,6 @@ import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
 import { ReminderItemShape } from "utils/shape/models/reminderItem";
@@ -87,6 +86,7 @@ const transformReminderValues = (values: ReminderShape, existing: ReminderShape,
 const ReminderForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     index,
@@ -98,7 +98,6 @@ const ReminderForm = ({
     values,
     ...props
 }: ReminderFormProps) => {
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -132,7 +131,6 @@ const ReminderForm = ({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
-    // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback(() => {
         fetchLazyWrapper<DeleteOneInput, Success>({
@@ -217,7 +215,6 @@ const ReminderForm = ({
                 display={display}
                 onClose={onClose}
                 title={firstString(getDisplay(values).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
-                // Show delete button only when updating
                 options={!isCreate ? [{
                     Icon: DeleteIcon,
                     label: t("Delete"),

@@ -8,7 +8,6 @@ import { useStripe } from "hooks/useStripe";
 import { CompleteIcon, LogInIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { stringifySearchParams, useLocation } from "route";
-import { toDisplay } from "utils/display/pageTools";
 import { PremiumViewProps } from "../types";
 
 const purpleRadial = "radial-gradient(circle, rgb(16 6 46) 15%, rgb(11 1 36) 55%, rgb(8 3 20) 85%)";
@@ -95,13 +94,12 @@ const rows = [
 ];
 
 export const PremiumView = ({
-    isOpen,
+    display,
     onClose,
 }: PremiumViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const { currentUser, prices, startCheckout, redirectToCustomerPortal } = useStripe();
 

@@ -4,6 +4,7 @@
 import { Node, NodeRoutineList, NodeType } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { useMemo } from "react";
+import { BuildAction } from "utils/consts";
 import { getTranslation } from "utils/display/translationTools";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeWithEnd } from "views/objects/node/types";
@@ -70,6 +71,7 @@ export const NodeColumn = ({
                 case NodeType.End:
                     return <EndNode
                         {...nodeProps}
+                        handleDelete={(node) => { handleAction(BuildAction.DeleteNode, node.id); }}
                         handleUpdate={handleNodeUpdate}
                         language={language}
                         linksIn={links.filter(l => l.to.id === node.id)}
@@ -84,6 +86,7 @@ export const NodeColumn = ({
                     return (<RoutineListNode
                         {...nodeProps}
                         canExpand={true}
+                        handleDelete={(node) => { handleAction(BuildAction.DeleteNode, node.id); }}
                         handleUpdate={handleNodeUpdate}
                         language={language}
                         linksIn={links.filter(l => l.to.id === node.id)}

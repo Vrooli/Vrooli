@@ -97,8 +97,9 @@ export function CommentContainer({
 
     return (
         <ContentCollapse isOpen={isOpen} title={`Comments (${allData.length})`}>
-            {/* Add comment */}
             <CommentUpsert
+                display="dialog"
+                isCreate={true}
                 isOpen={isAddCommentOpen}
                 language={language}
                 objectId={objectId}
@@ -106,6 +107,7 @@ export function CommentContainer({
                 onCancel={handleAddCommentClose}
                 onClose={handleAddCommentClose}
                 onCompleted={onCommentAdd}
+                onDeleted={handleAddCommentClose}
                 parent={null} // parent is the thread. This is a top-level comment, so no parent
             />
             <Stack direction="column" spacing={2}>
@@ -122,6 +124,7 @@ export function CommentContainer({
                     <SearchButtons
                         advancedSearchParams={advancedSearchParams}
                         advancedSearchSchema={advancedSearchSchema}
+                        controlsUrl={false}
                         searchType="Comment"
                         setAdvancedSearchParams={setAdvancedSearchParams}
                         setSortBy={setSortBy}

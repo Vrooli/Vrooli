@@ -20,7 +20,6 @@ import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { ResourceShape, shapeResource } from "utils/shape/models/resource";
@@ -79,6 +78,7 @@ export const transformResourceValues = (values: ResourceShape, existing: Resourc
 const ResourceForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -93,7 +93,6 @@ const ResourceForm = ({
     ...props
 }: ResourceFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle translations

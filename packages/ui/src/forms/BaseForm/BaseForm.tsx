@@ -1,5 +1,6 @@
 import { Form } from "formik";
-import { BaseFormProps } from "forms/types";
+import { ReactNode } from "react";
+import { ViewDisplayType } from "views/types";
 
 export const BaseForm = ({
     children,
@@ -7,7 +8,13 @@ export const BaseForm = ({
     isLoading = false,
     maxWidth,
     style,
-}: BaseFormProps) => {
+}: {
+    display: ViewDisplayType;
+    children: ReactNode;
+    isLoading?: boolean;
+    maxWidth?: number;
+    style?: { [x: string]: string | number | null };
+}) => {
 
     return (
         <Form style={{

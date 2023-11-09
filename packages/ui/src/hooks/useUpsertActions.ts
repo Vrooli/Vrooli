@@ -1,5 +1,6 @@
 import { DUMMY_ID, LINKS, OrArray } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
+import { FormProps } from "forms/types";
 import { useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -8,11 +9,14 @@ import { removeCookieFormData, removeCookiePartialData, setCookiePartialData } f
 import { ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { ViewDisplayType } from "views/types";
 
-type OnDeletedCallback<T> = T extends { id: string }[]
-    ? (ids: string[]) => unknown
-    : (id: string) => unknown;
+type TType = OrArray<{ __typename: ListObject["__typename"], id: string }>;
+type UseUpsertActionsProps<Model extends TType> = Pick<FormProps<Model, object>, "onCancel" | "onCompleted" | "onDeleted"> & {
+    display: "dialog" | "page" | "partial",
+    isCreate: boolean,
+    objectId?: string,
+    objectType: ListObject["__typename"],
+}
 
 /**
  * Creates logic for handling cancel, create, and update actions when 
@@ -21,7 +25,7 @@ type OnDeletedCallback<T> = T extends { id: string }[]
  * When done in a dialog, triggers the appropriate callback.
  * Also handles snack messages.
  */
-export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__typename"], id: string }>>({
+export const useUpsertActions = <T extends TType>({
     display,
     isCreate,
     objectId,
@@ -29,15 +33,7 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
     onCancel,
     onCompleted,
     onDeleted,
-}: {
-    display: ViewDisplayType,
-    isCreate: boolean,
-    objectId?: string,
-    objectType: ListObject["__typename"],
-    onCancel?: () => unknown, // Only used for dialog display
-    onCompleted?: (data: T) => unknown, // Only used for dialog display
-    onDeleted?: OnDeletedCallback<T>, // Only used for dialog display
-}) => {
+}: UseUpsertActionsProps<T>) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
@@ -126,7 +122,7 @@ export const useUpsertActions = <T extends OrArray<{ __typename: ListObject["__t
                     isCacheOn.current = false;
                 }
                 if (display === "page") goBack();
-                else onDeleted?.((Array.isArray(item) ? item.map(i => i.id) : item.id) as string & string[]);
+                else onDeleted?.(item);
                 // Don't display snack message, as we don't have enough information for the message's "Undo" button
                 break;
             case ObjectDialogAction.Save:

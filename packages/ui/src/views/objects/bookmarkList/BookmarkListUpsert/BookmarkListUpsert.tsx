@@ -19,7 +19,6 @@ import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
 import { getDisplay } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { BookmarkShape } from "utils/shape/models/bookmark";
 import { BookmarkListShape, shapeBookmarkList } from "utils/shape/models/bookmarkList";
 import { validateFormValues } from "utils/validateFormValues";
@@ -42,6 +41,7 @@ const transformBookmarkListValues = (values: BookmarkListShape, existing: Bookma
 const BookmarkListForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -55,7 +55,6 @@ const BookmarkListForm = ({
     ...props
 }: BookmarkListFormProps) => {
     const { palette } = useTheme();
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     const [bookmarksField, , bookmarksHelpers] = useField<BookmarkShape[]>("bookmarks");

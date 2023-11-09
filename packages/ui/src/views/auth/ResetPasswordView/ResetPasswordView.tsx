@@ -10,7 +10,6 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, useLocation } from "route";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { ResetPasswordViewProps } from "views/types";
 
@@ -109,10 +108,9 @@ const ResetPasswordForm = ({
 };
 
 export const ResetPasswordView = ({
-    isOpen,
+    display,
     onClose,
 }: ResetPasswordViewProps) => {
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
 
     return (

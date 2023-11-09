@@ -24,7 +24,6 @@ import { useLocation } from "route";
 import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
@@ -32,14 +31,13 @@ import { OrganizationPageTabOption, organizationTabParams } from "utils/search/o
 import { OrganizationViewProps } from "../types";
 
 export const OrganizationView = ({
-    isOpen,
+    display,
     onClose,
 }: OrganizationViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 

@@ -19,11 +19,10 @@ import { useHotkeys } from "hooks/useHotkeys";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useStableObject } from "hooks/useStableObject";
 import { CloseIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
 import { BuildAction, Status } from "utils/consts";
-import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -53,6 +52,7 @@ const generateNewLink = (fromId: string, toId: string, routineVersionId: string)
 type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
 
 export const BuildView = ({
+    display,
     handleCancel,
     handleSubmit,
     isEditing,
@@ -66,7 +66,6 @@ export const BuildView = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
     const id: string = useMemo(() => routineVersion?.id ?? "", [routineVersion]);
 
     const stableRoutineVersion = useStableObject(routineVersion);
@@ -264,6 +263,7 @@ export const BuildView = ({
     const revertChanges = useCallback(() => {
         // Helper function to revert changes
         const revert = () => {
+            isCacheOn.current = false;
             // If updating routineVersion, revert to original routineVersion
             if (id) {
                 clearChangeStack();
@@ -413,7 +413,7 @@ export const BuildView = ({
             }],
         };
         return newNode;
-    }, [closestOpenPosition]);
+    }, [closestOpenPosition, session]);
 
     /**
      * Creates a link between two nodes which already exist in the linked routineVersion. 

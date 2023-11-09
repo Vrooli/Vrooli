@@ -5,28 +5,41 @@ import { ListObject } from "utils/display/listTools";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { MemberInviteShape } from "utils/shape/models/memberInvite";
 
-/**
- * Views can be displayed as full pages or as dialogs
- */
-export type ViewDisplayType = "dialog" | "page";
-type ViewPropsPage = {
-    isOpen: undefined;
-    onClose: undefined;
+/** Views can be displayed as full pages or as dialogs */
+export type ViewDisplayType = "dialog" | "page" | "partial";
+export type ViewPropsBase = {
+    display: "dialog" | "page" | "partial";
+};
+export type ViewPropsPartial = ViewPropsBase & {
+    display: "partial";
+    isOpen?: never;
+    onClose?: never;
 }
-type ViewPropsDialog = {
+export type ViewPropsPage = ViewPropsBase & {
+    display: "page";
+    isOpen?: never;
+    onClose?: never;
+}
+export type ViewPropsDialog = ViewPropsBase & {
+    display: "dialog";
     isOpen: boolean;
     onClose: () => unknown;
 }
-export type ViewProps = ViewPropsPage | ViewPropsDialog;
-export type ObjectViewProps<T extends OrArray<ListObject>> = ViewProps & {
-    /**
-    * Data known about the object, which cannot be fetched from the server or cache. 
-    * This should always and only be used for dialogs.
-    * 
-    * This means that passing this in will render the view as a dialog instead of a page.
-    */
+export type ViewProps = ViewPropsPartial | ViewPropsPage | ViewPropsDialog;
+
+export type ObjectViewPropsBase = ViewProps;
+export type ObjectViewPropsPage = ObjectViewPropsBase & {
+    overrideObject?: never;
+}
+export type ObjectViewPropsDialog<T extends OrArray<ListObject>> = ObjectViewPropsBase & {
+    /**  Data known about the object, which cannot be fetched from the server or cache. */
     overrideObject?: PartialOrArrayWithType<T>;
 }
+export type ObjectViewPropsPartial<T extends OrArray<ListObject>> = ObjectViewPropsBase & {
+    /**  Data known about the object, which cannot be fetched from the server or cache. */
+    overrideObject?: PartialOrArrayWithType<T>;
+}
+export type ObjectViewProps<T extends OrArray<ListObject>> = ObjectViewPropsPage | ObjectViewPropsDialog<T> | ObjectViewPropsPartial<T>;
 export interface PageProps {
     children: JSX.Element;
     excludePageContainer?: boolean;

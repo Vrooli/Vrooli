@@ -2,9 +2,11 @@ import { ApiVersion } from "@local/shared";
 import { FormProps } from "forms/types";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { ObjectViewProps } from "views/types";
-import { UpsertProps } from "../types";
+import { CrudPropsDialog, CrudPropsPage } from "../types";
 
-export type ApiUpsertProps = UpsertProps<ApiVersion>
+type ApiUpsertPropsPage = CrudPropsPage;
+type ApiUpsertPropsDialog = CrudPropsDialog<ApiVersion>;
+export type ApiUpsertProps = ApiUpsertPropsPage | ApiUpsertPropsDialog;
 export type ApiFormProps = FormProps<ApiVersion, ApiVersionShape> & {
     versions: string[];
 }

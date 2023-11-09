@@ -3,15 +3,13 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { useTranslation } from "react-i18next";
 import { pagePaddingBottom } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { SettingsApiViewProps } from "../types";
 
 export const SettingsApiView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsApiViewProps) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     return (
         <>

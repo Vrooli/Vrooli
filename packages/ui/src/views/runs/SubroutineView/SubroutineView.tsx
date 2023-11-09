@@ -21,7 +21,6 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
-import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsToFormik } from "utils/runUtils";
@@ -43,7 +42,6 @@ const containerProps = (palette: Palette) => ({
 });
 
 export const SubroutineView = ({
-    isOpen,
     loading,
     handleUserInputsUpdate,
     handleSaveProgress,
@@ -56,7 +54,7 @@ export const SubroutineView = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
+    const display = "dialog";
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const [internalRoutineVersion, setInternalRoutineVersion] = useState(routineVersion);

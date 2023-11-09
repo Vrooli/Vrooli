@@ -22,7 +22,6 @@ import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { ProjectShape } from "utils/shape/models/project";
 import { ProjectVersionShape, shapeProjectVersion } from "utils/shape/models/projectVersion";
@@ -80,6 +79,7 @@ const transformProjectVersionValues = (values: ProjectVersionShape, existing: Pr
 const ProjectForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -94,7 +94,6 @@ const ProjectForm = ({
     ...props
 }: ProjectFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     // Handle translations

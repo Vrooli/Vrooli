@@ -8,18 +8,16 @@ import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { toDisplay } from "utils/display/pageTools";
 import { policyTabParams } from "utils/search/objectToSearch";
 import { PolicyTabOption } from "../PrivacyPolicyView/PrivacyPolicyView";
 import { TermsViewProps } from "../types";
 
 export const TermsView = ({
-    isOpen,
+    display,
     onClose,
 }: TermsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const terms = useMarkdown(termsMarkdown);
 

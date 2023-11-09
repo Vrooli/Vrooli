@@ -29,7 +29,6 @@ import { FormContainer, FormSection } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYou, ListObject } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { NoteVersionShape, shapeNoteVersion } from "utils/shape/models/noteVersion";
@@ -77,6 +76,7 @@ const transformNoteVersionValues = (values: NoteVersionShape, existing: NoteVers
 const NoteForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -90,7 +90,6 @@ const NoteForm = ({
     ...props
 }: NoteFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();

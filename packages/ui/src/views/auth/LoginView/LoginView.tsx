@@ -17,7 +17,6 @@ import { useLocation } from "route";
 import { clickSize } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { Cookies } from "utils/cookies";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { LoginViewProps } from "views/types";
 
@@ -203,10 +202,9 @@ const LoginForm = ({
 };
 
 export const LoginView = ({
-    isOpen,
+    display,
     onClose,
 }: LoginViewProps) => {
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
 
     return (

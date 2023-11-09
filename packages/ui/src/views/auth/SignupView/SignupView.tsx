@@ -20,7 +20,6 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
 import { Cookies } from "utils/cookies";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
 import { SignupViewProps } from "views/types";
@@ -404,12 +403,11 @@ const Promo = () => {
 };
 
 export const SignupView = ({
-    isOpen,
+    display,
     onClose,
 }: SignupViewProps) => {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const isXs = useWindowSize(({ width }) => width <= breakpoints.values.sm);
 
     return (

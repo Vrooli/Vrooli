@@ -19,7 +19,7 @@ import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { CalendarPageTabOption, findObjectTabParams, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
-import { UpsertProps } from "views/objects/types";
+import { CrudProps } from "views/objects/types";
 import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));
@@ -48,7 +48,7 @@ export type FindObjectTabOption = "All" |
     CalendarPageTabOption | `${CalendarPageTabOption}` |
     "ApiVersion" | "NoteVersion" | "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "StandardVersion";
 
-type UpsertView = (props: UpsertProps<ListObject>) => JSX.Element;
+type UpsertView = (props: CrudProps<ListObject>) => JSX.Element;
 
 /**
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
@@ -259,7 +259,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         }
     }, [fetchFullData, find, onClose]);
 
-    const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() => {
+    const CreateView = useMemo<((props: CrudProps<any>) => JSX.Element) | null>(() => {
         if (!createObjectType) return null;
         return (createMap as any)[createObjectType.replace("Version", "")];
     }, [createObjectType]);
@@ -271,12 +271,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     return (
         <>
-            {/* Dialog for creating new object type */}
             {CreateView && <CreateView
+                display="dialog"
                 isCreate={true}
                 isOpen={createObjectType !== null}
-                onCompleted={handleCreated}
                 onCancel={handleCreateClose}
+                onClose={handleCreateClose}
+                onCompleted={handleCreated}
+                onDeleted={handleCreateClose}
                 overrideObject={{ __typename: createObjectType }}
             />}
             {/* Menu for selecting create object type */}

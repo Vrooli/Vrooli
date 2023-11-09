@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointGetSchedule, endpointPostSchedule, endpointPutSchedule, noopSubmit, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleUpdateInput, scheduleValidation, Session, uuid } from "@local/shared";
+import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetSchedule, endpointPostDeleteOne, endpointPostSchedule, endpointPutSchedule, noopSubmit, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleUpdateInput, scheduleValidation, Session, Success, uuid } from "@local/shared";
 import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -16,6 +16,7 @@ import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTabs } from "hooks/useTabs";
@@ -25,7 +26,6 @@ import { AddIcon, DeleteIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { CalendarPageTabOption, calendarTabParams } from "utils/search/objectToSearch";
 import { ScheduleShape, shapeSchedule } from "utils/shape/models/schedule";
@@ -57,6 +57,7 @@ const ScheduleForm = ({
     currTab,
     disabled,
     dirty,
+    display,
     existing,
     handleTabChange,
     handleUpdate,
@@ -73,7 +74,6 @@ const ScheduleForm = ({
     ...props
 }: ScheduleFormProps) => {
     const { palette } = useTheme();
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     const [exceptionsField, , exceptionsHelpers] = useField<ScheduleException[]>("exceptions");
@@ -103,7 +103,7 @@ const ScheduleForm = ({
         recurrencesHelpers.setValue(recurrencesField.value.filter((_, idx) => idx !== index));
     };
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Schedule>({
+    const { handleCancel, handleCreated, handleCompleted, handleDeleted, isCacheOn } = useUpsertActions<Schedule>({
         display,
         isCreate,
         objectId: values.id,
@@ -112,6 +112,7 @@ const ScheduleForm = ({
     });
     const {
         fetch,
+        fetchCreate,
         isCreateLoading,
         isUpdateLoading,
     } = useUpsertFetch<Schedule, ScheduleCreateInput, ScheduleUpdateInput>({
@@ -121,8 +122,6 @@ const ScheduleForm = ({
         endpointUpdate: endpointPutSchedule,
     });
     useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Schedule" });
-
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useCallback(() => {
         if (disabled) {
@@ -149,6 +148,54 @@ const ScheduleForm = ({
         }
     }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, onCompleted, props, values]);
 
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const handleDelete = useCallback(() => {
+        fetchLazyWrapper<DeleteOneInput, Success>({
+            fetch: deleteMutation,
+            inputs: { id: values.id, objectType: DeleteType.Schedule },
+            successCondition: (data) => data.success,
+            successMessage: () => ({
+                messageKey: "ObjectDeleted",
+                messageVariables: { objectName: t("Schedule", { count: 1 }) },
+                buttonKey: "Undo",
+                buttonClicked: () => {
+                    fetchLazyWrapper<ScheduleCreateInput, Schedule>({
+                        fetch: fetchCreate,
+                        inputs: transformScheduleValues({
+                            ...values,
+                            // Make sure not to set any extra fields, 
+                            // so the relationship is treated as a "Connect" instead of a "Create"
+                            focusMode: values.focusMode?.id ? {
+                                __typename: "FocusMode" as const,
+                                id: values.focusMode.id,
+                            } : undefined,
+                            meeting: values.meeting?.id ? {
+                                __typename: "Meeting" as const,
+                                id: values.meeting.id,
+                            } : undefined,
+                            runProject: values.runProject?.id ? {
+                                __typename: "RunProject" as const,
+                                id: values.runProject.id,
+                            } : undefined,
+                            runRoutine: values.runRoutine?.id ? {
+                                __typename: "RunRoutine" as const,
+                                id: values.runRoutine.id,
+                            } : undefined,
+                        }, values, true) as ScheduleCreateInput,
+                        successCondition: (data) => !!data.id,
+                        onSuccess: (data) => { handleCreated(data); },
+                    });
+                },
+            }),
+            onSuccess: () => {
+                handleDeleted(values as Schedule);
+            },
+            errorMessage: () => ({ messageKey: "FailedToDelete" }),
+        });
+    }, [deleteMutation, fetchCreate, handleCreated, handleDeleted, t, values]);
+
+    const isLoading = useMemo(() => isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
     return (
         <MaybeLargeDialog
             display={display}
@@ -159,6 +206,11 @@ const ScheduleForm = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                options={(!isCreate && isMutate) ? [{
+                    Icon: DeleteIcon,
+                    label: t("Delete"),
+                    onClick: handleDelete,
+                }] : []}
                 title={t(`${isCreate ? "Create" : "Update"}${currTab.tabType}` as any)}
                 // Can only link to an object when creating
                 below={isCreate && canChangeTab && <PageTabs
@@ -341,15 +393,13 @@ export const ScheduleUpsert = ({
     canChangeTab = true,
     canSetScheduleFor = true,
     defaultTab,
-    handleDelete,
+    display,
     isCreate,
     isOpen,
-    listId,
     overrideObject,
     ...props
 }: ScheduleUpsertProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
 
     const {
         currTab,
@@ -394,6 +444,7 @@ export const ScheduleUpsert = ({
                 canSetScheduleFor={canSetScheduleFor}
                 currTab={currTab}
                 disabled={!(isCreate || canUpdate)}
+                display={display}
                 existing={existing}
                 handleTabChange={handleTabChange}
                 handleUpdate={setExisting}

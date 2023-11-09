@@ -6,17 +6,15 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { RunRoutineViewProps } from "../types";
 
 export const RunRoutineView = ({
-    isOpen,
+    display,
     onClose,
 }: RunRoutineViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const { object: existing, isLoading, setObject: setRunRoutine } = useObjectFromUrl<RunRoutine>({
         ...endpointGetRunRoutine,

@@ -511,13 +511,21 @@ export const CodeInputBase = ({
     }, [mode]);
 
     // Handle assistant dialog
+    const closeAssistantDialog = useCallback(() => {
+        setAssistantDialogProps(props => ({ ...props, isOpen: false } as ChatCrudProps));
+        PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: "standard", isOpen: false });
+    }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
+        display: "dialog",
         isCreate: true,
         isOpen: false,
         overrideObject: assistantChatInfo,
         task: "standard",
-        onCompleted: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        onCancel: closeAssistantDialog,
+        onCompleted: closeAssistantDialog,
+        onClose: closeAssistantDialog,
+        onDeleted: closeAssistantDialog,
     });
     const openAssistantDialog = useCallback(() => {
         if (disabled) return;
@@ -539,7 +547,7 @@ export const CodeInputBase = ({
         // Otherwise, provide the last 1500 characters
         else if (internalValue.length > 2) context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
         // Open the assistant dialog
-        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `\`\`\`\n${context}\n\`\`\`\n\n` : undefined }));
+        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `\`\`\`\n${context}\n\`\`\`\n\n` : undefined } as ChatCrudProps));
     }, [disabled, internalValue]);
 
     // Handle action buttons

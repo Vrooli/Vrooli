@@ -17,6 +17,7 @@ const DRAG_THRESHOLD = 10;
 export const EndNode = ({
     canDrag = true,
     handleAction,
+    handleDelete,
     handleUpdate,
     isEditing,
     isLinked = true,
@@ -93,9 +94,12 @@ export const EndNode = ({
             />
             {/* Normal-click menu */}
             <NodeWithEndCrud
+                display="dialog"
                 onCancel={closeEditDialog}
                 onClose={closeEditDialog}
                 onCompleted={handleUpdate}
+                onDeleted={handleDelete}
+                isCreate={false}
                 isEditing={isEditing}
                 isOpen={editDialogOpen}
                 language={language}

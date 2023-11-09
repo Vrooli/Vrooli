@@ -25,7 +25,6 @@ import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { findBotData } from "utils/botUtils";
 import { getYou } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { BotShape, shapeBot } from "utils/shape/models/bot";
@@ -64,6 +63,7 @@ const validateBotValues = async (session: Session | undefined, values: BotShape,
 const BotForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
@@ -77,7 +77,6 @@ const BotForm = ({
     ...props
 }: BotFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { t } = useTranslation();
 
     const [creativityField, , creativityHelpers] = useField("creativity");

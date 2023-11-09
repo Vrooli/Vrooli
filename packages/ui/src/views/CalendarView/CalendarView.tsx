@@ -18,7 +18,6 @@ import { useTranslation } from "react-i18next";
 import { CalendarEvent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
 import { CalendarPageTabOption, calendarTabParams } from "utils/search/objectToSearch";
 import { ScheduleUpsert } from "views/objects/schedule";
@@ -121,13 +120,12 @@ const DayColumnHeader = ({ label }) => {
 };
 
 export const CalendarView = ({
-    isOpen,
+    display,
     onClose,
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
     // Defaults to current month
@@ -255,11 +253,12 @@ export const CalendarView = ({
     };
     const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
     const handleScheduleCompleted = (created: Schedule) => {
-        //TODO
+        //TODO update schedule
         setIsScheduleDialogOpen(false);
     };
-    const handleDeleteSchedule = () => {
-        //TODO
+    const handleScheduleDeleted = (deleted: Schedule) => {
+        //TODO delete schedule
+        setIsScheduleDialogOpen(false);
     };
 
     const activeDayStyle = {
@@ -295,15 +294,18 @@ export const CalendarView = ({
     if (!localizer) return <FullPageSpinner />;
     return (
         <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
-            {/* Dialog for creating/updating schedules */}
             <ScheduleUpsert
+                canChangeTab
+                canSetScheduleFor
                 defaultTab={currTab.tabType === "All" ? CalendarPageTabOption.Meeting : currTab.tabType}
-                handleDelete={handleDeleteSchedule}
+                display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={true}
                 isOpen={isScheduleDialogOpen}
                 onCancel={handleCloseScheduleDialog}
+                onClose={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
+                onDeleted={handleScheduleDeleted}
                 overrideObject={editingSchedule ?? { __typename: "Schedule" }}
             />
             <TopBar
