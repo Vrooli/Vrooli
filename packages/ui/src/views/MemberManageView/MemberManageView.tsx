@@ -76,6 +76,7 @@ export const MemberManageView = ({
             {/* Dialog for creating new member invite */}
             {/* <MemberInvitesUpsert
                 isCreate={true}
+                isMutate={false}
                 invites={invites}
                 isOpen={isInviteDialogOpen}
                 onCompleted={onInviteCompleted}

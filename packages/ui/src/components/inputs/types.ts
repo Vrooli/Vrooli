@@ -273,6 +273,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
 }
 
 export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, "onChange"> {
+    color?: string;
     error?: boolean;
     helperText?: string | boolean | null | undefined;
     onBlur?: (event: React.FocusEvent<any>) => unknown;

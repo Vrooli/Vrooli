@@ -1,6 +1,6 @@
 import { ChatInvite, ChatInviteCreateInput, ChatInviteUpdateInput, chatInviteValidation, endpointPostChatInvites, endpointPutChatInvites, noop, noopSubmit } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
-import { useSubmitHelper } from "api";
+import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
@@ -10,8 +10,9 @@ import { Formik } from "formik";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { PubSub } from "utils/pubsub";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ChatInviteShape, shapeChatInvite } from "utils/shape/models/chatInvite";
 import { ChatInvitesFormProps, ChatInvitesUpsertProps } from "../types";
@@ -44,6 +45,7 @@ const ChatInvitesForm = ({
     existing,
     handleUpdate,
     isCreate,
+    isMutate,
     isOpen,
     isReadLoading,
     onCancel,
@@ -53,6 +55,7 @@ const ChatInvitesForm = ({
     values,
     ...props
 }: ChatInvitesFormProps) => {
+    console.log("chatinvitesupsert render!", props.errors, values);
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [message, setMessage] = useHistoryState("chat-invite-message", "");
@@ -75,15 +78,27 @@ const ChatInvitesForm = ({
     });
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useSubmitHelper<ChatInviteCreateInput[] | ChatInviteUpdateInput[], ChatInvite[]>({
-        disabled,
-        existing,
-        fetch,
-        inputs: transformChatInviteValues(values, existing, isCreate) as ChatInviteCreateInput[] | ChatInviteUpdateInput[],
-        isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
-    });
+    const onSubmit = useCallback(() => {
+        if (disabled) {
+            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            return;
+        }
+        if (!isCreate && !existing) {
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+        setMessage("");
+        if (isMutate) {
+            fetchLazyWrapper<ChatInviteCreateInput[] | ChatInviteUpdateInput[], ChatInvite[]>({
+                fetch,
+                inputs: transformChatInviteValues(values, existing, isCreate) as ChatInviteCreateInput[] | ChatInviteUpdateInput[],
+                onSuccess: (data) => { handleCompleted(data); },
+                onCompleted: () => { props.setSubmitting(false); },
+            });
+        } else {
+            handleCompleted(values as ChatInvite[]);
+        }
+    }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, props, setMessage, values]);
 
     return (
         <MaybeLargeDialog
@@ -103,7 +118,7 @@ const ChatInvitesForm = ({
                 height: "100%",
                 overflow: "hidden",
             }}>
-                <Typography variant="h5" p={2}>{t("InvitesGoingTo")}</Typography>
+                <Typography variant="h6" p={2}>{t("InvitesGoingTo")}</Typography>
                 <Box sx={{
                     display: "flex",
                     flexDirection: "column",
@@ -111,6 +126,7 @@ const ChatInvitesForm = ({
                     margin: "auto",
                     overflowY: "auto",
                     width: "min(500px, 100vw)",
+                    pointerEvents: "none",
                 }}>
                     <ObjectList
                         loading={false}

@@ -96,7 +96,7 @@ const NodeWithEndForm = ({
                 isLoading={isLoading}
                 maxWidth={500}
             >
-                <FormContainer>
+                <FormContainer sx={{ marginBottom: 8 }}>
                     <EditableTextCollapse
                         component="TranslatedTextInput"
                         isEditing={isEditing}

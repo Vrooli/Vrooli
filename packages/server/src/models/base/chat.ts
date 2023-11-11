@@ -32,11 +32,35 @@ export const ChatModel: ChatModelLogic = ({
     format: ChatFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update, prisma }) => {
+            pre: async ({ Create, Update, prisma, userData, inputsById }) => {
                 // Find invited users. Any that are bots are automatically accepted.
-                const invitedUsers = Create.reduce((acc, c) => [...acc, ...(c.input.invitesCreate?.map((i) => i.userConnect) ?? []) as string[]], [] as string[]);
+                const invitedUsers = Create.reduce((acc, createObject) => {
+                    const invites = createObject.input.invitesCreate ?? [];
+                    invites.forEach(invite => {
+                        if (typeof invite === "string") {
+                            // If invite is a string, find the corresponding object in `inputsById` and extract `userConnect`
+                            const inviteObject: { input?: { userConnect?: string } } = inputsById[invite] as object;
+                            if (inviteObject && inviteObject.input && inviteObject.input.userConnect) {
+                                acc.push(inviteObject.input.userConnect);
+                            }
+                        } else if (invite && typeof invite === "object" && invite.userConnect) {
+                            // If invite is an object, use `userConnect` directly
+                            acc.push(invite.userConnect);
+                        }
+                    });
+                    return acc;
+                }, [] as string[]);
                 // Find all bots
-                const bots = await prisma.user.findMany({ where: { id: { in: invitedUsers }, isBot: true } });
+                const bots = await prisma.user.findMany({
+                    where: {
+                        id: { in: invitedUsers },
+                        isBot: true,
+                        OR: [
+                            { isPrivate: false }, // Public bots
+                            { invitedByUser: { id: userData.id } }, // Private bots you created
+                        ],
+                    },
+                });
                 // Find translations that need text embeddings
                 const embeddingMaps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...embeddingMaps, bots };

@@ -1,6 +1,6 @@
 import { endpointPostMemberInvites, endpointPutMemberInvites, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, memberInviteValidation, noop, noopSubmit } from "@local/shared";
 import { Box, Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
-import { useSubmitHelper } from "api";
+import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
@@ -10,8 +10,9 @@ import { Field, Formik } from "formik";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { PubSub } from "utils/pubsub";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { MemberInviteShape, shapeMemberInvite } from "utils/shape/models/memberInvite";
 import { MemberInvitesFormProps, MemberInvitesUpsertProps } from "../types";
@@ -59,6 +60,7 @@ const MemberInvitesForm = ({
     existing,
     handleUpdate,
     isCreate,
+    isMutate,
     isOpen,
     isReadLoading,
     onCancel,
@@ -90,15 +92,27 @@ const MemberInvitesForm = ({
     });
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useSubmitHelper<MemberInviteCreateInput[] | MemberInviteUpdateInput[], MemberInvite[]>({
-        disabled,
-        existing,
-        fetch,
-        inputs: transformMemberInviteValues(values, existing, isCreate) as MemberInviteCreateInput[] | MemberInviteUpdateInput[],
-        isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
-    });
+    const onSubmit = useCallback(() => {
+        if (disabled) {
+            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            return;
+        }
+        if (!isCreate && !existing) {
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+        setMessage("");
+        if (isMutate) {
+            fetchLazyWrapper<MemberInviteCreateInput[] | MemberInviteUpdateInput[], MemberInvite[]>({
+                fetch,
+                inputs: transformMemberInviteValues(values, existing, isCreate) as MemberInviteCreateInput[] | MemberInviteUpdateInput[],
+                onSuccess: (data) => { handleCompleted(data); },
+                onCompleted: () => { props.setSubmitting(false); },
+            });
+        } else {
+            handleCompleted(values as MemberInvite[]);
+        }
+    }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, props, setMessage, values]);
 
     return (
         <MaybeLargeDialog
@@ -118,7 +132,7 @@ const MemberInvitesForm = ({
                 height: "100%",
                 overflow: "hidden",
             }}>
-                <Typography variant="h5" p={2}>{t("InvitesGoingTo")}</Typography>
+                <Typography variant="h6" p={2}>{t("InvitesGoingTo")}</Typography>
                 <Box sx={{
                     display: "flex",
                     flexDirection: "column",
@@ -126,6 +140,7 @@ const MemberInvitesForm = ({
                     margin: "auto",
                     overflowY: "auto",
                     width: "min(500px, 100vw)",
+                    pointerEvents: "none",
                 }}>
                     <ObjectList
                         loading={false}

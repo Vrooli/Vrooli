@@ -40,6 +40,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
         searchFields: {
             createdTimeFrame: true,
             status: true,
+            statuses: true,
             meetingId: true,
             userId: true,
             organizationId: true,

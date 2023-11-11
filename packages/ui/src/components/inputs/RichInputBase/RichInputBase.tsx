@@ -1,12 +1,13 @@
-import { noop } from "@local/shared";
+import { ChatInviteStatus, noop, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useUndoRedo } from "hooks/useUndoRedo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
+import { getCookieMatchingChat, getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
-import { assistantChatInfo, ChatCrud } from "views/objects/chat/ChatCrud/ChatCrud";
+import { ChatShape } from "utils/shape/models/chat";
+import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
@@ -64,7 +65,7 @@ export const RichInputBase = ({
     }, [isMarkdownOn]);
 
     const closeAssistantDialog = useCallback(() => {
-        setAssistantDialogProps(props => ({ ...props, isOpen: false } as ChatCrudProps));
+        setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
         PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: "note", isOpen: false });
     }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
@@ -76,11 +77,11 @@ export const RichInputBase = ({
         onClose: closeAssistantDialog,
         onCompleted: closeAssistantDialog,
         onDeleted: closeAssistantDialog,
-        overrideObject: assistantChatInfo,
         task: "note",
     });
     const openAssistantDialog = useCallback((highlighted: string) => {
         if (disabled) return;
+
         // We want to provide the assistant with the most relevant context
         const maxContextLength = 1500;
         let context = highlighted.trim();
@@ -89,8 +90,25 @@ export const RichInputBase = ({
         else if (internalValue.length <= maxContextLength) context = internalValue;
         // Otherwise, provide the last 1500 characters
         else context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
+        // Put quote block around context
+        if (context) context = `"""\n${context}\n"""\n\n`;
+
+        // Now we'll try to find an existing chat with Valyxa for this task
+        const existingChatId = getCookieMatchingChat([VALYXA_INFO.id], "note");
+        const overrideObject = {
+            __typename: "Chat" as const,
+            id: existingChatId ?? uuid(),
+            openToAnyoneWithInvite: false,
+            invites: [{
+                __typename: "ChatInvite" as const,
+                id: uuid(),
+                status: ChatInviteStatus.Pending,
+                user: VALYXA_INFO,
+            }],
+        } as unknown as ChatShape;
+
         // Open the assistant dialog
-        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `"""\n${context}\n"""\n` : undefined } as ChatCrudProps));
+        setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
     }, [disabled, internalValue]);
 
     // Resize input area to fit content

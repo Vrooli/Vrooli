@@ -1,5 +1,5 @@
 import { NodeRoutineListItem } from "@local/shared";
-import { Box, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useDebounce } from "hooks/useDebounce";
 import usePress from "hooks/usePress";
 import { ActionIcon, AddIcon, CloseIcon, EditIcon, ExpandLessIcon, ExpandMoreIcon, ListBulletIcon, ListNumberIcon, NoActionIcon } from "icons";
@@ -245,32 +245,6 @@ export const RoutineListNode = ({
         return null;
     }, [isLinked, linksIn.length, linksOut.length, listItems.length]);
 
-
-    const addButton = useMemo(() => isEditing ? (
-        <IconButton
-            onClick={handleSubroutineAdd}
-            onTouchStart={handleSubroutineAdd}
-            sx={{
-                background: "#6daf72",
-                boxShadow: 2,
-                width: addSize,
-                height: addSize,
-                position: "relative",
-                padding: "0",
-                margin: "5px auto",
-                display: "flex",
-                alignItems: "center",
-                color: "white",
-                borderRadius: "100%",
-                "@media print": {
-                    display: "none",
-                },
-            }}
-        >
-            <AddIcon />
-        </IconButton>
-    ) : null, [addSize, handleSubroutineAdd, isEditing]);
-
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any | null>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
@@ -408,7 +382,17 @@ export const RoutineListNode = ({
                         }}
                     >
                         {listItems}
-                        {addButton}
+                        {isEditing && <Button
+                            fullWidth
+                            onClick={handleSubroutineAdd}
+                            startIcon={<AddIcon />}
+                            variant="outlined"
+                            sx={{
+                                "@media print": {
+                                    display: "none",
+                                },
+                            }}
+                        >{t("Add")}</Button>}
                     </Collapse>
                 </>
             </DraggableNode>

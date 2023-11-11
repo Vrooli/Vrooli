@@ -16,7 +16,6 @@ import { useStableObject } from "./useStableObject";
 type UseFindManyProps = {
     canSearch?: (where: any) => boolean; // Checking against "where" can be useful to ensure that it has been updated
     controlsUrl?: boolean; // If true, URL search params update to reflect search state
-    debounceMs?: number;
     searchType: SearchType | `${SearchType}`;
     resolve?: (data: any, searchType: SearchType | `${SearchType}`) => any;
     take?: number;
@@ -89,7 +88,6 @@ const readyToSearch = (params: FullSearchParams) => {
 export const useFindMany = <DataType extends Record<string, any>>({
     canSearch,
     controlsUrl = true,
-    debounceMs = 100,
     searchType,
     resolve,
     take = 20,
@@ -167,6 +165,18 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const getData = useCallback(() => {
         if (!readyToSearch(params.current)) return;
         lastParams.current = deepClone(params.current);
+        console.log("fetching data", params.current.findManyEndpoint, {
+            take,
+            sortBy: params.current.sortBy,
+            searchString: params.current.searchString,
+            createdTimeFrame: (params.current.timeFrame && Object.keys(params.current.timeFrame).length > 0) ? {
+                after: params.current.timeFrame.after?.toISOString(),
+                before: params.current.timeFrame.before?.toISOString(),
+            } : undefined,
+            ...after.current,
+            ...params.current.where,
+            ...params.current.advancedSearchParams,
+        });
         // params.current.loading = true;
         getPageData({
             take,

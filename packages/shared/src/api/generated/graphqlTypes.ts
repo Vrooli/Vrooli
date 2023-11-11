@@ -653,6 +653,7 @@ export type ChatInviteSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ChatInviteSortBy>;
   status?: InputMaybe<ChatInviteStatus>;
+  statuses?: InputMaybe<Array<ChatInviteStatus>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -1802,6 +1803,7 @@ export type MeetingInviteSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<MeetingInviteSortBy>;
   status?: InputMaybe<MeetingInviteStatus>;
+  statuses?: InputMaybe<Array<MeetingInviteStatus>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;

@@ -1,7 +1,7 @@
 import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
 import { Range } from "@codemirror/state";
-import { LangsKey } from "@local/shared";
+import { ChatInviteStatus, LangsKey, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -20,8 +20,9 @@ import { ErrorIcon, MagicIcon, OpenThreadIcon, RedoIcon, UndoIcon, WarningIcon }
 import ReactDOMServer from "react-dom/server";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
+import { getCookieMatchingChat } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
-import { assistantChatInfo, ChatCrud } from "views/objects/chat/ChatCrud/ChatCrud";
+import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { CodeInputBaseProps } from "../types";
 
@@ -512,7 +513,7 @@ export const CodeInputBase = ({
 
     // Handle assistant dialog
     const closeAssistantDialog = useCallback(() => {
-        setAssistantDialogProps(props => ({ ...props, isOpen: false } as ChatCrudProps));
+        setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
         PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: "standard", isOpen: false });
     }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
@@ -520,7 +521,6 @@ export const CodeInputBase = ({
         display: "dialog",
         isCreate: true,
         isOpen: false,
-        overrideObject: assistantChatInfo,
         task: "standard",
         onCancel: closeAssistantDialog,
         onCompleted: closeAssistantDialog,
@@ -529,6 +529,7 @@ export const CodeInputBase = ({
     });
     const openAssistantDialog = useCallback(() => {
         if (disabled) return;
+
         // We want to provide the assistant with the most relevant context
         let context: string | undefined = undefined;
         const maxContextLength = 1500;
@@ -546,8 +547,25 @@ export const CodeInputBase = ({
         else if (internalValue.length <= maxContextLength && internalValue.length > 2) context = internalValue;
         // Otherwise, provide the last 1500 characters
         else if (internalValue.length > 2) context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
+        // Put code block around context
+        if (context) context = "```\n" + context + "\n```\n\n";
+
+        // Now we'll try to find an existing chat with Valyxa for this task
+        const existingChatId = getCookieMatchingChat([VALYXA_INFO.id], "standard");
+        const overrideObject = {
+            __typename: "Chat" as const,
+            id: existingChatId ?? uuid(),
+            openToAnyoneWithInvite: false,
+            invites: [{
+                __typename: "ChatInvite" as const,
+                id: uuid(),
+                status: ChatInviteStatus.Pending,
+                user: VALYXA_INFO,
+            }],
+        } as unknown as ChatShape;
+
         // Open the assistant dialog
-        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `\`\`\`\n${context}\n\`\`\`\n\n` : undefined } as ChatCrudProps));
+        setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
     }, [disabled, internalValue]);
 
     // Handle action buttons

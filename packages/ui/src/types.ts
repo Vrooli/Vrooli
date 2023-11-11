@@ -240,7 +240,7 @@ declare module "@mui/material/styles" {
 export type Maybe<T> = T | null;
 
 /** Recursively removes the Maybe type from all fields in a type, and makes them required. */
-export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNullable<T[K]> : T[K] };
+export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<unknown> ? NonNullable<T[K]> : T[K] };
 
 /** Makes a value lazy or not */
 export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);

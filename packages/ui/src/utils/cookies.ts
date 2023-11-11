@@ -6,7 +6,8 @@
  * be safe than sorry.
  */
 import { ActiveFocusMode, COOKIE, exists, FocusMode, ValueOf } from "@local/shared";
-import { NavigableObject } from "types";
+import { AssistantTask, NavigableObject } from "types";
+import { hashChatMatchData } from "./hash";
 
 /**
  * Handles storing and retrieving cookies, which may or 
@@ -26,6 +27,7 @@ export const Cookies = {
     ShowMarkdown: "showMarkdown",
     SideMenuState: "sideMenuState",
     ChatMessageTree: "chatMessageTree",
+    ChatParticipants: "chatParticipants",
     FormData: "formData",
 };
 export type Cookies = ValueOf<typeof Cookies>;
@@ -239,7 +241,6 @@ export const setCookieFormData = (formId: string, data: FormCacheEntry) => ifAll
     cache.formData[formId] = data;
     cache.order.push(formId);
 
-    console.log("setting cookie form data", formId, data);
     setCookie(Cookies.FormData, cache);
 });
 
@@ -248,11 +249,9 @@ export const removeCookieFormData = (formId: string) => ifAllowed("functional", 
 
     // Remove form data from cache
     const existingIndex = cache.order.indexOf(formId);
-    console.log("removing cookie form data", formId, existingIndex);
     if (existingIndex !== -1) {
         cache.order.splice(existingIndex, 1);
         delete cache.formData[formId];
-        console.log("cache now", cache);
 
         setCookie(Cookies.FormData, cache);
     }
@@ -326,6 +325,59 @@ export const setCookieMessageTree = (chatId: string, data: ChatMessageTreeCookie
 
 
 
+
+
+type ChatGroupCookie = {
+    /** The last chatId for the group of userIds */
+    chatId: string;
+};
+
+type ChatMatchCache = {
+    chats: { [participantsHash: string]: ChatGroupCookie };
+    order: string[]; // Array of participantsHash in cache, for FIFO
+};
+
+const MAX_CHAT_MATCH_CACHE_SIZE = 100;
+
+const getChatMatchCache = (): ChatMatchCache => getOrSetCookie(
+    Cookies.ChatParticipants,
+    (value: unknown): value is ChatMatchCache =>
+        typeof value === "object" &&
+        typeof (value as Partial<ChatMatchCache>)?.chats === "object" &&
+        Array.isArray((value as Partial<ChatMatchCache>)?.order),
+    {
+        chats: {},
+        order: [], // Default value for order
+    }, // Default value
+) as ChatMatchCache;
+
+export const getCookieMatchingChat = (userIds: string[], task?: AssistantTask): string | undefined => ifAllowed("functional", () => {
+    const cache = getChatMatchCache();
+    const participantsHash = hashChatMatchData(userIds, task);
+    return cache.chats[participantsHash]?.chatId;
+});
+
+export const setCookieMatchingChat = (chatId: string, userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
+    const cache = getChatMatchCache();
+    const participantsHash = hashChatMatchData(userIds, task);
+
+    // If participantsHash already exists, remove from order for reinsertion at end
+    const existingIndex = cache.order.indexOf(participantsHash);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+    } else if (cache.order.length >= MAX_CHAT_MATCH_CACHE_SIZE) {
+        // If cache is full, remove the oldest participants group
+        const oldestParticipantsHash = cache.order.shift();
+        if (oldestParticipantsHash) {
+            delete cache.chats[oldestParticipantsHash];
+        }
+    }
+    // Store the new/updated participants group chatId and update order
+    cache.chats[participantsHash] = { chatId };
+    cache.order.push(participantsHash);
+
+    setCookie(Cookies.ChatParticipants, cache);
+});
 
 
 
@@ -423,7 +475,6 @@ export const setCookiePartialData = (partialData: CookiePartialData, dataType: D
             (partialData.root?.id && cache.idRootMap[partialData.root.id]) ||
             (partialData.root?.handle && cache.handleRootMap[partialData.root.handle]));
         // If data type is "list", don't overwrite the existing cached data
-        console.log("setcookiepartialdata", dataType, isAlreadyInCache);
         if (isAlreadyInCache && dataType === "list") {
             return;
         }

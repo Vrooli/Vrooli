@@ -46,6 +46,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
         searchFields: {
             createdTimeFrame: true,
             status: true,
+            statuses: true,
             chatId: true,
             userId: true,
             updatedTimeFrame: true,

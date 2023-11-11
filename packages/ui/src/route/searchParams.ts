@@ -1,6 +1,6 @@
 import { SetLocation } from "./types";
 
-type Primitive = string | number | boolean;
+type Primitive = string | number | boolean | object;
 export type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
 
 /**
@@ -13,15 +13,18 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
     if (searchParams.length <= 1 || !searchParams.startsWith("?")) return {};
     let search = searchParams.substring(1);
     try {
-        // First, loop through and wrap all strings in quotes (if not already). 
-        // This is required to parse as a valid JSON object.
-        // Find every substring that's between a "=" and a "&" (or the end of the string).
-        // If it's not already wrapped in quotes, and it doesn't contain any URL encoded characters, and it is not a boolean, wrap it in quotes.
         search = search.replace(/([^&=]+)=([^&]*)/g, (match, key, value) => {
             if (value.startsWith("\"") || value.includes("%") || value === "true" || value === "false") return match;
+            // Check for numbers and null
+            if (!isNaN(Number(value))) {
+                return `${key}=${value}`;
+            } else if (value === "null") {
+                return `${key}=null`;
+            }
+            // Wrap other values in quotes
             return `${key}="${value}"`;
         });
-        // Decode and parse the search params
+
         const parsed = JSON.parse("{\""
             + decodeURI(search)
                 .replace(/&/g, ",\"")
@@ -33,7 +36,7 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
                 .replace(/%2C/g, ",")
                 .replace(/%3A/g, ":")
             + "}");
-        // For any value that might be JSON, try to parse
+
         Object.keys(parsed).forEach((key) => {
             const value = parsed[key];
             if (typeof value === "string" && value.startsWith("{") && value.endsWith("}")) {
@@ -59,9 +62,9 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
  */
 export const stringifySearchParams = (params: object): string => {
     const keys = Object.keys(params);
-    if (keys.length === 0) return "";
     // Filter out any keys which are associated with undefined or null values
     const filteredKeys = keys.filter(key => params[key] !== null && params[key] !== undefined);
+    if (!filteredKeys.length) return "";
     const encodedParams = filteredKeys.map(key => encodeURIComponent(key) + "=" + encodeURIComponent(JSON.stringify(params[key]))).join("&");
     return "?" + encodedParams;
 };

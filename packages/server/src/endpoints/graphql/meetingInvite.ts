@@ -53,6 +53,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         status: MeetingInviteStatus
+        statuses: [MeetingInviteStatus!]
         meetingId: ID
         userId: ID
         organizationId: ID

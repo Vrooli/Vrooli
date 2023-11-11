@@ -8,6 +8,7 @@ import { SelectorBaseProps } from "../types";
 export function SelectorBase<T extends string | number | { [x: string]: any }>({
     addOption,
     autoFocus = false,
+    color,
     options,
     error,
     getOptionDescription,
@@ -87,7 +88,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
             <InputLabel
                 id={inputAriaLabel}
                 shrink={shrinkLabel}
-                sx={{ color: palette.background.textPrimary }}
+                sx={{ color: color ?? palette.background.textPrimary }}
             >
                 {label}
             </InputLabel>
@@ -106,12 +107,18 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 variant="outlined"
                 sx={{
                     ...sx,
-                    color: palette.background.textPrimary,
+                    color: color ?? palette.background.textPrimary,
                     "& .MuiSelect-select": {
                         paddingTop: "12px",
                         paddingBottom: "12px",
                         display: "flex",
                         alignItems: "center",
+                    },
+                    "& .MuiSelect-icon": {
+                        color: color ?? palette.background.textPrimary,
+                    },
+                    "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: color ?? palette.background.textPrimary,
                     },
                 }}
                 tabIndex={tabIndex}
@@ -150,7 +157,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 {
                     addOption ? (
                         <MenuItem value="addOption" onClick={addOption.onSelect}>
-                            <AddIcon fill={palette.background.textPrimary} style={{ marginRight: "8px" }} />
+                            <AddIcon fill={color ?? palette.background.textPrimary} style={{ marginRight: "8px" }} />
                             <em>{addOption.label}</em>
                         </MenuItem>
                     ) : null

@@ -1,4 +1,4 @@
-import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
+import { BookmarkFor, ChatInvite, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
 import { Box, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
@@ -22,7 +22,7 @@ import { useTabs } from "hooks/useTabs";
 import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { setSearchParams, useLocation } from "route";
+import { openLink, useLocation } from "route";
 import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
@@ -157,16 +157,21 @@ export const UserView = ({
     /** Starts a new chat */
     const handleStartChat = useCallback(() => {
         if (!user || !user.id) return;
-        // Create URL search params
-        setSearchParams(setLocation, {
-            invites: {
-                id: uuid(),
-                userConnect: user.id,
-            },
-        });
         // Navigate to chat page
-        setLocation(`${LINKS.Chat}/add`);
-    }, [setLocation, user]);
+        openLink(setLocation, `${LINKS.Chat}/add`, {
+            invites: [{
+                __typename: "ChatInvite" as const,
+                id: uuid(),
+                user: { __typename: "User", id: user.id } as Partial<User>,
+            }] as Partial<ChatInvite>[],
+            translations: [{
+                __typename: "ChatTranslation" as const,
+                language: getUserLanguages(session)[0],
+                name: `Chat with ${user.name}`,
+                description: "",
+            }],
+        });
+    }, [session, setLocation, user]);
 
     return (
         <>

@@ -177,6 +177,7 @@ export const ChatSideMenu = ({
                         <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                     </IconButton>
                     <SelectorBase
+                        color={palette.primary.contrastText}
                         name="tab"
                         value={currTab}
                         label=""

@@ -52,6 +52,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         status: ChatInviteStatus
+        statuses: [ChatInviteStatus!]
         chatId: ID
         userId: ID
         searchString: String

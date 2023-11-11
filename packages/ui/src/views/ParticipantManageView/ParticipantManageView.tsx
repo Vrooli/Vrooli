@@ -1,4 +1,4 @@
-import { ChatInviteStatus, DUMMY_ID, GqlModelType, noop, User } from "@local/shared";
+import { ChatInvite, ChatInviteStatus, DUMMY_ID, GqlModelType, noop, User } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -30,25 +30,12 @@ export const ParticipantManageView = ({
     const { t } = useTranslation();
 
     const {
-        changeTab,
         currTab,
         handleTabChange,
         searchType,
         tabs,
         where,
     } = useTabs<ParticipantManagePageTabOption>({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
-
-    // const {
-    //     allData,
-    //     loading,
-    //     removeItem,
-    //     loadMore,
-    //     setAllData,
-    //     updateItem,
-    // } = useFindMany<ListObject>({
-    //     searchType,
-    //     where: where(chat.id),
-    // });
 
     const [isSelecting, setIsSelecting] = useState(true);
     const [selectedData, setSelectedData] = useState<ListObject[]>([]);
@@ -92,8 +79,7 @@ export const ParticipantManageView = ({
         } as const));
         setInvitesToUpsert(asInvites);
     }, [chat.id, currTab.tabType, selectedData]);
-    const onInviteCompleted = () => {
-        // TODO Handle any post-completion tasks here, if necessary
+    const onInviteCompleted = (invites: ChatInvite[]) => {
         setInvitesToUpsert([]);
     };
 
@@ -174,6 +160,7 @@ export const ParticipantManageView = ({
                 display="dialog"
                 invites={invitesToUpsert}
                 isCreate={true}
+                isMutate={true}
                 isOpen={invitesToUpsert.length > 0}
                 onCancel={() => setInvitesToUpsert([])}
                 onClose={() => setInvitesToUpsert([])}

@@ -61,7 +61,7 @@ export default function useLocation(): UseLocationResult {
     //
     // the function reference should stay the same between re-renders, so that
     // it can be passed down as an element prop without any performance concerns.
-    const setLocation = useCallback((to: string, { replace = false, searchParams = {}, bypassBlock = false } = {}) => {
+    const setLocation = useCallback((to: string, { replace = false, searchParams = {} } = {}) => {
         // Get last path and search params from sessionStorage
         const lastPath = sessionStorage.getItem("currentPath");
         const lastSearchParams = sessionStorage.getItem("currentSearchParams");
@@ -81,15 +81,16 @@ export default function useLocation(): UseLocationResult {
         // Store current data in sessionStorage
         sessionStorage.setItem("currentPath", currPath);
         sessionStorage.setItem("currentSearchParams", currSearchParams ?? JSON.stringify({}));
+        console.log("going to path", `${currPath}${currSearchParams}`);
         // Update history
         history[replace ? eventReplaceState : eventPushState](
             null,
             "",
-            // Combine path and search params
-            (currSearchParams && replace) ? `${currPath}${currSearchParams}` : currPath,
+            currSearchParams ? `${currPath}${currSearchParams}` : currPath,
         );
         // Update location
         const { href, pathname, search } = location;
+        console.log("updating location", href, pathname, search);
         setLoc({ href, pathname: pathname ?? "", search });
     }, []);
 

@@ -1,6 +1,6 @@
 import { DUMMY_ID, exists, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, GqlModelType, uuidValidate } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
-import { ParseSearchParamsResult, useLocation } from "route";
+import { parseSearchParams, ParseSearchParamsResult, useLocation } from "route";
 import { PartialWithType } from "types";
 import { getCookieFormData, getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { defaultYou, getYou, YouInflated } from "utils/display/listTools";
@@ -54,7 +54,7 @@ export function useObjectFromUrl<
     /** Used by forms to properly shape the data for formik */
     transform?: TFunc,
 }): UseObjectFromUrlReturn<TData, TFunc> {
-    // Get URL params
+    // Get URL params for querying and default values
     const [{ pathname }] = useLocation();
     const urlParams = useMemo(() => parseSingleItemUrl({ pathname }), [pathname]);
 
@@ -77,9 +77,6 @@ export function useObjectFromUrl<
         const data = applyTransform(storedData) as ObjectReturnType<TData, TFunc>;
         // Try to find form data in cache
         const storedForm = getCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : urlParams.id}`);
-        console.log("useObjectFromUrl storedData", storedData);
-        console.log("useObjectFromUrl storedForm", storedForm);
-        console.log("useObjectFromUrl data", data);
         if (storedForm) {
             if (isCreate) return applyTransform(storedForm as Partial<PData>) as ObjectReturnType<TData, TFunc>;
             else if (JSON.stringify(storedForm) === JSON.stringify(data)) return data;
@@ -92,6 +89,13 @@ export function useObjectFromUrl<
                 },
                 severity: "Warning",
             });
+        }
+        // If no form data found but we're creating, we can try to find initial values in URL.
+        else if (isCreate) {
+            const searchParams = parseSearchParams();
+            if (Object.keys(searchParams).length) {
+                return applyTransform(searchParams as Partial<PData>) as ObjectReturnType<TData, TFunc>;
+            }
         }
         // Return data
         return data;
@@ -128,7 +132,6 @@ export function useObjectFromUrl<
             setObject(changedData as ObjectReturnType<TData, TFunc>);
         }
     }, [applyTransform, data, objectType, overrideObject, urlParams]);
-
 
     // If object found, get permissions
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);

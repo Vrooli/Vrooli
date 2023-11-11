@@ -67,7 +67,6 @@ export const ChatBubbleTree = ({
     const [branches, setBranches] = useState<ChatMessageBranch[]>(initialMessageTreeData?.branches ?? []);
 
     const messageTree = new MessageTree(allMessages);
-    console.log("got tree", messageTree);
 
     useEffect(() => {
         // Update the cookie with current branches
