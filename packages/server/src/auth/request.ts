@@ -1,7 +1,6 @@
 import { COOKIE, uuidValidate } from "@local/shared";
 import cookie from "cookie";
 import { NextFunction, Request, Response } from "express";
-import fs from "fs";
 import jwt from "jsonwebtoken";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -10,20 +9,33 @@ import { isSafeOrigin } from "../utils/origin";
 
 const SESSION_MILLI = 30 * 86400 * 1000; // 30 days
 
-let privateKey = "";
-const privateKeyFile = `${process.env.PROJECT_DIR}/jwt_priv.pem`;
-if (fs.existsSync(privateKeyFile)) {
-    privateKey = fs.readFileSync(privateKeyFile, "utf8");
-} else {
-    logger.error(`Could not find private key at ${privateKeyFile}`);
+interface JwtKeys {
+    privateKey: string;
+    publicKey: string;
 }
+let jwtKeys: JwtKeys | null = null;
+const getJwtKeys = (): JwtKeys => {
+    // If jwtKeys is already defined, return it immediately
+    if (jwtKeys) {
+        return jwtKeys;
+    }
 
-let publicKey = "";
-const publicKeyFile = `${process.env.PROJECT_DIR}/jwt_pub.pem`;
-if (fs.existsSync(publicKeyFile)) {
-    publicKey = fs.readFileSync(publicKeyFile, "utf8");
-} else {
-    logger.error(`Could not find public key at ${publicKeyFile}`);
+    // Load the keys from process.env
+    const privateKey = process.env.jwt_priv ?? "";
+    const publicKey = process.env.jwt_pub ?? "";
+
+    // Check if the keys are available and log an error if not
+    if (privateKey.length <= 0) {
+        logger.error("JWT private key not found");
+    }
+    if (publicKey.length <= 0) {
+        logger.error("JWT public key not found");
+    }
+
+    // Store the keys in jwtKeys for future use
+    jwtKeys = { privateKey, publicKey };
+
+    return jwtKeys;
 }
 
 /**
@@ -83,7 +95,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
             return;
         }
         // Verify that the session token is valid and not expired
-        const payload = await verifyJwt(token, publicKey);
+        const payload = await verifyJwt(token, getJwtKeys().publicKey);
         if (isNaN(payload.exp) || payload.exp < Date.now()) {
             handleUnauthenticatedRequest(req, next);
             return;
@@ -142,7 +154,7 @@ export const authenticateSocket = async (socket, next) => {
             return next(new Error("Unauthorized"));
         }
         // Verify that the session token is valid and not expired
-        const payload = await verifyJwt(token, publicKey);
+        const payload = await verifyJwt(token, getJwtKeys().publicKey);
         if (isNaN(payload.exp) || payload.exp < Date.now()) {
             throw new Error("Token expiration is invalid");
         }
@@ -208,7 +220,7 @@ export async function generateSessionJwt(
             updated_at: user.updated_at,
         }])).values()],
     };
-    const token = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
+    const token = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
     if (!res.headersSent) {
         res.cookie(COOKIE.Jwt, token, {
             httpOnly: true,
@@ -229,7 +241,7 @@ export async function generateApiJwt(res: Response, apiToken: string): Promise<v
         ...basicToken(),
         apiToken,
     };
-    const token = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
+    const token = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
     if (!res.headersSent) {
         res.cookie(COOKIE.Jwt, token, {
             httpOnly: true,
@@ -252,7 +264,7 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
         return;
     }
     try {
-        const payload = await verifyJwt(token, publicKey);
+        const payload = await verifyJwt(token, getJwtKeys().publicKey);
         if (isNaN(payload.exp) || payload.exp < Date.now()) {
             throw new Error("Token expiration is invalid");
         }
@@ -260,7 +272,7 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
             ...payload,
             timeZone,
         };
-        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
+        const newToken = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
 
         if (!res.headersSent) {
             res.cookie(COOKIE.Jwt, newToken, {
@@ -286,7 +298,7 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
         return;
     }
     try {
-        const payload = await verifyJwt(token, publicKey);
+        const payload = await verifyJwt(token, getJwtKeys().publicKey);
         if (isNaN(payload.exp) || payload.exp < Date.now()) {
             throw new Error("Token expiration is invalid");
         }
@@ -310,7 +322,7 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
                 },
             }, ...payload.users.slice(1)] : [],
         };
-        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
+        const newToken = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
 
         if (!res.headersSent) {
             res.cookie(COOKIE.Jwt, newToken, {

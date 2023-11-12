@@ -1,5 +1,5 @@
 #!/bin/bash
-# Sets secrets from an environment variable into the secrets location.
+# Sets secrets from an environment variable and .pem files into the secrets location.
 # Useful when developing locally with Docker Compose, instead of Kubernetes.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
@@ -64,6 +64,24 @@ if [ $(curl -s -o /dev/null -w "%{http_code}" $VAULT_ADDR/v1/sys/health) == "200
         VAULT_RUNNING=true
     fi
 fi
+
+# Function to store file in vault
+store_in_vault() {
+    local key=$1
+    local file_path=$2
+    if [ ! -f "$file_path" ]; then
+        warning "File $file_path does not exist."
+        return
+    fi
+    local value=$(cat "$file_path")
+    echo "$value" >"/run/secrets/vrooli/$environment/$key"
+    if $VAULT_RUNNING; then
+        vault kv put secret/vrooli/$environment/$key value="$value"
+    fi
+}
+# Store JWT keys in vault
+store_in_vault "jwt_priv" "${HERE}/../jwt_priv.pem"
+store_in_vault "jwt_pub" "${HERE}/../jwt_pub.pem"
 
 # Read lines in env file
 while IFS= read -r line || [ -n "$line" ]; do

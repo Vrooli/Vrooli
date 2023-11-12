@@ -35,9 +35,5 @@ COPY --from=stage0 --chown=node:node ${PROJECT_DIR} ./
 # Copy required script files
 COPY --chown=node:node scripts/* scripts/
 
-# Copy RSA public and private key files
-COPY --chown=node:node jwt_pub.pem ./
-COPY --chown=node:node jwt_priv.pem ./
-
 # Set port
 EXPOSE ${VIRTUAL_PORT}
