@@ -142,6 +142,7 @@ services:
       context: ./packages/docs
       dockerfile: Dockerfile
     container_name: docs
+    image: docs:dev
     volumes:
       - ./packages/docs:/docs
     ports:

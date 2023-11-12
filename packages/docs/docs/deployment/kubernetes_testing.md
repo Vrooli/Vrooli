@@ -3,12 +3,56 @@ Vrooli can be run at varying levels of scale, from a single server to a full Kub
 
 However, this conversion process is not perfect. The configuration will most likely not work on the first try, and will require some debugging. This guide will walk you through the process of testing the Kubernetes configuration locally.
 
+## Before Getting Started
+1. Make sure you have run `./scripts/setup.sh` at some point, so you have the necessary services installed (e.g. Docker, Minikube).
+2. Stop any running instances of Vrooli so you don't kill your computer.
+3. Docker images should be on Docker Hub. If you have made changes to the Docker images, you will need to rebuild them and push them to Docker Hub. You can do this by running `./scripts/build.sh -u y`. If you want to make sure the images are safe to put on Docker Hub, see the next section. 
+
+### Inspecting Docker Images
+`docker-compose` services that were built with a Dockerfile cannot be pulled by Minikube unless they are on Docker Hub, so adding your images to a registry (typically Docker Hub) is a necessary step. However, it is crucial that no sensitive information is accidentally included in the image, as anyone could find it. If you are unsure if this is the case, you can inspect each image before pushing it to the registry. Here's how:
+
+1. Check the corresponding Dockerfile. If there are any `ADD` or `COPY` commands, make sure they are not copying any sensitive files, such as `.env` files or `.git` files.
+2. Run `./scripts/build.sh` without the `-u` flag. This will build the images, but not push them to the registry. 
+3. Run `docker images` to find the image ID of the image you want to inspect.
+4. Run `docker run -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image <image_name>` to scan the image for vulnerabilities. This should identify all vulnerabilities. But if you still want to inspect the image manually, continue to the next step.
+5. Run `docker run -it <image_id> /bin/sh` to open a shell inside the image.
+6. Run `history` to see if any commands were run that might have included sensitive information. Also check `/root/.ash_history` or `/root/.bash_history` for the same reason.
+7. Run `env` to see the environment variables that are set. Make sure there are no sensitive variables, such as passwords or API keys.
+8. Make sure `/run/secrets` doesn't exist. If it does there are no sensitive files in it.
+9. Go to the root of the project and run `ls -a` to see all the files in the image. make sure there are no sensitive files, such as `.env` files, `.git` files, `.pem` files, or database backups.
+10. Check if any logs exist with sensitive information in `/var/log/`.
+11. Make sure no private keys or certificates exist in `~/.ssh/`.
+
 ## Basic Steps
-1. Create the Kubernetes configuration using `./scripts/dockerToKubernetes.sh`.
+1. Create the Kubernetes configuration (if you haven't already) using `./scripts/dockerToKubernetes.sh`.
 2. Start Minikube in a Docker container, using `minikube start --driver=docker --force`. *Note: You can stop minikube using `minikube stop`.*
 3. Point your terminal to use the Docker daemon inside Minikube, using `eval $(minikube docker-env)`. This sets a few Docker-related environment variables, so that Docker commands point to the Docker daemon inside Minikube, rather than the one on your local machine. *Note: You can undo this using `eval $(minikube docker-env -u)`.*
 4. Apply the configuration to Minikube, using `kubectl apply -f <generated-file>.yaml`. *Note: You can delete the configuration using `kubectl delete -f <generated-file>.yaml`.*
 5. Use kubectl commands to monitor the status of your pods, deployments, and services. Reapply the configuration when changes are made. *Note: If you delete sections from the configuration, you may need to run `kubectl delete -f <generated-file>.yaml` before reapplying the configuration.*
+
+## Required Changes
+The auto-generated Kubernetes configuration will not work out of the box. You will need to debug it and make some changes. Here are some common steps you will likely need to take:
+
+1. Change every deployment strategy to `RollingUpdate` instead of `Recreate`. This will allow pods to be updated without downtime.
+2. Remove `metadata.annotations` from every object. This is not necessary, and has no effect on the configuration.
+3. Change the `image` field for every container which uses a Dockerfile (i.e. is not an existing public image) to the format `<docker_username>/vrooli_<service_name>:<dev_or_prod>-<version>`. For example, `server:prod` becomes `matthalloran8/vrooli_server:prod-1.9.7`. This will allow Minikube to pull the correct images from Docker Hub.
+4. Replace every `secretKeyRef` with a hard-coded value. We can do this because true secrets are already handled on server startup using a vault. Any environment variables in the Dockerfile (and thus in the Kubernetes configuration) are not sensitive. For example, you would replace this:
+    ```yaml
+    env:
+      - name: VIRTUAL_HOST
+        valueFrom:
+          secretKeyRef:
+            name: db-claim3
+            key: VIRTUAL_HOST_DOCS
+    ```
+    with this:
+    ```yaml
+    env:
+      - name: VIRTUAL_HOST
+        value: "docs.vrooli.com,www.docs.vrooli.com"
+    ```
+    Alternatively, you can use a vault agent sidecar to fetch these from our vault. But I haven't figured out how to do this yet.  
+5. Every *Deployment* uses `/src/app/scripts`, which means we can use one *Persistent Volume Claim (PVC)* for all of them. Find every `mountPath` that references `/src/app/scripts` and make sure they all use the same *PVC*. You should rename this *PVC* to `scripts-claim`, and change the `accessModes` to `ReadOnlyMany`. Make sure you have removed the other *PVCs* that aren't being used, and changed all corresponding `claimName` fields to `scripts-claim`.
 
 ## Kubernetes Configuration Overview
 Kubernetes employs a variety of object types to facilitate orchestration and scaling of containerized applications:

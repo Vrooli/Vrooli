@@ -16,7 +16,7 @@ while getopts "v:d:u:ha:e:" opt; do
         echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-u SEND_TO_DOCKER_HUB] [-h] [-a API_GENERATE] [-e ENV_FILE]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
         echo "  -d --deploy: Deploy to VPS (y/N)"
-        echo "  -u --send-to-docker-hub: Send to Docker Hub (y/N)"
+        echo "  -u --send-to-docker-hub: Send to Docker Hub? This is needed for Kubernetes (y/N)"
         echo "  -h --help: Show this help message"
         echo "  -a --api-generate: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
         echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
@@ -271,7 +271,7 @@ docker pull redis:7-alpine
 
 # Save and compress Docker images
 info "Saving Docker images..."
-docker save -o production-docker-images.tar ui:prod server:prod ankane/pgvector:v0.4.1 redis:7-alpine
+docker save -o production-docker-images.tar ui:prod server:prod docs:prod ankane/pgvector:v0.4.1 redis:7-alpine
 if [ $? -ne 0 ]; then
     error "Failed to save Docker images"
     exit 1
@@ -286,12 +286,12 @@ fi
 
 # Send docker images to Docker Hub
 if [ -z "$SEND_TO_DOCKER_HUB" ]; then
-    prompt "Would you like to send the Docker images to Docker Hub? (y/N)"
+    prompt "Would you like to send the Docker images to Docker Hub? This is needed for Kubernetes (y/N)"
     read -n1 -r SEND_TO_DOCKER_HUB
     echo
 fi
 if [ "${SEND_TO_DOCKER_HUB}" = "y" ] || [ "${SEND_TO_DOCKER_HUB}" = "Y" ]; then
-    "${HERE}/dockerToRegistry.sh -b n -v ${VERSION}"
+    "${HERE}/dockerToRegistry.sh" -b n -v ${VERSION}
     if [ $? -ne 0 ]; then
         error "Failed to send Docker images to Docker Hub"
         exit 1
