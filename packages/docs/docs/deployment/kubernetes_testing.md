@@ -27,9 +27,17 @@ However, this conversion process is not perfect. The configuration will most lik
 1. Create the Kubernetes configuration (if you haven't already) using `./scripts/dockerToKubernetes.sh`.
 2. Start Minikube in a Docker container, using `minikube start --driver=docker --force`. *Note: You can stop minikube using `minikube stop`.*
 3. Point your terminal to use the Docker daemon inside Minikube, using `eval $(minikube docker-env)`. This sets a few Docker-related environment variables, so that Docker commands point to the Docker daemon inside Minikube, rather than the one on your local machine. *Note: You can undo this using `eval $(minikube docker-env -u)`.*
-4. If you want to start Kubernetes from scratch, run `kubectl delete all --all`. This will delete all Kubernetes objects, including pods, deployments, services, etc. *Note: You can delete specific objects using `kubectl delete <object-type> <object-name>`.*
-5. Apply the configuration to Minikube, using `kubectl apply -f <generated-file>.yaml`. *Note: You can delete the configuration using `kubectl delete -f <generated-file>.yaml`.*
-6. Use kubectl commands to monitor the status of your pods, deployments, and services. Reapply the configuration when changes are made. *Note: If you delete sections from the configuration, you may need to run `kubectl delete -f <generated-file>.yaml` before reapplying the configuration.*
+4. Add the following lines to your hosts file (`/etc/hosts` for Linux and Mac, `C:\Windows\System32\Drivers\etc\hosts` for Windows). DO NOT use Minikube's IP:
+    ```
+    127.0.0.1 docs.vrooli.com
+    127.0.0.1 vrooli.com
+    ```
+    This will allow you to access the services using the same URLs as in production.
+    **WARNING:** Remember to remove these lines from `/etc/hosts` when you are done testing. Otherwise, you will not be able to access the real Vrooli website.
+5. Enable ingress on Minikube, using `minikube addons enable ingress`, then `minikube addone enable ingress-dns`. *Note: You can disable ingress using `minikube addons disable ingress`.*
+6. If you want to start Kubernetes from scratch, run `kubectl delete all --all`. This will delete all Kubernetes objects, including pods, deployments, services, etc. *Note: You can delete specific objects using `kubectl delete <object-type> <object-name>`.*
+7. Apply the configuration to Minikube, using `kubectl apply -f <generated-file>.yaml`. *Note: You can delete the configuration using `kubectl delete -f <generated-file>.yaml`.*
+8. Use kubectl commands to monitor the status of your pods, deployments, and services. Reapply the configuration when changes are made. *Note: If you delete sections from the configuration, you may need to run `kubectl delete -f <generated-file>.yaml` before reapplying the configuration.*
 
 ## Required Changes
 The auto-generated Kubernetes configuration will not work out of the box. You will need to debug it and make some changes. Here are some common steps you will likely need to take:
@@ -108,7 +116,42 @@ The auto-generated Kubernetes configuration will not work out of the box. You wi
             - name: ui-dist-claim
               mountPath: /srv/app/packages/ui/dist
     ```
-9. Expose the ports for `server`, `ui`, and `docs`. This is accomplished by TODO
+9. Expose the ports for `server`, `ui`, and `docs`. This is accomplished by adding an *Ingress* resource. It should look something like this:
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+    name: vrooli-ingress
+    spec:
+    rules:
+        - host: "docs.vrooli.com"
+        http:
+            paths:
+            - path: /
+                pathType: Prefix
+                backend:
+                service:
+                    name: docs
+                    port:
+                    number: 4000
+        - host: "vrooli.com"
+        http:
+            paths:
+            - path: /api
+                pathType: Prefix
+                backend:
+                service:
+                    name: server
+                    port:
+                    number: 5329
+            - path: /
+                pathType: Prefix
+                backend:
+                service:
+                    name: ui
+                    port:
+                    number: 3000
+    ```
 
 ## Kubernetes Configuration Overview
 Kubernetes employs a variety of object types to facilitate orchestration and scaling of containerized applications:

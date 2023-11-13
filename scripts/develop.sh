@@ -68,6 +68,23 @@ if $USE_KUBERNETES; then
         else
             success "Minikube started successfully"
         fi
+        # Enable ingress
+        info "Enabling ingress..."
+        minikube addons enable ingress
+        if [ $? -ne 0 ]; then
+            error "Failed to enable ingress"
+            exit 1
+        else
+            success "Ingress enabled successfully"
+        fi
+        info "Enabling ingress-dns..."
+        minikube addons enable ingress-dns
+        if [ $? -ne 0 ]; then
+            error "Failed to enable ingress-dns"
+            exit 1
+        else
+            success "Ingress-nginx enabled successfully"
+        fi
         # TODO start the rest of the Kubernetes environment. Not sure exactly what's needed yet
     else
         success "Minikube is already running"
