@@ -21,7 +21,7 @@ for arg in "$@"; do
         echo "  -k --kubernetes: If set, will use Kubernetes instead of Docker Compose"
         echo "  -m --modules-reinstall: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
         echo "  -p --prod: If set, will skip steps that are only required for development"
-        echo "  -r --remote: (Y/n) True if this script is being run on the remote server"
+        echo "  -r --remote: (Y/n) True if this script is being run on a remote server"
         exit 0
         ;;
     -e | --env-setup)
@@ -58,9 +58,9 @@ RUNLEVEL=1 sudo apt-get -y upgrade
 header "Setting script permissions"
 chmod +x "${HERE}/"*.sh
 
-# If this script is being run on the remote server, enable PasswordAuthentication
+# If this script is being run on a remote server, enable PasswordAuthentication
 if [ -z "${ON_REMOTE}" ]; then
-    prompt "Is this script being run on the remote server? (Y/n)"
+    prompt "Is this script being run on a remote server? (Y/n)"
     read -n1 -r ON_REMOTE
     echo
 fi
@@ -91,7 +91,7 @@ if [ "${ON_REMOTE}" = "y" ] || [ "${ON_REMOTE}" = "Y" ] || [ "${ON_REMOTE}" = "y
     fi
 else
     # Otherwise, make sure mailx is installed. This may be used by some scripts which
-    # track errors on the remote server and notify the developer via email.
+    # track errors on a remote server and notify the developer via email.
     header "Installing mailx"
     # TODO - Not working for some reason
     # info "Select option 2 (Internet Site) then enter \"http://mirrors.kernel.org/ubuntu\" when prompted."
@@ -179,9 +179,28 @@ if $USE_KUBERNETES; then
             else
                 success "Minikube installed successfully"
             fi
+
+            # Rename Minikube context to dev-cluster
+            kubectl config rename-context minikube vrooli-dev-cluster
+            # Set dev-cluster as the current context
+            kubectl config use-context vrooli-dev-cluster
+
         else
             success "Minikube is already installed"
         fi
+    else
+        echo "TODO"
+        # TODO set up production Kubernetes cluster vrooli-prod-cluster. Might look something like this:
+        # # Set the cluster
+        # kubectl config set-cluster vrooli-prod-cluster --server=API_SERVER_ENDPOINT --certificate-authority=CA_DATA_PATH --embed-certs=true
+        # # Set the credentials
+        # kubectl config set-credentials prod-user --client-certificate=CLIENT_CERT_PATH --client-key=CLIENT_KEY_PATH --embed-certs=true
+        # # Or, for token-based authentication
+        # kubectl config set-credentials prod-user --token=YOUR_BEARER_TOKEN
+        # # Set the context
+        # kubectl config set-context vrooli-prod-cluster --cluster=vrooli-prod-cluster --user=prod-user
+        # # Switch to the new context
+        # kubectl config use-context vrooli-prod-cluster
     fi
 fi
 
@@ -230,7 +249,7 @@ if [ $? -ne 0 ]; then
     true
 fi
 
-# Less needs to be done for production environments
+# Development-specific setup
 if [ "${ENVIRONMENT}" = "dev" ]; then
     header "Installing global dependencies"
     installedPackages=$(yarn global list)
@@ -273,7 +292,12 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
     cd "${HERE}/../packages/server" && prisma generate --schema ./src/db/schema.prisma
 
     "${HERE}/shared.sh"
+
+    # Install AWS CLI, for uploading to S3 bucket. This is used for Kubernetes deployments.
+    sudo apt-get install awscli
+
 else
+    # Less needs to be done for production environments
     info "Skipping global dependencies installation - production environment detected"
     info "Skipping local dependencies installation - production environment detected"
     info "Skipping type models generation - production environment detected"

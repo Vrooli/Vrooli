@@ -110,6 +110,38 @@ spec:
         io.kompose.network/vrooli-app: "true"
         io.kompose.service: db
     spec:
+      initContainers:
+        - name: init-scripts 
+          image: alpine/git
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              rm -rf /scripts/* &&
+              git clone -n --depth=1 -b master --filter=tree:0 https://github.com/Vrooli/Vrooli /tmp/init-scripts &&
+              cd /tmp/init-scripts &&
+              git sparse-checkout set --no-cone scripts &&
+              git checkout &&
+              chmod +x ./scripts/*.sh &&
+              mv /tmp/init-scripts/scripts/* /scripts &&
+              rm -rf /tmp/init-scripts
+          volumeMounts:
+          - name: scripts-claim
+            mountPath: /scripts
+        - name: init-db-claim1
+          image: alpine/git
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              rm -rf /packages/db/entrypoint/* &&
+              git clone -n --depth=1 -b master --filter=tree:0 https://github.com/Vrooli/Vrooli /tmp/init-db-claim1 &&
+              cd /tmp/init-db-claim1 &&
+              git sparse-checkout set --no-cone packages/db/entrypoint &&
+              git checkout &&
+              mv /tmp/init-db-claim1/packages/db/entrypoint/* /packages/db/entrypoint &&
+              rm -rf /tmp/init-db-claim1
+          volumeMounts:
+          - name: db-claim1
+            mountPath: /docker-entrypoint-initdb.d
       containers:
         - args:
             - /bin/sh
@@ -120,7 +152,7 @@ spec:
               value: site
             - name: PROJECT_DIR
               value: /srv/app
-          image: ankane/pgvector:v0.4.1
+          image: ankane/pgvector:v1.9.7
           livenessProbe:
             exec:
               command:
@@ -165,6 +197,22 @@ metadata:
   labels:
     io.kompose.service: scripts-claim
   name: scripts-claim
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: ui-dist-claim
+  name: ui-dist-claim
 spec:
   accessModes:
     - ReadOnlyMany
@@ -260,6 +308,22 @@ spec:
         io.kompose.network/vrooli-app: "true"
         io.kompose.service: docs
     spec:
+      initContainers:
+        - name: init-docs-claim0
+          image: alpine/git
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              rm -rf /docs/* &&
+              git clone -n --depth=1 -b master --filter=tree:0 https://github.com/Vrooli/Vrooli /tmp/init-docs-claim0 &&
+              cd /tmp/init-docs-claim0 &&
+              git sparse-checkout set --no-cone packages/docs &&
+              git checkout &&
+              mv /tmp/init-docs-claim0/packages/docs/* /docs &&
+              rm -rf /tmp/init-docs-claim0
+          volumeMounts:
+            - name: docs-claim0
+              mountPath: /docs
       containers:
         - args:
             - serve
@@ -414,6 +478,31 @@ spec:
         io.kompose.network/vrooli-app: "true"
         io.kompose.service: server
     spec:
+      initContainers:
+        # Only one deployment needs to initialize the data
+        - name: init-ui
+          image: alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              apk --no-cache add aws-cli tar &&
+              aws s3 cp s3://vrooli-bucket/builds/v1.9.7/build.tar.gz /tmp/build.tar.gz &&
+              tar -xzvf /tmp/build.tar.gz -C /srv/app/packages/ui/dist &&
+              rm /tmp/build.tar.gz
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-s3-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-s3-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+          volumeMounts:
+            - name: ui-dist-claim
+              mountPath: /srv/app/packages/ui/dist
       containers:
         - args:
             - /bin/sh
@@ -472,18 +561,21 @@ spec:
             - containerPort: 5329
           resources: {}
           volumeMounts:
+            - mountPath: /srv/app/packages/ui/dist
+              name: ui-dist-claim
             - mountPath: /srv/app/data/logs
               name: server-claim0
             - mountPath: /srv/app/data/uploads
               name: server-claim1
             - mountPath: /srv/app/data/stats
               name: server-claim2
-            - mountPath: /srv/app/packages/ui/dist
-              name: server-claim3
             - mountPath: /run/secrets/vrooli/prod
-              name: server-claim4
+              name: server-claim3
       restartPolicy: Always
       volumes:
+        - name: ui-dist-claim
+          persistentVolumeClaim:
+            claimName: ui-dist-claim
         - name: server-claim0
           persistentVolumeClaim:
             claimName: server-claim0
@@ -496,9 +588,6 @@ spec:
         - name: server-claim3
           persistentVolumeClaim:
             claimName: server-claim3
-        - name: server-claim4
-          persistentVolumeClaim:
-            claimName: server-claim4
 status: {}
 
 ---
@@ -557,22 +646,6 @@ metadata:
   labels:
     io.kompose.service: server-claim3
   name: server-claim3
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 100Mi
-status: {}
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  creationTimestamp: null
-  labels:
-    io.kompose.service: server-claim4
-  name: server-claim4
 spec:
   accessModes:
     - ReadWriteOnce
@@ -647,27 +720,10 @@ spec:
           resources: {}
           volumeMounts:
             - mountPath: /srv/app/packages/ui/dist
-              name: ui-claim0
+              name: ui-dist-claim
       restartPolicy: Always
       volumes:
-        - name: ui-claim0
+        - name: ui-dist-claim
           persistentVolumeClaim:
-            claimName: ui-claim0
+            claimName: ui-dist-claim
 status: {}
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  creationTimestamp: null
-  labels:
-    io.kompose.service: ui-claim0
-  name: ui-claim0
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 100Mi
-status: {}
-

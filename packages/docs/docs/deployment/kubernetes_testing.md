@@ -27,8 +27,9 @@ However, this conversion process is not perfect. The configuration will most lik
 1. Create the Kubernetes configuration (if you haven't already) using `./scripts/dockerToKubernetes.sh`.
 2. Start Minikube in a Docker container, using `minikube start --driver=docker --force`. *Note: You can stop minikube using `minikube stop`.*
 3. Point your terminal to use the Docker daemon inside Minikube, using `eval $(minikube docker-env)`. This sets a few Docker-related environment variables, so that Docker commands point to the Docker daemon inside Minikube, rather than the one on your local machine. *Note: You can undo this using `eval $(minikube docker-env -u)`.*
-4. Apply the configuration to Minikube, using `kubectl apply -f <generated-file>.yaml`. *Note: You can delete the configuration using `kubectl delete -f <generated-file>.yaml`.*
-5. Use kubectl commands to monitor the status of your pods, deployments, and services. Reapply the configuration when changes are made. *Note: If you delete sections from the configuration, you may need to run `kubectl delete -f <generated-file>.yaml` before reapplying the configuration.*
+4. If you want to start Kubernetes from scratch, run `kubectl delete all --all`. This will delete all Kubernetes objects, including pods, deployments, services, etc. *Note: You can delete specific objects using `kubectl delete <object-type> <object-name>`.*
+5. Apply the configuration to Minikube, using `kubectl apply -f <generated-file>.yaml`. *Note: You can delete the configuration using `kubectl delete -f <generated-file>.yaml`.*
+6. Use kubectl commands to monitor the status of your pods, deployments, and services. Reapply the configuration when changes are made. *Note: If you delete sections from the configuration, you may need to run `kubectl delete -f <generated-file>.yaml` before reapplying the configuration.*
 
 ## Required Changes
 The auto-generated Kubernetes configuration will not work out of the box. You will need to debug it and make some changes. Here are some common steps you will likely need to take:
@@ -53,6 +54,61 @@ The auto-generated Kubernetes configuration will not work out of the box. You wi
     ```
     Alternatively, you can use a vault agent sidecar to fetch these from our vault. But I haven't figured out how to do this yet.  
 5. Every *Deployment* uses `/src/app/scripts`, which means we can use one *Persistent Volume Claim (PVC)* for all of them. Find every `mountPath` that references `/src/app/scripts` and make sure they all use the same *PVC*. You should rename this *PVC* to `scripts-claim`, and change the `accessModes` to `ReadOnlyMany`. Make sure you have removed the other *PVCs* that aren't being used, and changed all corresponding `claimName` fields to `scripts-claim`.
+6. Do the same as number 5, but for `/src/app/packages/ui/dist`.
+7. Any PVC which references code stored in version control needs a corresponding `initContainers` section in the Kubernetes configuration. This is because the code is not stored in the Docker image, so it needs to be pulled from version control when the pod starts. For example, the `docs` service has this PVC mount:
+    ```yaml
+    volumeMounts:
+        - mountPath: /docs
+            name: docs-claim0
+    ```
+    So we need to add this `initContainers` section:
+    ```yaml
+    initContainers:
+        - name: init-docs-claim0
+          image: alpine/git
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              rm -rf /docs/* &&
+              git clone -n --depth=1 -b master --filter=tree:0 https://github.com/Vrooli/Vrooli /tmp/init-docs-claim0 &&
+              cd /tmp/init-docs-claim0 &&
+              git sparse-checkout set --no-cone packages/docs &&
+              git checkout &&
+              mv /tmp/init-docs-claim0/packages/docs/* /docs &&
+              rm -rf /tmp/init-docs-claim0
+          volumeMounts:
+          - name: docs-claim0
+            mountPath: /docs
+    ```
+    **NOTE:** There should only be one init section per PVC. If multiple deployments are using the same PVC, then only one of them should have an init section.
+8. Do something similar to step 7 for the ui dist folder. This is stored in S3 instead of git, so the init section should look something like this:
+    ```yml
+    initContainers:
+        - name: init-ui
+          image: alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              apk --no-cache add aws-cli tar &&
+              aws s3 cp s3://vrooli-bucket/builds/v1.9.7/build.tar.gz /tmp/build.tar.gz &&
+              tar -xzvf /tmp/build.tar.gz -C /path/to/mounted/volume &&
+              rm /tmp/build.tar.gz
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-s3-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-s3-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+          volumeMounts:
+            - name: ui-dist-claim
+              mountPath: /srv/app/packages/ui/dist
+    ```
+9. Expose the ports for `server`, `ui`, and `docs`. This is accomplished by TODO
 
 ## Kubernetes Configuration Overview
 Kubernetes employs a variety of object types to facilitate orchestration and scaling of containerized applications:
