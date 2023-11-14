@@ -22,6 +22,7 @@ import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieMatchingChat } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
+import { ChatShape } from "utils/shape/models/chat";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { CodeInputBaseProps } from "../types";

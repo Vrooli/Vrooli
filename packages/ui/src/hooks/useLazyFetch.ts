@@ -1,6 +1,5 @@
-import { errorToMessage, fetchData, Method, ServerResponse } from "api";
+import { displayServerErrors, fetchData, Method, ServerResponse } from "api";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PubSub } from "utils/pubsub";
 
 type RequestState<TData> = {
     loading: boolean;
@@ -15,12 +14,15 @@ export type UseLazyFetchProps<TInput extends Record<string, any> | undefined, TD
     options?: RequestInit;
 };
 
+export type FetchInputOptions = {
+    endpointOverride?: string,
+    displayError?: boolean,
+    onError?: (errors: ServerResponse["errors"]) => unknown,
+}
+
 export type MakeLazyRequest<TInput extends Record<string, any> | undefined, TData> = (
     input?: TInput,
-    inputOptions?: {
-        endpointOverride?: string,
-        displayError?: boolean,
-    },
+    inputOptions?: FetchInputOptions,
 ) => Promise<ServerResponse<TData>>;
 
 /**
@@ -56,14 +58,6 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         fetchParamsRef.current = { endpoint, method, options, inputs };
     }, [endpoint, method, options, inputs]); // This will update the ref each time endpoint, method, options or inputs change
 
-    const displayErrors = (errors?: ServerResponse["errors"]) => {
-        if (!errors) return;
-        for (const error of errors) {
-            const message = errorToMessage({ errors: [error] }, ["en"]);
-            PubSub.get().publishSnack({ message, severity: "Error" });
-        }
-    };
-
     const makeRequest = useCallback<MakeLazyRequest<TInput, TData>>(async (input, inputOptions) => {
         // Update the inputs stored in the ref if a new input is provided
         if (input) {
@@ -89,13 +83,23 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
             .then(({ data, errors, version }: ServerResponse) => {
                 setState({ loading: false, data, errors });
                 if (Array.isArray(errors) && errors.length > 0) {
-                    inputOptions?.displayError !== false && displayErrors(errors);
+                    if (inputOptions?.onError) {
+                        inputOptions.onError(errors);
+                    }
+                    if (inputOptions?.displayError !== false) {
+                        displayServerErrors(errors);
+                    }
                 }
                 return { data, errors, version };
             })
             .catch(({ errors, version }: ServerResponse) => {
                 setState({ loading: false, data: undefined, errors });
-                inputOptions?.displayError !== false && displayErrors(errors);
+                if (inputOptions?.onError) {
+                    inputOptions.onError(errors);
+                }
+                if (inputOptions?.displayError !== false) {
+                    displayServerErrors(errors);
+                }
                 return { errors, version };
             });
         return result;

@@ -81,7 +81,6 @@ export default function useLocation(): UseLocationResult {
         // Store current data in sessionStorage
         sessionStorage.setItem("currentPath", currPath);
         sessionStorage.setItem("currentSearchParams", currSearchParams ?? JSON.stringify({}));
-        console.log("going to path", `${currPath}${currSearchParams}`);
         // Update history
         history[replace ? eventReplaceState : eventPushState](
             null,
@@ -90,7 +89,6 @@ export default function useLocation(): UseLocationResult {
         );
         // Update location
         const { href, pathname, search } = location;
-        console.log("updating location", href, pathname, search);
         setLoc({ href, pathname: pathname ?? "", search });
     }, []);
 

@@ -6,7 +6,7 @@ import { getCookieFormData, getCookiePartialData, setCookiePartialData } from "u
 import { defaultYou, getYou, YouInflated } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { useLazyFetch } from "./useLazyFetch";
+import { FetchInputOptions, useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
 
 type UrlObject = { __typename: GqlModelType | `${GqlModelType}`, id?: string };
@@ -39,6 +39,7 @@ export function useObjectFromUrl<
     endpoint,
     isCreate,
     objectType,
+    onError,
     onInvalidUrlParams,
     overrideObject,
     transform,
@@ -48,6 +49,7 @@ export function useObjectFromUrl<
     isCreate?: boolean,
     /** Typically the type of the object being used, but is also sometimes the parent object (comments do this, for example) */
     objectType: GqlModelType | `${GqlModelType}`,
+    onError?: FetchInputOptions["onError"],
     onInvalidUrlParams?: (params: ParseSearchParamsResult) => unknown,
     /** If passed, uses this instead of fetching from server or cache */
     overrideObject?: Partial<PData>,
@@ -58,6 +60,7 @@ export function useObjectFromUrl<
     const [{ pathname }] = useLocation();
     const urlParams = useMemo(() => parseSingleItemUrl({ pathname }), [pathname]);
 
+    const stableOnError = useStableCallback(onError);
     const stableOnInvalidUrlParams = useStableCallback(onInvalidUrlParams);
     const stableTransform = useStableCallback(transform);
 
@@ -104,10 +107,10 @@ export function useObjectFromUrl<
         // If overrideObject provided, don't fetch
         if (typeof overrideObject === "object") return;
         // Objects can be found using a few different unique identifiers
-        if (exists(urlParams.handle)) getData({ handle: urlParams.handle });
-        else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });
-        else if (exists(urlParams.id)) getData({ id: urlParams.id });
-        else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot });
+        if (exists(urlParams.handle)) getData({ handle: urlParams.handle }, { onError: stableOnError });
+        else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot }, { onError: stableOnError });
+        else if (exists(urlParams.id)) getData({ id: urlParams.id }, { onError: stableOnError });
+        else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot }, { onError: stableOnError });
         // If transform provided, ignore bad URL params. This is because we only use the transform for 
         // upsert forms, which don't have a valid URL if the object doesn't exist yet (i.e. when creating)
         else if (typeof stableTransform === "function") return;
@@ -115,7 +118,7 @@ export function useObjectFromUrl<
         else if (exists(stableOnInvalidUrlParams)) stableOnInvalidUrlParams(urlParams);
         // Else, show error
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
-    }, [getData, objectType, overrideObject, stableOnInvalidUrlParams, stableTransform, urlParams]);
+    }, [stableOnError, getData, objectType, overrideObject, stableOnInvalidUrlParams, stableTransform, urlParams]);
     useEffect(() => {
         // If overrideObject provided, use it
         if (typeof overrideObject === "object") {

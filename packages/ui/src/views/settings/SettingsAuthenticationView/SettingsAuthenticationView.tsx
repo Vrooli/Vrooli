@@ -101,6 +101,7 @@ export const SettingsAuthenticationView = ({
             onSuccess: (data) => {
                 localStorage.removeItem(Cookies.FormData); // Clear old form data cache
                 PubSub.get().publishSession(data);
+                PubSub.get().publishSideMenu({ id: "side-menu", isOpen: false });
             },
             // If error, log out anyway
             onError: () => { PubSub.get().publishSession(guestSession); },

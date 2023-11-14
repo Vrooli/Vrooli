@@ -27,10 +27,11 @@ import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAv
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
-import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
+import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getObjectUrl } from "utils/navigation/openObject";
 import { parseSingleItemUrl, UrlInfo } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
@@ -157,8 +158,15 @@ export const UserView = ({
     /** Starts a new chat */
     const handleStartChat = useCallback(() => {
         if (!user || !user.id) return;
-        // Navigate to chat page
-        openLink(setLocation, `${LINKS.Chat}/add`, {
+        // Check for last chat you opened with this user
+        const existingChatId = getCookieMatchingChat([user.id]);
+        console.log("got existing chat id", existingChatId);
+        // Use that to determine URL
+        const url = existingChatId ? getObjectUrl({ __typename: "Chat" as const, id: existingChatId }) : `${LINKS.Chat}/add`;
+        // Create search params to initialize new chat. 
+        // If the chat isn't new, this will initialize the chat if the one 
+        // we're looking for doesn't exist (i.e. it was deleted)
+        openLink(setLocation, url, {
             invites: [{
                 __typename: "ChatInvite" as const,
                 id: uuid(),

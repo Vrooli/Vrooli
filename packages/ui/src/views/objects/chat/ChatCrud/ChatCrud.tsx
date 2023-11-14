@@ -1,6 +1,6 @@
-import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
-import { errorToMessage, fetchLazyWrapper, ServerResponse, socket } from "api";
+import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -27,7 +27,7 @@ import { TFunction } from "i18next";
 import { CopyIcon, ListIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { parseSearchParams, useLocation } from "route";
 import { FormContainer, pagePaddingBottom } from "styles";
 import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
@@ -214,12 +214,10 @@ const ChatForm = ({
     useEffect(() => {
         if (isOpen === false || values.id !== DUMMY_ID || chatCreateStatus.current !== "notStarted") return;
         chatCreateStatus.current = "inProgress";
-        console.log("create input: ", transformChatValues(withoutOtherMessages(values, session), withoutOtherMessages(existing, session), true));
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
-            inputs: transformChatValues(withoutOtherMessages(values, session), withoutOtherMessages(existing, session), true),
+            inputs: transformChatValues(withoutOtherMessages({ ...values, ...parseSearchParams() }, session), withoutOtherMessages(existing, session), true),
             onSuccess: (data) => {
-                console.log("create success!", data);
                 handleUpdate(data);
                 if (display === "page") setLocation(getObjectUrl(data), { replace: true });
             },
@@ -237,10 +235,10 @@ const ChatForm = ({
 
     // When a chat is loaded, store chat ID by participants and task
     useEffect(() => {
-        if (existing.id === DUMMY_ID || existing.participants.length === 0) return;
-        const userIds = existing.participants.map(p => p.user.id);
-        setCookieMatchingChat(existing.id, userIds, task);
-    }, [existing.id, existing.participants, task]);
+        const userIdsWithoutYou = existing.participants?.filter(p => p.user?.id !== getCurrentUser(session).id).map(p => p.user?.id);
+        if (existing.id === DUMMY_ID || userIdsWithoutYou.length === 0) return;
+        setCookieMatchingChat(existing.id, userIdsWithoutYou, task);
+    }, [existing.id, existing.participants, session, task]);
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isSearchTreeLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, isSearchTreeLoading, props.isSubmitting]);
 
@@ -685,9 +683,17 @@ export const ChatCrud = ({
 }: ChatCrudProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const [, setLocation] = useLocation();
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Chat, ChatShape>({
         ...endpointGetChat,
+        onError: (errors) => {
+            // If the chat doesn't exist, switch to create mode
+            if (hasErrorCode({ errors }, "NotFound")) {
+                setLocation(`${LINKS.Chat}/add`, { replace: true, searchParams: parseSearchParams() });
+                setExisting(chatInitialValues(session, task, t, getUserLanguages(session)[0]));
+            }
+        },
         isCreate,
         objectType: "Chat",
         overrideObject: overrideObject as unknown as Chat,

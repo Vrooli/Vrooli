@@ -378,8 +378,19 @@ export const setCookieMatchingChat = (chatId: string, userIds: string[], task?: 
 
     setCookie(Cookies.ChatParticipants, cache);
 });
+export const removeCookieMatchingChat = (userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
+    const cache = getChatMatchCache();
+    const participantsHash = hashChatMatchData(userIds, task);
 
+    // Remove participantsHash from cache
+    const existingIndex = cache.order.indexOf(participantsHash);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+        delete cache.chats[participantsHash];
 
+        setCookie(Cookies.ChatParticipants, cache);
+    }
+});
 
 /** Supports ID data from URL params, as well as partial object */
 export type CookiePartialData = {
