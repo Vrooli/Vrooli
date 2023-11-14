@@ -5,10 +5,7 @@ jest.mock("i18next");
 jest.mock("./logger");
 
 describe("CustomError", () => {
-    beforeEach(() => {
-        // Clear all instances and calls to constructor and all methods:
-        jest.clearAllMocks();
-    });
+    beforeEach(() => { jest.clearAllMocks(); });
 
     it("should generate an error with a correct message", () => {
         const error = new CustomError("TEST", "CouldNotReadObject", ["en"]);

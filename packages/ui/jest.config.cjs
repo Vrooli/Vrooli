@@ -12,7 +12,7 @@ module.exports = {
     testPathIgnorePatterns: ["/node_modules/"],
     modulePaths: ["<rootDir>/src"],
     transform: {
-        "^.+\\.(ts|js|tsx|jsx)$": "@swc/jest",
+        "^.+\\.(ts|js|tsx|jsx)$": "<rootDir>/config/jest/swcTransform.cjs",
         "^.+\\.css$": "<rootDir>/config/jest/cssTransform.cjs",
         "^(?!.*\\.(js|jsx|mjs|cjs|ts|tsx|css|json)$)":
             "<rootDir>/config/jest/fileTransform.cjs",
