@@ -1,13 +1,8 @@
 #!/bin/sh
 # Gets required secrets from secrets manager, if not already in /run/secrets.
-# How to use:
-# 1. Create a temporary file (e.g. `TMP_FILE=$(mktemp)`, `TMP_FILE=/tmp/secrets`, `TMP_FILE=/tmp/secrets.$$`, etc.)
-# 2. Call this script: `./getSecrets.sh <environment> <tmp_file> <secret1> <secret2> ...`
-# 3. Source the temporary file: `. "$TMP_FILE"`
-# 4. Remove the temporary file: `rm "$TMP_FILE"`
+# Example usage:
 #
-# NOTE: Due to incompatability with some shells and minimal images, we cannot rely on exporting secrets as environment variables.
-# This is why it's written to a temporary file, which can be sourced by the parent script.
+# TMP_FILE=$(mktemp) && { ./getSecrets.sh <environment> <secret1> <secret2> ... > "$TMP_FILE" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."; rm "$TMP_FILE"
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "${HERE}/prettify.sh"
 
@@ -34,8 +29,8 @@ fi
 TMP_FILE="$1"
 shift
 
-info "Creating or clearing temporary file: $TMP_FILE"
-echo "" >>"$TMP_FILE"
+info "Creating temporary file: $TMP_FILE"
+echo "" >"$TMP_FILE"
 
 # Function to prompt for a secret
 prompt_for_secret() {
@@ -94,13 +89,21 @@ while [ $# -gt 0 ]; do
                 error "Failed to fetch the secret: $secret"
                 exit 1
             else
-                # Store the fetched secret temporarily in /run/secrets/
+                # Store the fetched secret in /run/secrets/
                 echo "$fetched_secret" >"/run/secrets/vrooli/$environment/$secret"
             fi
         fi
     fi
-    # Store the secret in the temporary file using rename
-    echo "Writing $secret to $TMP_FILE as $rename"
-    echo "$rename=$(cat "/run/secrets/vrooli/$environment/$secret")" >>"$TMP_FILE"
+    echo "Writing $rename to $TMP_FILE"
+    # Count the number of lines in the file
+    line_count=$(wc -l <"/run/secrets/vrooli/$environment/$secret")
+    # Multi-line files should be treated like PEM files
+    if [ "$line_count" -gt 1 ]; then
+        # For PEM files (multi-line): Remove BEGIN/END lines and convert newlines to \n
+        echo "$rename=$(sed -ne '/-BEGIN /,/-END /p' "/run/secrets/vrooli/$environment/$secret" | sed -e '/-BEGIN /d' -e '/-END /d' | awk 'NR > 1 { printf "\\n" } { printf "%s", $0 }')" >>"$TMP_FILE"
+    else
+        # For single-line files: Directly write the content
+        echo "$rename=$(cat "/run/secrets/vrooli/$environment/$secret")" >>"$TMP_FILE"
+    fi
     shift
 done

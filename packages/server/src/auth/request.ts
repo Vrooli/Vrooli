@@ -20,9 +20,9 @@ const getJwtKeys = (): JwtKeys => {
         return jwtKeys;
     }
 
-    // Load the keys from process.env
-    const privateKey = process.env.jwt_priv ?? "";
-    const publicKey = process.env.jwt_pub ?? "";
+    // Load the keys from process.env. They may be in a single line, so replace \n with actual newlines
+    const privateKey = (process.env.jwt_priv ?? "").replace(/\\n/g, "\n");
+    const publicKey = (process.env.jwt_pub ?? "").replace(/\\n/g, "\n");
 
     // Check if the keys are available and log an error if not
     if (privateKey.length <= 0) {
@@ -36,7 +36,7 @@ const getJwtKeys = (): JwtKeys => {
     jwtKeys = { privateKey, publicKey };
 
     return jwtKeys;
-}
+};
 
 /**
  * Parses a request's accept-language header

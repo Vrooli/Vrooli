@@ -1,13 +1,14 @@
 import { ErrorKey, exists } from "@local/shared";
 import { ServerResponse } from "api";
 import i18next from "i18next";
+import { PubSub } from "utils/pubsub";
 
 /**
  * Finds the error code in an ServerResponse object
  * @param response A response from the server
  * @returns The first error code, which should be a translation key
  */
-const errorToCode = (response: ServerResponse): ErrorKey => {
+export const errorToCode = (response: ServerResponse): ErrorKey => {
     // If there is an errors array
     if (response.errors) {
         // Loop through array and return first error code
@@ -51,4 +52,17 @@ export const errorToMessage = (response: ServerResponse, languages: string[]): s
  */
 export const hasErrorCode = (error: ServerResponse, ...codes: ErrorKey[]): boolean => {
     return exists(error) && exists(error.errors) && error.errors.some((e) => exists(e.code) && codes.includes(e.code));
+};
+
+
+/**
+ * Displays errors from a server response as snack messages
+ * @param errors The errors to display
+ */
+export const displayServerErrors = (errors?: ServerResponse["errors"]) => {
+    if (!errors) return;
+    for (const error of errors) {
+        const message = errorToMessage({ errors: [error] }, ["en"]);
+        PubSub.get().publishSnack({ message, severity: "Error" });
+    }
 };

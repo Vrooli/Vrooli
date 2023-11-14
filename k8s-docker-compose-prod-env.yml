@@ -178,36 +178,37 @@ spec:
           - name: db-claim1
             mountPath: /docker-entrypoint-initdb.d
       containers:
-        - args:
-            - /bin/sh
-            - -c
-            - /srv/app/scripts/getSecrets.sh production /tmp/secrets.$()$() DB_PASSWORD:POSTGRES_PASSWORD && . /tmp/secrets.$()$() && rm /tmp/secrets.$()$() && exec docker-entrypoint.sh postgres
-          env:
-            - name: POSTGRES_USER
-              value: site
-            - name: PROJECT_DIR
-              value: /srv/app
-          image: ankane/pgvector:v1.9.7
-          livenessProbe:
-            exec:
-              command:
-                - pg_isready -U site && psql -U site -d postgres -c 'SELECT 1'
-            failureThreshold: 5
-            periodSeconds: 10
-            timeoutSeconds: 5
-          name: db
-          ports:
-            - containerPort: 5432
-          resources: {}
-          volumeMounts:
-            - mountPath: /var/lib/postgresql/data
-              name: db-claim0
-            - mountPath: /docker-entrypoint-initdb.d
-              name: db-claim1
-            - mountPath: /run/secrets/vrooli/prod
-              name: db-claim2
-            - mountPath: /srv/app/scripts
-              name: scripts-claim
+        args:
+          - |
+            { ${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh production /tmp/secrets.$$ DB_PASSWORD:POSTGRES_PASSWORD 2>/dev/null && . /tmp/secrets.$$ } || echo 'Failed to get secrets.'; 
+            rm /tmp/secrets.$$ && 
+            exec docker-entrypoint.sh postgres"
+        env:
+          - name: POSTGRES_USER
+            value: site
+          - name: PROJECT_DIR
+            value: /srv/app
+        image: ankane/pgvector:v1.9.7
+        livenessProbe:
+          exec:
+            command:
+              - pg_isready -U site && psql -U site -d postgres -c 'SELECT 1'
+          failureThreshold: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+        name: db
+        ports:
+          - containerPort: 5432
+        resources: {}
+        volumeMounts:
+          - mountPath: /var/lib/postgresql/data
+            name: db-claim0
+          - mountPath: /docker-entrypoint-initdb.d
+            name: db-claim1
+          - mountPath: /run/secrets/vrooli/prod
+            name: db-claim2
+          - mountPath: /srv/app/scripts
+            name: scripts-claim
       restartPolicy: Always
       volumes:
         - name: db-claim0

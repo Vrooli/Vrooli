@@ -27,12 +27,13 @@ However, this conversion process is not perfect. The configuration will most lik
 1. Create the Kubernetes configuration (if you haven't already) using `./scripts/dockerToKubernetes.sh`.
 2. Start Minikube in a Docker container, using `minikube start --driver=docker --force`. *Note: You can stop minikube using `minikube stop`.*
 3. Point your terminal to use the Docker daemon inside Minikube, using `eval $(minikube docker-env)`. This sets a few Docker-related environment variables, so that Docker commands point to the Docker daemon inside Minikube, rather than the one on your local machine. *Note: You can undo this using `eval $(minikube docker-env -u)`.*
-4. Add the following lines to your hosts file (`/etc/hosts` for Linux and Mac, `C:\Windows\System32\Drivers\etc\hosts` for Windows). DO NOT use Minikube's IP:
+4. Add the following lines to your hosts file (`/etc/hosts` for Linux and Mac, `C:\Windows\System32\Drivers\etc\hosts` for Windows):
     ```
     127.0.0.1 docs.vrooli.com
     127.0.0.1 vrooli.com
     ```
     This will allow you to access the services using the same URLs as in production.
+    *NOTE:* We are NOT using Minikube's IP address here, since it doesn't work for some reason. This may be because we're using Docker for the driver, instead of something like hyperv.
     **WARNING:** Remember to remove these lines from `/etc/hosts` when you are done testing. Otherwise, you will not be able to access the real Vrooli website.
 5. Enable ingress on Minikube, using `minikube addons enable ingress`, then `minikube addone enable ingress-dns`. *Note: You can disable ingress using `minikube addons disable ingress`.*
 6. If you want to start Kubernetes from scratch, run `kubectl delete all --all`. This will delete all Kubernetes objects, including pods, deployments, services, etc. *Note: You can delete specific objects using `kubectl delete <object-type> <object-name>`.*
