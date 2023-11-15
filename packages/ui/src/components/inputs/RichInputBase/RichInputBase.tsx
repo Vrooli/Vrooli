@@ -31,6 +31,7 @@ export const RichInputBase = ({
     minRows = 4,
     name,
     onBlur,
+    onFocus,
     onChange,
     placeholder = "",
     tabIndex,
@@ -175,6 +176,7 @@ export const RichInputBase = ({
         name,
         onActiveStatesChange: handleActiveStatesChange,
         onBlur,
+        onFocus,
         onChange: changeInternalValue,
         openAssistantDialog,
         placeholder,
@@ -250,7 +252,7 @@ export const RichInputBase = ({
                                     <Tooltip key={index} title={tooltip} placement="top">
                                         <IconButton
                                             disabled={disabled || buttonDisabled}
-                                            size="small"
+                                            size="medium"
                                             onClick={onClick}
                                             sx={{ background: palette.primary.dark }}
                                         >

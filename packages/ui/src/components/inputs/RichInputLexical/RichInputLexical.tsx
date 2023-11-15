@@ -532,6 +532,7 @@ const RichInputLexicalComponents = ({
     name,
     onActiveStatesChange,
     onBlur,
+    onFocus,
     onChange,
     openAssistantDialog,
     placeholder = "",

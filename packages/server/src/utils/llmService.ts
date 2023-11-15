@@ -9,11 +9,28 @@ import { Trigger } from "../events/trigger";
 import { io } from "../io";
 import { PreMapBotData, PreMapMessageData } from "../models/base/chatMessage";
 import { PrismaType, SessionUserToken } from "../types";
+import { bestTranslation } from "./bestTranslation";
 
-// Define an interface for a language model service
+type BotSettings = {
+    model?: string;
+    maxTokens?: number;
+    name: string;
+    translations?: Record<string, {
+        bias?: string;
+        creativity?: number;
+        domainKnowledge?: string;
+        keyPhrases?: string;
+        occupation?: string;
+        persona?: string;
+        startingMessage?: string;
+        tone?: string;
+        verbosity?: number;
+    }>
+};
+
 interface LanguageModelService {
     /** Generate a message response */
-    generateResponse(prompt: string, config?: any): Promise<string>;
+    generateResponse(prompt: string, config: BotSettings, userData: SessionUserToken): Promise<string>;
     /** Convert a preferred model to an available one */
     getModel(requestedModel: string): string;
 }
@@ -27,11 +44,27 @@ export class OpenAIService implements LanguageModelService {
         });
     }
 
-    async generateResponse(prompt: string, config?: { model?: string, maxTokens?: number }): Promise<string> {
+    async generateResponse(prompt: string, config: BotSettings, userData: SessionUserToken): Promise<string> {
+        const translationsList = Object.entries(config?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
+        const translation = bestTranslation(translationsList, userData.languages) ?? {};
+
+        let instructions = `You are a helpful assistant for an app named Vrooli. Please follow the configuration below to best suit the user's needs:
+        
+        ai_assistant:
+          metadata:
+            name: ${config.name ?? "Bot"}
+          personality:
+        `;
+        for (const [key, value] of Object.entries(translation)) {
+            instructions += `    ${key}: ${value}
+            `;
+        }
+
         const model = this.getModel(config?.model);
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
-            messages: [{ role: "user", content: prompt }],
+            messages: [{ role: "user", content: instructions }, { role: "user", content: prompt }],
             model,
+            user: userData.name ?? undefined,
         };
         const chatCompletion: OpenAI.Chat.ChatCompletion = await this.openai.chat.completions
             .create(params)
@@ -51,9 +84,11 @@ export class OpenAIService implements LanguageModelService {
     }
 }
 
-export const getLanguageModelService = (_botSettings: Record<string, unknown>): LanguageModelService => {
-    // For now, always return OpenAIService, but you could add logic to return different services based on botSettings
-    return new OpenAIService();
+export const getLanguageModelService = (botSettings: BotSettings): LanguageModelService => {
+    switch (botSettings.model) {
+        default:
+            return new OpenAIService();
+    }
 };
 
 //TODO need to pass all chat's botData to this function. Then if one of the bots is in the previous messages, we 
@@ -70,11 +105,11 @@ export const getLanguageModelService = (_botSettings: Record<string, unknown>): 
  */
 export const respondToMessage = async (messageId: string, message: PreMapMessageData, bot: PreMapBotData, prisma: PrismaType, userData: SessionUserToken): Promise<void> => {
     try {
-        const botSettings = typeof bot.botSettings === "string" ? JSON.parse(bot.botSettings) : {};
+        const botSettings: BotSettings = typeof bot.botSettings === "string" ? JSON.parse(bot.botSettings) : {};
         const service = getLanguageModelService(botSettings);
         // Send typing message while bot is responding
         io.to(message.chatId as string).emit("typing", { starting: [bot.id] });
-        const text = await service.generateResponse(message.content, botSettings);
+        const text = await service.generateResponse(message.content, { ...botSettings, name: bot.name }, userData);
         const select = selectHelper(chatMessage_findOne);
         const createdData = await prisma.chat_message.create({
             data: {

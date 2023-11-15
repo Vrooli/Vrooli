@@ -395,7 +395,6 @@ const ChatForm = ({
                 reaction: null,
             },
         } as any;
-        console.log("updating messages", values.messages, newMessage);
         onSubmit({ ...values, messages: [...values.messages, newMessage] });
     }, [existing.id, language, onSubmit, session, values]);
 
@@ -428,6 +427,10 @@ const ChatForm = ({
         objectType: "Chat",
         onActionComplete: actionData.onActionComplete,
     });
+
+    const [inputFocused, setInputFocused] = useState(false);
+    const onFocus = useCallback(() => { setInputFocused(true); }, []);
+    const onBlur = useCallback(() => { setInputFocused(false); }, []);
 
     return (
         <>
@@ -647,14 +650,17 @@ const ChatForm = ({
                             return users;
                         }}
                         maxChars={1500}
+                        maxRows={inputFocused ? 10 : 2}
                         minRows={1}
+                        onBlur={onBlur}
                         onChange={setMessage}
+                        onFocus={onFocus}
                         name="newMessage"
                         sxs={{
                             root: {
                                 background: palette.primary.dark,
                                 color: palette.primary.contrastText,
-                                maxHeight: "min(50vh, 500px)",
+                                maxHeight: "min(75vh, 500px)",
                                 width: "min(700px, 100%)",
                                 margin: "auto",
                                 marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },

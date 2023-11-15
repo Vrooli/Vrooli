@@ -186,6 +186,10 @@ export const DashboardView = ({
         };
     }, [closeSideMenu]);
 
+    const [inputFocused, setInputFocused] = useState(false);
+    const onFocus = useCallback(() => { setInputFocused(true); }, []);
+    const onBlur = useCallback(() => { setInputFocused(false); }, []);
+
     return (
         <Box sx={{
             display: "flex",
@@ -306,15 +310,18 @@ export const DashboardView = ({
                     return [];
                 }}
                 maxChars={1500}
+                maxRows={inputFocused ? 10 : 2}
                 minRows={1}
                 name="search"
+                onBlur={onBlur}
                 onChange={setMessage}
+                onFocus={onFocus}
                 placeholder={t("WhatWouldYouLikeToDo")}
                 sxs={{
                     root: {
                         background: palette.primary.dark,
                         color: palette.primary.contrastText,
-                        maxHeight: "min(50vh, 500px)",
+                        maxHeight: "min(75vh, 500px)",
                         width: "min(700px, 100%)",
                         margin: "auto",
                         marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },

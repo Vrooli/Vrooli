@@ -10,7 +10,7 @@ import { Formik } from "formik";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -100,6 +100,10 @@ const ChatInvitesForm = ({
         }
     }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, props, setMessage, values]);
 
+    const [inputFocused, setInputFocused] = useState(false);
+    const onFocus = useCallback(() => { setInputFocused(true); }, []);
+    const onBlur = useCallback(() => { setInputFocused(false); }, []);
+
     return (
         <MaybeLargeDialog
             display={display}
@@ -142,15 +146,18 @@ const ChatInvitesForm = ({
                         disabled={values.length <= 0}
                         fullWidth
                         maxChars={4096}
+                        maxRows={inputFocused ? 10 : 2}
                         minRows={1}
+                        onBlur={onBlur}
                         onChange={setMessage}
+                        onFocus={onFocus}
                         name="message"
                         sxs={{
                             root: {
                                 background: palette.primary.main,
                                 color: palette.primary.contrastText,
                                 paddingBottom: 2,
-                                maxHeight: "min(50vh, 500px)",
+                                maxHeight: "min(75vh, 500px)",
                                 width: "-webkit-fill-available",
                                 margin: "0",
                             },

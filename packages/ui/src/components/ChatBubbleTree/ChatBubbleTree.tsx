@@ -61,12 +61,14 @@ export const ChatBubbleTree = ({
 }) => {
     const session = useContext(SessionContext);
     const { dimensions, ref: dimRef } = useDimensions();
+    console.log("in chat bubble tree: allMessages", allMessages.map(m => m.translations));
 
     // Extract branches from the cookie
     const initialMessageTreeData = getCookieMessageTree(chatId);
     const [branches, setBranches] = useState<ChatMessageBranch[]>(initialMessageTreeData?.branches ?? []);
 
     const messageTree = new MessageTree(allMessages);
+    console.log("in chat bubble tree: messageTree", messageTree);
 
     useEffect(() => {
         // Update the cookie with current branches
@@ -79,9 +81,15 @@ export const ChatBubbleTree = ({
             [messageId]: childId,
         }));
     };
-    const renderMessage = (node: MessageNode<ChatMessageShape>, isOwn: boolean) => {
+    const renderMessage = (node: MessageNode<ChatMessageShape>) => {
+        // Find the active child, or default to first child
         const activeChildId = branches[node.message.id];
-        const activeChild = node.children.find(child => child.message.id === activeChildId);
+        const activeChild = activeChildId ?
+            node.children.find(child => child.message.id === activeChildId) :
+            node.children.length > 0 ?
+                node.children[0] :
+                undefined;
+        const isOwn = node.message.user?.id === getCurrentUser(session).id;
 
         return (
             <React.Fragment key={node.message.id} >
@@ -94,7 +102,7 @@ export const ChatBubbleTree = ({
                     isOwn={isOwn}
                 // ... (other props)
                 />
-                {activeChild && renderMessage(activeChild, isOwn)}
+                {activeChild && renderMessage(activeChild)}
             </React.Fragment>
         );
     };
@@ -103,8 +111,7 @@ export const ChatBubbleTree = ({
         <Box ref={dimRef} sx={{ minHeight: "min(400px, 33vh)" }}>
             {
                 messageTree.getRoots().map(root => {
-                    const isOwn = root.message.user?.id === getCurrentUser(session).id;
-                    return renderMessage(root, isOwn);
+                    return renderMessage(root);
                 })
             }
             <TypingIndicator participants={usersTyping} />

@@ -145,6 +145,7 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
     minRows?: number;
     name: string;
     onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
+    onFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
     onChange: (newText: string) => unknown;
     placeholder?: string;
     tabIndex?: number;

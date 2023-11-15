@@ -1,4 +1,3 @@
-import { useTheme } from "@mui/material";
 import { FC, useCallback, useEffect, useRef } from "react";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
@@ -114,6 +113,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     minRows = 4,
     name,
     onBlur,
+    onFocus,
     onChange,
     openAssistantDialog,
     placeholder = "",
@@ -125,7 +125,6 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     value,
     sx,
 }: RichInputMarkdownProps) => {
-    const { palette, typography } = useTheme();
 
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -465,6 +464,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                 rows={minRows}
                 value={value}
                 onBlur={onBlur}
+                onFocus={onFocus}
                 onChange={(e) => { onChange(e.target.value); }}
                 tabIndex={tabIndex}
                 spellCheck
