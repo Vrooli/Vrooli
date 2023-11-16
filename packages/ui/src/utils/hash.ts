@@ -14,7 +14,7 @@ export const weakHash = (str: string) => {
     return hash.toString();
 };
 
-export const hashChatMatchData = (userIds: string[], task?: AssistantTask): string => {
+export const chatMatchHash = (userIds: string[], task?: AssistantTask): string => {
     // Sort for consistent ordering
     let toHash = userIds.sort().join("|");
     // Append the task if it exists

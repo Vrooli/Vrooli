@@ -138,14 +138,14 @@ export const ChatSideMenu = ({
                 sx={{
                     zIndex,
                     "& .MuiDrawer-paper": {
-                        background: palette.background.default,
+                        background: palette.background.paper,
                         overflowY: "auto",
                         borderRight: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
-                        width: "min(350px, 100%)",
+                        width: "min(250px, 100%)",
                         zIndex,
                     },
                     "& > .MuiDrawer-root": {
-                        width: "min(350px, 100%)",
+                        width: "min(250px, 100%)",
                         "& > .MuiPaper-root": {
                             zIndex,
                         },
@@ -159,7 +159,6 @@ export const ChatSideMenu = ({
                         display: "flex",
                         flexDirection: "row",
                         alignItems: "center",
-                        justifyContent: "space-between",
                         padding: 1,
                         gap: 1,
                         background: palette.primary.dark,
@@ -167,25 +166,16 @@ export const ChatSideMenu = ({
                         textAlign: "center",
                         fontSize: { xs: "1.5rem", sm: "2rem" },
                         height: "64px", // Matches Navbar height
-                        paddingRight: 3, // Matches navbar padding
                     }}
                 >
                     <IconButton
                         aria-label="close"
                         onClick={handleClose}
+                        sx={{ marginRight: "auto" }}
+
                     >
                         <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                     </IconButton>
-                    <SelectorBase
-                        color={palette.primary.contrastText}
-                        name="tab"
-                        value={currTab}
-                        label=""
-                        onChange={(tab) => handleTabChange(undefined, tab)}
-                        options={tabs}
-                        getOptionLabel={(o) => o.label}
-                        fullWidth={true}
-                    />
                     <Tooltip title={t("SearchFiltersShow")}>
                         <IconButton
                             aria-label="search"
@@ -201,6 +191,16 @@ export const ChatSideMenu = ({
                     </Tooltip>}
                 </Box>
                 <Box sx={{ overflowY: "auto" }} >
+                    <SelectorBase
+                        color={palette.primary.contrastText}
+                        name="tab"
+                        value={currTab}
+                        label=""
+                        onChange={(tab) => handleTabChange(undefined, tab)}
+                        options={tabs}
+                        getOptionLabel={(o) => o.label}
+                        fullWidth={true}
+                    />
                     <SearchList
                         id="chat-related-search-list"
                         display={isMobile ? "dialog" : "partial"}
@@ -218,8 +218,6 @@ export const ChatSideMenu = ({
                             ),
                             listContainer: {
                                 borderRadius: 0,
-                                // Hide Avatar from list items
-                                "& .MuiAvatar-root": { display: "none" },
                             },
                         }}
                         where={where()}

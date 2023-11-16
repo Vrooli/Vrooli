@@ -1,7 +1,7 @@
 import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
 import { Range } from "@codemirror/state";
-import { ChatInviteStatus, LangsKey, uuid } from "@local/shared";
+import { ChatInviteStatus, DUMMY_ID, LangsKey, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -555,7 +555,7 @@ export const CodeInputBase = ({
         const existingChatId = getCookieMatchingChat([VALYXA_INFO.id], "standard");
         const overrideObject = {
             __typename: "Chat" as const,
-            id: existingChatId ?? uuid(),
+            id: existingChatId ?? DUMMY_ID,
             openToAnyoneWithInvite: false,
             invites: [{
                 __typename: "ChatInvite" as const,

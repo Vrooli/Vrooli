@@ -7,10 +7,10 @@
     viewBox="0 0 24 24"
     version="1.1"
     id="svg5"
-    inkscape:export-filename="ActionIcon.svg"
+    inkscape:export-filename="ChevronLeftIcon.svg"
     inkscape:export-xdpi="96"
     inkscape:export-ydpi="96"
-    sodipodi:docname="ActionIcon.svg"
+    sodipodi:docname="ChevronLeftIcon.svg"
     xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
     xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
     xmlns="http://www.w3.org/2000/svg"
@@ -35,6 +35,6 @@
         <path
             id="path1589"
             style="color:#000000;fill:#000000;stroke-linecap:round"
-            d="M 12,2.421875 C 6.7186503,2.4218751 2.421875,6.7186504 2.421875,12 c 0,5.28135 4.2967753,9.578125 9.578125,9.578125 5.28135,0 9.578125,-4.296775 9.578125,-9.578125 C 21.578125,6.7186504 17.28135,2.4218752 12,2.421875 Z m 0,1.5117188 c 4.464309,0 8.066406,3.6020977 8.066406,8.0664062 0,4.464309 -3.602097,8.066406 -8.066406,8.066406 C 7.5356915,20.066406 3.9335938,16.464309 3.9335938,12 3.9335938,7.5356915 7.5356915,3.9335938 12,3.9335938 Z m 0,3.9921874 A 4.075166,4.075166 0 0 0 7.9257812,12 4.075166,4.075166 0 0 0 12,16.074219 4.075166,4.075166 0 0 0 16.074219,12 4.075166,4.075166 0 0 0 12,7.9257812 Z" />
+            d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
     </g>
 </svg>

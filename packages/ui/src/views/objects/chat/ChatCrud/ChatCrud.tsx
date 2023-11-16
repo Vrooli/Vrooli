@@ -2,7 +2,7 @@ import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMes
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
+import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -126,21 +126,17 @@ export const transformChatValues = (values: ChatShape, existing: ChatShape, isCr
 
 /** Basic chatInfo for a new convo with Valyxa */
 export const VALYXA_INFO = {
-    __typename: "ChatParticipant" as const,
-    id: uuid(),
-    user: {
-        ...getCookiePartialData({ __typename: "User", id: VALYXA_ID }),
-        id: VALYXA_ID,
-        isBot: true,
-        name: "Valyxa" as const,
-    },
+    ...getCookiePartialData({ __typename: "User", id: VALYXA_ID }),
+    id: VALYXA_ID,
+    isBot: true,
+    name: "Valyxa" as const,
 } as const;
 
 /**
  * Finds messages that are yours or are unsent (i.e. bot's initial message), 
  * to make sure you don't attempt to modify other people's messages
  */
-const withoutOtherMessages = (chat: ChatShape, session?: Session) => ({
+export const withoutOtherMessages = (chat: ChatShape, session?: Session) => ({
     ...chat,
     messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id || m.isUnsent) ?? [],
 });
@@ -249,7 +245,7 @@ const ChatForm = ({
         }
         console.log("onsubmittttt values", updatedChat ?? values);
         console.log("onsubmittttt transformed", JSON.stringify(transformChatValues(updatedChat ?? values, existing, false)));
-        fetchLazyWrapper<ChatCreateInput | ChatUpdateInput, Chat>({
+        fetchLazyWrapper<ChatUpdateInput, Chat>({
             fetch,
             inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values, session), withoutOtherMessages(existing, session), false),
             onSuccess: (data) => {
@@ -432,6 +428,8 @@ const ChatForm = ({
     const onFocus = useCallback(() => { setInputFocused(true); }, []);
     const onBlur = useCallback(() => { setInputFocused(false); }, []);
 
+    const showBotWarning = useMemo(() => !disabled && usersTyping.length === 0 && allMessages?.length <= 2 && existing.participants?.some(i => i?.user?.isBot), [allMessages, disabled, existing.participants, usersTyping]);
+
     return (
         <>
             {existing?.id && DeleteDialogComponent}
@@ -574,43 +572,13 @@ const ChatForm = ({
                     }}>
                         <ChatBubbleTree
                             allMessages={allMessages}
+                            handleUpdate={handleUpdate}
                             chatId={existing.id}
-                            usersTyping={usersTyping}
                         />
-                        {/* <Box sx={{ minHeight: "min(400px, 33vh)" }}>
-                            {allMessages.map((message: ChatMessageShape, index) => {
-                                const isOwn = message.user?.id === getCurrentUser(session).id;
-                                return <ChatBubble
-                                    key={index}
-                                    chatWidth={dimensions.width}
-                                    message={message}
-                                    index={index}
-                                    isOwn={isOwn}
-                                    onDeleted={(deletedMessage) => {
-                                        handleUpdate(c => ({
-                                            ...c,
-                                            // TODO should be deleting messages in tree instead
-                                            messages: c.messages.filter(m => m.id !== deletedMessage.id),
-                                        }));
-                                    }}
-                                    onUpdated={(updatedMessage) => {
-                                        handleUpdate(c => ({
-                                            ...c,
-                                            // TODO should be updating messages in tree instead
-                                            messages: updateArray(
-                                                c.messages,
-                                                c.messages.findIndex(m => m.id === updatedMessage.id),
-                                                updatedMessage,
-                                            ),
-                                        }));
-                                    }}
-                                />;
-                            })}
-                            <TypingIndicator participants={typing} />
-                        </Box> */}
                     </Box>
+                    {!showBotWarning && <TypingIndicator participants={usersTyping} />}
                     {/* Warning that you are talking to a bot */}
-                    {!disabled && values.messages?.length <= 1 && existing.participants?.some(i => i?.user?.isBot) &&
+                    {showBotWarning &&
                         <Box display="flex" flexDirection="row" justifyContent="center" margin="auto" gap={0} p={1}>
                             <Typography variant="body2" sx={{ margin: "auto", maxWidth: "min(700px, 100%)" }}>{t("BotChatWarning")}</Typography>
                             <Button variant="text" sx={{ margin: "auto", textTransform: "none" }} onClick={() => {
@@ -621,7 +589,8 @@ const ChatForm = ({
                                     ],
                                 });
                             }}>{t("LearnMore")}</Button>
-                        </Box>}
+                        </Box>
+                    }
                     <RichInputBase
                         actionButtons={[{
                             Icon: SendIcon,
@@ -630,6 +599,7 @@ const ChatForm = ({
                                     PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
                                     return;
                                 }
+                                if (message.trim() === "") return;
                                 addMessage(message);
                             },
                         }]}

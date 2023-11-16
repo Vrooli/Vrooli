@@ -64,7 +64,6 @@ export function ReminderListItem({
 }: ReminderListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    console.log("in reminder list item", data);
 
     const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
 

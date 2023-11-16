@@ -6,7 +6,7 @@ import { useLazyFetch } from "./useLazyFetch";
 
 export const useProfileQuery = () => {
     const session = useContext(SessionContext);
-    const [getData, { data, loading: isProfileLoading }] = useLazyFetch<any, User>(endpointGetProfile);
+    const [getData, { data, loading: isProfileLoading }] = useLazyFetch<never, User>(endpointGetProfile);
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
     }, [getData, session]);

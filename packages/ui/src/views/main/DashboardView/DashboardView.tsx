@@ -1,5 +1,7 @@
-import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid } from "@local/shared";
+import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessage, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, IconButton, useTheme } from "@mui/material";
+import { fetchLazyWrapper, socket } from "api";
+import { TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
@@ -9,21 +11,26 @@ import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
+import { useHistoryState } from "hooks/useHistoryState";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { PageTab } from "hooks/useTabs";
-import { AddIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SearchIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { AddIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SendIcon } from "icons";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
-import { CalendarEvent, ShortcutOption } from "types";
+import { CalendarEvent } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
+import { getCookieMatchingChat, setCookieMatchingChat } from "utils/cookies";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
-import { deleteArrayIndex, updateArray } from "utils/shape/general";
+import { addToArray, deleteArrayIndex, updateArray } from "utils/shape/general";
+import { ChatShape } from "utils/shape/models/chat";
+import { ChatMessageShape } from "utils/shape/models/chatMessage";
+import { chatInitialValues, transformChatValues, VALYXA_INFO, withoutOtherMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
 
 /** View displayed for Home page when logged in */
@@ -36,9 +43,73 @@ export const DashboardView = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
-    const [message, setMessage] = useState<string>("");
-    const [refetch, { data, loading }] = useLazyFetch<any, HomeResult>(endpointGetFeedHome);
+    const [message, setMessage] = useHistoryState<string>("dashboardMessage", "");
+    const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
+    const [refetch, { data, loading: isFeedLoading }] = useLazyFetch<HomeInput, HomeResult>(endpointGetFeedHome);
+
+    const {
+        fetch,
+        fetchCreate,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertFetch<Chat, ChatCreateInput, ChatUpdateInput>({
+        isCreate: false, // We create chats automatically, so this should always be false
+        isMutate: true,
+        endpointCreate: endpointPostChat,
+        endpointUpdate: endpointPutChat,
+    });
+
+    const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
+    const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, undefined, t, languages[0], {
+        __typename: "Chat" as const,
+        id: DUMMY_ID,
+        openToAnyoneWithInvite: false,
+        invites: [{
+            __typename: "ChatInvite" as const,
+            id: DUMMY_ID,
+            status: ChatInviteStatus.Pending,
+            user: VALYXA_INFO,
+        }],
+    } as unknown as Chat));
+    // When a chat is loaded, store chat ID by participant and task
+    useEffect(() => {
+        if (!loadedChat?.id) return;
+        setCookieMatchingChat(loadedChat.id, [VALYXA_ID]);
+    }, [loadedChat, loadedChat?.id, session]);
+
+    // Create chats automatically
+    const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
+    useEffect(() => {
+        // Unlike the chat view, we look for the chat by local storage data rather than the ID in the URL
+        const existingChatId = getCookieMatchingChat([VALYXA_ID]);
+        const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [getCurrentUser(session).id, VALYXA_ID].includes(p.user.id));
+        if (chat.id === DUMMY_ID && existingChatId) {
+            console.log("fetching chattttt", existingChatId);
+            fetchLazyWrapper<FindByIdInput, Chat>({
+                fetch: getChat,
+                inputs: { id: existingChatId },
+                onSuccess: (data) => {
+                    setChat(data);
+                },
+            });
+        }
+        else if (!isChatValid && chatCreateStatus.current === "notStarted") {
+            console.log("creating chattttt", chat);
+            chatCreateStatus.current = "inProgress";
+            fetchLazyWrapper<ChatCreateInput, Chat>({
+                fetch: fetchCreate,
+                inputs: transformChatValues(withoutOtherMessages(chat, session), withoutOtherMessages(chat, session), true),
+                onSuccess: (data) => {
+                    setChat(data);
+                },
+                onCompleted: () => {
+                    chatCreateStatus.current = "complete";
+                },
+            });
+        }
+    }, [chat, display, fetchCreate, getChat, isOpen, session, setLocation]);
 
     // Handle focus modes
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
@@ -82,7 +153,7 @@ export const DashboardView = ({
         id: DUMMY_ID,
         resources: [],
         translations: [],
-    } as any);
+    } as unknown as ResourceList);
     useEffect(() => {
         if (data?.resources) {
             setResourceList(r => ({ ...r, resources: data.resources }));
@@ -91,17 +162,9 @@ export const DashboardView = ({
     useEffect(() => {
         // Resources are added to the focus mode's resource list
         if (activeFocusMode?.mode?.resourceList?.id && activeFocusMode.mode?.resourceList.id !== DUMMY_ID) {
-            setResourceList(activeFocusMode!.mode?.resourceList);
+            setResourceList(activeFocusMode.mode.resourceList);
         }
     }, [activeFocusMode]);
-
-    const languages = useMemo(() => getUserLanguages(session), [session]);
-
-    const shortcutsItems = useMemo<ShortcutOption[]>(() => shortcuts.map(({ label, labelArgs, value }) => ({
-        __typename: "Shortcut",
-        label: t(label, { ...(labelArgs ?? {}), defaultValue: label }) as string,
-        id: value,
-    })), [t]);
 
     const openSchedule = useCallback(() => {
         setLocation(LINKS.Calendar);
@@ -139,14 +202,14 @@ export const DashboardView = ({
         // Initialize result
         const result: CalendarEvent[] = [];
         // Loop through schedules
-        schedules.forEach((schedule: any) => {
+        schedules.forEach((schedule) => {
             // Get occurrences in the upcoming 30 days
             const occurrences = calculateOccurrences(schedule, new Date(), new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
             // Create events
             const events: CalendarEvent[] = occurrences.map(occurrence => ({
                 __typename: "CalendarEvent",
                 id: uuid(),
-                title: getDisplay(schedule, getUserLanguages(session)).title,
+                title: getDisplay(schedule, languages).title,
                 start: occurrence.start,
                 end: occurrence.end,
                 allDay: false,
@@ -158,7 +221,7 @@ export const DashboardView = ({
         // Sort events by start date, and return the first 10
         result.sort((a, b) => a.start.getTime() - b.start.getTime());
         return result.slice(0, 10);
-    }, [schedules, session]);
+    }, [languages, schedules]);
     const onEventAction = useCallback((action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => {
         switch (action) {
             case "Deleted": {
@@ -189,6 +252,136 @@ export const DashboardView = ({
     const [inputFocused, setInputFocused] = useState(false);
     const onFocus = useCallback(() => { setInputFocused(true); }, []);
     const onBlur = useCallback(() => { setInputFocused(false); }, []);
+
+    const onSubmit = useCallback((updatedChat: ChatShape) => {
+        console.log("onSubmitttt", updatedChat);
+        fetchLazyWrapper<ChatUpdateInput, Chat>({
+            fetch,
+            inputs: transformChatValues(withoutOtherMessages(updatedChat, session), withoutOtherMessages(chat, session), false),
+            onSuccess: (data) => {
+                console.log("update success!", data);
+                setChat(data);
+                setMessage("");
+            },
+        });
+    }, [chat, fetch, setChat, session, setMessage]);
+
+    // Handle websocket connection/disconnection
+    useEffect(() => {
+        // Only connect to the websocket if the chat exists
+        if (!chat?.id || chat.id === DUMMY_ID) return;
+        socket.emit("joinRoom", chat.id, (response) => {
+            if (response.error) {
+                console.error("Failed to join chat room", response?.error);
+            } else {
+                console.info("Joined chat room");
+            }
+        });
+        // Leave the chat room when the component is unmounted
+        return () => {
+            socket.emit("leaveRoom", chat.id, (response) => {
+                if (response.error) {
+                    console.error("Failed to leave chat room", response?.error);
+                } else {
+                    console.info("Left chat room");
+                }
+            });
+        };
+    }, [chat.id]);
+    // Handle websocket events
+    useEffect(() => {
+        // When a message is received, add it to the chat
+        socket.on("message", (message: ChatMessage) => {
+            // Make sure it's inserted in the correct order, using the created_at field.
+            setChat(c => ({
+                ...c,
+                messages: addToArray(
+                    c.messages,
+                    message as ChatMessageShape,
+                ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+            }));
+        });
+        // When a message is updated, update it in the chat
+        socket.on("editMessage", (message: ChatMessage) => {
+            setChat(c => ({
+                ...c,
+                messages: updateArray(
+                    c.messages,
+                    c.messages.findIndex(m => m.id === message.id),
+                    message as ChatMessageShape,
+                ),
+            }));
+        });
+        // When a message is deleted, remove it from the chat
+        socket.on("deleteMessage", (id: string) => {
+            setChat(c => ({
+                ...c,
+                messages: c.messages.filter(m => m.id !== id),
+            }));
+        });
+        // Show the status of users typing
+        socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
+            // Add every user that's typing
+            const newTyping = [...usersTyping];
+            for (const id of starting ?? []) {
+                // Never add yourself
+                if (id === getCurrentUser(session).id) continue;
+                if (newTyping.some(p => p.user.id === id)) continue;
+                const participant = chat.participants?.find(p => p.user.id === id);
+                if (!participant) continue;
+                newTyping.push(participant);
+            }
+            // Remove every user that stopped typing
+            for (const id of stopping ?? []) {
+                const index = newTyping.findIndex(p => p.user.id === id);
+                if (index === -1) continue;
+                newTyping.splice(index, 1);
+            }
+            setUsersTyping(newTyping);
+        });
+        return () => {
+            // Remove chat-specific event handlers
+            socket.off("message");
+            socket.off("typing");
+        };
+    }, [chat.participants, setChat, message, session, usersTyping]);
+
+    const addMessage = useCallback((text: string) => {
+        const newMessage = {
+            __typename: "ChatMessage" as const,
+            id: DUMMY_ID,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            isUnsent: true,
+            chat: {
+                __typename: "Chat" as const,
+                id: chat.id,
+            } as any,
+            translations: [{
+                __typename: "ChatMessageTranslation" as const,
+                id: DUMMY_ID,
+                language: languages[0],
+                text,
+            }],
+            user: {
+                ...getCurrentUser(session),
+                __typename: "User" as const,
+                isBot: false,
+            },
+            you: {
+                canDelete: true,
+                canUpdate: true,
+                canReply: true,
+                canReport: true,
+                canReact: true,
+                reaction: null,
+            },
+        } as ChatMessageShape;
+        console.log("new message", newMessage);
+        onSubmit({ ...chat, messages: [...chat.messages, newMessage] });
+    }, [chat, languages, onSubmit, session]);
+
+    console.log("dashboard messages", chat?.messages);
 
     return (
         <Box sx={{
@@ -245,7 +438,7 @@ export const DashboardView = ({
                         list={resourceList}
                         canUpdate={true}
                         handleUpdate={setResourceList}
-                        loading={loading}
+                        loading={isFeedLoading}
                         mutate={true}
                         parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
                         title={t("Resource", { count: 2 })}
@@ -255,7 +448,7 @@ export const DashboardView = ({
                 {upcomingEvents.length > 0 && <ListTitleContainer
                     Icon={MonthIcon}
                     id="main-event-list"
-                    isEmpty={upcomingEvents.length === 0 && !loading}
+                    isEmpty={upcomingEvents.length === 0 && !isFeedLoading}
                     title={t("Schedule", { count: 1 })}
                     options={[{
                         Icon: OpenInNewIcon,
@@ -267,7 +460,7 @@ export const DashboardView = ({
                         dummyItems={new Array(5).fill("Event")}
                         items={upcomingEvents}
                         keyPrefix="event-list-item"
-                        loading={loading}
+                        loading={isFeedLoading}
                         onAction={onEventAction}
                     />
                 </ListTitleContainer>}
@@ -275,7 +468,7 @@ export const DashboardView = ({
                 {reminders.length > 0 && <ListTitleContainer
                     Icon={ReminderIcon}
                     id="main-reminder-list"
-                    isEmpty={reminders.length === 0 && !loading}
+                    isEmpty={reminders.length === 0 && !isFeedLoading}
                     title={t("Reminder", { count: 2 })}
                     options={[{
                         Icon: OpenInNewIcon,
@@ -291,16 +484,21 @@ export const DashboardView = ({
                         dummyItems={new Array(5).fill("Reminder")}
                         items={reminders}
                         keyPrefix="reminder-list-item"
-                        loading={loading}
+                        loading={isFeedLoading}
                         onAction={onReminderAction}
                     />
                 </ListTitleContainer>}
             </Box>
+            <Box display="flex" flexDirection="row" justifyContent="center" margin="auto" gap={0} p={1}>
+                <TypingIndicator participants={usersTyping} />
+            </Box>
             <RichInputBase
                 actionButtons={[{
-                    Icon: SearchIcon, // Should be SearchIcon by default. But if search result is focused, then can change to that item's icon
+                    disabled: isChatLoading || isCreateLoading || isUpdateLoading,
+                    Icon: SendIcon,
                     onClick: () => {
-                        //TODO
+                        if (message.trim() === "") return;
+                        addMessage(message);
                     },
                 }]}
                 disableAssistant={true}

@@ -1,4 +1,4 @@
-import { ChatInviteStatus, noop, uuid } from "@local/shared";
+import { ChatInviteStatus, DUMMY_ID, noop, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
@@ -98,7 +98,7 @@ export const RichInputBase = ({
         const existingChatId = getCookieMatchingChat([VALYXA_INFO.id], "note");
         const overrideObject = {
             __typename: "Chat" as const,
-            id: existingChatId ?? uuid(),
+            id: existingChatId ?? DUMMY_ID,
             openToAnyoneWithInvite: false,
             invites: [{
                 __typename: "ChatInvite" as const,

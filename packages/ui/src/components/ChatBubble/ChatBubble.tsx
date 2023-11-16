@@ -14,7 +14,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useDeleter } from "hooks/useDeleter";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
-import { AddIcon, BotIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -182,6 +182,8 @@ const ChatBubbleReactions = ({
                     background: palette.background.paper,
                     color: palette.background.textPrimary,
                     borderRadius: "0 0 8px 8px",
+                    boxShadow: `1px 2px 3px rgba(0,0,0,0.2),
+                    1px 2px 2px rgba(0,0,0,0.14)`,
                     overflow: "overlay",
                 }}
             >
@@ -227,6 +229,12 @@ const ChatBubbleReactions = ({
                     </IconButton>
                 </Tooltip>
                 <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
+                <IconButton size="small" onClick={() => { }}>
+                    <ChevronLeftIcon fill={palette.background.textSecondary} />
+                </IconButton>
+                <IconButton size="small" onClick={() => { }}>
+                    <ChevronRightIcon fill={palette.background.textSecondary} />
+                </IconButton>
             </Stack>}
         </Box>
     );
@@ -285,6 +293,7 @@ export const ChatBubble = ({
     }, [createMessage, message, message.isUnsent, onUpdated, session, shouldRetry]);
 
     const [editingText, setEditingText] = useState<string | undefined>(undefined);
+    const isEditing = Boolean(editingText);
     const startEditing = () => {
         if (message.isUnsent) return;
         setEditingText(getTranslation(message, getUserLanguages(session), true)?.text ?? "");
@@ -434,11 +443,11 @@ export const ChatBubble = ({
                         {...pressEvents}
                         sx={{
                             p: 1,
-                            pl: 2,
-                            pr: 2,
+                            pl: isEditing ? 0 : 2,
+                            pr: isEditing ? 0 : 2,
                             ml: isOwn ? "auto" : 0,
                             mr: isOwn ? 0 : "auto",
-                            backgroundColor: isOwn ?
+                            backgroundColor: (isOwn && !isEditing) ?
                                 palette.mode === "light" ? "#88d17e" : "#1a5413" :
                                 palette.background.paper,
                             color: palette.background.textPrimary,
@@ -463,6 +472,7 @@ export const ChatBubble = ({
                                 fullWidth
                                 maxChars={1500}
                                 minRows={editingText?.split("\n").length ?? 1}
+                                maxRows={10}
                                 name="edit-message"
                                 onChange={(updatedText) => setEditingText(updatedText)}
                                 value={editingText ?? ""}
@@ -489,7 +499,7 @@ export const ChatBubble = ({
                     {isOwn && (
                         <Box display="flex" alignItems="center">
                             <ChatBubbleStatus
-                                isEditing={Boolean(editingText)}
+                                isEditing={isEditing}
                                 isSending={isCreating || isUpdating}
                                 hasError={hasError}
                                 onDelete={handleDelete}

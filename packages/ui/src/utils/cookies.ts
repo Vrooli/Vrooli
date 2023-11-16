@@ -7,7 +7,7 @@
  */
 import { ActiveFocusMode, COOKIE, exists, FocusMode, ValueOf } from "@local/shared";
 import { AssistantTask, NavigableObject } from "types";
-import { hashChatMatchData } from "./hash";
+import { chatMatchHash } from "./hash";
 
 /**
  * Handles storing and retrieving cookies, which may or 
@@ -353,13 +353,13 @@ const getChatMatchCache = (): ChatMatchCache => getOrSetCookie(
 
 export const getCookieMatchingChat = (userIds: string[], task?: AssistantTask): string | undefined => ifAllowed("functional", () => {
     const cache = getChatMatchCache();
-    const participantsHash = hashChatMatchData(userIds, task);
+    const participantsHash = chatMatchHash(userIds, task);
     return cache.chats[participantsHash]?.chatId;
 });
 
 export const setCookieMatchingChat = (chatId: string, userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
     const cache = getChatMatchCache();
-    const participantsHash = hashChatMatchData(userIds, task);
+    const participantsHash = chatMatchHash(userIds, task);
 
     // If participantsHash already exists, remove from order for reinsertion at end
     const existingIndex = cache.order.indexOf(participantsHash);
@@ -380,7 +380,7 @@ export const setCookieMatchingChat = (chatId: string, userIds: string[], task?: 
 });
 export const removeCookieMatchingChat = (userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
     const cache = getChatMatchCache();
-    const participantsHash = hashChatMatchData(userIds, task);
+    const participantsHash = chatMatchHash(userIds, task);
 
     // Remove participantsHash from cache
     const existingIndex = cache.order.indexOf(participantsHash);

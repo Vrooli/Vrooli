@@ -1,40 +1,44 @@
 import { getLocalStorageKeys } from "./localStorage";
 
-// Define the mock outside of the describe block to use it in beforeEach and afterEach
 let mockLocalStorage = {};
+
+export const setupLocalStorageMock = () => {
+    mockLocalStorage = {};
+    global.localStorage = {
+        getItem(key) {
+            return key in mockLocalStorage ? mockLocalStorage[key] : null;
+        },
+        setItem(key, value) {
+            mockLocalStorage[key] = String(value);
+        },
+        removeItem(key) {
+            delete mockLocalStorage[key];
+        },
+        clear() {
+            mockLocalStorage = {};
+        },
+        key(i) {
+            const keys = Object.keys(mockLocalStorage);
+            return keys[i] || null;
+        },
+        get length() {
+            return Object.keys(mockLocalStorage).length;
+        },
+    };
+};
+
+export const teardownLocalStorageMock = () => {
+    mockLocalStorage = {};
+    global.localStorage.clear();
+};
 
 describe("getLocalStorageKeys", () => {
     beforeEach(() => {
-        // Clear the mock before each test
-        mockLocalStorage = {};
-        // Setup the global localStorage mock
-        global.localStorage = {
-            getItem(key) {
-                return key in mockLocalStorage ? mockLocalStorage[key] : null;
-            },
-            setItem(key, value) {
-                mockLocalStorage[key] = String(value);
-            },
-            removeItem(key) {
-                delete mockLocalStorage[key];
-            },
-            clear() {
-                mockLocalStorage = {};
-            },
-            key(i) {
-                const keys = Object.keys(mockLocalStorage);
-                return keys[i] || null;
-            },
-            get length() {
-                return Object.keys(mockLocalStorage).length;
-            },
-        };
+        setupLocalStorageMock();
     });
 
     afterEach(() => {
-        // Cleanup or reset the mockLocalStorage after each test
-        mockLocalStorage = {};
-        global.localStorage.clear();
+        teardownLocalStorageMock();
     });
 
     it("should return keys with the specified prefix and suffix", () => {

@@ -124,7 +124,11 @@ const CommentForm = ({
                     maxRows={15}
                     actionButtons={[{
                         Icon: SendIcon,
-                        onClick: () => { onSubmit(); },
+                        onClick: () => {
+                            const message = values.translations.find(t => t.language === language)?.text;
+                            if (!message || message.trim().length === 0) return;
+                            onSubmit();
+                        },
                     }]}
                     sxs={{
                         root: { width: "100%", background: palette.primary.dark, borderRadius: 1, overflow: "overlay", marginTop: 1 },

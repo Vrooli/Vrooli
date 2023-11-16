@@ -122,8 +122,6 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string, palette
         // Check if it corresponds to a cached item
         const urlParams = parseSingleItemUrl({ href: link });
         const cachedItem = getCookiePartialData({ __typename: routeKey as GqlModelType, ...urlParams }) as { __typename: GqlModelType, isBot?: boolean, profileImage?: string, updated_at?: string };
-        console.log("urlParams", urlParams);
-        console.log("cachedItem", cachedItem);
         // If cached item has a profileImage, return it as an Avatar
         if (cachedItem.profileImage) {
             return (<Avatar

@@ -168,6 +168,7 @@ export function ObjectListItemBase<T extends ListObject>({
             // If only one participant, show their profile picture instead of a group
             if (attendeesOrParticipants.length === 1) {
                 const firstUser = (attendeesOrParticipants as unknown as Chat["participants"])[0]?.user ?? (attendeesOrParticipants as unknown as Meeting["attendees"])[0];
+                console.log("got first user", firstUser);
                 return (
                     <Avatar
                         src={extractImageUrl(firstUser?.profileImage, firstUser?.updated_at, 50)}
@@ -177,6 +178,7 @@ export function ObjectListItemBase<T extends ListObject>({
                             width: isMobile ? "40px" : "50px",
                             height: isMobile ? "40px" : "50px",
                             pointerEvents: "none",
+                            display: "flex",
                             // Bots show up as squares, to distinguish them from users
                             ...(firstUser?.isBot ? { borderRadius: "8px" } : {}),
                         }}
@@ -274,6 +276,11 @@ export function ObjectListItemBase<T extends ListObject>({
     }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
     const titleId = `${LIST_PREFIX}title-stack-${id}`;
+
+    const showIncompleteChip = useMemo(() => data && data.__typename !== "Reminder" && (data as any).isComplete === false, [data]);
+    const showInternalChip = useMemo(() => data && (data as any).isInternal === true, [data]);
+    const showTags = useMemo(() => Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0, [data]);
+
     return (
         <>
             {/* List item */}
@@ -286,7 +293,7 @@ export function ObjectListItemBase<T extends ListObject>({
                 {...pressEvents}
                 sx={{
                     display: "flex",
-                    padding: "8px 16px",
+                    padding: isMobile ? "8px" : "8px 16px",
                     cursor: "pointer",
                     borderBottom: `1px solid ${palette.divider}`,
                     background: isSelected ? palette.secondary.light : palette.background.paper,
@@ -311,7 +318,7 @@ export function ObjectListItemBase<T extends ListObject>({
                 <Stack
                     direction="column"
                     spacing={1}
-                    pl={2}
+                    pl={(isSelecting || leftColumn) ? 2 : 0}
                     sx={{
                         width: "-webkit-fill-available",
                         display: "grid",
@@ -345,42 +352,34 @@ export function ObjectListItemBase<T extends ListObject>({
                     />}
                     {/* Any custom components to display below the subtitle */}
                     {belowSubtitle}
-                    <Stack direction="row" spacing={1} sx={{ pointerEvents: "none" }}>
-                        {/* Incomplete chip */}
-                        {
-                            data && data.__typename !== "Reminder" && (data as any).isComplete === false && <Tooltip placement="top" title={t("MarkedIncomplete")}>
-                                <Chip
-                                    label="Incomplete"
-                                    size="small"
-                                    sx={{
-                                        backgroundColor: palette.error.main,
-                                        color: palette.error.contrastText,
-                                        width: "fit-content",
-                                    }} />
-                            </Tooltip>
-                        }
-                        {/* Internal chip */}
-                        {
-                            data && (data as any).isInternal === true && <Tooltip placement="top" title={t("MarkedInternal")}>
-                                <Chip
-                                    label="Internal"
-                                    size="small"
-                                    sx={{
-                                        backgroundColor: palette.warning.main,
-                                        color: palette.error.contrastText,
-                                        width: "fit-content",
-                                    }} />
-                            </Tooltip>
-                        }
-                        {/* Tags */}
-                        {Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0 &&
+                    {(showIncompleteChip || showInternalChip || showTags || belowTags) && <Stack direction="row" spacing={1} sx={{ pointerEvents: "none" }}>
+                        {showIncompleteChip && <Tooltip placement="top" title={t("MarkedIncomplete")}>
+                            <Chip
+                                label="Incomplete"
+                                size="small"
+                                sx={{
+                                    backgroundColor: palette.error.main,
+                                    color: palette.error.contrastText,
+                                    width: "fit-content",
+                                }} />
+                        </Tooltip>}
+                        {showInternalChip && <Tooltip placement="top" title={t("MarkedInternal")}>
+                            <Chip
+                                label="Internal"
+                                size="small"
+                                sx={{
+                                    backgroundColor: palette.warning.main,
+                                    color: palette.error.contrastText,
+                                    width: "fit-content",
+                                }} />
+                        </Tooltip>}
+                        {showTags &&
                             <TagList
                                 parentId={data?.id ?? ""}
                                 tags={(data as any).tags}
                             />}
-                        {/* Any custom components to display below tags */}
                         {belowTags}
-                    </Stack>
+                    </Stack>}
                     {/* Action buttons if mobile */}
                     {isMobile && !isSelecting && actionButtons}
                 </Stack>

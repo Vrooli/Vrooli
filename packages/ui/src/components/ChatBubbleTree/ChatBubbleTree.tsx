@@ -1,12 +1,14 @@
-import { ChatParticipant, MessageNode, MessageTree } from "@local/shared";
+import { MessageNode, MessageTree } from "@local/shared";
 import { Box, Typography } from "@mui/material";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
-import React, { useContext, useEffect, useState } from "react";
+import React, { Dispatch, SetStateAction, useContext, useEffect, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { ChatMessageBranch, getCookieMessageTree, setCookieMessageTree } from "utils/cookies";
 import { getDisplay, ListObject } from "utils/display/listTools";
+import { updateArray } from "utils/shape/general";
+import { ChatShape } from "utils/shape/models/chat";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 const getTypingIndicatorText = (participants: ListObject[], maxChars: number) => {
@@ -23,7 +25,7 @@ const getTypingIndicatorText = (participants: ListObject[], maxChars: number) =>
     return `${text}, +${remainingCount} are typing`;
 };
 
-const TypingIndicator = ({
+export const TypingIndicator = ({
     maxChars = 30,
     participants,
 }: {
@@ -45,19 +47,21 @@ const TypingIndicator = ({
 
     if (!displayText) return null;
 
-    return <Typography variant="body2" p={1}>{displayText} {dots}</Typography>;
+    return (
+        <Box display="flex" flexDirection="row" justifyContent="flex-start" alignItems="center" gap={0} p={1}>
+            <Typography variant="body2" p={1}>{displayText} {dots}</Typography>
+        </Box>
+    );
 };
 
 export const ChatBubbleTree = ({
     allMessages,
     chatId,
-    // handleUpdate,
-    usersTyping,
+    handleUpdate,
 }: {
     allMessages: ChatMessageShape[];
     chatId: string;
-    // handleUpdate: (message: ChatMessageShape) => unknown;
-    usersTyping: ChatParticipant[];
+    handleUpdate: Dispatch<SetStateAction<ChatShape>>;
 }) => {
     const session = useContext(SessionContext);
     const { dimensions, ref: dimRef } = useDimensions();
@@ -95,12 +99,27 @@ export const ChatBubbleTree = ({
             <React.Fragment key={node.message.id} >
                 <ChatBubble
                     chatWidth={dimensions.width}
-                    onDeleted={() => { }}
-                    onUpdated={() => { }}
+                    onDeleted={(deletedMessage) => {
+                        handleUpdate(c => ({
+                            ...c,
+                            // TODO should be deleting messages in tree instead
+                            messages: c.messages.filter(m => m.id !== deletedMessage.id),
+                        }));
+                    }}
+                    onUpdated={(updatedMessage) => {
+                        handleUpdate(c => ({
+                            ...c,
+                            // TODO should be updating messages in tree instead
+                            messages: updateArray(
+                                c.messages,
+                                c.messages.findIndex(m => m.id === updatedMessage.id),
+                                updatedMessage,
+                            ),
+                        }));
+                    }}
                     message={node.message}
-                    index={activeChildId}  // This might need to be adjusted if it isn't intended to be the ID
+                    index={activeChildId}  // TODO This was auto-generated - might need to be adjusted if it isn't intended to be the ID
                     isOwn={isOwn}
-                // ... (other props)
                 />
                 {activeChild && renderMessage(activeChild)}
             </React.Fragment>
@@ -114,7 +133,6 @@ export const ChatBubbleTree = ({
                     return renderMessage(root);
                 })
             }
-            <TypingIndicator participants={usersTyping} />
         </Box>
     );
 };

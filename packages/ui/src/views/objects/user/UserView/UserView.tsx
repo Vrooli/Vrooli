@@ -175,7 +175,7 @@ export const UserView = ({
             translations: [{
                 __typename: "ChatTranslation" as const,
                 language: getUserLanguages(session)[0],
-                name: `Chat with ${user.name}`,
+                name: user.name,
                 description: "",
             }],
         });
