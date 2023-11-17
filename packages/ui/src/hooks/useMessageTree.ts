@@ -40,6 +40,11 @@ export type MessageNode<T extends MinimumChatMessage> = {
     children: MessageNode<T>[];
 };
 
+export type MessageTree<T extends MinimumChatMessage> = {
+    map: Map<string, MessageNode<T>>;
+    roots: MessageNode<T>[];
+};
+
 // Helper functions for repairing invalid message trees
 const findSuitableParentOrSibling = (newMessageMap: Map<string, MessageNode<MinimumChatMessage>>, orphan: MessageNode<MinimumChatMessage>) => {
     // First, try to attach to grandparent if possible
@@ -115,10 +120,7 @@ const sortSiblings = (siblings: MessageNode<MinimumChatMessage>[]) => {
 
 
 export const useMessageTree = <T extends MinimumChatMessage>(initialMessages: T[]) => {
-    // const [messageMap, setMessageMap] = useState<Map<string, MessageNode<T>>>(new Map());
-    // const [roots, setRoots] = useState<MessageNode<T>[]>([]);
     const [tree, setTree] = useState({ map: new Map<string, MessageNode<T>>(), roots: [] as MessageNode<T>[] });
-
     const messagesCount = useMemo(() => tree.map.size, [tree.map.size]);
 
     // Memoize the initial messages to prevent unnecessary useEffect triggers

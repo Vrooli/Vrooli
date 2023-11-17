@@ -1,13 +1,11 @@
-import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, DUMMY_ID, endpointGetChatMessageTree } from "@local/shared";
 import { Box, Typography } from "@mui/material";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { MessageNode, useMessageTree } from "hooks/useMessageTree";
-import React, { useContext, useEffect, useState } from "react";
+import { MessageNode, MessageTree } from "hooks/useMessageTree";
+import React, { Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "utils/cookies";
+import { BranchMap } from "utils/cookies";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
@@ -55,83 +53,68 @@ export const TypingIndicator = ({
 };
 
 export const ChatBubbleTree = ({
-    chatId,
-    handleMessagesCountChange,
+    branches,
+    editMessage,
     handleReply,
     handleRetry,
+    removeMessages,
+    setBranches,
+    tree,
 }: {
-    chatId: string;
-    handleMessagesCountChange: (count: number) => unknown;
+    branches: BranchMap,
+    editMessage: (updatedMessage: ChatMessageShape) => unknown;
     handleReply: (message: ChatMessageShape) => unknown;
     handleRetry: (message: ChatMessageShape) => unknown;
+    removeMessages: (messageIds: string[]) => unknown;
+    setBranches: Dispatch<SetStateAction<BranchMap>>;
+    tree: MessageTree<ChatMessageShape>;
 }) => {
     const session = useContext(SessionContext);
     const { dimensions, ref: dimRef } = useDimensions();
 
-    const { tree, messagesCount, addMessages, removeMessages, editMessage, clearMessages } = useMessageTree<ChatMessageShape>([]);
-    const [branches, setBranches] = useState<BranchMap>(getCookieMessageTree(chatId)?.branches ?? {});
-    useEffect(() => { handleMessagesCountChange(messagesCount); }, [handleMessagesCountChange, messagesCount]);
+    const messageList = useMemo(() => {
+        const renderMessage = (withSiblings: MessageNode<ChatMessageShape>[], activeIndex: number) => {
+            const activeParent = activeIndex >= 0 && activeIndex < withSiblings.length ? withSiblings[activeIndex] : null;
+            const activeChildId = activeParent ? branches[activeParent.message.id] : null;
+            const activeChildIndex = (activeParent && activeChildId) ?
+                activeParent.children.findIndex(child => child.message.id === activeChildId) :
+                0;
+            const isOwn = activeParent?.message.user?.id === getCurrentUser(session).id;
 
-    // We query messages separate from the chat, since we must traverse the message tree
-    const [getTreeData, { data: searchTreeData }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
-
-    // When chatId changes, clear the message tree and branches, and fetch new data
-    useEffect(() => {
-        if (chatId === DUMMY_ID) return;
-        clearMessages();
-        setBranches({});
-        getTreeData({ chatId });
-    }, [chatId, clearMessages, getTreeData]);
-    useEffect(() => {
-        if (!searchTreeData || searchTreeData.messages.length === 0) return;
-        addMessages(searchTreeData.messages);
-    }, [addMessages, searchTreeData]);
-
-    useEffect(() => {
-        // Update the cookie with current branches
-        setCookieMessageTree(chatId, { branches, locationId: "someLocationId" }); // Adjust locationId as necessary
-    }, [branches, chatId]);
-
-    const renderMessage = (withSiblings: MessageNode<ChatMessageShape>[], activeIndex: number) => {
-        const activeParent = activeIndex >= 0 && activeIndex < withSiblings.length ? withSiblings[activeIndex] : null;
-        const activeChildId = activeParent ? branches[activeParent.message.id] : null;
-        const activeChildIndex = (activeParent && activeChildId) ?
-            activeParent.children.findIndex(child => child.message.id === activeChildId) :
-            0;
-        const isOwn = activeParent?.message.user?.id === getCurrentUser(session).id;
-
-        if (!activeParent) return null;
-        return (
-            <React.Fragment key={activeParent.message.id} >
-                <ChatBubble
-                    activeIndex={activeIndex}
-                    chatWidth={dimensions.width}
-                    messagesCount={withSiblings.length}
-                    onActiveIndexChange={(newIndex) => {
-                        const childId = newIndex >= 0 && newIndex < activeParent.children.length ?
-                            activeParent.children[newIndex].message.id :
-                            null;
-                        if (!childId) return;
-                        setBranches(prevBranches => ({
-                            ...prevBranches,
-                            [activeParent.message.id]: childId,
-                        }));
-                    }}
-                    onDeleted={(message) => { removeMessages([message.id]); }}
-                    onReply={handleReply}
-                    onRetry={handleRetry}
-                    onUpdated={(updatedMessage) => { editMessage(updatedMessage); }}
-                    message={activeParent.message}
-                    isOwn={isOwn}
-                />
-                {renderMessage(activeParent.children, activeChildIndex)}
-            </React.Fragment>
-        );
-    };
+            if (!activeParent) return null;
+            return (
+                <React.Fragment key={activeParent.message.id} >
+                    <ChatBubble
+                        activeIndex={activeIndex}
+                        chatWidth={dimensions.width}
+                        messagesCount={withSiblings.length}
+                        onActiveIndexChange={(newIndex) => {
+                            const childId = newIndex >= 0 && newIndex < activeParent.children.length ?
+                                activeParent.children[newIndex].message.id :
+                                null;
+                            if (!childId) return;
+                            setBranches(prevBranches => ({
+                                ...prevBranches,
+                                [activeParent.message.id]: childId,
+                            }));
+                        }}
+                        onDeleted={(message) => { removeMessages([message.id]); }}
+                        onReply={handleReply}
+                        onRetry={handleRetry}
+                        onUpdated={(updatedMessage) => { editMessage(updatedMessage); }}
+                        message={activeParent.message}
+                        isOwn={isOwn}
+                    />
+                    {renderMessage(activeParent.children, activeChildIndex)}
+                </React.Fragment>
+            );
+        };
+        return renderMessage(tree.roots, 0);
+    }, [branches, dimensions.width, editMessage, handleReply, handleRetry, removeMessages, session, setBranches, tree.roots]);
 
     return (
         <Box ref={dimRef} sx={{ minHeight: "min(400px, 33vh)" }}>
-            {renderMessage(tree.roots, 0)}
+            {messageList}
         </Box>
     );
 };

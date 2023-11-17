@@ -1,7 +1,7 @@
-import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessage, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid, VALYXA_ID } from "@local/shared";
-import { Box, IconButton, useTheme } from "@mui/material";
+import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { Box, Button, IconButton, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
-import { TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
+import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
@@ -13,25 +13,38 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useMessageTree } from "hooks/useMessageTree";
 import { PageTab } from "hooks/useTabs";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { AddIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SendIcon } from "icons";
+import { AddIcon, ChevronLeftIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { CalendarEvent } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { getCookieMatchingChat, setCookieMatchingChat } from "utils/cookies";
+import { BranchMap, getCookieMatchingChat, getCookieMessageTree, setCookieMatchingChat, setCookieMessageTree } from "utils/cookies";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
-import { addToArray, deleteArrayIndex, updateArray } from "utils/shape/general";
+import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { chatInitialValues, transformChatValues, VALYXA_INFO, withoutOtherMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
+
+const CHAT_DEFAULTS = {
+    __typename: "Chat" as const,
+    id: DUMMY_ID,
+    openToAnyoneWithInvite: false,
+    invites: [{
+        __typename: "ChatInvite" as const,
+        id: DUMMY_ID,
+        status: ChatInviteStatus.Pending,
+        user: VALYXA_INFO,
+    }],
+} as unknown as Chat;
 
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
@@ -62,17 +75,7 @@ export const DashboardView = ({
     });
 
     const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
-    const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, undefined, t, languages[0], {
-        __typename: "Chat" as const,
-        id: DUMMY_ID,
-        openToAnyoneWithInvite: false,
-        invites: [{
-            __typename: "ChatInvite" as const,
-            id: DUMMY_ID,
-            status: ChatInviteStatus.Pending,
-            user: VALYXA_INFO,
-        }],
-    } as unknown as Chat));
+    const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS));
     // When a chat is loaded, store chat ID by participant and task
     useEffect(() => {
         if (!loadedChat?.id) return;
@@ -91,6 +94,7 @@ export const DashboardView = ({
                 fetch: getChat,
                 inputs: { id: existingChatId },
                 onSuccess: (data) => {
+                    console.log("fetched chattttt", data);
                     setChat(data);
                 },
             });
@@ -137,13 +141,6 @@ export const DashboardView = ({
     useEffect(() => {
         refetch({ activeFocusModeId: activeFocusMode?.mode?.id });
     }, [activeFocusMode, refetch]);
-
-
-    /** Only show tabs if:
-    * 1. The user is logged in 
-    * 2. The user has at least two focusModes
-    **/
-    const showTabs = useMemo(() => Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [session, allFocusModes.length, currTab]);
 
     // Converts resources to a resource list
     const [resourceList, setResourceList] = useState<ResourceList>({
@@ -249,12 +246,44 @@ export const DashboardView = ({
         };
     }, [closeSideMenu]);
 
+    const [showChat, setShowChat] = useState(false);
+    const showTabs = useMemo(() => !showChat && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [showChat, session, allFocusModes.length, currTab]);
+
+    const { addMessages, clearMessages, editMessage, messagesCount, removeMessages, tree } = useMessageTree<ChatMessageShape>([]);
+    const [branches, setBranches] = useState<BranchMap>(getCookieMessageTree(chat.id)?.branches ?? {});
+
     const [inputFocused, setInputFocused] = useState(false);
-    const onFocus = useCallback(() => { setInputFocused(true); }, []);
-    const onBlur = useCallback(() => { setInputFocused(false); }, []);
+    const onFocus = useCallback(() => {
+        setInputFocused(true);
+        setShowChat(true);
+    }, []);
+    const onBlur = useCallback(() => {
+        setInputFocused(false);
+        if (messagesCount < 2) setShowChat(false);
+    }, [messagesCount]);
+
+    // We query messages separate from the chat, since we must traverse the message tree
+    const [getTreeData, { data: searchTreeData }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+
+    // When chatId changes, clear the message tree and branches, and fetch new data
+    useEffect(() => {
+        if (chat.id === DUMMY_ID) return;
+        clearMessages();
+        setBranches({});
+        getTreeData({ chatId: chat.id });
+    }, [chat.id, clearMessages, getTreeData]);
+    useEffect(() => {
+        if (!searchTreeData || searchTreeData.messages.length === 0) return;
+        console.log("got search tree messages!!", searchTreeData.messages);
+        addMessages(searchTreeData.messages);
+    }, [addMessages, searchTreeData]);
+
+    useEffect(() => {
+        // Update the cookie with current branches
+        setCookieMessageTree(chat.id, { branches, locationId: "someLocationId" }); // TODO locationId should be last chat message in view
+    }, [branches, chat.id]);
 
     const onSubmit = useCallback((updatedChat: ChatShape) => {
-        console.log("onSubmitttt", updatedChat);
         fetchLazyWrapper<ChatUpdateInput, Chat>({
             fetch,
             inputs: transformChatValues(withoutOtherMessages(updatedChat, session), withoutOtherMessages(chat, session), false),
@@ -263,8 +292,21 @@ export const DashboardView = ({
                 setChat(data);
                 setMessage("");
             },
+            spinnerDelay: null,
         });
     }, [chat, fetch, setChat, session, setMessage]);
+
+    const startNewChat = useCallback(() => {
+        const freshChat = chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS);
+        fetchLazyWrapper<ChatCreateInput, Chat>({
+            fetch: fetchCreate,
+            inputs: transformChatValues(withoutOtherMessages(freshChat, session), withoutOtherMessages(freshChat, session), true),
+            onSuccess: (data) => {
+                clearMessages();
+                setChat(data);
+            },
+        });
+    }, [chat, fetchCreate, setChat, session, setMessage]);
 
     // Handle websocket connection/disconnection
     useEffect(() => {
@@ -292,32 +334,16 @@ export const DashboardView = ({
     useEffect(() => {
         // When a message is received, add it to the chat
         socket.on("message", (message: ChatMessage) => {
-            // Make sure it's inserted in the correct order, using the created_at field.
-            setChat(c => ({
-                ...c,
-                messages: addToArray(
-                    c.messages,
-                    message as ChatMessageShape,
-                ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-            }));
+            console.log("got websocket message!!!", message);
+            addMessages([message]);
         });
         // When a message is updated, update it in the chat
         socket.on("editMessage", (message: ChatMessage) => {
-            setChat(c => ({
-                ...c,
-                messages: updateArray(
-                    c.messages,
-                    c.messages.findIndex(m => m.id === message.id),
-                    message as ChatMessageShape,
-                ),
-            }));
+            editMessage(message);
         });
         // When a message is deleted, remove it from the chat
         socket.on("deleteMessage", (id: string) => {
-            setChat(c => ({
-                ...c,
-                messages: c.messages.filter(m => m.id !== id),
-            }));
+            removeMessages([id]);
         });
         // Show the status of users typing
         socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
@@ -344,19 +370,20 @@ export const DashboardView = ({
             socket.off("message");
             socket.off("typing");
         };
-    }, [chat.participants, setChat, message, session, usersTyping]);
+    }, [chat.participants, setChat, message, session, usersTyping, addMessages, editMessage, removeMessages]);
 
     const addMessage = useCallback((text: string) => {
-        const newMessage = {
+        const newMessage: ChatMessageShape = {
             __typename: "ChatMessage" as const,
-            id: DUMMY_ID,
+            id: uuid(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             isUnsent: true,
             chat: {
                 __typename: "Chat" as const,
                 id: chat.id,
-            } as any,
+            },
+            reactionSummaries: [],
             translations: [{
                 __typename: "ChatMessageTranslation" as const,
                 id: DUMMY_ID,
@@ -364,24 +391,14 @@ export const DashboardView = ({
                 text,
             }],
             user: {
-                ...getCurrentUser(session),
                 __typename: "User" as const,
+                id: getCurrentUser(session).id ?? "",
                 isBot: false,
+                name: getCurrentUser(session).name ?? undefined,
             },
-            you: {
-                canDelete: true,
-                canUpdate: true,
-                canReply: true,
-                canReport: true,
-                canReact: true,
-                reaction: null,
-            },
-        } as ChatMessageShape;
-        console.log("new message", newMessage);
-        onSubmit({ ...chat, messages: [...chat.messages, newMessage] });
+        };
+        onSubmit({ ...chat, messages: [...(chat.messages ?? []), newMessage] });
     }, [chat, languages, onSubmit, session]);
-
-    console.log("dashboard messages", chat?.messages);
 
     return (
         <Box sx={{
@@ -408,9 +425,8 @@ export const DashboardView = ({
                 >
                     <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
                 </IconButton>}
-                // Navigate between for you and history pages
-                below={showTabs && (
-                    <PageTabs
+                below={<>
+                    {showTabs && <PageTabs
                         ariaLabel="home-tabs"
                         id="home-tabs"
                         currTab={currTab!}
@@ -418,8 +434,33 @@ export const DashboardView = ({
                         onChange={handleTabChange}
                         tabs={tabs}
                         sx={{ width: "min(700px, 100%)", minWidth: undefined, margin: "auto" }}
-                    />
-                )}
+                    />}
+                    {showChat && <Box
+                        display="flex"
+                        flexDirection="row"
+                        justifyContent="center"
+                        alignItems="center"
+                    >
+                        <Button
+                            color="primary"
+                            onClick={() => { setShowChat(false); }}
+                            variant="contained"
+                            sx={{ margin: 2, borderRadius: 8 }}
+                            startIcon={<ChevronLeftIcon />}
+                        >
+                            {t("Dashboard")}
+                        </Button>
+                        <Button
+                            color="primary"
+                            onClick={startNewChat}
+                            variant="contained"
+                            sx={{ margin: 2, borderRadius: 8 }}
+                            startIcon={<AddIcon />}
+                        >
+                            {t("NewChat")}
+                        </Button>
+                    </Box>}
+                </>}
             />
             <Box sx={{
                 display: "flex",
@@ -431,63 +472,74 @@ export const DashboardView = ({
                 overflowY: "auto",
                 width: "min(700px, 100%)",
             }}>
-                {/* Resources */}
-                <Box p={1}>
-                    <ResourceListHorizontal
-                        id="main-resource-list"
-                        list={resourceList}
-                        canUpdate={true}
-                        handleUpdate={setResourceList}
-                        loading={isFeedLoading}
-                        mutate={true}
-                        parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
-                        title={t("Resource", { count: 2 })}
-                    />
-                </Box>
-                {/* Events */}
-                {upcomingEvents.length > 0 && <ListTitleContainer
-                    Icon={MonthIcon}
-                    id="main-event-list"
-                    isEmpty={upcomingEvents.length === 0 && !isFeedLoading}
-                    title={t("Schedule", { count: 1 })}
-                    options={[{
-                        Icon: OpenInNewIcon,
-                        label: t("Open"),
-                        onClick: openSchedule,
-                    }]}
-                >
-                    <ObjectList
-                        dummyItems={new Array(5).fill("Event")}
-                        items={upcomingEvents}
-                        keyPrefix="event-list-item"
-                        loading={isFeedLoading}
-                        onAction={onEventAction}
-                    />
-                </ListTitleContainer>}
-                {/* Reminders */}
-                {reminders.length > 0 && <ListTitleContainer
-                    Icon={ReminderIcon}
-                    id="main-reminder-list"
-                    isEmpty={reminders.length === 0 && !isFeedLoading}
-                    title={t("Reminder", { count: 2 })}
-                    options={[{
-                        Icon: OpenInNewIcon,
-                        label: t("SeeAll"),
-                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminder}`); },
-                    }, {
-                        Icon: AddIcon,
-                        label: t("Create"),
-                        onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
-                    }]}
-                >
-                    <ObjectList
-                        dummyItems={new Array(5).fill("Reminder")}
-                        items={reminders}
-                        keyPrefix="reminder-list-item"
-                        loading={isFeedLoading}
-                        onAction={onReminderAction}
-                    />
-                </ListTitleContainer>}
+                {!showChat && <>
+                    {/* Resources */}
+                    <Box p={1}>
+                        <ResourceListHorizontal
+                            id="main-resource-list"
+                            list={resourceList}
+                            canUpdate={true}
+                            handleUpdate={setResourceList}
+                            loading={isFeedLoading}
+                            mutate={true}
+                            parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
+                            title={t("Resource", { count: 2 })}
+                        />
+                    </Box>
+                    {/* Events */}
+                    {upcomingEvents.length > 0 && <ListTitleContainer
+                        Icon={MonthIcon}
+                        id="main-event-list"
+                        isEmpty={upcomingEvents.length === 0 && !isFeedLoading}
+                        title={t("Schedule", { count: 1 })}
+                        options={[{
+                            Icon: OpenInNewIcon,
+                            label: t("Open"),
+                            onClick: openSchedule,
+                        }]}
+                    >
+                        <ObjectList
+                            dummyItems={new Array(5).fill("Event")}
+                            items={upcomingEvents}
+                            keyPrefix="event-list-item"
+                            loading={isFeedLoading}
+                            onAction={onEventAction}
+                        />
+                    </ListTitleContainer>}
+                    {/* Reminders */}
+                    {reminders.length > 0 && <ListTitleContainer
+                        Icon={ReminderIcon}
+                        id="main-reminder-list"
+                        isEmpty={reminders.length === 0 && !isFeedLoading}
+                        title={t("Reminder", { count: 2 })}
+                        options={[{
+                            Icon: OpenInNewIcon,
+                            label: t("SeeAll"),
+                            onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminder}`); },
+                        }, {
+                            Icon: AddIcon,
+                            label: t("Create"),
+                            onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
+                        }]}
+                    >
+                        <ObjectList
+                            dummyItems={new Array(5).fill("Reminder")}
+                            items={reminders}
+                            keyPrefix="reminder-list-item"
+                            loading={isFeedLoading}
+                            onAction={onReminderAction}
+                        />
+                    </ListTitleContainer>}
+                </>}
+                {showChat && <ChatBubbleTree
+                    branches={branches}
+                    editMessage={editMessage}
+                    handleReply={() => { }}
+                    handleRetry={() => { }}
+                    removeMessages={removeMessages}
+                    setBranches={setBranches}
+                    tree={tree}
+                />}
             </Box>
             <TypingIndicator participants={usersTyping} />
             <RichInputBase

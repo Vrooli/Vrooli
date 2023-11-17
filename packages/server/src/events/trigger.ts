@@ -56,11 +56,6 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     }) => {
         if (message.id && data.chatId) {
             Notify(prisma, languages).pushMessageReceived(message.id, data.userId).toChatParticipants(data.chatId, createdById);
-            // TODO temp: log number of socket listeners
-            const sockets = io.sockets.adapter.rooms.get(data.chatId);
-            console.log("chat message socket size", sockets?.size);
-            const clientsInRoom = io.sockets.adapter.rooms[data.chatId];
-            console.log("clients in room", clientsInRoom);
             io.to(data.chatId).emit("message", message);
         } else {
             logger.error("Could not send notification or socket event for ChatMessage", { trace: "0494", message, data });

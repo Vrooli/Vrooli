@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatMessage, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -18,6 +18,8 @@ import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useDeleter } from "hooks/useDeleter";
 import { useHistoryState } from "hooks/useHistoryState";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { useMessageTree } from "hooks/useMessageTree";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -30,13 +32,12 @@ import { parseSearchParams, useLocation } from "route";
 import { FormContainer, pagePaddingBottom } from "styles";
 import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { getCookiePartialData, setCookieMatchingChat } from "utils/cookies";
+import { BranchMap, getCookieMessageTree, getCookiePartialData, setCookieMatchingChat, setCookieMessageTree } from "utils/cookies";
 import { getYou } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { addToArray, updateArray } from "utils/shape/general";
 import { ChatShape, shapeChat } from "utils/shape/models/chat";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
@@ -164,7 +165,6 @@ const ChatForm = ({
 
     const [message, setMessage] = useHistoryState<string>("chatMessage", context ?? "");
     const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
-    const [messagesCount, setMessagesCount] = useState(0);
 
     const {
         fetch,
@@ -209,15 +209,37 @@ const ChatForm = ({
         setCookieMatchingChat(existing.id, userIdsWithoutYou, task);
     }, [existing.id, existing.participants, session, task]);
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    const { addMessages, clearMessages, editMessage, messagesCount, removeMessages, tree } = useMessageTree<ChatMessageShape>([]);
+    const [branches, setBranches] = useState<BranchMap>(getCookieMessageTree(existing.id)?.branches ?? {});
+
+    // We query messages separate from the chat, since we must traverse the message tree
+    const [getTreeData, { data: searchTreeData, loading: isTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+
+    // When chatId changes, clear the message tree and branches, and fetch new data
+    useEffect(() => {
+        if (existing.id === DUMMY_ID) return;
+        clearMessages();
+        setBranches({});
+        console.log("getting tree dataaaaaaaaaa", existing.id);
+        getTreeData({ chatId: existing.id });
+    }, [existing.id, clearMessages, getTreeData]);
+    useEffect(() => {
+        if (!searchTreeData || searchTreeData.messages.length === 0) return;
+        addMessages(searchTreeData.messages);
+    }, [addMessages, searchTreeData]);
+
+    useEffect(() => {
+        // Update the cookie with current branches
+        setCookieMessageTree(existing.id, { branches, locationId: "someLocationId" }); // TODO locationId should be last chat message in view
+    }, [branches, existing.id]);
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isTreeLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useCallback((updatedChat?: ChatShape) => {
         if (disabled) {
             PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
             return;
         }
-        console.log("onsubmittttt values", updatedChat ?? values);
-        console.log("onsubmittttt transformed", JSON.stringify(transformChatValues(updatedChat ?? values, existing, false)));
         fetchLazyWrapper<ChatUpdateInput, Chat>({
             fetch,
             inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values, session), withoutOtherMessages(existing, session), false),
@@ -234,6 +256,7 @@ const ChatForm = ({
                     data,
                 });
             },
+            spinnerDelay: null,
         });
     }, [disabled, existing, fetch, handleUpdate, props, session, setMessage, values]);
 
@@ -263,32 +286,15 @@ const ChatForm = ({
     useEffect(() => {
         // When a message is received, add it to the chat
         socket.on("message", (message: ChatMessage) => {
-            // Make sure it's inserted in the correct order, using the created_at field.
-            handleUpdate(c => ({
-                ...c,
-                messages: addToArray(
-                    c.messages,
-                    message as ChatMessageShape,
-                ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-            }));
+            addMessages([message]);
         });
         // When a message is updated, update it in the chat
         socket.on("editMessage", (message: ChatMessage) => {
-            handleUpdate(c => ({
-                ...c,
-                messages: updateArray(
-                    c.messages,
-                    c.messages.findIndex(m => m.id === message.id),
-                    message as ChatMessageShape,
-                ),
-            }));
+            editMessage(message);
         });
         // When a message is deleted, remove it from the chat
         socket.on("deleteMessage", (id: string) => {
-            handleUpdate(c => ({
-                ...c,
-                messages: c.messages.filter(m => m.id !== id),
-            }));
+            removeMessages([id]);
         });
         // Show the status of users typing
         socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
@@ -316,7 +322,7 @@ const ChatForm = ({
             socket.off("message");
             socket.off("typing");
         };
-    }, [existing.participants, handleUpdate, message, session, usersTyping]);
+    }, [addMessages, editMessage, existing.participants, handleUpdate, message, removeMessages, session, usersTyping]);
 
     // Handle translations
     const {
@@ -342,7 +348,8 @@ const ChatForm = ({
             chat: {
                 __typename: "Chat" as const,
                 id: existing.id,
-            } as any,
+            },
+            reactionSummaries: [],
             translations: [{
                 __typename: "ChatMessageTranslation" as const,
                 id: DUMMY_ID,
@@ -351,19 +358,11 @@ const ChatForm = ({
             }],
             user: {
                 __typename: "User" as const,
-                id: getCurrentUser(session).id,
+                id: getCurrentUser(session).id ?? "",
                 isBot: false,
-                name: getCurrentUser(session).name,
+                name: getCurrentUser(session).name ?? undefined,
             },
-            you: {
-                canDelete: true,
-                canUpdate: true,
-                canReply: true,
-                canReport: true,
-                canReact: true,
-                reaction: null,
-            },
-        } as any;
+        };
         onSubmit({ ...values, messages: [...values.messages, newMessage] });
     }, [existing.id, language, onSubmit, session, values]);
 
@@ -544,10 +543,13 @@ const ChatForm = ({
                         width: "min(700px, 100%)",
                     }}>
                         <ChatBubbleTree
-                            chatId={existing.id}
-                            handleMessagesCountChange={setMessagesCount}
+                            branches={branches}
+                            editMessage={editMessage}
                             handleReply={() => { }}
                             handleRetry={() => { }}
+                            removeMessages={removeMessages}
+                            setBranches={setBranches}
+                            tree={tree}
                         />
                     </Box>
                     {!showBotWarning && <TypingIndicator participants={usersTyping} />}
