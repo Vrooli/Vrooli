@@ -489,9 +489,7 @@ export const DashboardView = ({
                     />
                 </ListTitleContainer>}
             </Box>
-            <Box display="flex" flexDirection="row" justifyContent="center" margin="auto" gap={0} p={1}>
-                <TypingIndicator participants={usersTyping} />
-            </Box>
+            <TypingIndicator participants={usersTyping} />
             <RichInputBase
                 actionButtons={[{
                     disabled: isChatLoading || isCreateLoading || isUpdateLoading,

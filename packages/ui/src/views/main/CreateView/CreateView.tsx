@@ -11,7 +11,6 @@ import { SvgComponent } from "types";
 import { CreateViewProps } from "../types";
 
 type CreateType = "Api" | "Bot" | "Chat" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";
-
 type CreateInfo = {
     objectType: CreateType;
     description: CommonKey,

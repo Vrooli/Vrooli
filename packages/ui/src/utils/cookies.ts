@@ -262,14 +262,10 @@ export const removeCookieFormData = (formId: string) => ifAllowed("functional", 
 
 
 
-/** A chat message ID and which way it branches */
-export type ChatMessageBranch = {
-    messageId: string;
-    selectedChildId: string;
-}
+/** Maps a chat message ID to the ID of the selected child branch */
+export type BranchMap = Record<string, string>;
 type ChatMessageTreeCookie = {
-    /** Which branches you're viewing */
-    branches: ChatMessageBranch[];
+    branches: BranchMap
     /** The message you viewed last */
     locationId: string;
 }

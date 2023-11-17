@@ -4,7 +4,6 @@ export * from "./emotions";
 export * from "./exists";
 export * from "./focusModes";
 export * from "./isEqual";
-export * from "./messageTree";
 export * from "./noop";
 export * from "./objects";
 export * from "./omit";

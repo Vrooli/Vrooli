@@ -1,14 +1,14 @@
-import { MessageNode, MessageTree } from "@local/shared";
+import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, DUMMY_ID, endpointGetChatMessageTree } from "@local/shared";
 import { Box, Typography } from "@mui/material";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
-import React, { Dispatch, SetStateAction, useContext, useEffect, useState } from "react";
+import { useLazyFetch } from "hooks/useLazyFetch";
+import { MessageNode, useMessageTree } from "hooks/useMessageTree";
+import React, { useContext, useEffect, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { ChatMessageBranch, getCookieMessageTree, setCookieMessageTree } from "utils/cookies";
+import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "utils/cookies";
 import { getDisplay, ListObject } from "utils/display/listTools";
-import { updateArray } from "utils/shape/general";
-import { ChatShape } from "utils/shape/models/chat";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 const getTypingIndicatorText = (participants: ListObject[], maxChars: number) => {
@@ -55,84 +55,83 @@ export const TypingIndicator = ({
 };
 
 export const ChatBubbleTree = ({
-    allMessages,
     chatId,
-    handleUpdate,
+    handleMessagesCountChange,
+    handleReply,
+    handleRetry,
 }: {
-    allMessages: ChatMessageShape[];
     chatId: string;
-    handleUpdate: Dispatch<SetStateAction<ChatShape>>;
+    handleMessagesCountChange: (count: number) => unknown;
+    handleReply: (message: ChatMessageShape) => unknown;
+    handleRetry: (message: ChatMessageShape) => unknown;
 }) => {
     const session = useContext(SessionContext);
     const { dimensions, ref: dimRef } = useDimensions();
-    console.log("in chat bubble tree: allMessages", allMessages.map(m => m.translations));
 
-    // Extract branches from the cookie
-    const initialMessageTreeData = getCookieMessageTree(chatId);
-    const [branches, setBranches] = useState<ChatMessageBranch[]>(initialMessageTreeData?.branches ?? []);
+    const { tree, messagesCount, addMessages, removeMessages, editMessage, clearMessages } = useMessageTree<ChatMessageShape>([]);
+    const [branches, setBranches] = useState<BranchMap>(getCookieMessageTree(chatId)?.branches ?? {});
+    useEffect(() => { handleMessagesCountChange(messagesCount); }, [handleMessagesCountChange, messagesCount]);
 
-    const messageTree = new MessageTree(allMessages);
-    console.log("in chat bubble tree: messageTree", messageTree);
+    // We query messages separate from the chat, since we must traverse the message tree
+    const [getTreeData, { data: searchTreeData }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+
+    // When chatId changes, clear the message tree and branches, and fetch new data
+    useEffect(() => {
+        if (chatId === DUMMY_ID) return;
+        clearMessages();
+        setBranches({});
+        getTreeData({ chatId });
+    }, [chatId, clearMessages, getTreeData]);
+    useEffect(() => {
+        if (!searchTreeData || searchTreeData.messages.length === 0) return;
+        addMessages(searchTreeData.messages);
+    }, [addMessages, searchTreeData]);
 
     useEffect(() => {
         // Update the cookie with current branches
         setCookieMessageTree(chatId, { branches, locationId: "someLocationId" }); // Adjust locationId as necessary
     }, [branches, chatId]);
 
-    const changeBranch = (messageId: string, childId: string) => {
-        setBranches(prevBranches => ({
-            ...prevBranches,
-            [messageId]: childId,
-        }));
-    };
-    const renderMessage = (node: MessageNode<ChatMessageShape>) => {
-        // Find the active child, or default to first child
-        const activeChildId = branches[node.message.id];
-        const activeChild = activeChildId ?
-            node.children.find(child => child.message.id === activeChildId) :
-            node.children.length > 0 ?
-                node.children[0] :
-                undefined;
-        const isOwn = node.message.user?.id === getCurrentUser(session).id;
+    const renderMessage = (withSiblings: MessageNode<ChatMessageShape>[], activeIndex: number) => {
+        const activeParent = activeIndex >= 0 && activeIndex < withSiblings.length ? withSiblings[activeIndex] : null;
+        const activeChildId = activeParent ? branches[activeParent.message.id] : null;
+        const activeChildIndex = (activeParent && activeChildId) ?
+            activeParent.children.findIndex(child => child.message.id === activeChildId) :
+            0;
+        const isOwn = activeParent?.message.user?.id === getCurrentUser(session).id;
 
+        if (!activeParent) return null;
         return (
-            <React.Fragment key={node.message.id} >
+            <React.Fragment key={activeParent.message.id} >
                 <ChatBubble
+                    activeIndex={activeIndex}
                     chatWidth={dimensions.width}
-                    onDeleted={(deletedMessage) => {
-                        handleUpdate(c => ({
-                            ...c,
-                            // TODO should be deleting messages in tree instead
-                            messages: c.messages.filter(m => m.id !== deletedMessage.id),
+                    messagesCount={withSiblings.length}
+                    onActiveIndexChange={(newIndex) => {
+                        const childId = newIndex >= 0 && newIndex < activeParent.children.length ?
+                            activeParent.children[newIndex].message.id :
+                            null;
+                        if (!childId) return;
+                        setBranches(prevBranches => ({
+                            ...prevBranches,
+                            [activeParent.message.id]: childId,
                         }));
                     }}
-                    onUpdated={(updatedMessage) => {
-                        handleUpdate(c => ({
-                            ...c,
-                            // TODO should be updating messages in tree instead
-                            messages: updateArray(
-                                c.messages,
-                                c.messages.findIndex(m => m.id === updatedMessage.id),
-                                updatedMessage,
-                            ),
-                        }));
-                    }}
-                    message={node.message}
-                    index={activeChildId}  // TODO This was auto-generated - might need to be adjusted if it isn't intended to be the ID
+                    onDeleted={(message) => { removeMessages([message.id]); }}
+                    onReply={handleReply}
+                    onRetry={handleRetry}
+                    onUpdated={(updatedMessage) => { editMessage(updatedMessage); }}
+                    message={activeParent.message}
                     isOwn={isOwn}
                 />
-                {activeChild && renderMessage(activeChild)}
+                {renderMessage(activeParent.children, activeChildIndex)}
             </React.Fragment>
         );
     };
 
     return (
         <Box ref={dimRef} sx={{ minHeight: "min(400px, 33vh)" }}>
-            {
-                messageTree.getRoots().map(root => {
-                    return renderMessage(root);
-                })
-            }
+            {renderMessage(tree.roots, 0)}
         </Box>
     );
 };

@@ -135,17 +135,27 @@ const ChatBubbleStatus = ({
  * as a list of icons on the right.
  */
 const ChatBubbleReactions = ({
+    activeIndex,
+    handleActiveIndexChange,
     handleReactionAdd,
+    handleReply,
+    handleRetry,
     isBot,
     isOwn,
     isUnsent,
+    messagesCount,
     messageId,
     reactions,
 }: {
+    activeIndex: number,
+    handleActiveIndexChange: (newIndex: number) => unknown,
     handleReactionAdd: (emoji: string) => unknown,
+    handleReply: () => unknown,
+    handleRetry: () => unknown,
     isBot: boolean,
     isOwn: boolean,
     isUnsent: boolean,
+    messagesCount: number,
     messageId: string,
     reactions: ReactionSummary[],
 }) => {
@@ -219,33 +229,41 @@ const ChatBubbleReactions = ({
             </Stack>
             {isBot && <Stack direction="row">
                 <Tooltip title={t("Retry")}>
-                    <IconButton size="small" onClick={() => { }}>
+                    <IconButton size="small" onClick={handleRetry}>
                         <RefreshIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Reply")}>
-                    <IconButton size="small" onClick={() => { }}>
+                    <IconButton size="small" onClick={handleReply}>
                         <ReplyIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Tooltip>
                 <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
-                <IconButton size="small" onClick={() => { }}>
+                {activeIndex > 0 && activeIndex < (messagesCount - 1) && <IconButton
+                    size="small"
+                    onClick={() => { handleActiveIndexChange(Math.max(0, activeIndex - 1)); }}>
                     <ChevronLeftIcon fill={palette.background.textSecondary} />
-                </IconButton>
-                <IconButton size="small" onClick={() => { }}>
+                </IconButton>}
+                {activeIndex >= 0 && activeIndex < (messagesCount - 2) && <IconButton
+                    size="small"
+                    onClick={() => { handleActiveIndexChange(Math.min(messagesCount - 1, activeIndex + 1)); }}>
                     <ChevronRightIcon fill={palette.background.textSecondary} />
-                </IconButton>
+                </IconButton>}
             </Stack>}
-        </Box>
+        </Box >
     );
 };
 
 export const ChatBubble = ({
+    activeIndex,
     chatWidth,
-    index,
     isOwn,
     message,
+    messagesCount,
+    onActiveIndexChange,
     onDeleted,
+    onReply,
+    onRetry,
     onUpdated,
 }: ChatBubbleProps) => {
     const session = useContext(SessionContext);
@@ -391,7 +409,7 @@ export const ChatBubble = ({
         <>
             {DeleteDialogComponent}
             <Box
-                key={index}
+                key={message.id}
                 sx={{
                     display: "flex",
                     flexDirection: "column",
@@ -517,10 +535,15 @@ export const ChatBubble = ({
                 </Stack>
                 {/* Reactions */}
                 <ChatBubbleReactions
+                    activeIndex={activeIndex}
+                    handleActiveIndexChange={onActiveIndexChange}
                     handleReactionAdd={handleReactionAdd}
+                    handleReply={() => { onReply(message); }}
+                    handleRetry={() => { onRetry(message); }}
                     isBot={message.user?.isBot ?? false}
                     isOwn={isOwn}
                     isUnsent={message.isUnsent ?? false}
+                    messagesCount={messagesCount}
                     messageId={message.id}
                     reactions={message.reactionSummaries}
                 />

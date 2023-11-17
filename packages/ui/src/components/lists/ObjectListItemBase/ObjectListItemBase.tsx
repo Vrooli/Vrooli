@@ -168,7 +168,6 @@ export function ObjectListItemBase<T extends ListObject>({
             // If only one participant, show their profile picture instead of a group
             if (attendeesOrParticipants.length === 1) {
                 const firstUser = (attendeesOrParticipants as unknown as Chat["participants"])[0]?.user ?? (attendeesOrParticipants as unknown as Meeting["attendees"])[0];
-                console.log("got first user", firstUser);
                 return (
                     <Avatar
                         src={extractImageUrl(firstUser?.profileImage, firstUser?.updated_at, 50)}

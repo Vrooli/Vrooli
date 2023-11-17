@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -18,7 +18,6 @@ import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useDeleter } from "hooks/useDeleter";
 import { useHistoryState } from "hooks/useHistoryState";
-import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -165,33 +164,7 @@ const ChatForm = ({
 
     const [message, setMessage] = useHistoryState<string>("chatMessage", context ?? "");
     const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
-
-    // We query messages separate from the chat, since we must traverse the message tree
-    const [getPageData, { data: searchTreeData, loading: isSearchTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
-    const [allMessages, setAllMessages] = useState<ChatMessageShape[]>(existing.messages ?? []);
-    useEffect(() => {
-        if (existing.id === DUMMY_ID) return;
-        getPageData({ chatId: existing.id });
-    }, [existing.id, getPageData]);
-    useEffect(() => {
-        if (!searchTreeData || searchTreeData.messages.length === 0) return;
-        // Add to all messages, making sure to only add messages that aren't already there
-        setAllMessages(curr => {
-            const hash = {};
-            // Create hash from curr data
-            for (const item of curr) {
-                hash[item.id] = item;
-            }
-            // Add unique items from parsedData
-            for (const item of searchTreeData.messages) {
-                if (!hash[item.id]) {
-                    hash[item.id] = item;
-                }
-            }
-            console.log("setting all messages hash:", hash);
-            return Object.values(hash);
-        });
-    }, [searchTreeData]);
+    const [messagesCount, setMessagesCount] = useState(0);
 
     const {
         fetch,
@@ -236,7 +209,7 @@ const ChatForm = ({
         setCookieMatchingChat(existing.id, userIdsWithoutYou, task);
     }, [existing.id, existing.participants, session, task]);
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isSearchTreeLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, isSearchTreeLoading, props.isSubmitting]);
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useCallback((updatedChat?: ChatShape) => {
         if (disabled) {
@@ -428,7 +401,7 @@ const ChatForm = ({
     const onFocus = useCallback(() => { setInputFocused(true); }, []);
     const onBlur = useCallback(() => { setInputFocused(false); }, []);
 
-    const showBotWarning = useMemo(() => !disabled && usersTyping.length === 0 && allMessages?.length <= 2 && existing.participants?.some(i => i?.user?.isBot), [allMessages, disabled, existing.participants, usersTyping]);
+    const showBotWarning = useMemo(() => !disabled && usersTyping.length === 0 && messagesCount <= 2 && existing.participants?.some(i => i?.user?.isBot), [disabled, existing.participants, messagesCount, usersTyping]);
 
     return (
         <>
@@ -571,9 +544,10 @@ const ChatForm = ({
                         width: "min(700px, 100%)",
                     }}>
                         <ChatBubbleTree
-                            allMessages={allMessages}
-                            handleUpdate={handleUpdate}
                             chatId={existing.id}
+                            handleMessagesCountChange={setMessagesCount}
+                            handleReply={() => { }}
+                            handleRetry={() => { }}
                         />
                     </Box>
                     {!showBotWarning && <TypingIndicator participants={usersTyping} />}
