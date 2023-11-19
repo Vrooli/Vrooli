@@ -306,7 +306,7 @@ export const DashboardView = ({
                 setChat(data);
             },
         });
-    }, [chat, fetchCreate, setChat, session, setMessage]);
+    }, [session, t, languages, fetchCreate, clearMessages]);
 
     // Handle websocket connection/disconnection
     useEffect(() => {

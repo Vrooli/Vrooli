@@ -28,15 +28,43 @@ type BotSettings = {
     }>
 };
 
-interface LanguageModelService {
+/**
+ * Basic token estimation, which can be used as a placeholder 
+ * until a more advanced one is implemented
+ * @param text The text to estimate the amount of tokens for
+ * @returns The name of the token estimation model, and the estimated amount of tokens
+ */
+export const tokenEstimationDefault = (text: string) => {
+    const words = text.split(" ");
+    let tokens = 0;
+    for (const word of words) {
+        // Add token for each 5 characters
+        tokens += Math.floor(word.length / 5);
+        // Also increment for whitespace
+        tokens++;
+    }
+    return ["default", tokens] as const;
+};
+
+type OpenAIGenerateModel = "gpt-3.5-turbo" | "gpt-4";
+type OpenAITokenModel = "default";
+
+export interface LanguageModelService<GenerateNameType extends string, TokenNameType> {
+    /** Estimate the amount of tokens a string is */
+    estimateTokens(text: string, requestedModel?: string | null): readonly [TokenNameType, number];
     /** Generate a message response */
     generateResponse(prompt: string, config: BotSettings, userData: SessionUserToken): Promise<string>;
+    /** @returns the context size of the model */
+    getContextSize(requestedModel?: string | null): number;
+    /** @returns a list of token estimation types used by this service */
+    getEstimationTypes(): readonly TokenNameType[];
     /** Convert a preferred model to an available one */
-    getModel(requestedModel: string): string;
+    getModel(requestedModel?: string | null): GenerateNameType;
 }
 
-export class OpenAIService implements LanguageModelService {
+export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, OpenAITokenModel> {
     private openai: OpenAI;
+    private defaultModel: OpenAIGenerateModel = "gpt-3.5-turbo";
 
     constructor() {
         this.openai = new OpenAI({
@@ -44,7 +72,11 @@ export class OpenAIService implements LanguageModelService {
         });
     }
 
-    async generateResponse(prompt: string, config: BotSettings, userData: SessionUserToken): Promise<string> {
+    estimateTokens(text: string, _requestedModel?: string | null) {
+        return tokenEstimationDefault(text);
+    }
+
+    async generateResponse(prompt: string, config: BotSettings, userData: SessionUserToken) {
         const translationsList = Object.entries(config?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
         const translation = bestTranslation(translationsList, userData.languages) ?? {};
 
@@ -76,15 +108,30 @@ export class OpenAIService implements LanguageModelService {
         return chatCompletion.choices[0].message.content ?? "";
     }
 
-    getModel(requestedModel: string | null | undefined): string {
-        const defaultModel = "gpt-3.5-turbo";
-        if (typeof requestedModel !== "string") return defaultModel;
+    getContextSize(requestedModel?: string | null) {
+        const model = this.getModel(requestedModel);
+        switch (model) {
+            case "gpt-3.5-turbo":
+                return 4096;
+            case "gpt-4":
+                return 8192;
+            default:
+                return 4096;
+        }
+    }
+
+    getEstimationTypes() {
+        return ["default"] as const;
+    }
+
+    getModel(requestedModel?: string | null) {
+        if (typeof requestedModel !== "string") return this.defaultModel;
         if (requestedModel.startsWith("gpt-4")) return "gpt-4";
-        return defaultModel;
+        return this.defaultModel;
     }
 }
 
-export const getLanguageModelService = (botSettings: BotSettings): LanguageModelService => {
+export const getLanguageModelService = (botSettings: BotSettings): LanguageModelService<any, any> => {
     switch (botSettings.model) {
         default:
             return new OpenAIService();
