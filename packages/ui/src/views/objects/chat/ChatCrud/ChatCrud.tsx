@@ -363,7 +363,7 @@ const ChatForm = ({
                 name: getCurrentUser(session).name ?? undefined,
             },
         };
-        onSubmit({ ...values, messages: [...values.messages, newMessage] });
+        onSubmit({ ...values, messages: [...(values.messages ?? []), newMessage] });
     }, [existing.id, language, onSubmit, session, values]);
 
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
