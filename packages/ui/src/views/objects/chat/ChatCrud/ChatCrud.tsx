@@ -24,6 +24,7 @@ import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useWindowSize } from "hooks/useWindowSize";
 import { TFunction } from "i18next";
 import { CopyIcon, ListIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -159,9 +160,10 @@ const ChatForm = ({
     ...props
 }: ChatFormProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     const [message, setMessage] = useHistoryState<string>("chatMessage", context ?? "");
     const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
@@ -611,7 +613,8 @@ const ChatForm = ({
                                 margin: "auto",
                                 marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
                             },
-                            bar: { borderRadius: 0 },
+                            topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
+                            bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                             textArea: {
                                 border: "none",
                                 background: palette.background.paper,

@@ -16,6 +16,7 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useMessageTree } from "hooks/useMessageTree";
 import { PageTab } from "hooks/useTabs";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useWindowSize } from "hooks/useWindowSize";
 import { AddIcon, ChevronLeftIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -52,11 +53,12 @@ export const DashboardView = ({
     isOpen,
     onClose,
 }: DashboardViewProps) => {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     const [message, setMessage] = useHistoryState<string>("dashboardMessage", "");
     const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
@@ -574,7 +576,8 @@ export const DashboardView = ({
                         margin: "auto",
                         marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
                     },
-                    bar: { borderRadius: 0 },
+                    topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
+                    bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                     textArea: {
                         border: "none",
                         background: palette.background.paper,

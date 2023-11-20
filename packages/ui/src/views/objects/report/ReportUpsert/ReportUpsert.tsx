@@ -158,6 +158,7 @@ const ReportForm = ({
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
+                style={{ paddingBottom: "64px" }}
             >
                 <FormContainer sx={{ gap: 2 }}>
                     <LanguageInput

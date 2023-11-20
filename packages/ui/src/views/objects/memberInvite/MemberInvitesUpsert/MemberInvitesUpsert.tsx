@@ -10,6 +10,7 @@ import { Field, Formik } from "formik";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useWindowSize } from "hooks/useWindowSize";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
@@ -71,8 +72,9 @@ const MemberInvitesForm = ({
     ...props
 }: MemberInvitesFormProps) => {
     const { t } = useTranslation();
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const [message, setMessage] = useHistoryState("member-invite-message", "");
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     const { handleCancel, handleCompleted } = useUpsertActions<MemberInvite[]>({
         display,
@@ -186,7 +188,8 @@ const MemberInvitesForm = ({
                                 width: "-webkit-fill-available",
                                 margin: "0",
                             },
-                            bar: { borderRadius: 0 },
+                            topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
+                            bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                             textArea: {
                                 border: "none",
                                 background: palette.background.paper,

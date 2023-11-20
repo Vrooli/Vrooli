@@ -10,6 +10,8 @@ import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
 
 export interface CharLimitIndicatorProps {
     chars: number;
+    /** Hides indicator until this number of characters is reached */
+    minCharsToShow?: number;
     maxChars: number;
     size?: number;
 }
@@ -151,7 +153,8 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
     tabIndex?: number;
     value: string;
     sxs?: {
-        bar?: SxType;
+        topBar?: SxType;
+        bottomBar?: SxType;
         root?: SxType;
         textArea?: Record<string, unknown>;
     };

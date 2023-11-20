@@ -22,7 +22,7 @@ export const BaseForm = ({
             margin: "auto",
             alignItems: "center",
             justifyContent: "center",
-            width: maxWidth ? `min(${maxWidth}px, 100vw - ${display === "page" ? "16px" : "64px"})` : "-webkit-fill-available",
+            width: maxWidth ? `min(${maxWidth}px, 100vw - 16px)` : "-webkit-fill-available",
             maxWidth: "100%",
             paddingBottom: display === "dialog" ? "16px" : "64px", // Make room for the submit buttons
             paddingLeft: display === "dialog" ? "env(safe-area-inset-left)" : undefined,

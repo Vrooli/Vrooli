@@ -187,7 +187,7 @@ export const RichInputBase = ({
         undo,
         value: internalValue,
         sx: sxs?.textArea,
-    }), [autoFocus, changeInternalValue, disabled, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
+    }), [autoFocus, changeInternalValue, disabled, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
 
     return (
         <>
@@ -213,7 +213,7 @@ export const RichInputBase = ({
                     handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={isMarkdownOn}
                     name={name}
-                    sx={sxs?.bar}
+                    sx={sxs?.topBar}
                 />
                 {isMarkdownOn ? <RichInputMarkdown {...viewProps} /> : <RichInputLexical {...viewProps} />}
                 {/* Help text, characters remaining indicator, and action buttons */}
@@ -226,6 +226,7 @@ export const RichInputBase = ({
                             gap: 1,
                             justifyContent: "space-between",
                             alitnItems: "center",
+                            ...sxs?.bottomBar,
                         }}
                     >
                         <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
@@ -243,6 +244,7 @@ export const RichInputBase = ({
                                 !disabled && maxChars !== undefined &&
                                 <CharLimitIndicator
                                     chars={internalValue?.length ?? 0}
+                                    minCharsToShow={Math.max(0, maxChars - 500)}
                                     maxChars={maxChars}
                                 />
                             }
@@ -254,7 +256,11 @@ export const RichInputBase = ({
                                             disabled={disabled || buttonDisabled}
                                             size="medium"
                                             onClick={onClick}
-                                            sx={{ background: palette.primary.dark }}
+                                            sx={{
+                                                background: palette.primary.dark,
+                                                color: palette.primary.contrastText,
+                                                borderRadius: 2,
+                                            }}
                                         >
                                             <Icon fill={palette.primary.contrastText} />
                                         </IconButton>
