@@ -6,6 +6,13 @@ import { logger } from "../../events/logger.js";
 import { HOST, PORT } from "../../redisConn.js";
 import { emailProcess } from "./process.js";
 
+export type EmailProcessPayload = {
+    to: string[];
+    subject: string;
+    text: string;
+    html?: string;
+}
+
 let welcomeTemplate = "";
 const welcomeTemplateFile = `${process.env.PROJECT_DIR}/packages/server/dist/notify/email/templates/welcome.html`;
 if (fs.existsSync(welcomeTemplateFile)) {
@@ -14,7 +21,7 @@ if (fs.existsSync(welcomeTemplateFile)) {
     logger.error(`Could not find welcome email template at ${welcomeTemplateFile}`);
 }
 
-const emailQueue = new Bull("email", { redis: { port: PORT, host: HOST } });
+const emailQueue = new Bull<EmailProcessPayload>("email", { redis: { port: PORT, host: HOST } });
 emailQueue.process(emailProcess);
 
 /** Adds an email to a task queue */
@@ -54,7 +61,7 @@ export function sendVerificationLink(email: string, userId: string | number, cod
 /** Adds a feedback notification email for the admin to a task queue */
 export function feedbackNotifyAdmin(text: string, from?: string) {
     emailQueue.add({
-        to: [process.env.SITE_EMAIL_USERNAME],
+        to: [process.env.SITE_EMAIL_USERNAME ?? ""],
         subject: "Received Vrooli Feedback!",
         text: `Feedback from ${from ?? "anonymous"}: ${text}`,
     });

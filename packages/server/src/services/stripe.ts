@@ -4,7 +4,7 @@ import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
-import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled } from "../tasks";
+import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled } from "../tasks/email/queue";
 import { PrismaType } from "../types";
 import { withPrisma } from "../utils/withPrisma";
 

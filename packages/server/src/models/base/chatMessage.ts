@@ -15,9 +15,10 @@ import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { io } from "../../io";
 import { SERVER_URL } from "../../server";
+import { ChatContextManager } from "../../tasks/llm/context";
+import { requestBotResponse } from "../../tasks/llm/queue";
 import { PrismaType } from "../../types";
-import { bestTranslation, ChatContextManager, SortMap } from "../../utils";
-import { respondToMessage } from "../../utils/llmService";
+import { bestTranslation, SortMap } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { ChatMessageFormat } from "../formats";
@@ -53,7 +54,7 @@ export type PreMapChatData = {
     /** Total number of participants in the chat, including bots, users, and the current user */
     participantsCount?: number,
     /** Determines configuration to provide for AI responses */
-    task?: string, //TODO can find taask in idsToInputs[node.parent.id].task for creates, but need way for updates. 
+    task?: string, //TODO can find taask in inputsById[node.parent.id].task for creates, but need way for updates. 
     // Should be able to store not necessarily the first task, but the current one. Can add new row to chat table for this. 
     // Or better yet, make it a stack of contexts. Can use reminder list for this, since where it only focuses on one reminder at a time 
     // (and can even add multiple items to the reminder to keep track of multiple things at once). For example, could start off with 
@@ -436,7 +437,14 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     if (bots.length === 1 && chat.participantsCount === 2) {
                         const botId = bots[0].id;
                         // Call LLM for bot response
-                        await respondToMessage(message.chatId as string, objectId, message, botId, preMapUserData, prisma, userData);
+                        requestBotResponse({
+                            chatId: message.chatId as string,
+                            messageId: objectId,
+                            message,
+                            respondingBotId: botId,
+                            participantsData: preMapUserData,
+                            userData,
+                        });
                     }
                     // Check condition 5
                     else {
@@ -480,7 +488,14 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         // For each bot that should respond, request bot response
                         for (const botId of botsToRespond) {
                             // Call LLM for bot response
-                            await respondToMessage(message.chatId as string, objectId, message, botId, preMapUserData, prisma, userData);
+                            requestBotResponse({
+                                chatId: message.chatId as string,
+                                messageId: objectId,
+                                message,
+                                respondingBotId: botId,
+                                participantsData: preMapUserData,
+                                userData,
+                            });
                         }
                     }
                 }

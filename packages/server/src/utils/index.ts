@@ -9,8 +9,6 @@ export * from "./defaultPermissions";
 export * from "./embeddings";
 export * from "./fileStorage";
 export * from "./getAuthenticatedData";
-export * from "./llmContext";
-export * from "./llmService";
 export * from "./objectTools";
 export * from "./oneIsPublic";
 export * from "./origin";

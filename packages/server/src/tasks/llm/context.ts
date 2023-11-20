@@ -1,9 +1,9 @@
 import { RedisClientType } from "redis";
-import { logger } from "../events/logger";
-import { PreMapMessageData } from "../models/base/chatMessage";
-import { withRedis } from "../redisConn";
-import { LanguageModelService, OpenAIService } from "./llmService";
-import { withPrisma } from "./withPrisma";
+import { logger } from "../../events/logger";
+import { PreMapMessageData } from "../../models/base/chatMessage";
+import { withRedis } from "../../redisConn";
+import { withPrisma } from "../../utils/withPrisma";
+import { LanguageModelService, OpenAIService } from "./service";
 
 type CachedChatMessage = {
     id: string;
@@ -290,9 +290,10 @@ export class ChatContextCollector {
     private async getTokenCountForLanguages(redisClient: RedisClientType, messageId: string, estimationMethod: string, languages: string[]): Promise<[number, string]> {
         const messageData = await redisClient.hGetAll(`message:${messageId}`);
         let translatedTokenCounts = messageData ? JSON.parse(messageData.translatedTokenCounts ?? "{}") : {};
+        const languagesWithDefault = languages.length === 0 ? ["en"] : languages;
 
         // Check if token counts for preferred languages are available in cache
-        for (const language of languages) {
+        for (const language of languagesWithDefault) {
             if (translatedTokenCounts[language] && translatedTokenCounts[language][estimationMethod] !== undefined) {
                 return [translatedTokenCounts[language][estimationMethod], language];
             }
@@ -322,7 +323,7 @@ export class ChatContextCollector {
         }
 
         // After updating the cache, try again to find the token count
-        for (const language of languages) {
+        for (const language of languagesWithDefault) {
             if (translatedTokenCounts[language] && translatedTokenCounts[language][estimationMethod] !== undefined) {
                 return [translatedTokenCounts[language][estimationMethod], language];
             }
