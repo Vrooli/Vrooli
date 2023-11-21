@@ -15,7 +15,7 @@ export const useSideMenu = ({
     const defaultOpenState: boolean = getCookieSideMenuState(`${idPrefix}${id}`, false);
     const [isOpen, setIsOpen] = useState<boolean>(isMobile ? false : defaultOpenState);
     useEffect(() => {
-        const sideMenuSub = PubSub.get().subscribeSideMenu((data) => {
+        const sideMenuSub = PubSub.get().subscribe("sideMenu", (data) => {
             if (data.id !== id || data.idPrefix !== idPrefix) return;
             setIsOpen(data.isOpen);
             setCookieSideMenuState(`${idPrefix}${id}`, data.isOpen);
@@ -28,7 +28,7 @@ export const useSideMenu = ({
     const close = useCallback(() => {
         setIsOpen(false);
         setCookieSideMenuState(`${idPrefix}${id}`, false);
-        PubSub.get().publishSideMenu({ id, idPrefix, isOpen: false });
+        PubSub.get().publish("sideMenu", { id, idPrefix, isOpen: false });
     }, [id, idPrefix]);
 
     return { isOpen, setIsOpen, close } as const;

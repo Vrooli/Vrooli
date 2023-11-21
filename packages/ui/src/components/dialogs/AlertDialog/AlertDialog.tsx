@@ -34,7 +34,7 @@ export const AlertDialog = () => {
     const zIndex = useZIndex(open, false, 1000);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribeAlertDialog((o) => {
+        const dialogSub = PubSub.get().subscribe("alertDialog", (o) => {
             setState({
                 title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
                 message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details ?? translateSnackMessage(o.messageKey, o.messageVariables).message : undefined,

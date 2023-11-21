@@ -12,7 +12,7 @@ export function ThemeSwitch() {
 
     const handleChange = useCallback(() => {
         const newTheme = palette.mode === "light" ? "dark" : "light";
-        PubSub.get().publishTheme(newTheme);
+        PubSub.get().publish("theme", newTheme);
     }, [palette.mode]);
 
     const isDark = useMemo(() => palette.mode === "dark", [palette.mode]);

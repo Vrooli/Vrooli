@@ -45,7 +45,7 @@ export const DirectoryListItemContextMenu = ({
         switch (value) {
             case DirectoryContextMenuOption.Copy:
                 navigator.clipboard.writeText(getObjectUrl(data as any) ?? "");
-                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
                 break;
             case DirectoryContextMenuOption.Delete:
                 onDelete(index);

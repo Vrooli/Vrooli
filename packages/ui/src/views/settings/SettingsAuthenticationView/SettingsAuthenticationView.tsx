@@ -100,19 +100,19 @@ export const SettingsAuthenticationView = ({
             inputs: { id },
             onSuccess: (data) => {
                 localStorage.removeItem(Cookies.FormData); // Clear old form data cache
-                PubSub.get().publishSession(data);
-                PubSub.get().publishSideMenu({ id: "side-menu", isOpen: false });
+                PubSub.get().publish("session", data);
+                PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false });
             },
             // If error, log out anyway
-            onError: () => { PubSub.get().publishSession(guestSession); },
+            onError: () => { PubSub.get().publish("session", guestSession); },
         });
-        PubSub.get().publishSession(guestSession);
+        PubSub.get().publish("session", guestSession);
         setLocation(LINKS.Home);
     }, [logOut, session, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
             return;
         }
         onProfileUpdate({ ...profile, wallets: updatedList });
@@ -121,7 +121,7 @@ export const SettingsAuthenticationView = ({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
             return;
         }
         onProfileUpdate({ ...profile, emails: updatedList });
@@ -191,11 +191,11 @@ export const SettingsAuthenticationView = ({
                             } as ProfileEmailUpdateInput}
                             onSubmit={(values, helpers) => {
                                 if (!profile) {
-                                    PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+                                    PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
                                     return;
                                 }
                                 if (typeof values.newPassword === "string" && values.newPassword.length > 0 && values.newPassword !== (values as any).newPasswordConfirmation) {
-                                    PubSub.get().publishSnack({ messageKey: "PasswordsDontMatch", severity: "Error" });
+                                    PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
                                     helpers.setSubmitting(false);
                                     return;
                                 }

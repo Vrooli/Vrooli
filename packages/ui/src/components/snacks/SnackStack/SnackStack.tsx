@@ -29,7 +29,7 @@ export const SnackStack = () => {
     // Subscribe to snack events
     useEffect(() => {
         // Subscribe to basic snacks
-        const snackSub = PubSub.get().subscribeSnack((o) => {
+        const snackSub = PubSub.get().subscribe("snack", (o) => {
             // Add the snack to the queue
             setSnacks((snacks) => {
                 // event can define an id, or we generate one
@@ -56,7 +56,7 @@ export const SnackStack = () => {
             });
         });
         // Subscribe to special snack events
-        const cookiesSub = PubSub.get().subscribeCookies(() => {
+        const cookiesSub = PubSub.get().subscribe("cookies", () => {
             setIsCookieSnackOpen(true);
         });
         return () => {

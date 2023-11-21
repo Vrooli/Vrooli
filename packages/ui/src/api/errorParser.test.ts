@@ -56,11 +56,12 @@ describe("displayServerErrors", () => {
     it("should display each error as a snack message", () => {
         const errors = [{ message: "Error1" }, { message: "Error2" }];
         displayServerErrors(errors);
-        expect(PubSub.get().publishSnack).toHaveBeenCalledTimes(2);
+        expect(PubSub.get().publish).toHaveBeenCalledWith("snack", expect.anything());
+        expect(PubSub.get().publish).toHaveBeenCalledTimes(2);
     });
 
     it("should not display anything if there are no errors", () => {
         displayServerErrors();
-        expect(PubSub.get().publishSnack).not.toHaveBeenCalled();
+        expect(PubSub.get().publish).not.toHaveBeenCalled();
     });
 });

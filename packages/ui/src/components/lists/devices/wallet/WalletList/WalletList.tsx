@@ -45,11 +45,11 @@ export const WalletList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other wallet or one other email)
         if (list.length <= 1 && numVerifiedEmails === 0) {
-            PubSub.get().publishSnack({ messageKey: "MustLeaveVerificationMethod", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "MustLeaveVerificationMethod", severity: "Error" });
             return;
         }
         // Confirmation dialog
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "WalletDeleteConfirm",
             messageVariables: { walletName: wallet.name ?? wallet.stakingAddress },
             buttons: [
@@ -91,7 +91,7 @@ export const WalletList = ({
     const addWallet = useCallback(async (providerKey: string) => {
         // Check if wallet extension installed
         if (!hasWalletExtension(providerKey)) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "WalletProviderNotFoundDetails",
                 buttons: [
                     { labelKey: "TryAgain", onClick: () => { addWallet(providerKey); } },
@@ -106,10 +106,10 @@ export const WalletList = ({
             // Check if wallet is already in list (i.e. user has already added this wallet)
             const existingWallet = list.find(w => w.stakingAddress === walletCompleteResult.wallet?.stakingAddress);
             if (existingWallet) {
-                PubSub.get().publishSnack({ messageKey: "WalletAlreadyConnected", severity: "Warning" });
+                PubSub.get().publish("snack", { messageKey: "WalletAlreadyConnected", severity: "Warning" });
             }
             else {
-                PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
+                PubSub.get().publish("snack", { messageKey: "WalletVerified", severity: "Success" });
                 // Update list
                 handleUpdate([...list, walletCompleteResult.wallet]);
             }
@@ -123,7 +123,7 @@ export const WalletList = ({
         if (selectedIndex === null) return;
         // Check if wallet extension installed
         if (!hasWalletExtension(providerKey)) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "WalletProviderNotFoundDetails",
                 buttons: [
                     { labelKey: "TryAgain", onClick: () => { verifyWallet(providerKey); } },
@@ -135,7 +135,7 @@ export const WalletList = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult) {
-            PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
+            PubSub.get().publish("snack", { messageKey: "WalletVerified", severity: "Success" });
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],

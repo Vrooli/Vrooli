@@ -87,7 +87,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
             // If no resource type or link, show error
             const resourceType = getResourceType(data.link);
             if (!resourceType || !href) {
-                PubSub.get().publishSnack({ messageKey: "CannotOpenLink", severity: "Error" });
+                PubSub.get().publish("snack", { messageKey: "CannotOpenLink", severity: "Error" });
                 return;
             }
             // Open link

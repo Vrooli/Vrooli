@@ -43,11 +43,11 @@ export const SettingsFocusModesView = ({
     const handleDelete = useCallback((focusMode: FocusMode) => {
         // Don't delete if there is only one focus mode left
         if (focusModes.length === 1) {
-            PubSub.get().publishSnack({ messageKey: "MustHaveFocusMode", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "MustHaveFocusMode", severity: "Error" });
             return;
         }
         // Confirmation dialog
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "DeleteConfirm",
             buttons: [
                 {
@@ -107,10 +107,10 @@ export const SettingsFocusModesView = ({
             // If you don't have premium, open premium page
             if (!hasPremium) {
                 setLocation(LINKS.Premium);
-                PubSub.get().publishSnack({ message: "Upgrade to increase limit", severity: "Info" });
+                PubSub.get().publish("snack", { message: "Upgrade to increase limit", severity: "Info" });
             }
             // Otherwise, show error message
-            else PubSub.get().publishSnack({ message: "Max reached", severity: "Error" });
+            else PubSub.get().publish("snack", { message: "Max reached", severity: "Error" });
             return;
         }
         setIsDialogOpen(true);
@@ -144,7 +144,11 @@ export const SettingsFocusModesView = ({
                 focusModes: updatedFocusModes,
             } as SessionUser,
         ];
-        PubSub.get().publishSession({ users } as any);
+        PubSub.get().publish("session", {
+            __typename: "Session" as const,
+            users,
+            isLoggedIn: true,
+        });
         // Close dialog
         setIsDialogOpen(false);
     }, [focusModes, session]);

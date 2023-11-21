@@ -130,7 +130,7 @@ const SubroutineForm = ({
 
     const onSubmit = useCallback(() => {
         if (isEditing) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
             return;
         }
         if (!values) return;

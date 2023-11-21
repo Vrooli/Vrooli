@@ -154,7 +154,7 @@ const RoutineForm = ({
         // If setting from true to false, check if any nodes or nodeLinks have been added. 
         // If so, prompt the user to confirm (these will be lost).
         if (isMultiStep === false && (nodesField.value.length > 0 || nodeLinksField.value.length > 0)) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "SubroutineGraphDeleteConfirm",
                 buttons: [{
                     labelKey: "Yes",
@@ -167,7 +167,7 @@ const RoutineForm = ({
         // If settings from false to true, check if any inputs or outputs have been added.
         // If so, prompt the user to confirm (these will be lost).
         else if (isMultiStep === true && (inputsField.value.length > 0 || outputsField.value.length > 0)) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "RoutineInputsDeleteConfirm",
                 buttons: [{
                     labelKey: "Yes",

@@ -71,7 +71,7 @@ export const DraggableNode = ({
         if (!isDragPublished.current && (Math.abs(x) > dragThreshold || Math.abs(y) > dragThreshold)) {
             isDragPublished.current = true;
             // Alert other components that this node is being dragged (to turn on highlights, for example)
-            PubSub.get().publishNodeDrag({ nodeId });
+            PubSub.get().publish("nodeDrag", { nodeId });
         }
     }, [dragThreshold, nodeId]);
 
@@ -96,7 +96,7 @@ export const DraggableNode = ({
         };
         // Send drop event to parent
         if (isDragPublished.current) {
-            PubSub.get().publishNodeDrop({ nodeId, position: { x: dropX, y: dropY } });
+            PubSub.get().publish("nodeDrop", { nodeId, position: { x: dropX, y: dropY } });
             isDragPublished.current = false;
         }
         // If never dragged, send click event

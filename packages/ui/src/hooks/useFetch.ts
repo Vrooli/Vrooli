@@ -50,7 +50,7 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
         if (!errors) return;
         for (const error of errors) {
             const message = errorToMessage({ errors: [error] }, ["en"]);
-            PubSub.get().publishSnack({ message, severity: "Error" });
+            PubSub.get().publish("snack", { message, severity: "Error" });
         }
     };
 

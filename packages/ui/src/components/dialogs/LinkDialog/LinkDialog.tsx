@@ -58,7 +58,7 @@ export const LinkDialog = ({
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.get().publishSnack({ messageKey: "SelectFromAndToNodes", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "SelectFromAndToNodes", severity: "Error" });
             return;
         }
         handleClose({

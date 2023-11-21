@@ -274,7 +274,7 @@ export const UserView = ({
                             fontFamily="monospace"
                             onClick={() => {
                                 navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
-                                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                                PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
                             }}
                             sx={{
                                 color: palette.secondary.dark,

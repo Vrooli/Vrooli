@@ -50,7 +50,7 @@ export const SearchView = ({
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
         // If not logged in, redirect to login page
         if (!userId) {
-            PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "MustBeLoggedIn", severity: "Error" });
             setLocation(LINKS.Login, { searchParams: { redirect: addUrl } });
             return;
         }

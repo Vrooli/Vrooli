@@ -24,7 +24,7 @@ export const uuidToBase36 = (uuid: string): string => {
         const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
         return base36 === "0" ? "" : base36;
     } catch (error) {
-        PubSub.get().publishSnack({ messageKey: "CouldNotConvertId", severity: "Error", data: { uuid } });
+        PubSub.get().publish("snack", { messageKey: "CouldNotConvertId", severity: "Error", data: { uuid } });
         return "";
     }
 };
@@ -42,7 +42,7 @@ export const base36ToUuid = (base36: string, showError = true): string => {
         const uuid = toBigInt(base36, 36).toString(16).padStart(32, "0").replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, "$1-$2-$3-$4-$5");
         return uuid === "0" ? "" : uuid;
     } catch (error) {
-        if (showError) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error", data: { base36 } });
+        if (showError) PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error", data: { base36 } });
         return "";
     }
 };

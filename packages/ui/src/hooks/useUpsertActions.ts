@@ -56,7 +56,7 @@ export const useUpsertActions = <T extends TType>({
     const publishSnack = useCallback((actionType: "Created" | "Updated", count: number) => {
         const rootType = objectType.replace("Version", "");
         const objectTranslation = t(rootType, { count: 1, defaultValue: rootType });
-        PubSub.get().publishSnack({
+        PubSub.get().publish("snack", {
             message: t(`Object${actionType}`, { objectName: objectTranslation, count }),
             severity: "Success",
             ...(actionType === "Created" && {

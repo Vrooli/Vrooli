@@ -1,24 +1,10 @@
+import { Session } from "@local/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getCurrentUser } from "utils/authentication/session";
+import { BranchMap } from "utils/cookies";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { useStableObject } from "./useStableObject";
-
-// TODO should query chat messages from the bottom up, using a query like this:
-// const lastMessage = await prisma.chat_message.findFirst({
-//     where: { chatId: yourChatId },
-//     orderBy: { sequence: 'desc' },
-//     include: {
-//       parent: true,
-//       // ... include any other related data you need
-//     }
-//   });
-// TODO should query messages all at once if there are less than k in the chat, otherwise batch
-// TODO preMap for chat messages should include info needed for creating chats. Since multiple chats
-// can be created in one go, the pre shape function needs to query the latest chat message and create a map 
-// of new chat ids to their parent ids. Also need way for messages with versionOfId set, needs to find parent
-// of versionOfId's parent.
-// TODO need to check validation logic to see if it's correct
-// TODO when multiple bots are responding to a message, they need to set parent IDs correctly
-// TODO UI should store last seen message, and load from there the next time the chat is opened. This way, 
-// the user doesn't lose their place
 
 export type MinimumChatMessage = {
     id: string;
@@ -29,8 +15,12 @@ export type MinimumChatMessage = {
             id: string;
         } | null;
     } | null;
+    user?: {
+        id: string;
+    } | null;
     versionIndex?: number;
     sequence?: number;
+    translations: ChatMessageShape["translations"];
 };
 
 /** Tree structure for displaying chat messages in the correct order */
@@ -44,6 +34,57 @@ export type MessageTree<T extends MinimumChatMessage> = {
     map: Map<string, MessageNode<T>>;
     roots: MessageNode<T>[];
 };
+
+/**
+ * Finds the target message in a chat tree when starting a reply.
+ * 
+ * This function traverses the message tree, starting from a given message,
+ * and searches for a target message according to the specified rules. If there's only
+ * one other person in the chat, it finds the first message sent by the user after the
+ * replied message. If there are multiple participants, it searches for the first message
+ * containing "@[bot_handle]". The traversal follows the branches as specified
+ * in the provided branch map.
+ * 
+ * @returns {string | null} - The ID of the target message if found, or null if no suitable message is found.
+ */
+export const findTargetMessage = (
+    tree: MessageTree<MinimumChatMessage>,
+    branches: BranchMap,
+    replyingMessage: Pick<ChatMessageShape, "id" | "translations" | "user">,
+    numParticipants: number,
+    session: Session | undefined,
+): string | null => {
+    console.log("in findTargetMessage", tree);
+    const userData = getCurrentUser(session);
+    let currentNode = tree.map.get(replyingMessage.id);
+    if (!currentNode || !userData.id) return null;
+
+    while (currentNode) {
+        const selectedChildId = branches[currentNode.message.id] || (currentNode.children.length > 0 ? currentNode.children[0].message.id : null);
+        const nextNode = currentNode.children.find(child => child.message.id === selectedChildId);
+        const isOwnMessage = currentNode.message.user?.id === userData.id;
+
+        // If there's only one other participant, return the first child that's yours
+        if (numParticipants <= 2 && isOwnMessage) {
+            return currentNode.message.id;
+        }
+
+        // If there are multiple participants, return the first child that mentions the replyingMessage creator or everyone
+        if (numParticipants >= 2 && isOwnMessage) {
+            const handle = replyingMessage.user?.handle;
+            const text = getTranslation(currentNode.message, getUserLanguages(session), true)?.text ?? "";
+            if (handle && text.includes(`@${handle}`)) {
+                return currentNode.message.id;
+            }
+        }
+
+        currentNode = nextNode;
+    }
+
+    // No suitable message was found
+    return null;
+};
+
 
 // Helper functions for repairing invalid message trees
 const findSuitableParentOrSibling = (newMessageMap: Map<string, MessageNode<MinimumChatMessage>>, orphan: MessageNode<MinimumChatMessage>) => {

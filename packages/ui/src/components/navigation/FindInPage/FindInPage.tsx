@@ -128,7 +128,7 @@ const FindInPage = () => {
     }), [results.length]);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribeFindInPage(() => {
+        const dialogSub = PubSub.get().subscribe("findInPage", () => {
             setOpen(o => {
                 // If turning off, reset search values (but keep case sensitive and other buttons the same)
                 if (o) { close(); }

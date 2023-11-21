@@ -56,7 +56,7 @@ export const RoutineListNode = ({
     const [collapseDebounce] = useDebounce(setCollapseOpen, 100);
     const toggleCollapse = useCallback((target: EventTarget) => {
         if (isLinked && shouldCollapse(target.id)) {
-            PubSub.get().publishFastUpdate({ duration: 1000 });
+            PubSub.get().publish("fastUpdate", { duration: 1000 });
             collapseDebounce(!collapseOpen);
         }
     }, [collapseDebounce, collapseOpen, isLinked]);
@@ -65,7 +65,7 @@ export const RoutineListNode = ({
     const fastUpdateRef = useRef<boolean>(false);
     const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
-        const fastSub = PubSub.get().subscribeFastUpdate(({ on, duration }) => {
+        const fastSub = PubSub.get().subscribe("fastUpdate", ({ on, duration }) => {
             if (!on) {
                 fastUpdateRef.current = false;
                 if (fastUpdateTimeout.current) clearTimeout(fastUpdateTimeout.current);
@@ -145,7 +145,7 @@ export const RoutineListNode = ({
     const addSize = useMemo(() => `max(min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 4}px, 48px), 24px)`, [scale]);
 
     const confirmDelete = useCallback(() => {
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "WhatWouldYouLikeToDo",
             buttons: [
                 { labelKey: "Unlink", onClick: handleNodeUnlink },

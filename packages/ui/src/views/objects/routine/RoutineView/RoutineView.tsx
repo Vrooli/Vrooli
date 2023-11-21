@@ -60,7 +60,7 @@ export const RoutineView = ({
         ...endpointGetRoutineVersion,
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
-            if (!build || build !== true) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
+            if (!build || build !== true) PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
         },
         objectType: "RoutineVersion",
     });
@@ -156,7 +156,7 @@ export const RoutineView = ({
                 buttonClicked: () => { openObject(data, setLocation); },
             }),
             onSuccess: (data) => {
-                PubSub.get().publishCelebration();
+                PubSub.get().publish("celebration");
             },
         });
     }, [formik.values, existing, runComplete, setLocation, name]);
@@ -169,9 +169,9 @@ export const RoutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+            PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         } else {
-            PubSub.get().publishSnack({ messageKey: "InputEmpty", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "InputEmpty", severity: "Error" });
         }
     }, [formik]);
 

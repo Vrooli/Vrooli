@@ -37,7 +37,7 @@ export const NavList = () => {
     const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
 
     const { isOpen: isSideMenuOpen } = useSideMenu({ id: "side-menu", isMobile });
-    const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); }, []);
+    const openSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: true }); }, []);
 
     return (
         <Container sx={{

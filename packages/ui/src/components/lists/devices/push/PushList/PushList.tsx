@@ -48,7 +48,7 @@ export const PushList = ({
                     name: getDeviceInfo().deviceName,
                 },
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ messageKey: "CompleteVerificationInEmail", severity: "Info" });
+                    PubSub.get().publish("snack", { messageKey: "CompleteVerificationInEmail", severity: "Info" });
                     handleUpdate([...list, data]);
                     formik.resetForm();
                 },

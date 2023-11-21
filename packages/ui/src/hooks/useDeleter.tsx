@@ -123,7 +123,7 @@ export const useDeleter = ({
         }
         if (confirmationType === "minimal") {
             // Show simple confirmation dialog
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "DeleteConfirm",
                 buttons: [{
                     labelKey: "Delete",

@@ -49,7 +49,7 @@ export function CommentThreadItem({
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "DeleteConfirm",
             buttons: [
                 {

@@ -81,7 +81,7 @@ export const SubroutineView = ({
 
     const confirmLeave = useCallback((callback: () => any) => {
         // Confirmation dialog for leaving routine
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "RunStopConfirm",
             buttons: [
                 {
@@ -160,9 +160,9 @@ export const SubroutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+            PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         } else {
-            PubSub.get().publishSnack({ messageKey: "InputEmpty", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "InputEmpty", severity: "Error" });
         }
     }, [formik.values]);
 

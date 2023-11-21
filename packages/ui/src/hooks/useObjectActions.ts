@@ -45,7 +45,7 @@ export type UseObjectActionsReturn = {
 
 const callIfExists = (callback: (() => unknown) | null | undefined) => {
     if (!exists(callback)) {
-        PubSub.get().publishSnack({ messageKey: "ActionNotSupported", severity: "Error" });
+        PubSub.get().publish("snack", { messageKey: "ActionNotSupported", severity: "Error" });
         return;
     }
     callback();
@@ -73,7 +73,7 @@ export const useObjectActions = ({
     // Callback when an action is completed
     const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
         if (!exists(object)) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         switch (action) {
@@ -163,7 +163,7 @@ export const useObjectActions = ({
     const onActionStart = useCallback((action: ObjectAction | `${ObjectAction}`) => {
         console.log("onActionStart", action);
         if (!exists(object)) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         switch (action) {
@@ -187,7 +187,7 @@ export const useObjectActions = ({
                 else openObjectEdit(object, setLocation);
                 break;
             case ObjectAction.FindInPage:
-                PubSub.get().publishFindInPage();
+                PubSub.get().publish("findInPage");
                 break;
             case ObjectAction.Fork:
                 if (canNavigate && !canNavigate(object)) return;

@@ -27,7 +27,7 @@ const CodeBlock = ({ children }) => {
         if (textRef && textRef.current) {
             // Copy the text content of the code block
             navigator.clipboard.writeText(textRef.current.textContent ?? "");
-            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+            PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         }
     };
 
@@ -158,7 +158,7 @@ const CustomLink = ({ children, href }) => {
         else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });
         else if (exists(urlParams.id)) getData({ id: urlParams.id });
         else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot });
-        else PubSub.get().publishSnack({ message: "Invalid URL", severity: "Error" });
+        else PubSub.get().publish("snack", { message: "Invalid URL", severity: "Error" });
     }, [getData, href]);
     const close = useCallback(() => setAnchorEl(null), []);
 

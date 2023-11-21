@@ -29,7 +29,7 @@ export const TextSizeButtons = () => {
     const handleSliderChange = (newValue: number) => {
         if (newValue >= smallestFontSize && newValue <= largestFontSize) {
             setSize(newValue);
-            PubSub.get().publishFontSize(newValue);
+            PubSub.get().publish("fontSize", newValue);
         }
     };
 

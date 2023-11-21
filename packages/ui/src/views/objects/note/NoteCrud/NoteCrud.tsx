@@ -156,7 +156,7 @@ const NoteForm = ({
                 errorMessage: () => ({ messageKey: "FailedToDelete" }),
             });
         };
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "DeleteConfirm",
             buttons: [{
                 labelKey: "Delete",

@@ -39,7 +39,7 @@ export const useBookmarker = ({
 
     const handleAdd = useCallback(() => {
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: "NotFound", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "NotFound", severity: "Error" });
             return;
         }
         let bookmarkListId: string | undefined;
@@ -104,7 +104,7 @@ export const useBookmarker = ({
 
         // If no bookmarks are found, display an error.
         if (!bookmarks || bookmarks.length === 0) {
-            PubSub.get().publishSnack({ message: "Could not find bookmark", severity: "Error" });
+            PubSub.get().publish("snack", { message: "Could not find bookmark", severity: "Error" });
             isRemoveProcessingRef.current = false;
             return;
         }
@@ -131,11 +131,11 @@ export const useBookmarker = ({
     const handleBookmark = useCallback((isAdding: boolean) => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (!hasBookmarkingSupport) {
-            PubSub.get().publishSnack({ messageKey: "BookmarkNotSupported", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "BookmarkNotSupported", severity: "Error" });
             return;
         }
         if (isAdding) {

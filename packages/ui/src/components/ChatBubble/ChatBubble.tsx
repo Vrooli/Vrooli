@@ -14,7 +14,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useDeleter } from "hooks/useDeleter";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
-import { AddIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -25,6 +25,7 @@ import { getDisplay, ListObject } from "utils/display/listTools";
 import { fontSizeToPixels } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
+import { PubSub } from "utils/pubsub";
 import { shapeChatMessage } from "utils/shape/models/chatMessage";
 
 /**
@@ -137,6 +138,7 @@ const ChatBubbleStatus = ({
 const ChatBubbleReactions = ({
     activeIndex,
     handleActiveIndexChange,
+    handleCopy,
     handleReactionAdd,
     handleReply,
     handleRetry,
@@ -149,6 +151,7 @@ const ChatBubbleReactions = ({
 }: {
     activeIndex: number,
     handleActiveIndexChange: (newIndex: number) => unknown,
+    handleCopy,
     handleReactionAdd: (emoji: string) => unknown,
     handleReply: () => unknown,
     handleRetry: () => unknown,
@@ -227,18 +230,25 @@ const ChatBubbleReactions = ({
                     onSelect={onReactionAdd}
                 />
             </Stack>
-            {isBot && <Stack direction="row">
-                <Tooltip title={t("Retry")}>
-                    <IconButton size="small" onClick={handleRetry}>
-                        <RefreshIcon fill={palette.background.textSecondary} />
+            <Stack direction="row">
+                <Tooltip title={t("Copy")}>
+                    <IconButton size="small" onClick={handleCopy}>
+                        <CopyIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Tooltip>
-                <Tooltip title={t("Reply")}>
-                    <IconButton size="small" onClick={handleReply}>
-                        <ReplyIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Tooltip>
-                <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
+                {isBot && <>
+                    <Tooltip title={t("Retry")}>
+                        <IconButton size="small" onClick={handleRetry}>
+                            <RefreshIcon fill={palette.background.textSecondary} />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title={t("Reply")}>
+                        <IconButton size="small" onClick={handleReply}>
+                            <ReplyIcon fill={palette.background.textSecondary} />
+                        </IconButton>
+                    </Tooltip>
+                    <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
+                </>}
                 {activeIndex > 0 && activeIndex < (messagesCount - 1) && <IconButton
                     size="small"
                     onClick={() => { handleActiveIndexChange(Math.max(0, activeIndex - 1)); }}>
@@ -249,7 +259,7 @@ const ChatBubbleReactions = ({
                     onClick={() => { handleActiveIndexChange(Math.min(messagesCount - 1, activeIndex + 1)); }}>
                     <ChevronRightIcon fill={palette.background.textSecondary} />
                 </IconButton>}
-            </Stack>}
+            </Stack>
         </Box >
     );
 };
@@ -344,6 +354,17 @@ export const ChatBubble = ({
         });
     };
 
+    useEffect(() => {
+        const chatMessageEditSub = PubSub.get().subscribe("chatMessageEdit", (data) => {
+            if (data === false) {
+                setEditingText(undefined);
+            } else if (data === message.id) {
+                startEditing();
+            }
+        });
+        return () => { PubSub.get().unsubscribe(chatMessageEditSub); };
+    }, [message.id, startEditing]);
+
     const handleReactionAdd = (emoji: string) => {
         if (message.isUnsent) return;
         const originalSummaries = message.reactionSummaries;
@@ -374,6 +395,11 @@ export const ChatBubble = ({
                 onUpdated({ ...message, reactionSummaries: originalSummaries } as ChatBubbleProps["message"]);
             },
         });
+    };
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(getTranslation(message, getUserLanguages(session), true)?.text ?? "");
+        PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     };
 
     const { name, handle, adornments } = useMemo(() => {
@@ -537,6 +563,7 @@ export const ChatBubble = ({
                 <ChatBubbleReactions
                     activeIndex={activeIndex}
                     handleActiveIndexChange={onActiveIndexChange}
+                    handleCopy={handleCopy}
                     handleReactionAdd={handleReactionAdd}
                     handleReply={() => { onReply(message); }}
                     handleRetry={() => { onRetry(message); }}

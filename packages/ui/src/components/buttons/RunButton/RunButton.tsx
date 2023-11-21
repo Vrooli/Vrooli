@@ -94,7 +94,7 @@ export const RunButton = ({
         }
         // If incomplete, confirm user wants to run
         else if (status === Status.Incomplete) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "RunInvalidRoutineConfirm",
                 buttons: [
                     { labelKey: "Yes", onClick: () => { startRun(event); } },

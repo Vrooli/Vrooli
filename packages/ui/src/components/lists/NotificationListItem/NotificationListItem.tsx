@@ -20,7 +20,7 @@ export function NotificationListItem({
     const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
     const onMarkAsRead = useCallback(() => {
         if (!data) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         fetchLazyWrapper<FindByIdInput, Success>({

@@ -48,17 +48,17 @@ export const TagSelectorBase = ({
         tagLabel = tagLabel.replace(/[,;]/g, "");
         // Check if tag is valid length
         if (tagLabel.length < 2) {
-            PubSub.get().publishSnack({ messageKey: "TagTooShort", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "TagTooShort", severity: "Error" });
             return;
         }
         if (tagLabel.length > 30) {
-            PubSub.get().publishSnack({ messageKey: "TagTooLong", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "TagTooLong", severity: "Error" });
             return;
         }
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tagLabel);
         if (isSelected) {
-            PubSub.get().publishSnack({ messageKey: "TagAlreadySelected", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "TagAlreadySelected", severity: "Error" });
             return;
         }
         // Add tag

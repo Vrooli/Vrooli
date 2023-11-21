@@ -43,7 +43,7 @@ const SignupForm = () => {
                 }}
                 onSubmit={(values, helpers) => {
                     if (values.password !== values.confirmPassword) {
-                        PubSub.get().publishSnack({ messageKey: "PasswordsDontMatch", severity: "Error" });
+                        PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
                         helpers.setSubmitting(false);
                         return;
                     }
@@ -60,21 +60,21 @@ const SignupForm = () => {
                         onSuccess: (data) => {
                             localStorage.removeItem(Cookies.FormData); // Clear old form data cache
                             setupPush();
-                            PubSub.get().publishSession(data);
-                            PubSub.get().publishAlertDialog({
+                            PubSub.get().publish("session", data);
+                            PubSub.get().publish("alertDialog", {
                                 messageKey: "WelcomeVerifyEmail",
                                 messageVariables: { appName: BUSINESS_NAME },
                                 buttons: [{
                                     labelKey: "Ok", onClick: () => {
                                         setLocation(LINKS.Home);
-                                        PubSub.get().publishTutorial();
+                                        PubSub.get().publish("tutorial");
                                     },
                                 }],
                             });
                         },
                         onError: (response) => {
                             if (hasErrorCode(response, "EmailInUse")) {
-                                PubSub.get().publishAlertDialog({
+                                PubSub.get().publish("alertDialog", {
                                     messageKey: "EmailInUseWrongPassword",
                                     buttons: [
                                         { labelKey: "Yes", onClick: () => { setLocation(LINKS.ForgotPassword); } },
@@ -467,7 +467,7 @@ export const SignupView = ({
     // const walletLogin = useCallback(async (providerKey: string) => {
     //     // Check if wallet extension installed
     //     if (!hasWalletExtension(providerKey)) {
-    //         PubSub.get().publishAlertDialog({
+    //         PubSub.get().publish("alertDialog", {
     //             messageKey: "WalletProviderNotFoundDetails",
     //             buttons: [
     //                 { labelKey: "TryAgain", onClick: openWalletConnectDialog },
@@ -480,8 +480,8 @@ export const SignupView = ({
     //     // Validate wallet
     //     const walletCompleteResult = await validateWallet(providerKey);
     //     if (walletCompleteResult?.session) {
-    //         PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
-    //         PubSub.get().publishSession(walletCompleteResult.session);
+    //         PubSub.get().publish("snack", { messageKey: "WalletVerified", severity: "Success" });
+    //         PubSub.get().publish("session", walletCompleteResult.session);
     //         // Redirect to main dashboard
     //         setLocation(redirect ?? LINKS.Home);
     //         // Set up push notifications

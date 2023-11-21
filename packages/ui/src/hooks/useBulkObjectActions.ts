@@ -34,7 +34,7 @@ export type UseBulkObjectActionsReturn<T extends ListObject = ListObject> = {
 
 const callIfExists = (callback: (() => unknown) | null | undefined) => {
     if (!exists(callback)) {
-        PubSub.get().publishSnack({ messageKey: "ActionNotSupported", severity: "Error" });
+        PubSub.get().publish("snack", { messageKey: "ActionNotSupported", severity: "Error" });
         return;
     }
     callback();

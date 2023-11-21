@@ -76,7 +76,7 @@ export const SelectLanguageMenu = ({
         // Get source translation
         const sourceTranslation = languages.find(l => l === source);
         if (!sourceTranslation) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotFindTranslation", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotFindTranslation", severity: "Error" });
             return;
         }
         fetchLazyWrapper<TranslateInput, Translate>({
@@ -87,7 +87,7 @@ export const SelectLanguageMenu = ({
                 if (data) {
                     console.log("TODO");
                 } else {
-                    PubSub.get().publishSnack({ messageKey: "FailedToTranslate", severity: "Error" });
+                    PubSub.get().publish("snack", { messageKey: "FailedToTranslate", severity: "Error" });
                 }
             },
             errorMessage: () => ({ messageKey: "FailedToTranslate" }),

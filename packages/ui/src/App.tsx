@@ -182,23 +182,23 @@ export function App() {
     // Detect online/offline status, as well as "This site uses cookies" banner
     useEffect(() => {
         window.addEventListener("online", () => {
-            PubSub.get().publishSnack({ id: "online-status", messageKey: "NowOnline", severity: "Success" });
+            PubSub.get().publish("snack", { id: "online-status", messageKey: "NowOnline", severity: "Success" });
         });
         window.addEventListener("offline", () => {
             // ID is the same so there is ever only one online/offline snack displayed at a time
-            PubSub.get().publishSnack({ autoHideDuration: "persist", id: "online-status", messageKey: "NoInternet", severity: "Error" });
+            PubSub.get().publish("snack", { autoHideDuration: "persist", id: "online-status", messageKey: "NoInternet", severity: "Error" });
         });
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
         const cookiePreferences = getCookiePreferences();
         if (!cookiePreferences) {
-            PubSub.get().publishCookies();
+            PubSub.get().publish("cookies");
         }
     }, []);
 
     // Handle site-wide keyboard shortcuts
     useHotkeys([
-        { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publishCommandPalette(); } },
-        { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publishFindInPage(); } },
+        { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("commandPalette"); } },
+        { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("findInPage"); } },
     ]);
 
     const checkSession = useCallback((data?: Session) => {
@@ -227,7 +227,7 @@ export function App() {
                 }
                 // If error is something else, notify user
                 if (!isInvalidSession) {
-                    PubSub.get().publishSnack({
+                    PubSub.get().publish("snack", {
                         messageKey: "CannotConnectToServer",
                         autoHideDuration: "persist",
                         severity: "Error",
@@ -246,7 +246,7 @@ export function App() {
     useEffect(() => {
         checkSession();
         // Handle loading spinner, which can have a delay
-        const loadingSub = PubSub.get().subscribeLoading((data) => {
+        const loadingSub = PubSub.get().subscribe("loading", (data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             if (Number.isInteger(data)) {
                 timeoutRef.current = setTimeout(() => setIsLoading(true), Math.abs(data as number));
@@ -256,7 +256,7 @@ export function App() {
         });
         // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
         // can be passed in as a number
-        const celebrationSub = PubSub.get().subscribeCelebration((data) => {
+        const celebrationSub = PubSub.get().subscribe("celebration", (data) => {
             // Start confetti immediately
             setIsCelebrating(true);
             // Determine duration
@@ -266,7 +266,7 @@ export function App() {
             setTimeout(() => setIsCelebrating(false), duration);
         });
         // Handle session updates
-        const sessionSub = PubSub.get().subscribeSession((session) => {
+        const sessionSub = PubSub.get().subscribe("session", (session) => {
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
@@ -282,12 +282,12 @@ export function App() {
             setCookieAllFocusModes(focusModes);
         });
         // Handle theme updates
-        const themeSub = PubSub.get().subscribeTheme((data) => {
+        const themeSub = PubSub.get().subscribe("theme", (data) => {
             const newTheme = themes[data] ?? themes.dark;
             setThemeAndMeta(newTheme);
         });
         // Handle focus mode updates
-        const focusModeSub = PubSub.get().subscribeFocusMode((data) => {
+        const focusModeSub = PubSub.get().subscribe("focusMode", (data) => {
             setCookieActiveFocusMode(data);
             setSession((prevState) => {
                 if (!prevState) return prevState;
@@ -321,26 +321,26 @@ export function App() {
             }
         });
         // Handle font size updates
-        const fontSizeSub = PubSub.get().subscribeFontSize((data) => {
+        const fontSizeSub = PubSub.get().subscribe("fontSize", (data) => {
             setFontSize(data);
             setCookieFontSize(data);
         });
         // Handle language updates
-        const languageSub = PubSub.get().subscribeLanguage((data) => {
+        const languageSub = PubSub.get().subscribe("language", (data) => {
             setLanguage(data);
             setCookieLanguage(data);
         });
         // Handle isLeftHanded updates
-        const isLeftHandedSub = PubSub.get().subscribeIsLeftHanded((data) => {
+        const isLeftHandedSub = PubSub.get().subscribe("isLeftHanded", (data) => {
             setIsLeftHanded(data);
             setCookieIsLeftHanded(data);
         });
         // Handle tutorial popup
-        const tutorialSub = PubSub.get().subscribeTutorial(() => {
+        const tutorialSub = PubSub.get().subscribe("tutorial", () => {
             setIsTutorialOpen(true);
         });
         // Handle content margins when drawer(s) open/close
-        const sideMenuPub = PubSub.get().subscribeSideMenu((data) => {
+        const sideMenuPub = PubSub.get().subscribe("sideMenu", (data) => {
             const { persistentOnDesktop, sideForRightHanded } = menusDisplayData[data.id];
             // Ignore if dialog is not persistent on desktop
             if (!persistentOnDesktop) return;

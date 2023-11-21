@@ -515,7 +515,7 @@ export const CodeInputBase = ({
     // Handle assistant dialog
     const closeAssistantDialog = useCallback(() => {
         setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
-        PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: "standard", isOpen: false });
+        PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: "standard", isOpen: false });
     }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
@@ -609,7 +609,7 @@ export const CodeInputBase = ({
                         const parsed = JSON.parse(internalValue);
                         updateInternalValue(JSON.stringify(parsed, null, 4));
                     } catch (error) {
-                        PubSub.get().publishSnack({ message: "Invalid JSON", severity: "Error", data: { error } });
+                        PubSub.get().publish("snack", { message: "Invalid JSON", severity: "Error", data: { error } });
                     }
                 },
             });

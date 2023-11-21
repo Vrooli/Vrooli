@@ -844,7 +844,7 @@ export const RunView = ({
                 },
                 successMessage: () => ({ messageKey: "RoutineCompleted" }),
                 onSuccess: () => {
-                    PubSub.get().publishCelebration();
+                    PubSub.get().publish("celebration");
                     removeSearchParams(setLocation, ["run", "step"]);
                     tryOnClose(onClose, setLocation);
                 },
@@ -861,7 +861,7 @@ export const RunView = ({
         const success = step.wasSuccessful ?? true;
         // Don't actually do it if in test mode
         if (testMode || !run) {
-            if (success) PubSub.get().publishCelebration();
+            if (success) PubSub.get().publish("celebration");
             removeSearchParams(setLocation, ["run", "step"]);
             tryOnClose(onClose, setLocation);
             return;
@@ -879,7 +879,7 @@ export const RunView = ({
             },
             successMessage: () => ({ messageKey: "RoutineCompleted" }),
             onSuccess: () => {
-                PubSub.get().publishCelebration();
+                PubSub.get().publish("celebration");
                 removeSearchParams(setLocation, ["run", "step"]);
                 tryOnClose(onClose, setLocation);
             },

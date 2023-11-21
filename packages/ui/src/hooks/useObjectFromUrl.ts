@@ -83,7 +83,7 @@ export function useObjectFromUrl<
         if (storedForm) {
             if (isCreate) return applyTransform(storedForm as Partial<PData>) as ObjectReturnType<TData, TFunc>;
             else if (JSON.stringify(storedForm) === JSON.stringify(data)) return data;
-            PubSub.get().publishSnack({
+            PubSub.get().publish("snack", {
                 autoHideDuration: "persist",
                 messageKey: "FormDataFound",
                 buttonKey: "Yes",
@@ -117,7 +117,7 @@ export function useObjectFromUrl<
         // Else if onInvalidUrlParams provided, call it
         else if (exists(stableOnInvalidUrlParams)) stableOnInvalidUrlParams(urlParams);
         // Else, show error
-        else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
+        else PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
     }, [stableOnError, getData, objectType, overrideObject, stableOnInvalidUrlParams, stableTransform, urlParams]);
     useEffect(() => {
         // If overrideObject provided, use it

@@ -51,13 +51,13 @@ const LoginForm = ({
                     fetch: emailLogIn,
                     inputs: { verificationCode },
                     onSuccess: (data) => {
-                        PubSub.get().publishSnack({ messageKey: "EmailVerified", severity: "Success" });
-                        PubSub.get().publishSession(data);
+                        PubSub.get().publish("snack", { messageKey: "EmailVerified", severity: "Success" });
+                        PubSub.get().publish("session", data);
                         setLocation(redirect ?? LINKS.Home);
                     },
                     onError: (response) => {
                         if (hasErrorCode(response, "MustResetPassword")) {
-                            PubSub.get().publishAlertDialog({
+                            PubSub.get().publish("alertDialog", {
                                 messageKey: "ChangePasswordBeforeLogin",
                                 buttons: [
                                     { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home); } },
@@ -89,15 +89,15 @@ const LoginForm = ({
                         successCondition: (data) => data !== null,
                         onSuccess: (data) => {
                             localStorage.removeItem(Cookies.FormData); // Clear old form data cache
-                            if (verificationCode) PubSub.get().publishSnack({ messageKey: "EmailVerified", severity: "Success" });
-                            PubSub.get().publishSession(data);
+                            if (verificationCode) PubSub.get().publish("snack", { messageKey: "EmailVerified", severity: "Success" });
+                            PubSub.get().publish("session", data);
                             setLocation(redirect ?? LINKS.Home);
                         },
                         showDefaultErrorSnack: false,
                         onError: (response) => {
                             // Custom dialog for changing password
                             if (hasErrorCode(response, "MustResetPassword")) {
-                                PubSub.get().publishAlertDialog({
+                                PubSub.get().publish("alertDialog", {
                                     messageKey: "ChangePasswordBeforeLogin",
                                     buttons: [
                                         { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home); } },
@@ -106,14 +106,14 @@ const LoginForm = ({
                             }
                             // Custom snack for invalid email, that has sign up link
                             else if (hasErrorCode(response, "EmailNotFound")) {
-                                PubSub.get().publishSnack({
+                                PubSub.get().publish("snack", {
                                     messageKey: "EmailNotFound",
                                     severity: "Error",
                                     buttonKey: "SignUp",
                                     buttonClicked: () => { setLocation(LINKS.Signup); },
                                 });
                             } else {
-                                PubSub.get().publishSnack({ message: errorToMessage(response, ["en"]), severity: "Error", data: response });
+                                PubSub.get().publish("snack", { message: errorToMessage(response, ["en"]), severity: "Error", data: response });
                             }
                             helpers.setSubmitting(false);
                         },

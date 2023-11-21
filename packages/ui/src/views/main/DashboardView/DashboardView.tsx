@@ -134,7 +134,7 @@ export const DashboardView = ({
     }, [tabs, activeFocusMode]);
     const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode, false>) => {
         e.preventDefault();
-        PubSub.get().publishFocusMode({
+        PubSub.get().publish("focusMode", {
             __typename: "ActiveFocusMode" as const,
             mode: tab.tabType,
             stopCondition: FocusModeStopCondition.NextBegins,
@@ -240,8 +240,8 @@ export const DashboardView = ({
         }
     }, [upcomingEvents]);
 
-    const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: true }); }, []);
-    const closeSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", isOpen: false }); }, []);
+    const openSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", isOpen: true }); }, []);
+    const closeSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", isOpen: false }); }, []);
     useEffect(() => {
         return () => {
             closeSideMenu();

@@ -67,7 +67,7 @@ export const RichInputBase = ({
 
     const closeAssistantDialog = useCallback(() => {
         setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
-        PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: "note", isOpen: false });
+        PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: "note", isOpen: false });
     }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,

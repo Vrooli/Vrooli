@@ -143,11 +143,11 @@ const ResourceForm = ({
 
     const onSubmit = useCallback(() => {
         if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
             return;
         }
         if (!isCreate && !existing) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (isMutate) {

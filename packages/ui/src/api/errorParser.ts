@@ -63,6 +63,6 @@ export const displayServerErrors = (errors?: ServerResponse["errors"]) => {
     if (!errors) return;
     for (const error of errors) {
         const message = errorToMessage({ errors: [error] }, ["en"]);
-        PubSub.get().publishSnack({ message, severity: "Error" });
+        PubSub.get().publish("snack", { message, severity: "Error" });
     }
 };

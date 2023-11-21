@@ -28,11 +28,11 @@ export const useCopier = ({
     const handleCopy = useCallback(() => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (!hasCopyingSupport) {
-            PubSub.get().publishSnack({ messageKey: "CopyNotSupported", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CopyNotSupported", severity: "Error" });
             return;
         }
         fetchLazyWrapper<CopyInput, CopyResult>({

@@ -22,7 +22,7 @@ export const Page = ({
     if (mustBeLoggedIn) {
         if (session?.isLoggedIn) return children;
         if (sessionChecked && pathname !== LINKS.Signup) {
-            PubSub.get().publishSnack({ messageKey: "PageRestricted", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "PageRestricted", severity: "Error" });
             return <Redirect to={`${LINKS.Signup}${stringifySearchParams({ redirect: pathname })}`} />;
         }
         return null;

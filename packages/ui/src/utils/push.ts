@@ -20,12 +20,12 @@ export const setupPush = async () => {
         }
         const result = await requestNotificationPermission();
         if (result === "denied") {
-            PubSub.get().publishSnack({ messageKey: "PushPermissionDenied", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "PushPermissionDenied", severity: "Error" });
         }
         // Get subscription data
         const subscription: PushSubscription | null = await subscribeUserToPush();
         if (!subscription) {
-            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             return;
         }
         // Converting p256dh to a string
@@ -47,9 +47,9 @@ export const setupPush = async () => {
                 },
                 name: getDeviceInfo().deviceName,
             },
-            onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, ["en"]), severity: "Error", data: error }); },
+            onError: (error) => { PubSub.get().publish("snack", { message: errorToMessage(error, ["en"]), severity: "Error", data: error }); },
         });
     } catch (error) {
-        PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: error });
+        PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: error });
     }
 };

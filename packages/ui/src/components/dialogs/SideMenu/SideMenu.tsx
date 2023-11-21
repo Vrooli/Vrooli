@@ -69,7 +69,7 @@ export const SideMenu = () => {
     const { isOpen, close } = useSideMenu({ id, isMobile });
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
-        PubSub.get().publishSideMenu({ id, isOpen });
+        PubSub.get().publish("sideMenu", { id, isOpen });
     }, [breakpoints, isOpen]);
 
     // Display settings collapse
@@ -139,7 +139,7 @@ export const SideMenu = () => {
                 inputs: { id: user.id },
                 successMessage: () => ({ messageKey: "LoggedInAs", messageVariables: { name: user.name ?? user.handle ?? "" } }),
                 onSuccess: (data) => {
-                    PubSub.get().publishSession(data);
+                    PubSub.get().publish("session", data);
                     window.location.reload();
                 },
             });
@@ -161,11 +161,11 @@ export const SideMenu = () => {
             successMessage: () => ({ messageKey: "LoggedOutOf", messageVariables: { name: user.name ?? user.handle ?? "" } }),
             onSuccess: (data) => {
                 localStorage.removeItem(Cookies.FormData); // Clear old form data cache
-                PubSub.get().publishSession(data);
-                PubSub.get().publishSideMenu({ id: "side-menu", isOpen: false });
+                PubSub.get().publish("session", data);
+                PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false });
             },
             // If error, log out anyway
-            onError: () => { PubSub.get().publishSession(guestSession); },
+            onError: () => { PubSub.get().publish("session", guestSession); },
         });
         setLocation(LINKS.Home);
     }, [handleClose, isMobile, session, logOut, setLocation]);

@@ -26,11 +26,11 @@ export const useVoter = ({
     const handleVote = useCallback((emoji: string | null) => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (!hasVotingSupport) {
-            PubSub.get().publishSnack({ messageKey: "VoteNotSupported", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "VoteNotSupported", severity: "Error" });
             return;
         }
         fetchLazyWrapper<ReactInput, Success>({

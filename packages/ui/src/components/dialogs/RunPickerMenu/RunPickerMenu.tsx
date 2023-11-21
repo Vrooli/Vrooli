@@ -48,7 +48,7 @@ export const RunPickerMenu = ({
     const [createRunRoutine] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
     const createNewRun = useCallback(() => {
         if (!runnableObject || !runnableObject.id) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (runnableObject.__typename === "ProjectVersion") {
@@ -135,7 +135,7 @@ export const RunPickerMenu = ({
         if (!runnableObject) return;
         // If run has some progress, show confirmation dialog
         if (run.completedComplexity > 0) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "RunDeleteConfirm",
                 messageVariables: { startDate: displayDate(run.startedAt), percentComplete: getRunPercentComplete(run.completedComplexity, runnableObject.complexity) },
                 buttons: [

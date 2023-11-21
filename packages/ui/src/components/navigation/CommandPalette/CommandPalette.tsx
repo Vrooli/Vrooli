@@ -33,7 +33,7 @@ export const CommandPalette = () => {
     const close = useCallback(() => setOpen(false), []);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribeCommandPalette(() => {
+        const dialogSub = PubSub.get().subscribe("commandPalette", () => {
             setOpen(o => !o);
             setSearchString("");
         });

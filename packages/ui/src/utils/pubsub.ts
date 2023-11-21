@@ -1,32 +1,5 @@
-/**
- * Simple pub/sub implementation, with typescript support. 
- * Uses a singleton instance to publish and subscribe to events.
- * example:
- *      import { PubSub } from "utils";
- *      PubSub.get().publishSnack({ messageKey: "HelloWorld" });
- */
 import { ActiveFocusMode, CommonKey, ErrorKey, Session } from "@local/shared";
 import { SnackSeverity } from "components/snacks";
-
-export type Pubs = "Celebration" |
-    "CommandPalette" |
-    "Cookies" | // For cookie consent dialog
-    "FastUpdate" |
-    "FindInPage" |
-    "FocusMode" |
-    "FontSize" |
-    "IsLeftHanded" |
-    "Language" |
-    "Loading" |
-    "LogOut" |
-    "AlertDialog" |
-    "Session" |
-    "SideMenu" |
-    "Snack" |
-    "Theme" |
-    "Tutorial" |
-    "NodeDrag" |
-    "NodeDrop";
 
 export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
     messageKey: KeyList;
@@ -67,10 +40,40 @@ export type SideMenuPub = {
     isOpen: boolean;
 }
 
+export interface EventPayloads {
+    alertDialog: AlertDialogPub;
+    celebration: { duration?: number };
+    chatMessageEdit: string | false;
+    commandPalette: void;
+    cookies: void;
+    fastUpdate: { on?: boolean, duration?: number };
+    findInPage: void;
+    focusMode: ActiveFocusMode;
+    fontSize: number;
+    isLeftHanded: boolean;
+    language: string;
+    /** Pass delay to show spinner if turning on, or false to turn off. */
+    loading: number | boolean;
+    logOut: void;
+    nodeDrag: { nodeId: string };
+    nodeDrop: { nodeId: string, position: { x: number, y: number } };
+    session: Session | undefined;
+    sideMenu: SideMenuPub;
+    snack: SnackPub;
+    theme: "light" | "dark";
+    tutorial: void;
+}
+
+const defaultPayloads: Partial<{ [K in keyof EventPayloads]: EventPayloads[K] }> = {
+    fastUpdate: { on: true, duration: 1000 },
+};
+
+export type PubType = keyof EventPayloads;
+
 export class PubSub {
     private static instance: PubSub;
-    // eslint-disable-next-line @typescript-eslint/ban-types
-    private subscribers: { [key: string]: [symbol, Function][] } = {};
+    private subscribers = new Map<PubType, Array<{ token: symbol, subscriber: (data: any) => void }>>();
+
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
     static get(): PubSub {
@@ -80,152 +83,29 @@ export class PubSub {
         return PubSub.instance;
     }
 
-    publish(key: Pubs, data?: any) {
-        if (this.subscribers[key]) {
-            this.subscribers[key].forEach(subscriber => subscriber[1](data));
-        }
-    }
-    publishAlertDialog(data: AlertDialogPub) {
-        this.publish("AlertDialog", data);
-    }
-    publishCelebration(duration?: number) {
-        this.publish("Celebration", duration);
-    }
-    publishCommandPalette() {
-        this.publish("CommandPalette");
-    }
-    publishCookies() {
-        this.publish("Cookies");
-    }
-    /**
-     * Notifies graph links to re-render quickly for a period of time
-     */
-    publishFastUpdate({ on = true, duration = 1000 }: { on?: boolean, duration?: number }) {
-        this.publish("FastUpdate", { on, duration });
-    }
-    publishFindInPage() {
-        this.publish("FindInPage");
-    }
-    publishFocusMode(mode: ActiveFocusMode) {
-        this.publish("FocusMode", mode);
-    }
-    publishFontSize(fontSize: number) {
-        this.publish("FontSize", fontSize);
-    }
-    publishIsLeftHanded(isLeftHanded: boolean) {
-        this.publish("IsLeftHanded", isLeftHanded);
-    }
-    publishLanguage(language: string) {
-        this.publish("Language", language);
-    }
-    /**
-     * Pass delay to show spinner if turning on, or false to turn off.
-     */
-    publishLoading(spinnerDelay: number | boolean) {
-        this.publish("Loading", spinnerDelay);
-    }
-    publishLogOut() {
-        this.publish("LogOut");
-    }
-    publishNodeDrag(data: { nodeId: string }) {
-        this.publish("NodeDrag", data);
-    }
-    publishNodeDrop(data: { nodeId: string, position: { x: number, y: number } }) {
-        this.publish("NodeDrop", data);
-    }
-    publishSession(session: Session | undefined) {
-        // When session is published, also set "isLoggedIn" flag in localStorage
-        localStorage.setItem("isLoggedIn", session?.isLoggedIn === true ? "true" : "false");
-        this.publish("Session", session);
-    }
-    publishSideMenu(data: SideMenuPub) {
-        this.publish("SideMenu", data);
-    }
-    publishSnack(data: SnackPub) {
-        this.publish("Snack", data);
-    }
-    publishTheme(theme: "light" | "dark") {
-        this.publish("Theme", theme);
-    }
-    publishTutorial() {
-        this.publish("Tutorial");
+    publish<T extends PubType>(type: T, data: EventPayloads[T] = defaultPayloads[type] as EventPayloads[T]) {
+        this.subscribers.get(type)?.forEach(({ subscriber }) => subscriber(data));
     }
 
-    // eslint-disable-next-line @typescript-eslint/ban-types
-    subscribe(key: Pubs, subscriber: Function): symbol {
-        // Create unique token, so we can unsubscribe later
-        const token = Symbol(key);
-        if (!this.subscribers[key]) {
-            this.subscribers[key] = [];
+    subscribe<T extends PubType>(type: T, subscriber: (data: EventPayloads[T]) => void): symbol {
+        const token = Symbol(type);
+
+        let subscribers = this.subscribers.get(type);
+        if (!subscribers) {
+            subscribers = [];
+            this.subscribers.set(type, subscribers);
         }
-        this.subscribers[key].push([token, subscriber]);
+        subscribers.push({ token, subscriber });
+
         return token;
-    }
-    subscribeAlertDialog(subscriber: (data: AlertDialogPub) => unknown) {
-        return this.subscribe("AlertDialog", subscriber);
-    }
-    subscribeCelebration(subscriber: (duration?: number) => unknown) {
-        return this.subscribe("Celebration", subscriber);
-    }
-    subscribeCommandPalette(subscriber: () => unknown) {
-        return this.subscribe("CommandPalette", subscriber);
-    }
-    subscribeCookies(subscriber: () => unknown) {
-        return this.subscribe("Cookies", subscriber);
-    }
-    subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => unknown) {
-        return this.subscribe("FastUpdate", subscriber);
-    }
-    subscribeFindInPage(subscriber: () => unknown) {
-        return this.subscribe("FindInPage", subscriber);
-    }
-    subscribeFocusMode(subscriber: (mode: ActiveFocusMode) => unknown) {
-        return this.subscribe("FocusMode", subscriber);
-    }
-    subscribeFontSize(subscriber: (fontSize: number) => unknown) {
-        return this.subscribe("FontSize", subscriber);
-    }
-    subscribeIsLeftHanded(subscriber: (isLeftHanded: boolean) => unknown) {
-        return this.subscribe("IsLeftHanded", subscriber);
-    }
-    subscribeLanguage(subscriber: (language: string) => unknown) {
-        return this.subscribe("Language", subscriber);
-    }
-    subscribeLoading(subscriber: (spinnerDelay: number | boolean) => unknown) {
-        return this.subscribe("Loading", subscriber);
-    }
-    subscribeLogOut(subscriber: () => unknown) {
-        return this.subscribe("LogOut", subscriber);
-    }
-    subscribeNodeDrag(subscriber: (data: { nodeId: string }) => unknown) {
-        return this.subscribe("NodeDrag", subscriber);
-    }
-    subscribeNodeDrop(subscriber: (data: { nodeId: string, position: { x: number, y: number } }) => unknown) {
-        return this.subscribe("NodeDrop", subscriber);
-    }
-    subscribeSession(subscriber: (session: Session | undefined) => unknown) {
-        return this.subscribe("Session", subscriber);
-    }
-    subscribeSideMenu(subscriber: (data: SideMenuPub) => unknown) {
-        return this.subscribe("SideMenu", subscriber);
-    }
-    subscribeSnack(subscriber: (data: SnackPub) => unknown) {
-        return this.subscribe("Snack", subscriber);
-    }
-    subscribeTheme(subscriber: (theme: "light" | "dark") => unknown) {
-        return this.subscribe("Theme", subscriber);
-    }
-    subscribeTutorial(subscriber: () => unknown) {
-        return this.subscribe("Tutorial", subscriber);
     }
 
     unsubscribe(token: symbol) {
-        for (const key in this.subscribers) {
-            const subscribers = this.subscribers[key];
-            const index = subscribers.findIndex(subscriber => subscriber[0] === token);
+        this.subscribers.forEach((subscribers) => {
+            const index = subscribers.findIndex(entry => entry.token === token);
             if (index > -1) {
                 subscribers.splice(index, 1);
             }
-        }
+        });
     }
 }

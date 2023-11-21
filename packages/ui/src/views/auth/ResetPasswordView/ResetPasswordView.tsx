@@ -48,14 +48,14 @@ const ResetPasswordForm = ({
                 onSubmit={(values, helpers) => {
                     // Check for valid userId and code
                     if (!userId || !code) {
-                        PubSub.get().publishSnack({ messageKey: "InvalidResetPasswordUrl", severity: "Error" });
+                        PubSub.get().publish("snack", { messageKey: "InvalidResetPasswordUrl", severity: "Error" });
                         return;
                     }
                     fetchLazyWrapper<EmailResetPasswordInput, Session>({
                         fetch: emailResetPassword,
                         inputs: { id: userId, code, newPassword: values.newPassword },
                         onSuccess: (data) => {
-                            PubSub.get().publishSession(data);
+                            PubSub.get().publish("session", data);
                             setLocation(LINKS.Home);
                         },
                         successMessage: () => ({ messageKey: "PasswordReset" }),

@@ -53,7 +53,7 @@ export const DeleteAccountDialog = ({
                 }}
                 onSubmit={(values, helpers) => {
                     if (!id) {
-                        PubSub.get().publishSnack({ messageKey: "NoUserIdFound", severity: "Error" });
+                        PubSub.get().publish("snack", { messageKey: "NoUserIdFound", severity: "Error" });
                         return;
                     }
                     fetchLazyWrapper<UserDeleteInput, Session>({
@@ -61,7 +61,7 @@ export const DeleteAccountDialog = ({
                         inputs: values,
                         successMessage: () => ({ messageKey: "AccountDeleteSuccess" }),
                         onSuccess: (data) => {
-                            PubSub.get().publishSession(data);
+                            PubSub.get().publish("session", data);
                             setLocation(LINKS.Home);
                             handleClose(true);
                         },

@@ -55,7 +55,7 @@ export const ChatSideMenu = ({
     const { isOpen, close } = useSideMenu({ id, idPrefix, isMobile });
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
-        PubSub.get().publishSideMenu({ id, idPrefix, isOpen });
+        PubSub.get().publish("sideMenu", { id, idPrefix, isOpen });
     }, [breakpoints, idPrefix, isOpen]);
     const handleClose = useCallback((event: React.MouseEvent<HTMLElement>) => {
         close();

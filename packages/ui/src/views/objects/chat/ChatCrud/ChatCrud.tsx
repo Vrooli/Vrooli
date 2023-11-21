@@ -19,7 +19,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useDeleter } from "hooks/useDeleter";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useMessageTree } from "hooks/useMessageTree";
+import { findTargetMessage, useMessageTree } from "hooks/useMessageTree";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -239,7 +239,7 @@ const ChatForm = ({
 
     const onSubmit = useCallback((updatedChat?: ChatShape) => {
         if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
             return;
         }
         fetchLazyWrapper<ChatUpdateInput, Chat>({
@@ -252,7 +252,7 @@ const ChatForm = ({
             },
             onCompleted: () => { props.setSubmitting(false); },
             onError: (data) => {
-                PubSub.get().publishSnack({
+                PubSub.get().publish("snack", {
                     message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
                     severity: "Error",
                     data,
@@ -326,6 +326,21 @@ const ChatForm = ({
         };
     }, [addMessages, editMessage, existing.participants, handleUpdate, message, removeMessages, session, usersTyping]);
 
+    const handleReply = useCallback((message: ChatMessageShape) => {
+        // Determine if we should edit an existing message or create a new one
+        const existingMessageId = findTargetMessage(tree, branches, message, existing?.participants?.length ?? 0, session);
+        // If editing an existing message, send pub/sub
+        if (existingMessageId) {
+            PubSub.get().publish("chatMessageEdit", existingMessageId);
+            return;
+        }
+        // Otherwise, set the message input to "@[handle_of_user_youre_replying_to] "
+        else {
+            PubSub.get().publish("chatMessageEdit", false);
+            setMessage(`@[${message.user?.name}] `);
+        }
+    }, [branches, existing?.participants?.length, session, setMessage, tree]);
+
     // Handle translations
     const {
         handleAddLanguage,
@@ -371,11 +386,11 @@ const ChatForm = ({
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
     const copyLink = useCallback(() => {
         navigator.clipboard.writeText(url);
-        PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+        PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     }, [url]);
 
-    const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: task, isOpen: true }); }, [task]);
-    const closeSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "chat-side-menu", idPrefix: task, isOpen: false }); }, [task]);
+    const openSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: task, isOpen: true }); }, [task]);
+    const closeSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: task, isOpen: false }); }, [task]);
     useEffect(() => {
         return () => {
             closeSideMenu();
@@ -547,7 +562,7 @@ const ChatForm = ({
                         <ChatBubbleTree
                             branches={branches}
                             editMessage={editMessage}
-                            handleReply={() => { }}
+                            handleReply={handleReply}
                             handleRetry={() => { }}
                             removeMessages={removeMessages}
                             setBranches={setBranches}
@@ -560,7 +575,7 @@ const ChatForm = ({
                         <Box display="flex" flexDirection="row" justifyContent="center" margin="auto" gap={0} p={1}>
                             <Typography variant="body2" sx={{ margin: "auto", maxWidth: "min(700px, 100%)" }}>{t("BotChatWarning")}</Typography>
                             <Button variant="text" sx={{ margin: "auto", textTransform: "none" }} onClick={() => {
-                                PubSub.get().publishAlertDialog({
+                                PubSub.get().publish("alertDialog", {
                                     messageKey: "BotChatWarningDetails",
                                     buttons: [
                                         { labelKey: "Ok" },
@@ -574,7 +589,7 @@ const ChatForm = ({
                             Icon: SendIcon,
                             onClick: () => {
                                 if (!existing) {
-                                    PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
+                                    PubSub.get().publish("snack", { message: "Chat not found", severity: "Error" });
                                     return;
                                 }
                                 if (message.trim() === "") return;

@@ -39,7 +39,7 @@ export const EmailList = ({
                     emailAddress: values.emailAddress,
                 },
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ messageKey: "CompleteVerificationInEmail", severity: "Info" });
+                    PubSub.get().publish("snack", { messageKey: "CompleteVerificationInEmail", severity: "Info" });
                     handleUpdate([...list, data]);
                     formik.resetForm();
                 },
@@ -54,11 +54,11 @@ export const EmailList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
-            PubSub.get().publishSnack({ messageKey: "MustLeaveVerificationMethod", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "MustLeaveVerificationMethod", severity: "Error" });
             return;
         }
         // Confirmation dialog
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "EmailDeleteConfirm",
             messageVariables: { emailAddress: email.emailAddress },
             buttons: [
@@ -86,7 +86,7 @@ export const EmailList = ({
             fetch: verifyMutation,
             inputs: { emailAddress: email.emailAddress },
             onSuccess: () => {
-                PubSub.get().publishSnack({ messageKey: "CompleteVerificationInEmail", severity: "Info" });
+                PubSub.get().publish("snack", { messageKey: "CompleteVerificationInEmail", severity: "Info" });
             },
         });
     }, [loadingVerifyEmail, verifyMutation]);

@@ -103,7 +103,7 @@ export const SettingsDisplayView = ({
                         } as ProfileUpdateInput}
                         onSubmit={(values, helpers) => {
                             if (!profile) {
-                                PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+                                PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
                             fetchLazyWrapper<ProfileUpdateInput, User>({

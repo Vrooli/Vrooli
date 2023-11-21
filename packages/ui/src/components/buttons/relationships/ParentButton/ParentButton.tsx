@@ -52,7 +52,7 @@ export function ParentButton({
             else {
                 // If form is dirty, prompt to confirm (since data will be lost)
                 if (isFormDirty) {
-                    PubSub.get().publishAlertDialog({
+                    PubSub.get().publish("alertDialog", {
                         messageKey: "ParentOverrideConfirm",
                         buttons: [
                             { labelKey: "Yes", onClick: () => { setParentDialogOpen(true); } },

@@ -42,7 +42,7 @@ export const BookmarkButton = ({
             // with an option to change the list.
             case ObjectActionComplete.Bookmark: {
                 const listName = (data as Bookmark).list.label;
-                PubSub.get().publishSnack({
+                PubSub.get().publish("snack", {
                     message: `Added to list "${listName}"`,
                     buttonKey: "Change",
                     buttonClicked: () => {

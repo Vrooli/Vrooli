@@ -35,7 +35,7 @@ export const useStripe = () => {
                     // Retrieve the paymentType from localStorage
                     const paymentType = window.localStorage.getItem("paymentType");
                     // Show alert and confetti
-                    PubSub.get().publishAlertDialog({
+                    PubSub.get().publish("alertDialog", {
                         messageKey: paymentType === PaymentType.Donation ? "DonationPaymentSuccess" : "PremiumPaymentSuccess",
                         buttons: [{
                             labelKey: "Reload",
@@ -50,7 +50,7 @@ export const useStripe = () => {
                             onClick: () => setLocation(LINKS.Home),
                         }],
                     });
-                    PubSub.get().publishCelebration();
+                    PubSub.get().publish("celebration");
                     break;
                 }
                 case "canceled":
@@ -63,12 +63,12 @@ export const useStripe = () => {
     /** Creates stripe checkout session and redirects to checkout page */
     const startCheckout = async (variant: PaymentType) => {
         setLoading(true);
-        PubSub.get().publishLoading(true);
+        PubSub.get().publish("loading", true);
         // Initialize Stripe
         const stripe = await stripePromise;
         if (!stripe) {
             console.error("Stripe failed to load");
-            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             return;
         }
         // Call server to create checkout session
@@ -87,20 +87,20 @@ export const useStripe = () => {
                 sessionId: session.id,
             });
             if (result.error) {
-                PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: result.error });
+                PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: result.error });
             }
         }).catch((error) => {
-            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: error });
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: error });
         }).finally(() => {
             setLoading(false);
-            PubSub.get().publishLoading(false);
+            PubSub.get().publish("loading", false);
         });
     };
 
     /** Creates stripe portal session and redirects to portal page */
     const redirectToCustomerPortal = async () => {
         setLoading(true);
-        PubSub.get().publishLoading(true);
+        PubSub.get().publish("loading", true);
         // Call server to create portal session
         await fetchData({
             endpoint: "/create-portal-session",
@@ -113,7 +113,7 @@ export const useStripe = () => {
         }).then(async (portalSession: any) => {
             console.log("portalSession", portalSession);
             if (portalSession.error) {
-                PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: portalSession });
+                PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: portalSession });
             } else {
                 // Redirect to portal page
                 window.location.href = portalSession.url;
@@ -121,10 +121,10 @@ export const useStripe = () => {
             // Redirect to portal page
             // window.location.href = portalSession.url;
         }).catch((error) => {
-            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: error });
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: error });
         }).finally(() => {
             setLoading(false);
-            PubSub.get().publishLoading(false);
+            PubSub.get().publish("loading", false);
         });
     };
 
