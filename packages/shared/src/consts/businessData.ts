@@ -14,4 +14,4 @@ export const SOCIALS = {
     X: "https://x.com/VrooliOfficial",
 };
 export const APP_URL = "https://vrooli.com";
-export const WHITE_PAPER_URL = "https://docs.google.com/document/d/13Nag4UFxfuz-rVofhNEtqhZ63wOklzPjpbanGv_Po0Y/edit?usp=sharing";
+export const DOCS_URL = "https://vrooli.com/docs";

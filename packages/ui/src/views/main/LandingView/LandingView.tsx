@@ -1,4 +1,4 @@
-import { LINKS, SOCIALS } from "@local/shared";
+import { DOCS_URL, LINKS, SOCIALS } from "@local/shared";
 import { Box, Button, Grid, keyframes, Stack, styled, Tooltip, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
@@ -7,7 +7,7 @@ import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainerNeon } from "components/slides";
 import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
-import { GitHubIcon, PlayIcon, XIcon } from "icons";
+import { ArticleIcon, GitHubIcon, PlayIcon, XIcon } from "icons";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -26,7 +26,7 @@ const slide5Id = "sky-is-limit";
 const slide6Id = "get-started";
 
 const externalLinks: [string, string, SvgComponent][] = [
-    // ["Read the white paper", WHITE_PAPER_URL, ArticleIcon],
+    ["Read the docs", DOCS_URL, ArticleIcon],
     ["Check out our code", SOCIALS.GitHub, GitHubIcon],
     ["Follow us on X/Twitter", SOCIALS.X, XIcon],
     // ["Join us on Discord", SOCIALS.Discord, DiscordIcon],

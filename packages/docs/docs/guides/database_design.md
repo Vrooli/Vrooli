@@ -144,22 +144,22 @@ Allows users to not only hide tags from their searches, but also to blur them ou
 
 ## ResourceUsedFor
 Examples of correct use for each resource type:  
-- `Community` - Discord invite link
-- `Context` - Pitch video link
-- `Developer` - GitHub readme link with an alternative approach to completing the routine
-- `Donation` - Patreon link
-- `ExternalService` - Fill out form link
+- `Community` - Discord invite
+- `Context` - Pitch video
+- `Developer` - GitHub readme with an alternative approach to completing the routine
+- `Donation` - Patreon
+- `ExternalService` - Figma, Google Docs
 - `Feed` - Social media feed
-- `Install` - Install a required program link
-- `Learning` - White Paper link
+- `Install` - Install a required program
+- `Learning` - Documentation, tutorial, course
 - `Notes` - Notion board, notes app
-- `OfficialWebsite` - Website or Github link
-- `Proposal` - IdeaScale link
-- `Related` - Anything that's related to the project, but doesn't fit into any of the other categories
+- `OfficialWebsite` - Website or Github
+- `Proposal` - Standard, routine, etc. which needs funding/validation
+- `Related` - Anything that's related, but doesn't fit into any of the other categories
 - `Researching` - Knowledge base, research paper
 - `Scheduling` - Google calendar, tasking app
 - `Social` - X, Facebook, Instagram
-- `Tutorial` - Youtube video link
+- `Tutorial` - Youtube video
 
 ## RunStatus
 - `Scheduled` - Routine is scheduled to run

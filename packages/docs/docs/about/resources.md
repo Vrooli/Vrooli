@@ -20,12 +20,6 @@
     </a>
   </div>
 
-  <div class="card">
-    <a href="https://discord.com/invite/VyrDFzbmmF" target="_blank" rel="noopener noreferrer">
-      <h3>Discord</h3>
-    </a>
-  </div>
-
    <div class="card">
     <a href="https://github.com/Vrooli" target="_blank" rel="noopener noreferrer">
       <h3>GitHub</h3>

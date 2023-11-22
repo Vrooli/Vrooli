@@ -29,9 +29,7 @@ Vrooli keeps you organized and focused on your personal and professional goals. 
 - You can schedule routines to run at specific times, or when certain conditions are met.
 
 ## 🔗 Quick Links
-- [Motivations and goals](https://www.youtube.com/watch?v=hBHaPYi5esQ)
-- [White paper (plus long-term vision for Vrooli and the future of society)](https://docs.google.com/document/d/13Nag4UFxfuz-rVofhNEtqhZ63wOklzPjpbanGv_Po0Y/edit?usp=sharing)
-- [Join the discussion on Discord!](https://discord.com/invite/VyrDFzbmmF)
+- [Docs](https://vrooli.com/docs)
 - [Follow us on X/Twitter!](https://x.com/VrooliOfficial)
 
 ## 🙌 Progress

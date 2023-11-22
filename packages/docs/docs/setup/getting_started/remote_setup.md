@@ -2,7 +2,7 @@
 *Note:* A more detailed guide (minus step 1) can be [found here](https://www.digitalocean.com/community/tutorials/how-to-use-visual-studio-code-for-remote-development-via-the-remote-ssh-plugin).
 
 Not able to develop locally? Want to test deployment on a remote server? Follow these steps:
-1. Follow the [deployment steps](TODO) to learn how to host a VPS and set it up correctly  
+1. Follow the [deployment steps](/deployment/overview.html) to learn how to host a VPS and set it up correctly  
 2. Set up a pair of SSH keys. Make note of the file location that the keys are stored in
 3. In VSCode, download the [Remote Development extension](https://code.visualstudio.com/docs/remote/remote-overview)  
 4. Enter `CTRL+SHIFT+P` to open the Command Palette  

@@ -104,9 +104,6 @@ extra:
     - icon: fontawesome/brands/twitter
       link: https://x.com/VrooliOfficial
       name: Follow us on X/Twitter
-    - icon: fontawesome/brands/discord
-      link: https://discord.gg/VyrDFzbmmF
-      name: Join our Discord
     - icon: fontawesome/solid/envelope
       link: mailto:official@vrooli.com
       name: Email us
