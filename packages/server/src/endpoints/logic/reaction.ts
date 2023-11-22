@@ -1,8 +1,8 @@
 import { ReactInput, Reaction, ReactionSearchInput, Success } from "@local/shared";
-import { readManyHelper } from "../../actions";
-import { assertRequestFrom } from "../../auth";
-import { rateLimit } from "../../middleware";
-import { ReactionModel } from "../../models/base";
+import { readManyHelper } from "../../actions/reads";
+import { assertRequestFrom } from "../../auth/request";
+import { rateLimit } from "../../middleware/rateLimit";
+import { ReactionModel } from "../../models/base/reaction";
 import { FindManyResult, GQLEndpoint } from "../../types";
 
 export type EndpointsReaction = {

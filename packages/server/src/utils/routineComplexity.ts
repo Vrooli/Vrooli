@@ -1,5 +1,5 @@
 import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
-import { CustomError } from "../events";
+import { CustomError } from "../events/error";
 import { PrismaType } from "../types";
 
 /**

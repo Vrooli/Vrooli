@@ -11,8 +11,8 @@ export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, "id" | "lan
 export type ApiVersionShape = Pick<ApiVersion, "id" | "callLink" | "documentationLink" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
     __typename: "ApiVersion";
     directoryListings?: { id: string }[] | null;
-    resourceList?: Omit<ResourceListShape, "listFor"> | null;
-    root?: { id: string } | ApiShape | null;
+    resourceList?: ResourceListShape | null;
+    root?: { __typename: "Api", id: string } | ApiShape | null;
     translations?: ApiVersionTranslationShape[] | null;
 }
 

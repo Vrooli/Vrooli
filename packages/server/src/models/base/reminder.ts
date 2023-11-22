@@ -1,17 +1,16 @@
 import { MaxObjects, ReminderSortBy, reminderValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { ReminderFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ReminderListModel } from "./reminderList";
-import { ReminderListModelLogic, ReminderModelLogic } from "./types";
+import { ReminderListModelInfo, ReminderListModelLogic, ReminderModelInfo, ReminderModelLogic } from "./types";
 
 const __typename = "Reminder" as const;
-const suppFields = [] as const;
-export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = ({
+export const ReminderModel: ReminderModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.reminder,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
@@ -22,7 +21,7 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
                 return getEmbeddableString({ description, name }, languages[0]);
             },
         },
-    },
+    }),
     format: ReminderFormat,
     mutate: {
         shape: {
@@ -33,8 +32,8 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
                 index: data.index,
-                ...(await shapeHelper({ relation: "reminderList", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "ReminderList", parentRelationshipName: "reminders", data, ...rest })),
-                ...(await shapeHelper({ relation: "reminderItems", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest })),
+                ...(await shapeHelper({ relation: "reminderList", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ReminderList", parentRelationshipName: "reminders", data, ...rest })),
+                ...(await shapeHelper({ relation: "reminderItems", relTypes: ["Create"], isOneToOne: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 embeddingNeedsUpdate: (typeof data.name === "string" || typeof data.description === "string") ? true : undefined,
@@ -43,8 +42,8 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
                 dueDate: noNull(data.dueDate),
                 index: noNull(data.index),
                 isComplete: noNull(data.isComplete),
-                ...(await shapeHelper({ relation: "reminderList", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: false, objectType: "ReminderList", parentRelationshipName: "reminders", data, ...rest })),
-                ...(await shapeHelper({ relation: "reminderItems", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest })),
+                ...(await shapeHelper({ relation: "reminderList", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ReminderList", parentRelationshipName: "reminders", data, ...rest })),
+                ...(await shapeHelper({ relation: "reminderItems", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest })),
             }),
         },
         yup: reminderValidation,
@@ -64,12 +63,12 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ReminderModelLogic["PrismaSelect"]>([["reminderList", "ReminderList"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<ReminderModelInfo["PrismaSelect"]>([["reminderList", "ReminderList"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderListModel.validate.owner(data?.reminderList as ReminderListModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ReminderListModelLogic>("ReminderList").validate().owner(data?.reminderList as ReminderListModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -79,8 +78,8 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
             private: {},
             public: {},
             owner: (userId) => ({
-                reminderList: ReminderListModel.validate.visibility.owner(userId),
+                reminderList: ModelMap.get<ReminderListModelLogic>("ReminderList").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

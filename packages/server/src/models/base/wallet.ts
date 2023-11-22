@@ -1,23 +1,21 @@
 import { MaxObjects, walletValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { CustomError } from "../../events";
+import { ModelMap } from ".";
+import { CustomError } from "../../events/error";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { WalletFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { WalletModelLogic } from "./types";
+import { OrganizationModelLogic, WalletModelLogic } from "./types";
 
 const __typename = "Wallet" as const;
-const suppFields = [] as const;
-export const WalletModel: ModelLogic<WalletModelLogic, typeof suppFields> = ({
+export const WalletModel: WalletModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.wallet,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name ?? "",
         },
-    },
+    }),
     format: WalletFormat,
     mutate: {
         shape: {
@@ -41,7 +39,7 @@ export const WalletModel: ModelLogic<WalletModelLogic, typeof suppFields> = ({
         yup: walletValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -65,9 +63,9 @@ export const WalletModel: ModelLogic<WalletModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

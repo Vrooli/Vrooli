@@ -1,6 +1,6 @@
 import { RoutineSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsRoutine, RoutineEndpoints } from "../logic";
+import { EndpointsRoutine, RoutineEndpoints } from "../logic/routine";
 
 export const typeDef = gql`
     enum RoutineSortBy {

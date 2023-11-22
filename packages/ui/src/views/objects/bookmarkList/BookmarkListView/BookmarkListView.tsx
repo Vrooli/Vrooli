@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkList, endpointGetBookmarkList, endpointPostBookmark, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkList, endpointGetBookmarkList, endpointPostBookmark, LINKS, uuid } from "@local/shared";
 import { Box, IconButton, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -9,23 +9,25 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
+import { useDeleter } from "hooks/useDeleter";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
-import { AddIcon, EditIcon } from "icons";
+import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { listToAutocomplete } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
+import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
 export const BookmarkListView = ({
+    display,
     isOpen,
     onClose,
 }: BookmarkListViewProps) => {
@@ -33,7 +35,6 @@ export const BookmarkListView = ({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const { object: existing, isLoading, setObject: setBookmarkList } = useObjectFromUrl<BookmarkList>({
         ...endpointGetBookmarkList,
@@ -110,8 +111,22 @@ export const BookmarkListView = ({
 
     const autocompleteOptions = useMemo(() => listToAutocomplete(bookmarks, getUserLanguages(session)), [bookmarks, session]);
 
+    const {
+        handleDelete,
+        DeleteDialogComponent,
+    } = useDeleter({
+        object: existing,
+        objectType: "BookmarkList",
+        onActionComplete: () => {
+            const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
+            if (hasPreviousPage) window.history.back();
+            else setLocation(`${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`, { replace: true });
+        },
+    });
+
     return (
         <>
+            {DeleteDialogComponent}
             <FindObjectDialog
                 find="List"
                 isOpen={searchOpen}
@@ -122,6 +137,11 @@ export const BookmarkListView = ({
                 display={display}
                 onClose={onClose}
                 title={firstString(label, t("BookmarkList", { count: 1 }))}
+                options={[{
+                    Icon: DeleteIcon,
+                    label: t("Delete"),
+                    onClick: handleDelete,
+                }]}
                 below={<Box sx={{
                     width: "min(100%, 700px)",
                     margin: "auto",
@@ -142,28 +162,26 @@ export const BookmarkListView = ({
                     />
                 </Box>}
             />
-            <>
-                <SideActionsButtons display={display} >
-                    <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
-                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
-                    <IconButton aria-label={t("AddBookmark")} onClick={openSearch} sx={{ background: palette.secondary.main }}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
-                </SideActionsButtons>
-                <ListContainer
-                    emptyText={t("NoResults", { ns: "error" })}
-                    isEmpty={bookmarks.length === 0 && !isLoading}
-                >
-                    <ObjectList
-                        dummyItems={new Array(5).fill("Routine")}
-                        items={bookmarks}
-                        keyPrefix="bookmark-list-item"
-                        loading={isLoading}
-                        onAction={onAction}
-                    />
-                </ListContainer>
-            </>
+            <ListContainer
+                emptyText={t("NoResults", { ns: "error" })}
+                isEmpty={bookmarks.length === 0 && !isLoading}
+            >
+                <ObjectList
+                    dummyItems={new Array(5).fill("Routine")}
+                    items={bookmarks}
+                    keyPrefix="bookmark-list-item"
+                    loading={isLoading}
+                    onAction={onAction}
+                />
+            </ListContainer>
+            <SideActionsButtons display={display} >
+                <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
+                    <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton>
+                <IconButton aria-label={t("AddBookmark")} onClick={openSearch} sx={{ background: palette.secondary.main }}>
+                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton>
+            </SideActionsButtons>
         </>
     );
 };

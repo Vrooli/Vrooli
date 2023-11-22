@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
+import { ChatMessage, ChatMessageSearchTreeResult, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 
@@ -33,6 +33,9 @@ export const chatMessage: GqlPartial<ChatMessage> = {
         id: true,
         created_at: true,
         updated_at: true,
+        sequence: true,
+        versionIndex: true,
+        parent: { id: true, created_at: true },
         user: async () => rel((await import("./user")).user, "nav"),
         score: true,
         reactionSummaries: async () => rel((await import("./reaction")).reactionSummary, "list"),
@@ -45,5 +48,14 @@ export const chatMessage: GqlPartial<ChatMessage> = {
     },
     list: {
         translations: () => rel(chatMessageTranslation, "list"),
+    },
+};
+
+export const chatMessageSearchTreeResult: GqlPartial<ChatMessageSearchTreeResult> = {
+    __typename: "ChatMessageSearchTreeResult",
+    common: {
+        hasMoreUp: true,
+        hasMoreDown: true,
+        messages: () => rel(chatMessage, "list"),
     },
 };

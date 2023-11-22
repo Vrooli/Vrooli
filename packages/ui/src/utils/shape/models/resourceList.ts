@@ -9,10 +9,17 @@ export type ResourceListTranslationShape = Pick<ResourceListTranslation, "id" | 
 
 export type ResourceListShape = Pick<ResourceList, "id"> & {
     __typename?: "ResourceList";
-    listFor: { __typename: ResourceListFor, id: string };
     resources?: ResourceShape[] | null;
     translations?: ResourceListTranslationShape[] | null;
-}
+} & ({
+    listForId: string;
+    listForType: ResourceListFor | `${ResourceListFor}`;
+} | {
+    listFor: {
+        __typename: ResourceListFor | `${ResourceListFor}`;
+        id: string;
+    };
+})
 
 export const shapeResourceListTranslation: ShapeModel<ResourceListTranslationShape, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
@@ -22,10 +29,20 @@ export const shapeResourceListTranslation: ShapeModel<ResourceListTranslationSha
 export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreateInput, ResourceListUpdateInput> = {
     create: (d) => {
         const prims = createPrims(d, "id");
+        let listForConnect: string | undefined;
+        let listForType: ResourceListFor | undefined;
+        console.log("in shapeResourceListCreate", d, "listForId" in d, "listForType" in d, "listFor" in d);
+        if ("listForId" in d && "listForType" in d) {
+            listForConnect = d.listForId;
+            listForType = d.listForType as ResourceListFor;
+        } else if ("listFor" in d) {
+            listForConnect = d.listFor.id;
+            listForType = d.listFor.__typename as ResourceListFor;
+        }
         return {
             ...prims,
-            listForConnect: d.listFor.id,
-            listForType: d.listFor.__typename,
+            listForConnect: listForConnect as string,
+            listForType: listForType as ResourceListFor,
             ...createRel(d, "resources", ["Create"], "many", shapeResource, (r) => ({ list: { id: prims.id }, ...r })),
             ...createRel(d, "translations", ["Create"], "many", shapeResourceListTranslation),
         };

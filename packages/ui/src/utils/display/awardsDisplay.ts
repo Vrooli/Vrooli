@@ -1,4 +1,5 @@
 import { Award, awardNames } from "@local/shared";
+import { TFunction } from "i18next";
 import { AwardDisplay } from "types";
 
 /**
@@ -7,7 +8,7 @@ import { AwardDisplay } from "types";
  * @param t The translation function.
  * @returns The AwardDisplay object.
  */
-export const awardToDisplay = (award: Award, t: any): AwardDisplay => {
+export const awardToDisplay = (award: Award, t: TFunction<"common", undefined, "common">): AwardDisplay => {
     // Find earned tier
     const earnedTierDisplay = awardNames[award.category](award.progress, false);
     let earnedTier: AwardDisplay["earnedTier"] | undefined = undefined;
@@ -30,8 +31,8 @@ export const awardToDisplay = (award: Award, t: any): AwardDisplay => {
     }
     return {
         category: award.category,
-        categoryDescription: t(`${award.category}Title`, { ns: "award" }),
-        categoryTitle: t(`${award.category}Body`, { ns: "award" }),
+        categoryDescription: t(`${award.category}Title`, { ns: "award", defaultValue: "" }),
+        categoryTitle: t(`${award.category}Body`, { ns: "award", defaultValue: "" }),
         earnedTier,
         nextTier,
         progress: award.progress,

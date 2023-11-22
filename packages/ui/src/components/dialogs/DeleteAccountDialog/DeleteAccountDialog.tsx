@@ -1,7 +1,7 @@
 import { endpointDeleteUser, LINKS, Session, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -53,7 +53,7 @@ export const DeleteAccountDialog = ({
                 }}
                 onSubmit={(values, helpers) => {
                     if (!id) {
-                        PubSub.get().publishSnack({ messageKey: "NoUserIdFound", severity: "Error" });
+                        PubSub.get().publish("snack", { messageKey: "NoUserIdFound", severity: "Error" });
                         return;
                     }
                     fetchLazyWrapper<UserDeleteInput, Session>({
@@ -61,7 +61,7 @@ export const DeleteAccountDialog = ({
                         inputs: values,
                         successMessage: () => ({ messageKey: "AccountDeleteSuccess" }),
                         onSuccess: (data) => {
-                            PubSub.get().publishSession(data);
+                            PubSub.get().publish("session", data);
                             setLocation(LINKS.Home);
                             handleClose(true);
                         },
@@ -78,7 +78,7 @@ export const DeleteAccountDialog = ({
                         <Typography variant="h6">Are you absolutely certain you want to delete the account of "{name}"?</Typography>
                         <Typography variant="h6" sx={{ color: palette.error.main, paddingBottom: 3 }}><b>This action cannot be undone.</b></Typography>
                         <Typography variant="h6">Enter your password to confirm.</Typography>
-                        <PasswordTextField
+                        <PasswordTextInput
                             fullWidth
                             name="password"
                             autoComplete="current-password"

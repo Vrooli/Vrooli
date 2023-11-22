@@ -1,25 +1,25 @@
 import React, { useCallback, useRef } from "react";
 
 interface UsePressProps {
-    onLongPress: (target: EventTarget) => void;
-    onClick?: (target: EventTarget) => void;
-    onHover?: (target: EventTarget) => void;
-    onHoverEnd?: (target: EventTarget) => void;
-    onRightClick?: (target: EventTarget) => void;
+    onLongPress: (target: EventTarget) => unknown;
+    onClick?: (target: EventTarget) => unknown;
+    onHover?: (target: EventTarget) => unknown;
+    onHoverEnd?: (target: EventTarget) => unknown;
+    onRightClick?: (target: EventTarget) => unknown;
     shouldPreventDefault?: boolean;
     pressDelay?: number;
     hoverDelay?: number;
 }
 
 type UsePressReturn = {
-    onMouseDown: (event: React.MouseEvent) => void;
-    onMouseEnter: (event: React.MouseEvent) => void;
-    onMouseLeave: (event: React.MouseEvent) => void;
-    onMouseMove: (event: React.MouseEvent) => void;
-    onMouseUp: (event: React.MouseEvent) => void;
-    onTouchEnd: (event: React.TouchEvent) => void;
-    onTouchMove: (event: React.TouchEvent) => void;
-    onTouchStart: (event: React.TouchEvent) => void;
+    onMouseDown: (event: React.MouseEvent) => unknown;
+    onMouseEnter: (event: React.MouseEvent) => unknown;
+    onMouseLeave: (event: React.MouseEvent) => unknown;
+    onMouseMove: (event: React.MouseEvent) => unknown;
+    onMouseUp: (event: React.MouseEvent) => unknown;
+    onTouchEnd: (event: React.TouchEvent) => unknown;
+    onTouchMove: (event: React.TouchEvent) => unknown;
+    onTouchStart: (event: React.TouchEvent) => unknown;
 }
 
 const isTouchEvent = (event: React.MouseEvent | React.TouchEvent): event is React.TouchEvent => "touches" in event;

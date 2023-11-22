@@ -5,12 +5,12 @@ import { tagValidation } from "./tag";
 const focusModeFilterType = enumToYup(FocusModeFilterType);
 
 export const focusModeFilterValidation: YupModel<true, false> = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         filterType: req(focusModeFilterType),
     }, [
         ["focusMode", ["Connect"], "one", "req"],
         ["tag", ["Create", "Connect"], "one", "opt", tagValidation],
-    ], [], o),
+    ], [], d),
     // Can only create and delete
 };

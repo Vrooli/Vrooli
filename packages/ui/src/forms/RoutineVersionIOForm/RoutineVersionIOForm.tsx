@@ -1,8 +1,8 @@
 import { DUMMY_ID, orDefault, RoutineVersionInput, routineVersionInputValidation, RoutineVersionOutput, routineVersionOutputValidation, Session, uuid } from "@local/shared";
 import { getUserLanguages } from "utils/display/translationTools";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { RoutineVersionInputShape, shapeRoutineVersionInput } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape, shapeRoutineVersionOutput } from "utils/shape/models/routineVersionOutput";
+import { validateFormValues } from "utils/validateFormValues";
 
 export const routineVersionInputInitialValues = (
     session: Session | undefined,
@@ -76,20 +76,6 @@ export const transformRoutineVersionIOValues = <IsInput extends boolean>(
     }
 };
 
-export const validateRoutineVersionInputValues = async (values: RoutineVersionInputShape, existing: RoutineVersionInputShape, isCreate: boolean) => {
-    const transformedValues = transformRoutineVersionInputValues(values, existing, isCreate);
-    const validationSchema = routineVersionInputValidation[isCreate ? "create" : "update"]({});
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
-export const validateRoutineVersionOutputValues = async (values: RoutineVersionOutputShape, existing: RoutineVersionOutputShape, isCreate: boolean) => {
-    const transformedValues = transformRoutineVersionOutputValues(values, existing, isCreate);
-    const validationSchema = routineVersionOutputValidation[isCreate ? "create" : "update"]({});
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
 export const validateRoutineVersionIOValues = async <IsInput extends boolean>(
     values: IsInput extends true ? RoutineVersionInputShape : RoutineVersionOutputShape,
     isInput: IsInput,
@@ -97,8 +83,8 @@ export const validateRoutineVersionIOValues = async <IsInput extends boolean>(
     isCreate: boolean,
 ) => {
     if (isInput) {
-        return validateRoutineVersionInputValues(values as RoutineVersionInputShape, existing as RoutineVersionInputShape, isCreate);
+        return validateFormValues(values as RoutineVersionInputShape, existing as RoutineVersionInputShape, isCreate, transformRoutineVersionInputValues, routineVersionInputValidation);
     } else {
-        return validateRoutineVersionOutputValues(values as RoutineVersionOutputShape, existing as RoutineVersionOutputShape, isCreate);
+        return validateFormValues(values as RoutineVersionOutputShape, existing as RoutineVersionOutputShape, isCreate, transformRoutineVersionOutputValues, routineVersionOutputValidation);
     }
 };

@@ -177,7 +177,7 @@ export const shapeUpdate = <
     if (result) result = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined)) as Output;
     // If assertHasUpdate is true, make sure that the result has at least one value
     if (assertHasUpdate && (!result || Object.keys(result).length === 0)) {
-        PubSub.get().publishSnack({ messageKey: "NothingToUpdate", severity: "Error" });
+        PubSub.get().publish("snack", { messageKey: "NothingToUpdate", severity: "Error" });
         return undefined;
     }
     return result;

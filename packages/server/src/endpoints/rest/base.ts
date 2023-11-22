@@ -3,11 +3,11 @@ import { NextFunction, Request, Response, Router } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
 import multer, { Options as MulterOptions } from "multer";
-import { getUser } from "../../auth";
+import { getUser } from "../../auth/request";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { context, Context } from "../../middleware";
 import { GQLEndpoint, IWrap, SessionUserToken } from "../../types";
-import { processAndStoreFiles } from "../../utils";
+import { processAndStoreFiles } from "../../utils/fileStorage";
 
 export type EndpointFunction<TInput extends object | undefined, TResult extends object> = (
     parent: undefined,
@@ -142,9 +142,18 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                 // Handle endpoint
                 async (req: Request, res: Response) => {
                     // Find non-file data
-                    const input: Record<string, string> = method === "get" ?
-                        { ...req.params, ...parseInput(req.query) } :
-                        { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
+                    let input: Record<string, string> | any[] = {}; // default to an empty object
+                    // If it's a GET method, combine params and parsed query
+                    if (method === "get") {
+                        input = { ...req.params, ...parseInput(req.query) };
+                    } else {
+                        // For non-GET methods, handle object and array bodies
+                        if (Array.isArray(req.body)) {
+                            input = [...req.body]; // directly spread array into a new array
+                        } else if (typeof req.body === "object") {
+                            input = { ...req.params, ...req.body };
+                        }
+                    }
                     // Get files from request
                     const files = (req.files ?? []) as Express.Multer.File[];
                     let fileNames: { [x: string]: string[] } = {};

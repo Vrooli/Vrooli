@@ -130,6 +130,7 @@ export const member_update = {
     "bannerImage": true,
     "handle": true,
     "isBot": true,
+    "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
     "bookmarks": true,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { parseSearchParams } from "route";
 
-type Primitive = string | number | boolean;
+type Primitive = string | number | boolean | object;
 type UseReactSearchResults = { [x: string]: Primitive | Primitive[] | UseReactSearchResults };
 
 /**

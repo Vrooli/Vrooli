@@ -8,6 +8,7 @@ export const chatMessage_create = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -30,6 +31,7 @@ export const chatMessage_create = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -64,6 +66,7 @@ export const chatMessage_create = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -238,6 +241,13 @@ export const chatMessage_create = {
   "id": true,
   "created_at": true,
   "updated_at": true,
+  "sequence": true,
+  "versionIndex": true,
+  "parent": {
+    "id": true,
+    "created_at": true,
+    "__typename": "ChatMessage"
+  },
   "user": {
     "id": true,
     "created_at": true,
@@ -245,6 +255,7 @@ export const chatMessage_create = {
     "bannerImage": true,
     "handle": true,
     "isBot": true,
+    "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
     "__typename": "User"

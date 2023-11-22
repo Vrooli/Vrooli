@@ -1,5 +1,6 @@
 import pkg from "@prisma/client";
-import { ErrorTrace, logger } from "../events";
+import { ErrorTrace } from "../events/error";
+import { logger } from "../events/logger";
 import { PrismaType } from "../types";
 
 const { PrismaClient } = pkg;

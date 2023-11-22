@@ -4,18 +4,18 @@ import { bool, description, id, maxStrErr, name, opt, req, transRel, YupModel, y
 export const childOrder = yup.string().trim().removeEmptyString().max(4096, maxStrErr);
 
 export const projectVersionDirectoryTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         description: opt(description),
         name: req(name),
-    },
-    update: {
+    }),
+    update: () => ({
         description: opt(description),
         name: opt(name),
-    },
+    }),
 });
 
 export const projectVersionDirectoryValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         childOrder: opt(childOrder),
         isRoot: opt(bool),
@@ -23,8 +23,8 @@ export const projectVersionDirectoryValidation: YupModel = {
         ["parentDirectory", ["Connect"], "one", "opt"],
         ["projectVersion", ["Connect"], "one", "req"],
         ["translations", ["Create"], "many", "opt", projectVersionDirectoryTranslationValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         childOrder: opt(childOrder),
         isRoot: opt(bool),
@@ -32,5 +32,5 @@ export const projectVersionDirectoryValidation: YupModel = {
         ["parentDirectory", ["Connect", "Disconnect"], "one", "opt"],
         ["projectVersion", ["Connect"], "one", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", projectVersionDirectoryTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

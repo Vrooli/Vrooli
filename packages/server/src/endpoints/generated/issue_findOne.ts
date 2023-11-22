@@ -6,6 +6,7 @@ export const issue_findOne = {
     "bannerImage": true,
     "handle": true,
     "isBot": true,
+    "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
     "__typename": "User"
@@ -17,6 +18,7 @@ export const issue_findOne = {
     "bannerImage": true,
     "handle": true,
     "isBot": true,
+    "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
     "__typename": "User"
@@ -109,6 +111,7 @@ export const issue_findOne = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"

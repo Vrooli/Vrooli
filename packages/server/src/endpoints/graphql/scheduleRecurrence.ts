@@ -1,6 +1,6 @@
 import { ScheduleRecurrenceSortBy, ScheduleRecurrenceType } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsScheduleRecurrence, ScheduleRecurrenceEndpoints } from "../logic";
+import { EndpointsScheduleRecurrence, ScheduleRecurrenceEndpoints } from "../logic/scheduleRecurrence";
 
 export const typeDef = gql`
     enum ScheduleRecurrenceSortBy {
@@ -29,6 +29,7 @@ export const typeDef = gql`
         dayOfMonth: Int
         month: Int
         endDate: Date
+        duration: Int!
         scheduleConnect: ID
         scheduleCreate: ScheduleCreateInput
     }
@@ -40,6 +41,7 @@ export const typeDef = gql`
         dayOfMonth: Int
         month: Int
         endDate: Date
+        duration: Int
     }
     type ScheduleRecurrence {
         id: ID!
@@ -49,6 +51,7 @@ export const typeDef = gql`
         dayOfMonth: Int
         month: Int
         endDate: Date
+        duration: Int!
         schedule: Schedule!
     }
 

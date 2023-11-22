@@ -1,8 +1,8 @@
 import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, ReactionFor, SubscribableObject } from "@local/shared";
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { setupVerificationCode } from "../auth";
+import { setupVerificationCode } from "../auth/email";
 import { io } from "../io";
-import { PreMapMessageData } from "../models/base";
+import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../models/base/chatMessage";
 import { isObjectSubscribable, Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award, objectAwardCategory } from "./awards";
@@ -69,7 +69,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         message: ChatMessage,
     }) => {
         if (data.chatId) {
-            io.to(data.chatId).emit("message", message);
+            io.to(data.chatId).emit("editMessage", message);
         } else {
             logger.error("Could not send socket event for ChatMessage", { trace: "0496", message, data });
         }
@@ -78,7 +78,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         data,
         messageId,
     }: {
-        data: PreMapMessageData,
+        data: ChatMessageBeforeDeletedData,
         messageId: string,
     }) => {
         if (data.chatId) {
@@ -313,6 +313,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // asdf
         // // Increase/decrease reputation score of object owner(s), depending on sentiment of currentReaction compared to previousReaction
         // asdfasdf
+        //TODO if reacted on chat message, send io addReaction event. Also make sure ChatCrud handles it
     },
     organizationJoin: async (organizationId: string, userId: string) => {
         // const notification = Notify(prisma, languages).pushOrganizationJoin();

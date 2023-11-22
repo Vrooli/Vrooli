@@ -12,7 +12,7 @@ export const LargeDialog = ({
     sxs,
 }: LargeDialogProps) => {
     const { palette, spacing } = useTheme();
-    const [zIndex, handleTransitionExit] = useZIndex(isOpen, true);
+    const [zIndex, handleTransitionExit] = useZIndex(isOpen, true, 1000);
 
     return (
         <Dialog

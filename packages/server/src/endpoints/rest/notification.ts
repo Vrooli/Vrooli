@@ -1,5 +1,5 @@
 import { notification_findMany, notification_findOne, notification_markAllAsRead, notification_markAsRead, notification_settings, notification_settingsUpdate } from "../generated";
-import { NotificationEndpoints } from "../logic";
+import { NotificationEndpoints } from "../logic/notification";
 import { setupRoutes } from "./base";
 
 export const NotificationRest = setupRoutes({

@@ -1,9 +1,9 @@
 import { FindByIdInput, Notification, NotificationSearchInput, NotificationSettings, NotificationSettingsUpdateInput, Success, VisibilityType } from "@local/shared";
-import { readManyHelper, readOneHelper } from "../../actions";
-import { assertRequestFrom } from "../../auth";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
-import { parseNotificationSettings, updateNotificationSettings } from "../../notify";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { assertRequestFrom } from "../../auth/request";
+import { CustomError } from "../../events/error";
+import { rateLimit } from "../../middleware/rateLimit";
+import { parseNotificationSettings, updateNotificationSettings } from "../../notify/notificationSettings";
 import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
 
 export type EndpointsNotification = {

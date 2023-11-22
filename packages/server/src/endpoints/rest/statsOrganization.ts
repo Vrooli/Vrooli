@@ -1,5 +1,5 @@
 import { statsOrganization_findMany } from "../generated";
-import { StatsOrganizationEndpoints } from "../logic";
+import { StatsOrganizationEndpoints } from "../logic/statsOrganization";
 import { setupRoutes } from "./base";
 
 export const StatsOrganizationRest = setupRoutes({

@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { ApiVersion, Bookmark, ChatParticipant, handleRegex, isOfType, LINKS, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, View, walletAddressRegex } from "@local/shared";
+import { ApiVersion, Bookmark, ChatParticipant, handleRegex, isOfType, LINKS, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, urlRegexDev, View, walletAddressRegex } from "@local/shared";
 import { SetLocation, stringifySearchParams } from "route";
 import { CalendarEvent, CalendarEventOption, NavigableObject, ShortcutOption } from "types";
 import { ResourceType } from "utils/consts";
@@ -163,7 +163,7 @@ export const openObjectReport = (object: NavigableObject, setLocation: SetLocati
  * @returns ResourceType if type found, or null if not
  */
 export const getResourceType = (link: string): ResourceType | null => {
-    if (urlRegex.test(link)) return ResourceType.Url;
+    if (urlRegex.test(link) || urlRegexDev.test(link)) return ResourceType.Url;
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
     if (handleRegex.test(link)) return ResourceType.Handle;
     return null;

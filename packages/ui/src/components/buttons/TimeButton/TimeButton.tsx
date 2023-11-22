@@ -23,7 +23,7 @@ const TimeMenu = ({
     onClose,
 }: {
     anchorEl: HTMLElement | null;
-    onClose: (labelKey?: CommonKey, timeFrame?: { after?: Date, before?: Date }) => void;
+    onClose: (labelKey?: CommonKey, timeFrame?: { after?: Date, before?: Date }) => unknown;
 }) => {
     const { t } = useTranslation();
 

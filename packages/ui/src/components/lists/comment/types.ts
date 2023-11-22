@@ -4,7 +4,7 @@ import { NavigableObject } from "types";
 export interface CommentConnectorProps {
     isOpen: boolean;
     parentType: "User" | "Organization";
-    onToggle: () => void;
+    onToggle: () => unknown;
 }
 
 export interface CommentThreadProps {
@@ -15,8 +15,8 @@ export interface CommentThreadProps {
 
 export interface CommentThreadItemProps {
     data: Comment | null;
-    handleCommentRemove: (comment: Comment) => void;
-    handleCommentUpsert: (comment: Comment) => void;
+    handleCommentRemove: (comment: Comment) => unknown;
+    handleCommentUpsert: (comment: Comment) => unknown;
     isOpen: boolean;
     language: string;
     loading: boolean;

@@ -4,18 +4,18 @@ import { details, enumToYup, id, language, opt, req, YupModel, yupObj } from "..
 const actionSuggested = enumToYup(ReportSuggestedAction);
 
 export const reportResponseValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         actionSuggested: req(actionSuggested),
         details: opt(details),
         language: opt(language),
     }, [
         ["report", ["Connect"], "one", "req"],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         actionSuggested: opt(actionSuggested),
         details: opt(details),
         language: opt(language),
-    }, [], [], o),
+    }, [], [], d),
 };

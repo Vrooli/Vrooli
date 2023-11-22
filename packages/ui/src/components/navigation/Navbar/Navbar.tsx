@@ -20,12 +20,27 @@ const LogoComponent = ({
     state,
 }: {
     isLeftHanded: boolean;
-    onClick: () => void;
+    onClick: () => unknown;
     state: "full" | "icon" | "none";
 }) => {
     const { palette } = useTheme();
     // Logo isn't always shown
     if (state === "none") return null;
+    if (state === "icon") return (
+        <IconButton
+            aria-label="Go to home page"
+            onClick={onClick}
+            sx={{
+                display: "flex",
+                padding: 0,
+                margin: "5px",
+                marginLeft: "max(-5px, -5vw)",
+                width: "48px",
+                height: "48px",
+            }}>
+            <VrooliIcon fill={palette.primary.contrastText} width="100%" height="100%" />
+        </IconButton>
+    );
     return (
         <Box
             onClick={onClick}
@@ -148,8 +163,8 @@ export const Navbar = forwardRef(({
     // Determine display texts and states
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const logoState = useMemo(() => {
-        if (isMobile && startComponent) return "none";
-        if (isMobile && (title || titleComponent)) return "none"; // Used to be "icon"
+        if (isMobile && startComponent) return (title || titleComponent) ? "none" : "icon";
+        if (isMobile && (title || titleComponent)) return "none";
         return "full";
     }, [isMobile, startComponent, title, titleComponent]);
     const isLeftHanded = useIsLeftHanded();

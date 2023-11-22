@@ -13,7 +13,7 @@ export type StandardVersionShape = Pick<StandardVersion, "id" | "isComplete" | "
     __typename: "StandardVersion";
     directoryListings?: { id: string }[] | null;
     root: StandardShape;
-    resourceList?: { id: string } | ResourceListShape | null;
+    resourceList?: ResourceListShape | null;
     translations?: StandardVersionTranslationShape[] | null;
 }
 

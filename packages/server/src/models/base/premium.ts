@@ -1,17 +1,15 @@
 import { MaxObjects } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { defaultPermissions } from "../../utils";
 import { PremiumFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { PremiumModelLogic } from "./types";
+import { OrganizationModelLogic, PremiumModelLogic } from "./types";
 
 const __typename = "Premium" as const;
-const suppFields = [] as const;
-export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
+export const PremiumModel: PremiumModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.payment,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, customPlan: true }),
             get: (select, languages) => {
@@ -20,10 +18,10 @@ export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
                 return i18next.t("common:PaymentPlanBasic", { lng });
             },
         },
-    },
+    }),
     format: PremiumFormat,
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
@@ -44,9 +42,9 @@ export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

@@ -4,7 +4,7 @@ import { projectVersionValidation } from "./projectVersion";
 import { tagValidation } from "./tag";
 
 export const projectValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         handle: opt(handle),
         isPrivate: opt(bool),
@@ -16,8 +16,8 @@ export const projectValidation: YupModel = {
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["versions", ["Create"], "many", "opt", projectVersionValidation, ["root"]],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], o),
-    update: ({ o }) => yupObj({
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
+    update: (d) => yupObj({
         id: req(id),
         handle: opt(handle),
         isPrivate: opt(bool),
@@ -29,5 +29,5 @@ export const projectValidation: YupModel = {
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["versions", ["Create"], "many", "opt", projectVersionValidation, ["root"]],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], o),
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
 };

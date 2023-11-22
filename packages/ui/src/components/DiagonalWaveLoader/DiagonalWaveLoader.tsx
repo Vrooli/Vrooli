@@ -43,7 +43,7 @@ export const DiagonalWaveLoader = ({
     sx,
 }: DiagonalWaveLoaderProps) => {
     return (
-        <Loader size={size} sx={sx}>
+        <Loader size={size} sx={sx} data-testid="diagonal-wave-loader">
             {Array.from({ length: 9 }, (_, i) => (
                 <Circle
                     key={i}

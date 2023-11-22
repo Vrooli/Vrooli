@@ -1,6 +1,7 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError, Trigger } from "../../events";
-import { TransferModel } from "../../models/base";
+import { CustomError } from "../../events/error";
+import { Trigger } from "../../events/trigger";
+import { TransferModel } from "../../models/base/transfer";
 import { PreMap } from "../../models/types";
 import { PrismaType, SessionUserToken } from "../../types";
 

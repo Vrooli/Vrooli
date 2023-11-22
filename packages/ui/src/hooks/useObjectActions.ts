@@ -1,11 +1,11 @@
-import { Count, exists, GqlModelType, LINKS, ReportFor, setDotNotationValue, Success } from "@local/shared";
+import { Count, exists, GqlModelType, LINKS, setDotNotationValue, Success } from "@local/shared";
 import { ObjectListItemProps } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { SetLocation } from "route";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, getYou, getYouDot, ListObject } from "utils/display/listTools";
+import { getDisplay, getYouDot, ListObject } from "utils/display/listTools";
 import { openObject, openObjectEdit } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { useBookmarker } from "./useBookmarker";
@@ -16,7 +16,7 @@ import { useVoter } from "./useVoter";
 export type UseObjectActionsProps = {
     object: ListObject | null | undefined;
     objectType: ListObject["__typename"];
-    openAddCommentDialog?: () => void;
+    openAddCommentDialog?: () => unknown;
     setLocation: SetLocation;
     setObject: Dispatch<SetStateAction<any>>;
 } & Pick<ObjectListItemProps<any>, "canNavigate" | "onClick"> & {
@@ -32,13 +32,6 @@ export type UseObjectActionsReturn = {
     closeStatsDialog: () => unknown;
     closeReportDialog: () => unknown;
     DeleteDialogComponent: JSX.Element | null;
-    hasBookmarkingSupport: boolean;
-    hasCopyingSupport: boolean;
-    hasDeletingSupport: boolean;
-    hasReportingSupport: boolean;
-    hasSharingSupport: boolean;
-    hasStatsSupport: boolean;
-    hasVotingSupport: boolean;
     isBookmarkDialogOpen: boolean;
     isDeleteDialogOpen: boolean;
     isDonateDialogOpen: boolean;
@@ -50,12 +43,12 @@ export type UseObjectActionsReturn = {
     onActionComplete: (action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => unknown;
 }
 
-const openDialogIfExists = (dialog: (() => void) | null | undefined) => {
-    if (!exists(dialog)) {
-        PubSub.get().publishSnack({ messageKey: "ActionNotSupported", severity: "Error" });
+const callIfExists = (callback: (() => unknown) | null | undefined) => {
+    if (!exists(callback)) {
+        PubSub.get().publish("snack", { messageKey: "ActionNotSupported", severity: "Error" });
         return;
     }
-    dialog();
+    callback();
 };
 
 const toSuccess = (data: unknown) => {
@@ -80,7 +73,7 @@ export const useObjectActions = ({
     // Callback when an action is completed
     const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
         if (!exists(object)) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         switch (action) {
@@ -119,20 +112,19 @@ export const useObjectActions = ({
     const {
         closeBookmarkDialog,
         handleBookmark,
-        hasBookmarkingSupport,
         isBookmarkDialogOpen,
     } = useBookmarker({
         objectId: object?.root?.id ?? object?.id, // Can only bookmark root objects
         objectType: objectType.replace("Version", "") as GqlModelType,
         onActionComplete,
     });
-    const { hasCopyingSupport, handleCopy } = useCopier({
+    const { handleCopy } = useCopier({
         objectId: object?.id,
         objectName: getDisplay(object).title,
         objectType: objectType as GqlModelType,
         onActionComplete,
     });
-    const { hasVotingSupport, handleVote } = useVoter({
+    const { handleVote } = useVoter({
         objectId: object?.root?.id ?? object?.id, // Can only vote on root objects
         objectType: objectType.replace("Version", "") as GqlModelType,
         onActionComplete,
@@ -140,7 +132,6 @@ export const useObjectActions = ({
     const {
         closeDeleteDialog,
         handleDelete,
-        hasDeletingSupport,
         isDeleteDialogOpen,
         DeleteDialogComponent,
     } = useDeleter({
@@ -150,9 +141,6 @@ export const useObjectActions = ({
     });
 
     // Determine which actions are available    
-    const hasReportingSupport = exists(ReportFor[objectType]);
-    const hasSharingSupport = useMemo(() => getYou(object).canShare, [object]);
-    const hasStatsSupport = useMemo(() => ["Api", "Organization", "Project", "Quiz", "Routine", "SmartContract", "Standard", "User"].includes(objectType), [objectType]);
     const availableActions = useMemo(() => getAvailableActions(object, session), [object, session]);
 
     // Dialog states
@@ -175,18 +163,22 @@ export const useObjectActions = ({
     const onActionStart = useCallback((action: ObjectAction | `${ObjectAction}`) => {
         console.log("onActionStart", action);
         if (!exists(object)) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         switch (action) {
+            case ObjectAction.Bookmark:
+            case ObjectAction.BookmarkUndo:
+                handleBookmark(action === ObjectAction.Bookmark);
+                break;
             case ObjectAction.Comment:
-                openDialogIfExists(openAddCommentDialog);
+                callIfExists(openAddCommentDialog);
                 break;
             case ObjectAction.Delete:
-                openDialogIfExists(handleDelete);
+                callIfExists(handleDelete);
                 break;
             case ObjectAction.Donate:
-                openDialogIfExists(openDonateDialog);
+                callIfExists(openDonateDialog);
                 break;
             case ObjectAction.Edit:
                 if (onClick) onClick(object);
@@ -195,24 +187,20 @@ export const useObjectActions = ({
                 else openObjectEdit(object, setLocation);
                 break;
             case ObjectAction.FindInPage:
-                PubSub.get().publishFindInPage();
+                PubSub.get().publish("findInPage");
                 break;
             case ObjectAction.Fork:
                 if (canNavigate && !canNavigate(object)) return;
                 handleCopy();
                 break;
             case ObjectAction.Report:
-                openDialogIfExists(openReportDialog);
+                callIfExists(openReportDialog);
                 break;
             case ObjectAction.Share:
-                openDialogIfExists(openShareDialog);
-                break;
-            case ObjectAction.Bookmark:
-            case ObjectAction.BookmarkUndo:
-                handleBookmark(action === ObjectAction.Bookmark);
+                callIfExists(openShareDialog);
                 break;
             case ObjectAction.Stats:
-                openDialogIfExists(openStatsDialog);
+                callIfExists(openStatsDialog);
                 break;
             case ObjectAction.VoteDown:
             case ObjectAction.VoteUp:
@@ -230,13 +218,6 @@ export const useObjectActions = ({
         closeStatsDialog,
         closeReportDialog,
         DeleteDialogComponent,
-        hasBookmarkingSupport,
-        hasCopyingSupport,
-        hasDeletingSupport,
-        hasReportingSupport,
-        hasSharingSupport,
-        hasStatsSupport,
-        hasVotingSupport,
         isBookmarkDialogOpen,
         isDeleteDialogOpen,
         isDonateDialogOpen,

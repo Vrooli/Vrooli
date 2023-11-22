@@ -6,18 +6,18 @@ const forObjectType = enumToYup(QuestionForType);
 const description = yup.string().trim().removeEmptyString().min(1, minStrErr).max(16384, maxStrErr);
 
 export const questionTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         description: opt(description),
         name: req(name),
-    },
-    update: {
+    }),
+    update: () => ({
         description: opt(description),
         name: opt(name),
-    },
+    }),
 });
 
 export const questionValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
         referencing: opt(referencing),
@@ -25,12 +25,12 @@ export const questionValidation: YupModel = {
     }, [
         ["forObject", ["Connect"], "one", "opt"],
         ["translations", ["Create"], "many", "opt", questionTranslationValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
     }, [
         ["acceptedAnswer", ["Connect"], "one", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", questionTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

@@ -2,12 +2,13 @@
  * Displays a list of emails for the user to manage
  */
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
-import { IconButton, Stack, TextField, useTheme } from "@mui/material";
+import { IconButton, InputAdornment, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useFormik } from "formik";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon } from "icons";
+import { AddIcon, EmailIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
@@ -29,7 +30,7 @@ export const EmailList = ({
             emailAddress: "",
         },
         enableReinitialize: true,
-        validationSchema: emailValidation.create({}),
+        validationSchema: emailValidation.create({ env: process.env.NODE_ENV as "development" | "production" }),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
             fetchLazyWrapper<EmailCreateInput, Email>({
@@ -38,7 +39,7 @@ export const EmailList = ({
                     emailAddress: values.emailAddress,
                 },
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ messageKey: "CompleteVerificationInEmail", severity: "Info" });
+                    PubSub.get().publish("snack", { messageKey: "CompleteVerificationInEmail", severity: "Info" });
                     handleUpdate([...list, data]);
                     formik.resetForm();
                 },
@@ -53,11 +54,11 @@ export const EmailList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
-            PubSub.get().publishSnack({ messageKey: "MustLeaveVerificationMethod", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "MustLeaveVerificationMethod", severity: "Error" });
             return;
         }
         // Confirmation dialog
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "EmailDeleteConfirm",
             messageVariables: { emailAddress: email.emailAddress },
             buttons: [
@@ -85,7 +86,7 @@ export const EmailList = ({
             fetch: verifyMutation,
             inputs: { emailAddress: email.emailAddress },
             onSuccess: () => {
-                PubSub.get().publishSnack({ messageKey: "CompleteVerificationInEmail", severity: "Info" });
+                PubSub.get().publish("snack", { messageKey: "CompleteVerificationInEmail", severity: "Info" });
             },
         });
     }, [loadingVerifyEmail, verifyMutation]);
@@ -114,17 +115,25 @@ export const EmailList = ({
                 justifyContent: "center",
                 paddingTop: 4,
             }}>
-                <TextField
+                <TextInput
                     autoComplete='email'
                     fullWidth
                     id="emailAddress"
                     name="emailAddress"
                     label={t("NewEmailAddress")}
+                    placeholder={t("EmailPlaceholder")}
                     value={formik.values.emailAddress}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
                     error={formik.touched.emailAddress && Boolean(formik.errors.emailAddress)}
                     helperText={formik.touched.emailAddress && formik.errors.emailAddress}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <EmailIcon />
+                            </InputAdornment>
+                        ),
+                    }}
                     sx={{
                         height: "56px",
                         "& .MuiInputBase-root": {

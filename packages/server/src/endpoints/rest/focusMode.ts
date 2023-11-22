@@ -1,5 +1,5 @@
 import { focusMode_create, focusMode_findMany, focusMode_findOne, focusMode_setActive, focusMode_update } from "../generated";
-import { FocusModeEndpoints } from "../logic";
+import { FocusModeEndpoints } from "../logic/focusMode";
 import { setupRoutes } from "./base";
 
 export const FocusModeRest = setupRoutes({

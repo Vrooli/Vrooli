@@ -4,7 +4,7 @@ import { smartContractVersionValidation } from "./smartContractVersion";
 import { tagValidation } from "./tag";
 
 export const smartContractValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
         permissions: req(permissions),
@@ -15,8 +15,8 @@ export const smartContractValidation: YupModel = {
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
         ["versions", ["Create"], "many", "req", smartContractVersionValidation, ["root"]],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], o),
-    update: ({ o }) => yupObj({
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
+    update: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
         permissions: opt(permissions),
@@ -26,5 +26,5 @@ export const smartContractValidation: YupModel = {
         ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create", "Disconnect"], "many", "opt", tagValidation],
         ["versions", ["Create", "Update", "Delete"], "many", "req", smartContractVersionValidation, ["root"]],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], o),
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
 };

@@ -1,20 +1,20 @@
 import { ParseSearchParamsResult, stringifySearchParams } from "./searchParams";
-import { SetLocation } from "./useLocation";
+import { SetLocation } from "./types";
 
 /**
  * Opens link using routing or a new tab, depending on the link
  * @param setLocation Function to set location in the router
  * @param link Link to open
- * @param queryParams Query parameters to append to the link
+ * @param searchParams Query parameters to append to the link
  */
-export const openLink = (setLocation: SetLocation, link: string, queryParams?: ParseSearchParamsResult) => {
-    const linkWithParams = `${link}${stringifySearchParams(queryParams || {})}`;
+export const openLink = (setLocation: SetLocation, link: string, searchParams?: ParseSearchParamsResult) => {
     // If link is external, open new tab
     if ((link.includes("http:") || link.includes("https:")) && !link.startsWith(window.location.origin)) {
+        const linkWithParams = `${link}${stringifySearchParams(searchParams || {})}`;
         window.open(linkWithParams, "_blank", "noopener,noreferrer");
     }
     // Otherwise, push to history
     else {
-        setLocation(linkWithParams);
+        setLocation(link, { searchParams });
     }
 };

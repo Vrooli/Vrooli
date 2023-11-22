@@ -1,6 +1,6 @@
 import { ReportFor, ReportSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsReport, ReportEndpoints } from "../logic";
+import { EndpointsReport, ReportEndpoints } from "../logic/report";
 
 export const typeDef = gql`
     enum ReportFor {

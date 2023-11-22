@@ -10,7 +10,12 @@ import { ListObject } from "utils/display/listTools";
  * Useful when the object has not been fully loaded
  */
 export type PartialWithType<T extends { __typename: string }> = Partial<T> & { __typename: T["__typename"] };
-
+export type PartialArrayWithType<T extends { __typename: string }[]> = Array<PartialWithType<T[number]>>;
+export type PartialOrArrayWithType<T> = T extends { __typename: string }[] ?
+    PartialArrayWithType<T> :
+    T extends { __typename: string } ?
+    PartialWithType<T> :
+    never;
 export interface SvgProps {
     fill?: string;
     iconTitle?: string;
@@ -32,6 +37,8 @@ export type CalendarEvent = {
     allDay: boolean;
     schedule: Schedule;
 }
+
+export type FormErrors = { [key: string]: string | string[] | null | undefined | FormErrors | FormErrors[] };
 
 /**
  * Data to display title information for a component, which may not
@@ -233,7 +240,7 @@ declare module "@mui/material/styles" {
 export type Maybe<T> = T | null;
 
 /** Recursively removes the Maybe type from all fields in a type, and makes them required. */
-export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNullable<T[K]> : T[K] };
+export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<unknown> ? NonNullable<T[K]> : T[K] };
 
 /** Makes a value lazy or not */
 export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);

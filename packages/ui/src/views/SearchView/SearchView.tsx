@@ -11,7 +11,6 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -22,14 +21,13 @@ import { SearchViewProps } from "../types";
  * Search page for organizations, projects, routines, standards, users, and other main objects
  */
 export const SearchView = ({
-    isOpen,
+    display,
     onClose,
 }: SearchViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     const {
@@ -52,8 +50,8 @@ export const SearchView = ({
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
         // If not logged in, redirect to login page
         if (!userId) {
-            PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
-            setLocation(LINKS.Start, { searchParams: { redirect: addUrl } });
+            PubSub.get().publish("snack", { messageKey: "MustBeLoggedIn", severity: "Error" });
+            setLocation(LINKS.Login, { searchParams: { redirect: addUrl } });
             return;
         }
         // Otherwise, navigate to object's add page
@@ -112,10 +110,7 @@ export const SearchView = ({
                 where={where()}
                 sxs={{ search: { marginTop: 2 } }}
             />}
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>

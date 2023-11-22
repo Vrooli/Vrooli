@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { ModelMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 
 const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);
@@ -62,7 +62,7 @@ export const versionsCheck = async ({
     const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
     // Query the database for existing data (by root)
     const rootType = objectType.replace("Version", "") as GqlModelType;
-    const { delegate } = getLogic(["delegate"], rootType, userData.languages, "versionsCheck");
+    const delegate = ModelMap.get(rootType).delegate;
     let existingRoots: any[];
     let where: { [key: string]: any } = {};
     let select: { [key: string]: any } = {};

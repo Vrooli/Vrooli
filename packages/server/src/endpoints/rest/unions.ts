@@ -1,5 +1,5 @@
 import { projectOrOrganization_findMany, projectOrRoutine_findMany, runProjectOrRunRoutine_findMany } from "../generated";
-import { UnionsEndpoints } from "../logic";
+import { UnionsEndpoints } from "../logic/unions";
 import { setupRoutes } from "./base";
 
 export const UnionsRest = setupRoutes({

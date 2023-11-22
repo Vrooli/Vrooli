@@ -1,5 +1,5 @@
 import https from "https";
-import { logger } from "../../events";
+import { logger } from "../../events/logger";
 
 export type EmbeddableType = "ApiVersion" | "Chat" | "Issue" | "Meeting" | "NoteVersion" | "Organization" | "Post" | "ProjectVersion" | "Question" | "Quiz" | "Reminder" | "RoutineVersion" | "RunProject" | "RunRoutine" | "SmartContractVersion" | "StandardVersion" | "Tag" | "User";
 
@@ -91,7 +91,7 @@ export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableTy
                         logger.error(error, { trace: "0021", result, data, options });
                         reject(new Error(error));
                     }
-                    else resolve(result.embeddings);
+                    else resolve(result);
                 });
             });
             apiRequest.on("error", error => {

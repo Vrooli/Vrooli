@@ -1,12 +1,13 @@
 import { DeleteType } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { DeleteOneOrManyEndpoints, EndpointsDeleteOneOrMany } from "../logic";
+import { DeleteOneOrManyEndpoints, EndpointsDeleteOneOrMany } from "../logic/deleteOneOrMany";
 
 export const typeDef = gql`
     enum DeleteType {
         Api
         ApiVersion
         Bookmark
+        BookmarkList
         Chat
         ChatInvite
         ChatMessage

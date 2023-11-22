@@ -1,5 +1,5 @@
 import { uuidValidate } from "@local/shared";
-import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders";
+import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
 
 // Types of objects which have tags
@@ -21,20 +21,20 @@ const parentMapper: { [key in TaggedObjectType]: string } = {
 };
 
 type TagShapeHelperProps<
-    Input extends ShapeHelperInput<false, false, Types[number], FieldName>,
+    Input extends ShapeHelperInput<false, Types[number], FieldName>,
     Types extends readonly RelationshipType[],
     FieldName extends string,
 > = {
     parentType: TaggedObjectType;
     relation: FieldName;
-} & Omit<ShapeHelperProps<Input, false, false, Types, FieldName, "tag", false>, "isRequired" | "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
+} & Omit<ShapeHelperProps<Input, false, Types, FieldName, "tag", false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
 
 /**
 * Add, update, or remove tag data for an object.
 */
 export const tagShapeHelper = async <
     Types extends readonly RelationshipType[],
-    Input extends ShapeHelperInput<false, false, Types[number], FieldName>,
+    Input extends ShapeHelperInput<false, Types[number], FieldName>,
     FieldName extends string,
 >({
     data,
@@ -43,7 +43,7 @@ export const tagShapeHelper = async <
     relation,
     ...rest
 }: TagShapeHelperProps<Input, Types, FieldName>):
-    Promise<ShapeHelperOutput<false, false, Types[number], any, "tag">> => { // Can't specify FieldName in output because ShapeHelperOutput doesn't support join tables. The expected fieldName is the unique field name, which is found inside this function
+    Promise<ShapeHelperOutput<false, Types[number], any, "tag">> => { // Can't specify FieldName in output because ShapeHelperOutput doesn't support join tables. The expected fieldName is the unique field name, which is found inside this function
     // Make sure that all tag relations are objects instead of strings
     const keys = ["Create", "Connect", "Delete", "Disconnect", "Update"].map(op => `${relation}${op}` as string);
     const tagsToObject = (tags: (string | object)[]) => {
@@ -57,7 +57,6 @@ export const tagShapeHelper = async <
     return shapeHelper({
         data,
         isOneToOne: false,
-        isRequired: false,
         joinData: {
             fieldName: "tag",
             uniqueFieldName: parentMapper[parentType],

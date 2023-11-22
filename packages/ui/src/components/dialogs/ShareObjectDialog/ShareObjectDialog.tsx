@@ -86,14 +86,13 @@ export const ShareObjectDialog = ({
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split("?")[0].split("#")[0], [object]);
 
     const copyLink = () => {
-        console.log("copying link", url);
         navigator.clipboard.writeText(`${window.location.origin}${url}`);
-        PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+        PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     };
 
     const copyObject = () => {
         navigator.clipboard.writeText(JSON.stringify(prepareObjectForShare(object), null, 2));
-        PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+        PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     };
 
     const shareLink = async () => {

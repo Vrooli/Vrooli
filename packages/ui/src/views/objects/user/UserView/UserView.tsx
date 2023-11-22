@@ -1,10 +1,13 @@
-import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
-import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, ChatInvite, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
+import { Box, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import BannerDefault from "assets/img/BannerDefault.png";
+import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -13,44 +16,42 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, SearchIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { setSearchParams, useLocation } from "route";
+import { openLink, useLocation } from "route";
 import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
-import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
+import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getObjectUrl } from "utils/navigation/openObject";
 import { parseSingleItemUrl, UrlInfo } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
 import { UserViewProps } from "../types";
 
 export const UserView = ({
-    isOpen,
+    display,
     onClose,
 }: UserViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
-    const [location, setLocation] = useLocation();
+    const [{ pathname }, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
 
     // Parse information from URL
     const urlInfo = useMemo<UrlInfo & { isOwnProfile: boolean }>(() => {
         // Use common function to parse URL
-        let urlInfo: UrlInfo & { isOwnProfile?: boolean } = parseSingleItemUrl({ url: location });
-        // If it returns the handle "profile", or the location it returns nothing, then it's the current user's profile
+        let urlInfo: UrlInfo & { isOwnProfile?: boolean } = parseSingleItemUrl({ pathname });
+        // If it returns the handle "profile", or the path it returns nothing, then it's the current user's profile
         if (session && (urlInfo.handle === "profile" || Object.keys(urlInfo).length === 0)) {
             urlInfo.isOwnProfile = true;
             const currentUser = getCurrentUser(session);
@@ -59,12 +60,11 @@ export const UserView = ({
             urlInfo.isOwnProfile = false;
         }
         return urlInfo as UrlInfo & { isOwnProfile: boolean };
-    }, [location, session]);
+    }, [pathname, session]);
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
-    const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
-    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
+    const [getUserData, { data: userData, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
+    const [getProfileData, { data: profileData, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
     const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
-    useDisplayServerError(userErrors ?? profileErrors);
     // Get user or profile data
     useEffect(() => {
         if (urlInfo.isOwnProfile) getProfileData();
@@ -92,9 +92,11 @@ export const UserView = ({
         const { creativity, verbosity, translations } = findBotData(language, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language]);
         const { adornments } = getDisplay(user, [language], palette);
+        let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, 1000);
+        if (!bannerImageUrl) bannerImageUrl = user?.isBot ? BannerDefaultBot : BannerDefault;
         return {
             adornments,
-            bannerImageUrl: extractImageUrl(user?.bannerImage, user?.updated_at, 1000),
+            bannerImageUrl,
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             botData: { ...botTranslations, creativity, verbosity },
             name: user?.name,
@@ -156,16 +158,28 @@ export const UserView = ({
     /** Starts a new chat */
     const handleStartChat = useCallback(() => {
         if (!user || !user.id) return;
-        // Create URL search params
-        setSearchParams(setLocation, {
-            invites: {
+        // Check for last chat you opened with this user
+        const existingChatId = getCookieMatchingChat([user.id]);
+        console.log("got existing chat id", existingChatId);
+        // Use that to determine URL
+        const url = existingChatId ? getObjectUrl({ __typename: "Chat" as const, id: existingChatId }) : `${LINKS.Chat}/add`;
+        // Create search params to initialize new chat. 
+        // If the chat isn't new, this will initialize the chat if the one 
+        // we're looking for doesn't exist (i.e. it was deleted)
+        openLink(setLocation, url, {
+            invites: [{
+                __typename: "ChatInvite" as const,
                 id: uuid(),
-                userConnect: user.id,
-            },
+                user: { __typename: "User", id: user.id } as Partial<User>,
+            }] as Partial<ChatInvite>[],
+            translations: [{
+                __typename: "ChatTranslation" as const,
+                language: getUserLanguages(session)[0],
+                name: user.name,
+                description: "",
+            }],
         });
-        // Navigate to chat page
-        setLocation(`${LINKS.Chat}/add`);
-    }, [user]);
+    }, [session, setLocation, user]);
 
     return (
         <>
@@ -260,7 +274,7 @@ export const UserView = ({
                             fontFamily="monospace"
                             onClick={() => {
                                 navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
-                                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                                PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
                             }}
                             sx={{
                                 color: palette.secondary.dark,
@@ -314,51 +328,100 @@ export const UserView = ({
                         marginTop: 0,
                         borderRadius: "0px",
                     }}>
-                        {botData.occupation && <TextField
+                        {botData.occupation && <TextInput
                             disabled
                             fullWidth
                             label={t("Occupation")}
                             value={botData.occupation}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <OrganizationIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
-                        {botData.persona && <TextField
+                        {botData.persona && <TextInput
                             disabled
                             fullWidth
                             label={t("Persona")}
                             value={botData.persona}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <PersonaIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
-                        {botData.startMessage && <TextField
+                        {botData.startMessage && <TextInput
                             disabled
                             fullWidth
                             label={t("StartMessage")}
                             value={botData.startMessage}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <CommentIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
-                        {botData.tone && <TextField
+                        {botData.tone && <TextInput
                             disabled
                             fullWidth
                             label={t("Tone")}
                             value={botData.tone}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <RoutineValidIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
-                        {botData.keyPhrases && <TextField
+                        {botData.keyPhrases && <TextInput
                             disabled
                             fullWidth
                             label={t("KeyPhrases")}
                             value={botData.keyPhrases}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <KeyPhrasesIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
-                        {botData.domainKnowledge && <TextField
+                        {botData.domainKnowledge && <TextInput
                             disabled
                             fullWidth
                             label={t("DomainKnowledge")}
                             value={botData.domainKnowledge}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <LearnIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
-                        {botData.bias && <TextField
+                        {botData.bias && <TextInput
                             disabled
                             fullWidth
                             label={t("Bias")}
                             value={botData.bias}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <HeartFilledIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />}
                         <Stack>
                             <Typography id="creativity-slider" gutterBottom>
-                                {t("Creativity")}
+                                {t("CreativityPlaceholder")}
                             </Typography>
                             <Slider
                                 aria-labelledby="creativity-slider"
@@ -392,7 +455,7 @@ export const UserView = ({
                         </Stack>
                         <Stack>
                             <Typography id="verbosity-slider" gutterBottom>
-                                {t("Verbosity")}
+                                {t("VerbosityPlaceholder")}
                             </Typography>
                             <Slider
                                 aria-labelledby="verbosity-slider"
@@ -405,11 +468,11 @@ export const UserView = ({
                                 marks={[
                                     {
                                         value: 0.1,
-                                        label: t("Low"),
+                                        label: t("Short"),
                                     },
                                     {
                                         value: 1,
-                                        label: t("High"),
+                                        label: t("Long"),
                                     },
                                 ]}
                                 sx={{
@@ -448,10 +511,7 @@ export const UserView = ({
                     />
                 </Box>}
             </Box>
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {currTab.tabType !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton> : null}

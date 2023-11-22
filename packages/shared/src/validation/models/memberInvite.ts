@@ -1,7 +1,7 @@
 import { bool, id, message, opt, permissions, req, YupModel, yupObj } from "../utils";
 
 export const memberInviteValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         message: opt(message),
         willBeAdmin: opt(bool),
@@ -9,11 +9,11 @@ export const memberInviteValidation: YupModel = {
     }, [
         ["user", ["Connect"], "one", "req"],
         ["organization", ["Connect"], "one", "req"],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         message: opt(message),
         willBeAdmin: opt(bool),
         willHavePermissions: opt(permissions),
-    }, [], [], o),
+    }, [], [], d),
 };

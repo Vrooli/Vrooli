@@ -1,19 +1,15 @@
 import { Count, GqlModelType, lowercaseFirstLetter, ViewFor, ViewSortBy } from "@local/shared";
-import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
-import { onlyValidIds } from "../../builders";
-import { CustomError } from "../../events";
-import { getLabels, getLogic } from "../../getters";
+import { Prisma } from "@prisma/client";
+import i18next from "i18next";
+import { ModelMap } from ".";
+import { onlyValidIds } from "../../builders/onlyValidIds";
+import { CustomError } from "../../events/error";
+import { getLabels } from "../../getters/getLabels";
 import { withRedis } from "../../redisConn";
 import { PrismaType, SessionUserToken } from "../../types";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions } from "../../utils/defaultPermissions";
 import { ViewFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { ProjectModel } from "./project";
-import { RoutineModel } from "./routine";
-import { StandardModel } from "./standard";
-import { ApiModelLogic, NoteModelLogic, OrganizationModelLogic, PostModelLogic, ProjectModelLogic, QuestionModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, UserModelLogic, ViewModelLogic } from "./types";
-import { UserModel } from "./user";
+import { OrganizationModelLogic, ViewModelLogic } from "./types";
 
 const toWhere = (key: string, nestedKey: string | null, id: string) => {
     if (nestedKey) return { [key]: { [nestedKey]: { some: { id } } } };
@@ -148,41 +144,38 @@ const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> =>
     }).then(({ count }) => ({ __typename: "Count" as const, count }));
 };
 
+const displayMapper: { [key in ViewFor]?: keyof Prisma.viewUpsertArgs["create"] } = {
+    Api: "api",
+    Organization: "organization",
+    Question: "question",
+    Note: "note",
+    Post: "post",
+    Project: "project",
+    Routine: "routine",
+    SmartContract: "smartContract",
+    Standard: "standard",
+    User: "user",
+};
+
 const __typename = "View" as const;
-const suppFields = [] as const;
-export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
+export const ViewModel: ViewModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.view,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                api: { select: ApiModel.display.label.select() },
-                organization: { select: OrganizationModel.display.label.select() },
-                question: { select: QuestionModel.display.label.select() },
-                note: { select: NoteModel.display.label.select() },
-                post: { select: PostModel.display.label.select() },
-                project: { select: ProjectModel.display.label.select() },
-                routine: { select: RoutineModel.display.label.select() },
-                smartContract: { select: SmartContractModel.display.label.select() },
-                standard: { select: StandardModel.display.label.select() },
-                user: { select: UserModel.display.label.select() },
+                ...Object.fromEntries(Object.entries(displayMapper).map(([key, value]) =>
+                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
-                if (select.api) return ApiModel.display.label.get(select.api as ApiModelLogic["PrismaModel"], languages);
-                if (select.organization) return OrganizationModel.display.label.get(select.organization as OrganizationModelLogic["PrismaModel"], languages);
-                if (select.question) return QuestionModel.display.label.get(select.question as QuestionModelLogic["PrismaModel"], languages);
-                if (select.note) return NoteModel.display.label.get(select.note as NoteModelLogic["PrismaModel"], languages);
-                if (select.post) return PostModel.display.label.get(select.post as PostModelLogic["PrismaModel"], languages);
-                if (select.project) return ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages);
-                if (select.routine) return RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages);
-                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages);
-                if (select.standard) return StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages);
-                if (select.user) return UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages);
-                return "";
+                for (const [key, value] of Object.entries(displayMapper)) {
+                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                }
+                return i18next.t("common:View", { lng: languages[0], count: 1 });
             },
         },
-    },
+    }),
     format: ViewFormat,
     search: {
         defaultSort: ViewSortBy.LastViewedDesc,
@@ -193,17 +186,7 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { api: ApiModel.search.searchStringQuery() },
-                { issue: IssueModel.search.searchStringQuery() },
-                { note: NoteModel.search.searchStringQuery() },
-                { organization: OrganizationModel.search.searchStringQuery() },
-                { question: QuestionModel.search.searchStringQuery() },
-                { post: PostModel.search.searchStringQuery() },
-                { project: ProjectModel.search.searchStringQuery() },
-                { routine: RoutineModel.search.searchStringQuery() },
-                { smartContract: SmartContractModel.search.searchStringQuery() },
-                { standard: StandardModel.search.searchStringQuery() },
-                { user: UserModel.search.searchStringQuery() },
+                ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
             ],
         }),
     },
@@ -230,7 +213,7 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
             return result;
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -253,7 +236,7 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
                 by: { id: userId },
             }),
         },
-    },
+    }),
     /**
      * Marks objects as viewed. If view exists, updates last viewed time.
      * A user may view their own objects, but it does not count towards its view count.
@@ -261,7 +244,7 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
      */
     view: async (prisma: PrismaType, userData: SessionUserToken, input: ViewInput): Promise<boolean> => {
         // Get Prisma delegate for viewed object
-        const { delegate } = getLogic(["delegate"], input.viewFor, userData.languages, "ViewModel.view");
+        const { delegate } = ModelMap.getLogic(["delegate"], input.viewFor, true, "view 1");
         // Check if object being viewed on exists
         const objectToView: { [x: string]: any } | null = await delegate(prisma).findUnique({
             where: { id: input.forId },
@@ -301,7 +284,7 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
         switch (input.viewFor) {
             case ViewFor.Organization: {
                 // Check if user is an admin or owner of the organization
-                const roles = await OrganizationModel.query.hasRole(prisma, userData.id, [input.forId]);
+                const roles = await ModelMap.get<OrganizationModelLogic>("Organization").query.hasRole(prisma, userData.id, [input.forId]);
                 isOwn = Boolean(roles[0]);
                 break;
             }
@@ -318,14 +301,14 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
             case ViewFor.Standard:
             case ViewFor.StandardVersion: {
                 // Check if ROOT object is owned by this user or by an organization they are a member of
-                const { delegate: rootObjectDelegate } = getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, userData.languages, "ViewModel.view2");
+                const { delegate: rootObjectDelegate } = ModelMap.getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 2");
                 const rootObject = await rootObjectDelegate(prisma).findFirst({
                     where: {
                         AND: [
                             { id: dataMapper[input.viewFor](objectToView).id },
                             {
                                 OR: [
-                                    OrganizationModel.query.isMemberOfOrganizationQuery(userData.id),
+                                    ModelMap.get<OrganizationModelLogic>("Organization").query.isMemberOfOrganizationQuery(userData.id),
                                     { ownedByUser: { id: userData.id } },
                                 ],
                             },
@@ -356,7 +339,7 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
                 // If object viewed more than 1 hour ago, update view count
                 if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
                     // View counts don't exist on versioned objects, so we must make sure we are updating the root object
-                    const { delegate: rootObjectDelegate } = getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, userData.languages, "ViewModel.view3");
+                    const { delegate: rootObjectDelegate } = ModelMap.getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 3");
                     await rootObjectDelegate(prisma).update({
                         where: { id: input.forId },
                         data: { views: dataMapper[input.viewFor](objectToView).views + 1 },

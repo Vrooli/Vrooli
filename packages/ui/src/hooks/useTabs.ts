@@ -1,6 +1,6 @@
 import { CommonKey } from "@local/shared";
 import { Palette, useTheme } from "@mui/material";
-import { ChangeEvent, useCallback, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { SvgComponent } from "types";
@@ -48,7 +48,7 @@ export const useTabs = <T, S extends boolean = true>({
     id: string,
     tabParams: readonly UseTabsParam<T, S>[],
 }) => {
-    const [, setLocation] = useLocation();
+    const [location, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
 
@@ -76,14 +76,29 @@ export const useTabs = <T, S extends boolean = true>({
         return tabFromParams || tabs.find(tab => tab.tabType === storedTab || defaultTab) || tabs[0];
     });
 
-    const handleTabChange = useCallback((e: ChangeEvent<unknown>, tab: PageTab<T, S>) => {
-        e.preventDefault();
+    useEffect(() => {
+        if (display === "page") {
+            const searchParams = parseSearchParams();
+            const tabFromParams = tabs.find(tab => tab.tabType === searchParams.type);
+            if (tabFromParams) {
+                setCurrTab(tabFromParams);
+            }
+        }
+    }, [location, display, tabs]);
+
+    const handleTabChange = useCallback((e: ChangeEvent<unknown> | undefined, tab: PageTab<T, S>) => {
+        e?.preventDefault();
         if (display === "page") addSearchParams(setLocation, { type: tab.tabType });
         setCookieLastTab(id, tab.tabType);
         setCurrTab(tab);
     }, [display, setLocation, id]);
 
+    const changeTab = useCallback((tabType: T) => {
+        const tab = tabs.find(tab => tab.tabType === tabType);
+        if (tab) handleTabChange(undefined, tab);
+    }, [handleTabChange, tabs]);
+
     const currTabParams = useMemo(() => tabParams[currTab.index], [currTab.index, tabParams]);
 
-    return { tabs, currTab, setCurrTab, handleTabChange, ...currTabParams };
+    return { tabs, currTab, setCurrTab, handleTabChange, changeTab, ...currTabParams };
 };

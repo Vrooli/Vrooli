@@ -9,11 +9,11 @@ export type NodeTranslationShape = Pick<NodeTranslation, "id" | "language" | "de
 }
 
 export type NodeShape = Pick<Node, "id" | "columnIndex" | "rowIndex" | "nodeType"> & {
-    __typename?: "Node";
+    __typename: "Node";
     // loop?: LoopShape | null
     end?: NodeEndShape | null;
     routineList?: NodeRoutineListShape | null;
-    routineVersion: { __typename?: "RoutineVersion", id: string };
+    routineVersion: { __typename: "RoutineVersion", id: string };
     translations: NodeTranslationShape[];
 }
 

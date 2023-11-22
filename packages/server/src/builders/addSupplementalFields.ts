@@ -1,6 +1,5 @@
 import { GqlModelType, OrArray } from "@local/shared";
-import { getLogic } from "../getters";
-import { ObjectMap } from "../models/base";
+import { ModelMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
@@ -32,8 +31,8 @@ export const addSupplementalFields = async (
     for (const [type, ids] of Object.entries(objectTypesIdsDict)) {
         // Find the supplemental data for each object id in ids
         const objectData = ids.map((id: string) => objectIdsDataDict[id]);
-        const { search } = getLogic(["search"], type as keyof typeof ObjectMap, userData?.languages ?? ["en"], "addSupplementalFields", false);
-        const valuesWithSupplements = search?.supplemental ?
+        const supplemental = ModelMap.get(type as GqlModelType, false)?.search?.supplemental;
+        const valuesWithSupplements = supplemental ?
             await addSupplementalFieldsHelper({ languages: userData?.languages ?? ["en"], objects: objectData, objectType: type as GqlModelType, partial: selectFieldsDict[type], prisma, userData }) :
             objectData;
         // Supplements are calculated for an array of objects, so we must loop through 

@@ -8,7 +8,7 @@ import { OwnerShape } from "./types";
 
 
 export type RoutineShape = Pick<Routine, "id" | "isInternal" | "isPrivate" | "permissions"> & {
-    __typename?: "Routine";
+    __typename: "Routine";
     labels?: ({ id: string } | LabelShape)[];
     owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;

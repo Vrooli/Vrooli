@@ -1,32 +1,34 @@
-import { BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, Session, User } from "@local/shared";
-import { Slider, Stack, TextField, Typography } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, noopSubmit, Session, User } from "@local/shared";
+import { InputAdornment, Slider, Stack, Typography } from "@mui/material";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
-import { BotFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { forwardRef, useContext } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon } from "icons";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { findBotData } from "utils/botUtils";
-import { toDisplay } from "utils/display/pageTools";
+import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { BotShape, shapeBot } from "utils/shape/models/bot";
-import { BotUpsertProps } from "../types";
+import { BotFormProps, BotUpsertProps } from "../types";
 
 const botInitialValues = (
     session: Session | undefined,
@@ -38,6 +40,7 @@ const botInitialValues = (
         __typename: "User" as const,
         id: DUMMY_ID,
         creativity,
+        isBotDepictingPerson: false,
         isPrivate: false,
         name: "",
         verbosity,
@@ -52,21 +55,27 @@ const transformBotValues = (session: Session | undefined, values: BotShape, exis
 
 const validateBotValues = async (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) => {
     const transformedValues = transformBotValues(session, values, existing, isCreate);
-    const validationSchema = botValidation[isCreate ? "create" : "update"]({});
+    const validationSchema = botValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
 
-const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
-    display,
+const BotForm = ({
+    disabled,
     dirty,
+    display,
+    existing,
+    handleUpdate,
     isCreate,
-    isLoading,
     isOpen,
+    isReadLoading,
     onCancel,
+    onClose,
+    onCompleted,
+    onDeleted,
     values,
     ...props
-}, ref) => {
+}: BotFormProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -84,17 +93,56 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name"],
-        validationSchema: botTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: botTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+    });
+
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<User>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "User",
+        ...props,
+    });
+    const {
+        fetch,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertFetch<User, BotCreateInput, BotUpdateInput>({
+        isCreate,
+        isMutate: true,
+        endpointCreate: endpointPostBot,
+        endpointUpdate: endpointPutBot,
+    });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "User" });
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useSubmitHelper<BotCreateInput | BotUpdateInput, User>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformBotValues(session, values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
     });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="bot-upsert-dialog"
+            isOpen={isOpen}
+            onClose={onClose}
+        >
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t(isCreate ? "CreateBot" : "UpdateBot")}
+            />
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
-                ref={ref}
             >
                 <FormContainer>
                     <RelationshipList
@@ -120,15 +168,42 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         />
                         <Field
                             fullWidth
+                            autoComplete="name"
                             name="name"
                             label={t("Name")}
-                            as={TextField}
+                            placeholder={t("NamePlaceholder")}
+                            as={TextInput}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <BotIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            error={props.touched.name && Boolean(props.errors.name)}
+                            helperText={props.touched.name && props.errors.name}
+                        />
+                        <Field
+                            name="isBotDepictingPerson"
+                            label={t("BotDepictPersonAsk")}
+                            component={CheckboxInput}
                         />
                         <Field
                             fullWidth
+                            autoComplete="handle"
                             name="handle"
                             label={t("Handle")}
-                            as={TextField}
+                            placeholder={t("HandlePlaceholder")}
+                            as={TextInput}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <HandleIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            error={props.touched.handle && Boolean(props.errors.handle)}
+                            helperText={props.touched.handle && props.errors.handle}
                         />
                         <TranslatedRichInput
                             language={language}
@@ -137,51 +212,107 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                             name="bio"
                             placeholder={t("Bio")}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Occupation")}
+                            placeholder={t("OccupationPlaceholderBot")}
                             language={language}
                             name="occupation"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <OrganizationIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Persona")}
+                            placeholder={t("PersonaPlaceholderBot")}
                             language={language}
                             name="persona"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <PersonaIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("StartMessage")}
+                            placeholder={t("StartMessagePlaceholder")}
                             language={language}
                             name="startMessage"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <CommentIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Tone")}
+                            placeholder={t("TonePlaceholderBot")}
                             language={language}
                             name="tone"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <RoutineValidIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("KeyPhrases")}
+                            placeholder={t("KeyPhrasesPlaceholderBot")}
                             language={language}
                             name="keyPhrases"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <KeyPhrasesIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("DomainKnowledge")}
+                            placeholder={t("DomainKnowledgePlaceholderBot")}
                             language={language}
                             name="domainKnowledge"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <LearnIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Bias")}
+                            placeholder={t("BiasPlaceholderBot")}
                             language={language}
                             name="bias"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <HeartFilledIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         <Stack>
                             <Typography id="creativity-slider" gutterBottom>
-                                {t("Creativity")}
+                                {t("CreativityPlaceholder")}
                             </Typography>
                             <Slider
                                 aria-labelledby="creativity-slider"
@@ -215,7 +346,7 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         </Stack>
                         <Stack>
                             <Typography id="verbosity-slider" gutterBottom>
-                                {t("Verbosity")}
+                                {t("VerbosityPlaceholder")}
                             </Typography>
                             <Slider
                                 aria-labelledby="verbosity-slider"
@@ -228,11 +359,11 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                                 marks={[
                                     {
                                         value: 0.1,
-                                        label: t("Low"),
+                                        label: t("Short"),
                                     },
                                     {
                                         value: 1,
-                                        label: t("High"),
+                                        label: t("Long"),
                                     },
                                 ]}
                                 sx={{
@@ -253,92 +384,53 @@ const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
             <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                hideButtons={disabled}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
+                loading={isLoading}
+                onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
+                onSubmit={onSubmit}
             />
-        </>
+        </MaybeLargeDialog>
     );
-});
+};
 
 export const BotUpsert = ({
     isCreate,
     isOpen,
-    onCancel,
-    onCompleted,
     overrideObject,
+    ...props
 }: BotUpsertProps) => {
     const session = useContext(SessionContext);
-    const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<User, BotShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<User, BotShape>({
         ...endpointGetUser,
+        isCreate,
         objectType: "User",
         overrideObject,
         transform: (data) => botInitialValues(session, data),
     });
-
-    const {
-        fetch,
-        handleCancel,
-        handleCompleted,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertActions<User, BotCreateInput, BotUpdateInput>({
-        display,
-        endpointCreate: endpointPostBot,
-        endpointUpdate: endpointPutBot,
-        isCreate,
-        onCancel,
-        onCompleted,
-    });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="bot-upsert-dialog"
-            isOpen={isOpen}
-            onClose={handleClose}
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateBotValues(session, values, existing, isCreate)}
         >
-            <TopBar
-                display={display}
-                onClose={handleClose}
-                title={t(isCreate ? "CreateBot" : "UpdateBot")}
-            />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<BotCreateInput | BotUpdateInput, User>({
-                        fetch,
-                        inputs: transformBotValues(session, values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateBotValues(session, values, existing, isCreate)}
-            >
-                {(formik) =>
-                    <BotForm
-                        display={display}
-                        isCreate={isCreate}
-                        isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                        isOpen={true}
-                        onCancel={handleCancel}
-                        onClose={handleClose}
-                        ref={formRef}
-                        {...formik}
-                    />
-                }
-            </Formik>
-        </MaybeLargeDialog>
+            {(formik) =>
+                <BotForm
+                    disabled={!(isCreate || canUpdate)}
+                    existing={existing}
+                    handleUpdate={setExisting}
+                    isCreate={isCreate}
+                    isReadLoading={isReadLoading}
+                    isOpen={isOpen}
+                    {...props}
+                    {...formik}
+                />
+            }
+        </Formik>
     );
 };

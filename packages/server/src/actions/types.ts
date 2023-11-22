@@ -12,12 +12,16 @@ export type CountHelperProps<CountInput extends CountInputBase> = {
     visibility?: VisibilityType;
 }
 
-export type CreateHelperProps = {
+export type CreateOneHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: { session: SessionData };
+}
+
+export type CreateManyHelperProps = Omit<CreateOneHelperProps, "input"> & {
+    input: any[];
 }
 
 export type DeleteManyHelperProps = {
@@ -92,10 +96,14 @@ export type RelBuilderHelperProps<
     userData: SessionUserToken,
 }
 
-export type UpdateHelperProps = {
+export type UpdateOneHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
     objectType: GqlModelType | `${GqlModelType}`;
     prisma: PrismaType;
     req: Request;
+}
+
+export type UpdateManyHelperProps = Omit<UpdateOneHelperProps, "input"> & {
+    input: any[];
 }

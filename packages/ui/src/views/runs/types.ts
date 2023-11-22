@@ -2,21 +2,21 @@ import { ProjectVersion, RoutineVersion, RunRoutine } from "@local/shared";
 import { DecisionStep, EndStep, PartialWithType, RoutineListStep, RoutineStep } from "types";
 import { ViewProps } from "views/types";
 
-export interface DecisionViewProps extends ViewProps {
+export type DecisionViewProps = Omit<ViewProps, "display" | "isOpen"> & {
     data: DecisionStep;
-    handleDecisionSelect: (step: RoutineStep | EndStep) => void;
+    handleDecisionSelect: (step: RoutineStep | EndStep) => unknown;
     routineList: RoutineListStep;
 }
 
-export interface RunViewProps extends ViewProps {
-    onClose?: () => void;
+export type RunViewProps = ViewProps & {
+    onClose?: () => unknown;
     runnableObject: PartialWithType<ProjectVersion | RoutineVersion>;
 }
 
-export interface SubroutineViewProps extends ViewProps {
+export type SubroutineViewProps = Omit<ViewProps, "display" | "isOpen"> & {
     loading: boolean;
-    handleUserInputsUpdate: (inputs: { [inputId: string]: string }) => void;
-    handleSaveProgress: () => void;
+    handleUserInputsUpdate: (inputs: { [inputId: string]: string }) => unknown;
+    handleSaveProgress: () => unknown;
     /**
      * Owner of overall routine, not subroutine
      */

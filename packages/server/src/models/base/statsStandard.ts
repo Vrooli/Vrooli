@@ -1,25 +1,23 @@
 import { StatsStandardSortBy } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsStandardFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { StandardModel } from "./standard";
-import { StandardModelLogic, StatsStandardModelLogic } from "./types";
+import { StandardModelInfo, StandardModelLogic, StatsStandardModelInfo, StatsStandardModelLogic } from "./types";
 
 const __typename = "StatsStandard" as const;
-const suppFields = [] as const;
-export const StatsStandardModel: ModelLogic<StatsStandardModelLogic, typeof suppFields> = ({
+export const StatsStandardModel: StatsStandardModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_standard,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, standard: { select: StandardModel.display.label.select() } }),
+            select: () => ({ id: true, standard: { select: ModelMap.get<StandardModelLogic>("Standard").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages),
+                objectName: ModelMap.get<StandardModelLogic>("Standard").display().label.get(select.standard as StandardModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsStandardFormat,
     search: {
         defaultSort: StatsStandardSortBy.PeriodStartAsc,
@@ -28,9 +26,9 @@ export const StatsStandardModel: ModelLogic<StatsStandardModelLogic, typeof supp
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ standard: StandardModel.search.searchStringQuery() }),
+        searchStringQuery: () => ({ standard: ModelMap.get<StandardModelLogic>("Standard").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -38,13 +36,13 @@ export const StatsStandardModel: ModelLogic<StatsStandardModelLogic, typeof supp
             standard: "Standard",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => StandardModel.validate.owner(data?.standard as StandardModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate().owner(data?.standard as StandardModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsStandardModelLogic["PrismaSelect"]>([["standard", "Standard"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsStandardModelInfo["PrismaSelect"]>([["standard", "Standard"]], ...rest),
         visibility: {
-            private: { standard: StandardModel.validate.visibility.private },
-            public: { standard: StandardModel.validate.visibility.public },
-            owner: (userId) => ({ standard: StandardModel.validate.visibility.owner(userId) }),
+            private: { standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.private },
+            public: { standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.public },
+            owner: (userId) => ({ standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

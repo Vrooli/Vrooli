@@ -1,16 +1,19 @@
 import { BookmarkFor, DUMMY_ID, endpointGetTags, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
-import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
+import { Autocomplete, Chip, InputAdornment, ListItemText, MenuItem, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useFetch } from "hooks/useFetch";
+import { TagIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
 import { TagShape } from "utils/shape/models/tag";
+import { TextInput } from "../TextInput/TextInput";
 import { TagSelectorBaseProps } from "../types";
 
 export const TagSelectorBase = ({
     disabled,
     handleTagsUpdate,
+    isOptional = true,
     tags,
     placeholder,
 }: TagSelectorBaseProps) => {
@@ -45,17 +48,17 @@ export const TagSelectorBase = ({
         tagLabel = tagLabel.replace(/[,;]/g, "");
         // Check if tag is valid length
         if (tagLabel.length < 2) {
-            PubSub.get().publishSnack({ messageKey: "TagTooShort", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "TagTooShort", severity: "Error" });
             return;
         }
         if (tagLabel.length > 30) {
-            PubSub.get().publishSnack({ messageKey: "TagTooLong", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "TagTooLong", severity: "Error" });
             return;
         }
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tagLabel);
         if (isSelected) {
-            PubSub.get().publishSnack({ messageKey: "TagAlreadySelected", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "TagAlreadySelected", severity: "Error" });
             return;
         }
         // Add tag
@@ -181,11 +184,20 @@ export const TagSelectorBase = ({
                 </MenuItem>
             )}
             renderInput={(params) => (
-                <TextField
+                <TextInput
                     value={inputValue}
                     onChange={onChange}
+                    isOptional={isOptional}
+                    label={t("Tag", { count: 2 })}
                     placeholder={placeholder ?? t("TagSelectorPlaceholder")}
-                    InputProps={params.InputProps}
+                    InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <TagIcon />
+                            </InputAdornment>
+                        ),
+                    }}
                     inputProps={params.inputProps}
                     onKeyDown={onKeyDown}
                     fullWidth

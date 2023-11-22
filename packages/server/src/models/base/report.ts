@@ -1,23 +1,12 @@
-import { MaxObjects, ReportFor, ReportSortBy, reportValidation } from "@local/shared";
+import { GqlModelType, MaxObjects, ReportFor, ReportSortBy, reportValidation } from "@local/shared";
 import { Prisma, ReportStatus } from "@prisma/client";
-import { CustomError } from "../../events";
+import i18next from "i18next";
+import { ModelMap } from ".";
+import { CustomError } from "../../events/error";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ApiVersionModel } from "./apiVersion";
-import { ChatMessageModel } from "./chatMessage";
-import { CommentModel } from "./comment";
-import { IssueModel } from "./issue";
-import { NoteVersionModel } from "./noteVersion";
-import { OrganizationModel } from "./organization";
-import { PostModel } from "./post";
-import { ProjectVersionModel } from "./projectVersion";
-import { RoutineVersionModel } from "./routineVersion";
-import { SmartContractVersionModel } from "./smartContractVersion";
-import { StandardVersionModel } from "./standardVersion";
-import { TagModel } from "./tag";
-import { ApiVersionModelLogic, ChatMessageModelLogic, CommentModelLogic, IssueModelLogic, NoteVersionModelLogic, OrganizationModelLogic, PostModelLogic, ProjectVersionModelLogic, ReportModelLogic, RoutineVersionModelLogic, SmartContractVersionModelLogic, StandardVersionModelLogic, TagModelLogic, UserModelLogic } from "./types";
-import { UserModel } from "./user";
+import { SuppFields } from "../suppFields";
+import { ReportModelLogic } from "./types";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
@@ -36,46 +25,24 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] }
 };
 
 const __typename = "Report" as const;
-const suppFields = ["you"] as const;
-export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
+export const ReportModel: ReportModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.report,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                apiVersion: { select: ApiVersionModel.display.label.select() },
-                chatMessage: { select: ChatMessageModel.display.label.select() },
-                comment: { select: CommentModel.display.label.select() },
-                issue: { select: IssueModel.display.label.select() },
-                noteVersion: { select: NoteVersionModel.display.label.select() },
-                organization: { select: OrganizationModel.display.label.select() },
-                post: { select: PostModel.display.label.select() },
-                projectVersion: { select: ProjectVersionModel.display.label.select() },
-                routineVersion: { select: RoutineVersionModel.display.label.select() },
-                smartContractVersion: { select: SmartContractVersionModel.display.label.select() },
-                standardVersion: { select: StandardVersionModel.display.label.select() },
-                tag: { select: TagModel.display.label.select() },
-                user: { select: UserModel.display.label.select() },
+                ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) =>
+                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
-                if (select.apiVersion) return ApiVersionModel.display.label.get(select.apiVersion as ApiVersionModelLogic["PrismaModel"], languages);
-                if (select.chatMessage) return ChatMessageModel.display.label.get(select.chatMessage as ChatMessageModelLogic["PrismaModel"], languages);
-                if (select.comment) return CommentModel.display.label.get(select.comment as CommentModelLogic["PrismaModel"], languages);
-                if (select.issue) return IssueModel.display.label.get(select.issue as IssueModelLogic["PrismaModel"], languages);
-                if (select.noteVersion) return NoteVersionModel.display.label.get(select.noteVersion as NoteVersionModelLogic["PrismaModel"], languages);
-                if (select.organization) return OrganizationModel.display.label.get(select.organization as OrganizationModelLogic["PrismaModel"], languages);
-                if (select.post) return PostModel.display.label.get(select.post as PostModelLogic["PrismaModel"], languages);
-                if (select.projectVersion) return ProjectVersionModel.display.label.get(select.projectVersion as ProjectVersionModelLogic["PrismaModel"], languages);
-                if (select.routineVersion) return RoutineVersionModel.display.label.get(select.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages);
-                if (select.smartContractVersion) return SmartContractVersionModel.display.label.get(select.smartContractVersion as SmartContractVersionModelLogic["PrismaModel"], languages);
-                if (select.standardVersion) return StandardVersionModel.display.label.get(select.standardVersion as StandardVersionModelLogic["PrismaModel"], languages);
-                if (select.tag) return TagModel.display.label.get(select.tag as TagModelLogic["PrismaModel"], languages);
-                if (select.user) return UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages);
-                return "";
+                for (const [key, value] of Object.entries(forMapper)) {
+                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                }
+                return i18next.t("common:Report", { lng: languages[0], count: 1 });
             },
         },
-    },
+    }),
     format: ReportFormat,
     mutate: {
         shape: {
@@ -153,7 +120,7 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -163,7 +130,7 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -189,5 +156,5 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             public: {},
             owner: (userId) => ({ createdBy: { id: userId } }),
         },
-    },
+    }),
 });

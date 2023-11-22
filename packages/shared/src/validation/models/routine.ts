@@ -4,7 +4,7 @@ import { routineVersionValidation } from "./routineVersion";
 import { tagValidation } from "./tag";
 
 export const routineValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         isInternal: opt(bool),
         isPrivate: opt(bool),
@@ -16,8 +16,8 @@ export const routineValidation: YupModel = {
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
         ["versions", ["Create"], "many", "req", routineVersionValidation, ["root"]],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], o),
-    update: ({ o }) => yupObj({
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
+    update: (d) => yupObj({
         id: req(id),
         isInternal: opt(bool),
         isPrivate: opt(bool),
@@ -28,5 +28,5 @@ export const routineValidation: YupModel = {
         ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create", "Disconnect"], "many", "opt", tagValidation],
         ["versions", ["Create", "Update", "Delete"], "many", "req", routineVersionValidation, ["root"]],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], o),
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
 };

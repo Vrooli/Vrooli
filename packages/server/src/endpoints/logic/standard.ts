@@ -1,6 +1,8 @@
 import { FindByIdInput, Standard, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionUpdateInput } from "@local/shared";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { createOneHelper } from "../../actions/creates";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateOneHelper } from "../../actions/updates";
+import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsStandard = {
@@ -29,11 +31,11 @@ export const StandardEndpoints: EndpointsStandard = {
     Mutation: {
         standardCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         standardUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
     },
 };

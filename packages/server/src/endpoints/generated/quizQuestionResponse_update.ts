@@ -23,6 +23,7 @@ export const quizQuestionResponse_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -61,6 +62,7 @@ export const quizQuestionResponse_update = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"

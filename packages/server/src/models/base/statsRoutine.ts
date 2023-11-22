@@ -1,25 +1,23 @@
 import { StatsRoutineSortBy } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsRoutineFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { RoutineModel } from "./routine";
-import { RoutineModelLogic, StatsRoutineModelLogic } from "./types";
+import { RoutineModelInfo, RoutineModelLogic, StatsRoutineModelInfo, StatsRoutineModelLogic } from "./types";
 
 const __typename = "StatsRoutine" as const;
-const suppFields = [] as const;
-export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFields> = ({
+export const StatsRoutineModel: StatsRoutineModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_routine,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, routine: { select: RoutineModel.display.label.select() } }),
+            select: () => ({ id: true, routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages),
+                objectName: ModelMap.get<RoutineModelLogic>("Routine").display().label.get(select.routine as RoutineModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsRoutineFormat,
     search: {
         defaultSort: StatsRoutineSortBy.PeriodStartAsc,
@@ -28,9 +26,9 @@ export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFi
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ routine: RoutineModel.search.searchStringQuery() }),
+        searchStringQuery: () => ({ routine: ModelMap.get<RoutineModelLogic>("Routine").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -38,13 +36,13 @@ export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFi
             routine: "Routine",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineModel.validate.owner(data?.routine as RoutineModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.routine as RoutineModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsRoutineModelLogic["PrismaSelect"]>([["routine", "Routine"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsRoutineModelInfo["PrismaSelect"]>([["routine", "Routine"]], ...rest),
         visibility: {
-            private: { routine: RoutineModel.validate.visibility.private },
-            public: { routine: RoutineModel.validate.visibility.public },
-            owner: (userId) => ({ routine: RoutineModel.validate.visibility.owner(userId) }),
+            private: { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private },
+            public: { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public },
+            owner: (userId) => ({ routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

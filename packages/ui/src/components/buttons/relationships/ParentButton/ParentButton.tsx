@@ -1,4 +1,4 @@
-import { exists } from "@local/shared";
+import { exists, noop } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
@@ -52,7 +52,7 @@ export function ParentButton({
             else {
                 // If form is dirty, prompt to confirm (since data will be lost)
                 if (isFormDirty) {
-                    PubSub.get().publishAlertDialog({
+                    PubSub.get().publish("alertDialog", {
                         messageKey: "ParentOverrideConfirm",
                         buttons: [
                             { labelKey: "Yes", onClick: () => { setParentDialogOpen(true); } },
@@ -77,8 +77,7 @@ export function ParentButton({
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isParentDialogOpen) return [objectType as SelectOrCreateObjectType, handleParentSelect, closeParentDialog];
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        return [null, () => { }, () => { }];
+        return [null, noop, noop];
     }, [isParentDialogOpen, objectType, handleParentSelect, closeParentDialog]);
 
     const { Icon, tooltip } = useMemo(() => {

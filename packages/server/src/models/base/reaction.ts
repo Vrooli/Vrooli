@@ -1,12 +1,12 @@
-import { exists, getReactionScore, lowercaseFirstLetter, ReactInput, ReactionFor, removeModifiers } from "@local/shared";
+import { exists, getReactionScore, GqlModelType, lowercaseFirstLetter, ReactInput, ReactionFor, removeModifiers } from "@local/shared";
 import { reaction_summary } from "@prisma/client";
-import { ApiModel, ChatMessageModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
-import { onlyValidIds } from "../../builders";
-import { CustomError, Trigger } from "../../events";
+import { ModelMap } from ".";
+import { onlyValidIds } from "../../builders/onlyValidIds";
+import { CustomError } from "../../events/error";
+import { Trigger } from "../../events/trigger";
 import { PrismaType, SessionUserToken } from "../../types";
 import { ReactionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ApiModelLogic, ChatMessageModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, ReactionModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic } from "./types";
+import { ReactionModelLogic } from "./types";
 
 const forMapper: { [key in ReactionFor]: string } = {
     Api: "api",
@@ -25,46 +25,24 @@ const forMapper: { [key in ReactionFor]: string } = {
 };
 
 const __typename = "Reaction" as const;
-const suppFields = [] as const;
-export const ReactionModel: ModelLogic<ReactionModelLogic, typeof suppFields> = ({
+export const ReactionModel: ReactionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.reaction,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                api: { select: ApiModel.display.label.select() },
-                chatMessage: { select: ChatMessageModel.display.label.select() },
-                comment: { select: CommentModel.display.label.select() },
-                issue: { select: IssueModel.display.label.select() },
-                note: { select: NoteModel.display.label.select() },
-                post: { select: PostModel.display.label.select() },
-                project: { select: ProjectModel.display.label.select() },
-                question: { select: QuestionModel.display.label.select() },
-                questionAnswer: { select: QuestionAnswerModel.display.label.select() },
-                quiz: { select: QuizModel.display.label.select() },
-                routine: { select: RoutineModel.display.label.select() },
-                smartContract: { select: SmartContractModel.display.label.select() },
-                standard: { select: StandardModel.display.label.select() },
+                ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) =>
+                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
-                if (select.api) return ApiModel.display.label.get(select.api as ApiModelLogic["PrismaModel"], languages);
-                if (select.chatMessage) return ChatMessageModel.display.label.get(select.chatMessage as ChatMessageModelLogic["PrismaModel"], languages);
-                if (select.comment) return CommentModel.display.label.get(select.comment as CommentModelLogic["PrismaModel"], languages);
-                if (select.issue) return IssueModel.display.label.get(select.issue as IssueModelLogic["PrismaModel"], languages);
-                if (select.note) return NoteModel.display.label.get(select.note as NoteModelLogic["PrismaModel"], languages);
-                if (select.post) return PostModel.display.label.get(select.post as PostModelLogic["PrismaModel"], languages);
-                if (select.project) return ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages);
-                if (select.question) return QuestionModel.display.label.get(select.question as QuestionModelLogic["PrismaModel"], languages);
-                if (select.questionAnswer) return QuestionAnswerModel.display.label.get(select.questionAnswer as QuestionAnswerModelLogic["PrismaModel"], languages);
-                if (select.quiz) return QuizModel.display.label.get(select.quiz as QuizModelLogic["PrismaModel"], languages);
-                if (select.routine) return RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages);
-                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages);
-                if (select.standard) return StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages);
+                for (const [key, value] of Object.entries(forMapper)) {
+                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                }
                 return "";
             },
         },
-    },
+    }),
     format: ReactionFormat,
     query: {
         /**
@@ -226,5 +204,5 @@ export const ReactionModel: ModelLogic<ReactionModelLogic, typeof suppFields> = 
         }
     },
     search: {} as any,
-    validate: {} as any,
+    validate: () => ({}) as any,
 });

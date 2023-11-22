@@ -4,34 +4,42 @@
  * @param keysToOmit The keys to omit
  * @returns The object with the omitted keys
  */
-export function omit<T extends Record<string, any>>(obj: T, keysToOmit: string[]): Partial<T> {
+export const omit = <T extends Record<string, any>>(obj: T, keysToOmit: string[]): Partial<T> => {
     // Make a shallow copy of the original object
     const result = { ...obj };
+
+    // Helper function to delete nested keys
+    const deleteKey = (obj: any, path: string[]) => {
+        let current = obj;
+        for (let i = 0; i < path.length - 1; i++) {
+            const keyPart = path[i];
+            if (keyPart === undefined || typeof current[keyPart] !== "object") return;
+            current = current[keyPart];
+        }
+        const lastKey = path[path.length - 1];
+        if (lastKey) {
+            delete current[lastKey];
+        }
+    };
+
     // Loop through each key in the keysToOmit array
     for (const key of keysToOmit) {
         // Split the key using dot notation to extract nested keys
         const path = key.split(".");
-        let current = result;
-        // Loop through each nested key
-        for (let i = 0; i < path.length - 1; i++) {
-            // Get the current object based on the nested key
-            current = current[path[i]!];
-        }
-        // Delete the last nested key from the current object
-        delete current[path[path.length - 1]!];
-        let currentKey = path[0];
-        if (!currentKey) continue;
+        deleteKey(result, path);
+
         // Check if parent objects should be removed as well
-        for (let i = 1; i < path.length; i++) {
-            // If the current object is empty after removing its keys, remove it
-            if (Object.keys(current).length === 0) {
-                delete result[currentKey];
+        while (path.length > 1) {
+            path.pop();
+            const parentObject = path.reduce((acc, curr) => acc && acc[curr], result);
+            if (typeof parentObject === "object" && Object.keys(parentObject).length === 0) {
+                deleteKey(result, path);
+            } else {
                 break;
             }
-            current = current[path[i]!];
-            currentKey = currentKey + "." + path[i];
         }
     }
+
     // Return the modified object
     return result;
-}
+};

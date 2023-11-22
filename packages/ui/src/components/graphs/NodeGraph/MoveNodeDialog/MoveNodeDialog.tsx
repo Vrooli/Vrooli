@@ -1,10 +1,11 @@
 /**
  * Used to create/update a link between two routineVersion nodes
  */
-import { Autocomplete, Box, DialogContent, Grid, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { Autocomplete, Box, DialogContent, Grid, Stack, Typography, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoveNodeMenuProps } from "../types";
@@ -98,16 +99,16 @@ export const MoveNodeMenu = ({
                 <Typography variant="h6">
                     {t("From")}
                 </Typography>
-                {/* Column TextField (Disabled) */}
-                <TextField
+                {/* Column TextInput (Disabled) */}
+                <TextInput
                     fullWidth
                     disabled
                     id="node-from-column"
                     label="Column"
                     value={fromColumnIndex + 1}
                 />
-                {/* Row TextField (Disabled) */}
-                <TextField
+                {/* Row TextInput (Disabled) */}
+                <TextInput
                     fullWidth
                     disabled
                     id="node-from-row"
@@ -145,7 +146,7 @@ export const MoveNodeMenu = ({
                         minWidth: 200,
                         maxWidth: 350,
                     }}
-                    renderInput={(params) => <TextField {...params} label="Column" />}
+                    renderInput={(params) => <TextInput {...params} label="Column" />}
                 />
                 {/* Row selector */}
                 <Autocomplete
@@ -159,7 +160,7 @@ export const MoveNodeMenu = ({
                         minWidth: 200,
                         maxWidth: 350,
                     }}
-                    renderInput={(params) => <TextField {...params} label="Row" />}
+                    renderInput={(params) => <TextInput {...params} label="Row" />}
                 />
             </Stack>
         </Stack>

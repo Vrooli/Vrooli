@@ -1,8 +1,9 @@
 import { GqlModelType, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
 import pkg, { Prisma, ReportStatus } from "@prisma/client";
-import { findFirstRel } from "../../builders";
-import { logger, Trigger } from "../../events";
-import { getLogic } from "../../getters";
+import { findFirstRel } from "../../builders/findFirstRel";
+import { logger } from "../../events/logger";
+import { Trigger } from "../../events/trigger";
+import { ModelMap } from "../../models/base";
 import { PrismaType } from "../../types";
 import { batch } from "../../utils/batch";
 
@@ -213,7 +214,7 @@ const moderateReport = async (
             userUpdatingReportId: null,
         });
         // Get Prisma delegate for the object type
-        const { delegate } = getLogic(["delegate"], objectType as GqlModelType, ["en"], "moderateReport");
+        const { delegate } = ModelMap.getLogic(["delegate"], objectType as GqlModelType);
         // Perform moderation action
         switch (acceptedAction) {
             // How delete works:

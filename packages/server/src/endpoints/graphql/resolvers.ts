@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError } from "../../events";
+import { CustomError } from "../../events/error";
 
 /**
  * Resolves any GraphQL union. 

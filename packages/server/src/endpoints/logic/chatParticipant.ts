@@ -1,6 +1,7 @@
 import { ChatParticipant, ChatParticipantSearchInput, ChatParticipantUpdateInput, FindByIdInput } from "@local/shared";
-import { readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateOneHelper } from "../../actions/updates";
+import { rateLimit } from "../../middleware/rateLimit";
 import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsChatParticipant = {
@@ -28,7 +29,7 @@ export const ChatParticipantEndpoints: EndpointsChatParticipant = {
     Mutation: {
         chatParticipantUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
     },
 };

@@ -1,6 +1,6 @@
 import { ScheduleFor, ScheduleSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsSchedule, ScheduleEndpoints } from "../logic";
+import { EndpointsSchedule, ScheduleEndpoints } from "../logic/schedule";
 
 export const typeDef = gql`
     enum ScheduleSortBy {

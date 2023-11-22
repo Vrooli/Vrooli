@@ -9,7 +9,7 @@ export type ResourceTranslationShape = Pick<ResourceTranslation, "id" | "languag
 
 export type ResourceShape = Pick<Resource, "id" | "index" | "link" | "usedFor"> & {
     __typename: "Resource";
-    list: { id: string } | ResourceListShape;
+    list: ResourceListShape;
     translations: ResourceTranslationShape[];
 }
 

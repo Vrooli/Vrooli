@@ -8,47 +8,47 @@ const contractType = yup.string().trim().removeEmptyString().max(256, maxStrErr)
 const content = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 
 export const smartContractVersionTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         description: opt(description),
         jsonVariable: opt(jsonVariable),
         name: req(name),
-    },
-    update: {
+    }),
+    update: () => ({
         description: opt(description),
         jsonVariable: opt(jsonVariable),
         name: opt(name),
-    },
+    }),
 });
 
 export const smartContractVersionValidation: YupModel = {
-    create: ({ o, minVersion = "0.0.1" }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         isComplete: opt(bool),
         isPrivate: opt(bool),
         default: opt(smartContractDefault),
         contractType: req(contractType),
         content: req(content),
-        versionLabel: req(versionLabel(minVersion)),
+        versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
         ["directoryListings", ["Connect"], "many", "opt"],
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
         ["root", ["Connect", "Create"], "one", "req", smartContractValidation, ["versions"]],
         ["translations", ["Create"], "many", "opt", smartContractVersionTranslationValidation],
-    ], [["rootConnect", "rootCreate"]], o),
-    update: ({ o, minVersion = "0.0.1" }) => yupObj({
+    ], [["rootConnect", "rootCreate"]], d),
+    update: (d) => yupObj({
         id: req(id),
         isComplete: opt(bool),
         isPrivate: opt(bool),
         default: opt(smartContractDefault),
         contractType: opt(contractType),
         content: opt(content),
-        versionLabel: opt(versionLabel(minVersion)),
+        versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
         ["directoryListings", ["Connect", "Disconnect"], "many", "opt"],
         ["resourceList", ["Create", "Update"], "one", "opt", resourceListValidation],
         ["root", ["Update"], "one", "opt", smartContractValidation, ["versions"]],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", smartContractVersionTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

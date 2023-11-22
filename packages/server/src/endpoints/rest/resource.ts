@@ -1,5 +1,5 @@
 import { resource_create, resource_findMany, resource_findOne, resource_update } from "../generated";
-import { ResourceEndpoints } from "../logic";
+import { ResourceEndpoints } from "../logic/resource";
 import { setupRoutes } from "./base";
 
 export const ResourceRest = setupRoutes({

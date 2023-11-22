@@ -1,5 +1,5 @@
 import { project_create, project_findMany, project_findOne, project_update } from "../generated";
-import { ProjectEndpoints } from "../logic";
+import { ProjectEndpoints } from "../logic/project";
 import { setupRoutes } from "./base";
 
 export const ProjectRest = setupRoutes({

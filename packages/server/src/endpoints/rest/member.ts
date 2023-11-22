@@ -1,5 +1,5 @@
 import { member_findMany, member_findOne, member_update } from "../generated";
-import { MemberEndpoints } from "../logic";
+import { MemberEndpoints } from "../logic/member";
 import { setupRoutes } from "./base";
 
 export const MemberRest = setupRoutes({

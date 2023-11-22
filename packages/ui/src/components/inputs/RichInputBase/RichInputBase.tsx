@@ -1,11 +1,13 @@
-import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { ChatInviteStatus, DUMMY_ID, noop, uuid } from "@local/shared";
+import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useUndoRedo } from "hooks/useUndoRedo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
-import { noop } from "utils/objects";
-import { assistantChatInfo, ChatCrud } from "views/objects/chat/ChatCrud/ChatCrud";
+import { getCookieMatchingChat, getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
+import { PubSub } from "utils/pubsub";
+import { ChatShape } from "utils/shape/models/chat";
+import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
@@ -15,7 +17,7 @@ import { RichInputAction, RichInputActiveStates, RichInputBaseProps } from "../t
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
 
 
-/** TextField for entering rich text. Supports markdown and WYSIWYG */
+/** TextInput for entering rich text. Supports markdown and WYSIWYG */
 export const RichInputBase = ({
     actionButtons,
     autoFocus = false,
@@ -29,6 +31,7 @@ export const RichInputBase = ({
     minRows = 4,
     name,
     onBlur,
+    onFocus,
     onChange,
     placeholder = "",
     tabIndex,
@@ -62,16 +65,24 @@ export const RichInputBase = ({
         setCookieShowMarkdown(!isMarkdownOn);
     }, [isMarkdownOn]);
 
+    const closeAssistantDialog = useCallback(() => {
+        setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
+        PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: "note", isOpen: false });
+    }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,
+        display: "dialog",
         isCreate: true,
         isOpen: false,
-        overrideObject: assistantChatInfo,
+        onCancel: closeAssistantDialog,
+        onClose: closeAssistantDialog,
+        onCompleted: closeAssistantDialog,
+        onDeleted: closeAssistantDialog,
         task: "note",
-        onCompleted: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
     });
     const openAssistantDialog = useCallback((highlighted: string) => {
         if (disabled) return;
+
         // We want to provide the assistant with the most relevant context
         const maxContextLength = 1500;
         let context = highlighted.trim();
@@ -80,8 +91,25 @@ export const RichInputBase = ({
         else if (internalValue.length <= maxContextLength) context = internalValue;
         // Otherwise, provide the last 1500 characters
         else context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
+        // Put quote block around context
+        if (context) context = `"""\n${context}\n"""\n\n`;
+
+        // Now we'll try to find an existing chat with Valyxa for this task
+        const existingChatId = getCookieMatchingChat([VALYXA_INFO.id], "note");
+        const overrideObject = {
+            __typename: "Chat" as const,
+            id: existingChatId ?? DUMMY_ID,
+            openToAnyoneWithInvite: false,
+            invites: [{
+                __typename: "ChatInvite" as const,
+                id: uuid(),
+                status: ChatInviteStatus.Pending,
+                user: VALYXA_INFO,
+            }],
+        } as unknown as ChatShape;
+
         // Open the assistant dialog
-        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `"""\n${context}\n"""\n` : undefined }));
+        setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
     }, [disabled, internalValue]);
 
     // Resize input area to fit content
@@ -148,6 +176,7 @@ export const RichInputBase = ({
         name,
         onActiveStatesChange: handleActiveStatesChange,
         onBlur,
+        onFocus,
         onChange: changeInternalValue,
         openAssistantDialog,
         placeholder,
@@ -158,18 +187,21 @@ export const RichInputBase = ({
         undo,
         value: internalValue,
         sx: sxs?.textArea,
-    }), [autoFocus, changeInternalValue, disabled, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
+    }), [autoFocus, changeInternalValue, disabled, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
 
     return (
         <>
             {/* Assistant dialog for generating text */}
             {!disableAssistant && <ChatCrud {...assistantDialogProps} />}
-            <Stack
+            <Box
                 id={`markdown-input-base-${name}`}
-                direction="column"
-                spacing={0}
                 onMouseDown={handleMouseDown}
-                sx={{ ...(sxs?.root ?? {}) }}
+                sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0,
+                    ...(sxs?.root ?? {}),
+                }}
             >
                 <RichInputToolbar
                     activeStates={activeStates}
@@ -181,19 +213,20 @@ export const RichInputBase = ({
                     handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={isMarkdownOn}
                     name={name}
-                    sx={sxs?.bar}
+                    sx={sxs?.topBar}
                 />
                 {isMarkdownOn ? <RichInputMarkdown {...viewProps} /> : <RichInputLexical {...viewProps} />}
                 {/* Help text, characters remaining indicator, and action buttons */}
                 {
                     (helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box
                         sx={{
-                            padding: 1,
+                            padding: "2px",
                             display: "flex",
                             flexDirection: isLeftHanded ? "row-reverse" : "row",
                             gap: 1,
                             justifyContent: "space-between",
                             alitnItems: "center",
+                            ...sxs?.bottomBar,
                         }}
                     >
                         <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
@@ -211,6 +244,7 @@ export const RichInputBase = ({
                                 !disabled && maxChars !== undefined &&
                                 <CharLimitIndicator
                                     chars={internalValue?.length ?? 0}
+                                    minCharsToShow={Math.max(0, maxChars - 500)}
                                     maxChars={maxChars}
                                 />
                             }
@@ -220,9 +254,13 @@ export const RichInputBase = ({
                                     <Tooltip key={index} title={tooltip} placement="top">
                                         <IconButton
                                             disabled={disabled || buttonDisabled}
-                                            size="small"
+                                            size="medium"
                                             onClick={onClick}
-                                            sx={{ background: palette.primary.dark }}
+                                            sx={{
+                                                background: palette.primary.dark,
+                                                color: palette.primary.contrastText,
+                                                borderRadius: 2,
+                                            }}
                                         >
                                             <Icon fill={palette.primary.contrastText} />
                                         </IconButton>
@@ -232,7 +270,7 @@ export const RichInputBase = ({
                         </Box>
                     </Box>
                 }
-            </Stack >
+            </Box>
         </>
     );
 };

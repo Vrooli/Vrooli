@@ -1,4 +1,4 @@
-import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
+import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, Meeting, MeetingInvite, Member, MemberInvite, Notification, OrArray, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
@@ -8,6 +8,7 @@ import { ListObject } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
+import { ObjectListProps } from "./ObjectList/ObjectList";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
@@ -31,13 +32,19 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
     handleContextMenu: (target: EventTarget, object: ListObject | null) => unknown;
+    handleToggleSelect: (object: ListObject) => unknown;
     /** If update button should be hidden */
     hideUpdateButton?: boolean;
+    isMobile: boolean;
+    /** Disables actions and navigation */
+    isSelecting: boolean;
+    /** Used when isSelecting is true */
+    isSelected: boolean;
     /** If data is still being fetched */
     loading: boolean;
     data: T | null;
     objectType: T["__typename"];
-    onClick?: (data: T) => void;
+    onClick?: (data: T) => unknown;
     subtitleOverride?: string;
     titleOverride?: string;
     toTheRight?: React.ReactNode;
@@ -45,11 +52,16 @@ type ObjectListItemBaseProps<T extends ListObject> = {
 export type ObjectListItemProps<T extends ListObject> = ObjectListItemBaseProps<T> & ActionsType<T>;
 
 export type ObjectListActions<T> = {
-    Deleted: (id: string) => void;
-    Updated: (data: T) => void;
+    Deleted: (id: string) => unknown;
+    Updated: (data: T) => unknown;
 };
 
+export type BookmarkListListItemProps = ObjectListItemProps<BookmarkList>
 export type ChatListItemProps = ObjectListItemProps<Chat>
+export type ChatInviteListItemProps = ObjectListItemProps<ChatInvite>
+export type ChatParticipantListItemProps = ObjectListItemProps<ChatParticipant>
+export type MeetingInviteListItemProps = ObjectListItemProps<MeetingInvite>
+export type MemberInviteListItemProps = ObjectListItemProps<MemberInvite>
 export type MemberListItemProps = ObjectListItemProps<Member>
 export type NotificationListItemProps = ObjectListItemProps<Notification>
 export type ReminderListItemProps = ObjectListItemProps<Reminder>
@@ -58,8 +70,8 @@ export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
 export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;
-    onClose: () => void;
-    onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
+    onClose: () => unknown;
+    onSubmit: (after?: Date | undefined, before?: Date | undefined) => unknown;
     minDate?: Date;
     maxDate?: Date;
     range?: { after: Date | undefined, before: Date | undefined };
@@ -151,7 +163,7 @@ export interface SearchListGenerator {
     where: any;
 }
 
-export interface SearchListProps {
+export interface SearchListProps<T extends OrArray<ListObject>> extends Pick<ObjectListProps<T>, "handleToggleSelect" | "isSelecting" | "selectedItems"> {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
@@ -227,6 +239,6 @@ export interface TIDCardProps {
     key: string | number;
     Icon: SvgComponent | null | undefined;
     id?: string;
-    onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
+    onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
     title: string;
 }

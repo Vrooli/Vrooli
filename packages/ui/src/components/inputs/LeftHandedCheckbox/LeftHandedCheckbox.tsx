@@ -15,7 +15,7 @@ export function LeftHandedCheckbox() {
 
     const handleToggle = useCallback(() => {
         setIsLeftHanded(!isLeftHanded);
-        PubSub.get().publishIsLeftHanded(!isLeftHanded);
+        PubSub.get().publish("isLeftHanded", !isLeftHanded);
     }, [isLeftHanded]);
 
     return (

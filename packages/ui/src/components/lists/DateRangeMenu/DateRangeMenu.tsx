@@ -1,4 +1,5 @@
-import { Box, Button, Grid, Popover, TextField } from "@mui/material";
+import { Box, Button, Grid, Popover } from "@mui/material";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,8 +8,8 @@ import { DateRangeMenuProps } from "../types";
 
 export const DateRangeMenu = ({
     anchorEl,
-    minDate,
-    maxDate,
+    minDate = new Date(0),
+    maxDate = new Date(),
     onClose,
     onSubmit,
     range,
@@ -86,8 +87,7 @@ export const DateRangeMenu = ({
             }}>
                 <Grid container>
                     <Grid item xs={12} sm={6} p={1}>
-                        <TextField
-                            fullWidth
+                        <TextInput
                             name="start"
                             label={t("Start")}
                             type="datetime-local"
@@ -99,8 +99,7 @@ export const DateRangeMenu = ({
                         />
                     </Grid>
                     <Grid item xs={12} sm={6} p={1}>
-                        <TextField
-                            fullWidth
+                        <TextInput
                             name="end"
                             label={t("End")}
                             type="datetime-local"

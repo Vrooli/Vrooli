@@ -110,7 +110,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh production /tmp/secrets.$$ DB_PASSWORD:POSTGRES_PASSWORD && . /tmp/secrets.$$ && rm /tmp/secrets.$$ && exec docker-entrypoint.sh postgres"
+    command: /bin/sh -c "{ ${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh production /tmp/secrets.$$ DB_PASSWORD:POSTGRES_PASSWORD 2>/dev/null && . /tmp/secrets.$$; } || echo 'Failed to get secrets.'; rm -f /tmp/secrets.$$ && exec docker-entrypoint.sh postgres"
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -133,6 +133,7 @@ services:
       context: ./packages/docs
       dockerfile: Dockerfile
     container_name: docs
+    image: docs:prod
     volumes:
       - ./packages/docs:/docs
     ports:

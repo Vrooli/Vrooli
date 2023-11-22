@@ -1,5 +1,5 @@
 import { pullRequest_create, pullRequest_findMany, pullRequest_findOne, pullRequest_update } from "../generated";
-import { PullRequestEndpoints } from "../logic";
+import { PullRequestEndpoints } from "../logic/pullRequest";
 import { setupRoutes } from "./base";
 
 export const PullRequestRest = setupRoutes({

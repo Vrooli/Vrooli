@@ -1,5 +1,5 @@
 import { PaymentStatus, PaymentType, Prisma } from "@prisma/client";
-import { sendPaymentFailed } from "../../tasks";
+import { sendPaymentFailed } from "../../tasks/email/queue";
 import { batch } from "../../utils/batch";
 
 const PENDING_TIMEOUT = 7 * 24 * 60 * 60 * 1000; // 7 days

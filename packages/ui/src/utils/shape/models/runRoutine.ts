@@ -13,7 +13,7 @@ export type RunRoutineShape = Pick<RunRoutine, "id" | "isPrivate" | "completedCo
     steps?: RunRoutineStepShape[] | null;
     inputs?: RunRoutineInputShape[] | null;
     schedule?: ScheduleShape | null;
-    routineVersion?: { id: string } | RoutineVersionShape | null;
+    routineVersion?: { __typename: "RunRoutine", id: string } | RoutineVersionShape | null;
     runProject?: { id: string } | RunProjectShape | null;
     organization?: { id: string } | OrganizationShape | null;
 }

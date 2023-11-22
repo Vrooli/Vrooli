@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, endpointPostDeleteOne, exists, GqlModelType, LINKS, Success, User } from "@local/shared";
+import { DeleteOneInput, DeleteType, endpointPostDeleteOne, GqlModelType, LINKS, Success, User } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";
@@ -9,15 +9,16 @@ import { getDisplay, ListObject } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { useLazyFetch } from "./useLazyFetch";
 
-type ConfirmationLevel = "none" | "minimal" | "full";
+export type ConfirmationLevel = "none" | "minimal" | "full";
 
-const ObjectsToConfirmLevel: Record<DeleteType, ConfirmationLevel> = {
+export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> = {
     Api: "full",
     ApiVersion: "minimal",
     Bookmark: "none",
+    BookmarkList: "full",
     Chat: "minimal",
     ChatInvite: "none",
-    ChatMessage: "none",
+    ChatMessage: "minimal",
     ChatParticipant: "none",
     Comment: "minimal",
     Email: "minimal",
@@ -69,7 +70,7 @@ export const useDeleter = ({
 }) => {
     const [, setLocation] = useLocation();
 
-    const hasDeletingSupport = exists(DeleteType[objectType]);
+    const hasDeletingSupport = objectType in DeleteType;
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const closeDeleteDialog = useCallback(() => { setIsDeleteDialogOpen(false); }, []);
 
@@ -106,7 +107,7 @@ export const useDeleter = ({
 
     const handleDelete = useCallback(() => {
         // Find confirmation level for this object type
-        let confirmationType = ObjectsToConfirmLevel[objectType as DeleteType];
+        let confirmationType = ObjectsToDeleteConfirmLevel[objectType as DeleteType];
         // Special case: Users with "isBot" set to true require minimal confirmation instead of full
         if (objectType === "User") {
             const user = object as Partial<User>;
@@ -122,7 +123,7 @@ export const useDeleter = ({
         }
         if (confirmationType === "minimal") {
             // Show simple confirmation dialog
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "DeleteConfirm",
                 buttons: [{
                     labelKey: "Delete",
@@ -135,7 +136,7 @@ export const useDeleter = ({
         }
         // If here, assume full confirmation
         setIsDeleteDialogOpen(true);
-    }, [objectType, doDelete]);
+    }, [objectType, object, doDelete]);
 
     let DeleteDialogComponent: JSX.Element | null;
     if (objectType === "User") {

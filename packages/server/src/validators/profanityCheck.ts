@@ -1,11 +1,11 @@
 import { GqlModelType } from "@local/shared";
-import { isRelationshipArray, isRelationshipObject } from "../builders";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
-import { ObjectMap } from "../models/base";
-import { AuthDataById } from "../utils";
+import { isRelationshipArray } from "../builders/isRelationshipArray";
+import { isRelationshipObject } from "../builders/isRelationshipObject";
+import { CustomError } from "../events/error";
+import { ModelMap } from "../models/base";
 import { authDataWithInput } from "../utils/authDataWithInput";
 import { hasProfanity } from "../utils/censor";
+import { AuthDataById } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
 import { CudInputData, InputsById } from "../utils/types";
 
@@ -29,11 +29,11 @@ const collectProfanities = (
     const result: Record<string, string[]> = {};
     // Handle base case
     // Get current object's formatter and validator
-    const format = objectType ? ObjectMap[objectType]?.format : undefined;
-    const validate = objectType ? ObjectMap[objectType]?.validate : undefined;
+    const format = ModelMap.get(objectType, false)?.format;
+    const validator = ModelMap.get(objectType, false)?.validate();
     // If validator specifies profanityFields, add them to the result
-    if (validate?.profanityFields) {
-        for (const field of validate.profanityFields) {
+    if (validator?.profanityFields) {
+        for (const field of validator.profanityFields) {
             if (input[field]) result[field] = result[field] ? [...result[field], input[field]] : [input[field]];
         }
     }
@@ -79,6 +79,8 @@ const collectProfanities = (
         let nextObjectType: `${GqlModelType}` | undefined;
         // Strip "Create" and "Update" from the end of the key
         const strippedKey = key.endsWith("Create") || key.endsWith("Update") ? key.slice(0, -6) : key;
+        // Translations were already handled above, so skip them here
+        if (strippedKey === "translations") continue;
         // Check if stripped key is in validator's validateMap
         if (typeof format?.gqlRelMap?.[strippedKey] === "string") {
             nextObjectType = format?.gqlRelMap?.[strippedKey] as GqlModelType;
@@ -113,11 +115,11 @@ export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById
         // Only check for objects which are not private. 
         // NOTE: This means that a user could create a private object with profanity in it, and then change it to public. 
         // We'll have to rely on the reporting and reputation system to handle this.
-        const { idField, validate } = getLogic(["idField", "validate"], item.objectType, languages, "profanityCheck");
+        const { idField, validate } = ModelMap.getLogic(["idField", "validate"], item.objectType);
         const existingData = authDataById[item.input[idField]];
         const input = item.input as object;
         const combinedData = authDataWithInput(input, existingData ?? {}, inputsById, authDataById);
-        const isPublic = validate?.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), languages);
+        const isPublic = validate().isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), languages);
         if (isPublic === false) continue;
         const newFields = collectProfanities(item.input as ProfanityFieldsToCheck, item.objectType);
         for (const field in newFields) {

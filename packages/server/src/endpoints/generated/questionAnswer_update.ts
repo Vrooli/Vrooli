@@ -16,6 +16,7 @@ export const questionAnswer_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -71,6 +72,7 @@ export const questionAnswer_update = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -175,6 +177,7 @@ export const questionAnswer_update = {
     "bannerImage": true,
     "handle": true,
     "isBot": true,
+    "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
     "__typename": "User"

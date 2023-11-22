@@ -516,7 +516,9 @@ export type BookmarkSearchInput = {
   excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   issueId?: InputMaybe<Scalars['ID']>;
+  limitTo?: InputMaybe<Array<BookmarkFor>>;
   listId?: InputMaybe<Scalars['ID']>;
+  listLabel?: InputMaybe<Scalars['String']>;
   noteId?: InputMaybe<Scalars['ID']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   postId?: InputMaybe<Scalars['ID']>;
@@ -558,6 +560,7 @@ export type BotCreateInput = {
   botSettings: Scalars['String'];
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isBotDepictingPerson: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   profileImage?: InputMaybe<Scalars['Upload']>;
@@ -569,6 +572,7 @@ export type BotUpdateInput = {
   botSettings?: InputMaybe<Scalars['String']>;
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isBotDepictingPerson?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   profileImage?: InputMaybe<Scalars['Upload']>;
@@ -649,6 +653,7 @@ export type ChatInviteSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ChatInviteSortBy>;
   status?: InputMaybe<ChatInviteStatus>;
+  statuses?: InputMaybe<Array<ChatInviteStatus>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -692,25 +697,26 @@ export type ChatMessage = {
   chat: Chat;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isFork: Scalars['Boolean'];
+  parent?: Maybe<ChatMessageParent>;
   reactionSummaries: Array<ReactionSummary>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
+  sequence: Scalars['Int'];
   translations: Array<ChatMessageTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
   user: User;
+  versionIndex: Scalars['Int'];
   you: ChatMessageYou;
 };
 
 export type ChatMessageCreateInput = {
   chatConnect: Scalars['ID'];
-  forkId?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
-  isFork: Scalars['Boolean'];
   translationsCreate?: InputMaybe<Array<ChatMessageTranslationCreateInput>>;
   userConnect: Scalars['ID'];
+  versionOfId?: InputMaybe<Scalars['ID']>;
 };
 
 export type ChatMessageEdge = {
@@ -719,9 +725,15 @@ export type ChatMessageEdge = {
   node: ChatMessage;
 };
 
+export type ChatMessageParent = {
+  __typename: 'ChatMessageParent';
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+};
+
 export type ChatMessageSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  chatId?: InputMaybe<Scalars['ID']>;
+  chatId: Scalars['ID'];
   createdTimeFrame?: InputMaybe<TimeFrame>;
   minScore?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -738,13 +750,25 @@ export type ChatMessageSearchResult = {
   pageInfo: PageInfo;
 };
 
+export type ChatMessageSearchTreeInput = {
+  chatId: Scalars['ID'];
+  excludeDown?: InputMaybe<Scalars['Boolean']>;
+  excludeUp?: InputMaybe<Scalars['Boolean']>;
+  sortBy?: InputMaybe<ChatMessageSortBy>;
+  startId?: InputMaybe<Scalars['ID']>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type ChatMessageSearchTreeResult = {
+  __typename: 'ChatMessageSearchTreeResult';
+  hasMoreDown: Scalars['Boolean'];
+  hasMoreUp: Scalars['Boolean'];
+  messages: Array<ChatMessage>;
+};
+
 export enum ChatMessageSortBy {
   DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  ScoreAsc = 'ScoreAsc',
-  ScoreDesc = 'ScoreDesc'
+  DateCreatedDesc = 'DateCreatedDesc'
 }
 
 export type ChatMessageTranslation = {
@@ -1092,6 +1116,7 @@ export enum DeleteType {
   Api = 'Api',
   ApiVersion = 'ApiVersion',
   Bookmark = 'Bookmark',
+  BookmarkList = 'BookmarkList',
   Chat = 'Chat',
   ChatInvite = 'ChatInvite',
   ChatMessage = 'ChatMessage',
@@ -1302,6 +1327,7 @@ export enum GqlModelType {
   Chat = 'Chat',
   ChatInvite = 'ChatInvite',
   ChatMessage = 'ChatMessage',
+  ChatMessageSearchTreeResult = 'ChatMessageSearchTreeResult',
   ChatParticipant = 'ChatParticipant',
   Comment = 'Comment',
   Copy = 'Copy',
@@ -1396,13 +1422,12 @@ export enum GqlModelType {
 }
 
 export type HomeInput = {
-  searchString: Scalars['String'];
-  take?: InputMaybe<Scalars['Int']>;
+  activeFocusModeId?: InputMaybe<Scalars['ID']>;
 };
 
 export type HomeResult = {
   __typename: 'HomeResult';
-  notes: Array<Note>;
+  recommended: Array<Resource>;
   reminders: Array<Reminder>;
   resources: Array<Resource>;
   schedules: Array<Schedule>;
@@ -1778,6 +1803,7 @@ export type MeetingInviteSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<MeetingInviteSortBy>;
   status?: InputMaybe<MeetingInviteStatus>;
+  statuses?: InputMaybe<Array<MeetingInviteStatus>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -2061,6 +2087,8 @@ export type Mutation = {
   chatInviteCreate: ChatInvite;
   chatInviteDecline: ChatInvite;
   chatInviteUpdate: ChatInvite;
+  chatInvitesCreate: Array<ChatInvite>;
+  chatInvitesUpdate: Array<ChatInvite>;
   chatMessageCreate: ChatMessage;
   chatMessageUpdate: ChatMessage;
   chatParticipantUpdate: ChatParticipant;
@@ -2092,11 +2120,15 @@ export type Mutation = {
   meetingInviteCreate: MeetingInvite;
   meetingInviteDecline: MeetingInvite;
   meetingInviteUpdate: MeetingInvite;
+  meetingInvitesCreate: Array<MeetingInvite>;
+  meetingInvitesUpdate: Array<MeetingInvite>;
   meetingUpdate: Meeting;
   memberInviteAccept: MemberInvite;
   memberInviteCreate: MemberInvite;
   memberInviteDecline: MemberInvite;
   memberInviteUpdate: MemberInvite;
+  memberInvitesCreate: Array<MemberInvite>;
+  memberInvitesUpdate: Array<MemberInvite>;
   memberUpdate: Member;
   nodeCreate: Node;
   nodeUpdate: Node;
@@ -2293,6 +2325,16 @@ export type MutationChatInviteUpdateArgs = {
 };
 
 
+export type MutationChatInvitesCreateArgs = {
+  input: Array<ChatInviteCreateInput>;
+};
+
+
+export type MutationChatInvitesUpdateArgs = {
+  input: Array<ChatInviteUpdateInput>;
+};
+
+
 export type MutationChatMessageCreateArgs = {
   input: ChatMessageCreateInput;
 };
@@ -2433,6 +2475,16 @@ export type MutationMeetingInviteUpdateArgs = {
 };
 
 
+export type MutationMeetingInvitesCreateArgs = {
+  input: Array<MeetingInviteCreateInput>;
+};
+
+
+export type MutationMeetingInvitesUpdateArgs = {
+  input: Array<MeetingInviteUpdateInput>;
+};
+
+
 export type MutationMeetingUpdateArgs = {
   input: MeetingUpdateInput;
 };
@@ -2455,6 +2507,16 @@ export type MutationMemberInviteDeclineArgs = {
 
 export type MutationMemberInviteUpdateArgs = {
   input: MemberInviteUpdateInput;
+};
+
+
+export type MutationMemberInvitesCreateArgs = {
+  input: Array<MemberInviteCreateInput>;
+};
+
+
+export type MutationMemberInvitesUpdateArgs = {
+  input: Array<MemberInviteUpdateInput>;
 };
 
 
@@ -4936,6 +4998,7 @@ export type Query = {
   chatInvite?: Maybe<ChatInvite>;
   chatInvites: ChatInviteSearchResult;
   chatMessage?: Maybe<ChatMessage>;
+  chatMessageTree: ChatMessageSearchTreeResult;
   chatMessages: ChatMessageSearchResult;
   chatParticipant?: Maybe<ChatParticipant>;
   chatParticipants: ChatParticipantSearchResult;
@@ -5118,6 +5181,11 @@ export type QueryChatInvitesArgs = {
 
 export type QueryChatMessageArgs = {
   input: FindByIdInput;
+};
+
+
+export type QueryChatMessageTreeArgs = {
+  input: ChatMessageSearchTreeInput;
 };
 
 
@@ -8064,6 +8132,7 @@ export type ScheduleRecurrence = {
   __typename: 'ScheduleRecurrence';
   dayOfMonth?: Maybe<Scalars['Int']>;
   dayOfWeek?: Maybe<Scalars['Int']>;
+  duration: Scalars['Int'];
   endDate?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
   interval: Scalars['Int'];
@@ -8075,6 +8144,7 @@ export type ScheduleRecurrence = {
 export type ScheduleRecurrenceCreateInput = {
   dayOfMonth?: InputMaybe<Scalars['Int']>;
   dayOfWeek?: InputMaybe<Scalars['Int']>;
+  duration: Scalars['Int'];
   endDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   interval: Scalars['Int'];
@@ -8131,6 +8201,7 @@ export enum ScheduleRecurrenceType {
 export type ScheduleRecurrenceUpdateInput = {
   dayOfMonth?: InputMaybe<Scalars['Int']>;
   dayOfWeek?: InputMaybe<Scalars['Int']>;
+  duration?: InputMaybe<Scalars['Int']>;
   endDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   interval?: InputMaybe<Scalars['Int']>;
@@ -8703,7 +8774,7 @@ export type StandardVersionCreateInput = {
   isPrivate: Scalars['Boolean'];
   props: Scalars['String'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-  rootConnect: Scalars['ID'];
+  rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<StandardCreateInput>;
   standardType: Scalars['String'];
   translationsCreate?: InputMaybe<Array<StandardVersionTranslationCreateInput>>;
@@ -9507,6 +9578,7 @@ export type User = {
   invitedByUser?: Maybe<User>;
   invitedUsers?: Maybe<Array<User>>;
   isBot: Scalars['Boolean'];
+  isBotDepictingPerson: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   isPrivateApis: Scalars['Boolean'];
   isPrivateApisCreated: Scalars['Boolean'];
@@ -9606,11 +9678,13 @@ export type UserSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isBot?: InputMaybe<Scalars['Boolean']>;
+  isBotDepictingPerson?: InputMaybe<Scalars['Boolean']>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
   memberInOrganizationId?: InputMaybe<Scalars['ID']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
+  notInChatId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<UserSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -9891,8 +9965,11 @@ export type ResolversTypes = {
   ChatMessage: ResolverTypeWrapper<ChatMessage>;
   ChatMessageCreateInput: ChatMessageCreateInput;
   ChatMessageEdge: ResolverTypeWrapper<ChatMessageEdge>;
+  ChatMessageParent: ResolverTypeWrapper<ChatMessageParent>;
   ChatMessageSearchInput: ChatMessageSearchInput;
   ChatMessageSearchResult: ResolverTypeWrapper<ChatMessageSearchResult>;
+  ChatMessageSearchTreeInput: ChatMessageSearchTreeInput;
+  ChatMessageSearchTreeResult: ResolverTypeWrapper<ChatMessageSearchTreeResult>;
   ChatMessageSortBy: ChatMessageSortBy;
   ChatMessageTranslation: ResolverTypeWrapper<ChatMessageTranslation>;
   ChatMessageTranslationCreateInput: ChatMessageTranslationCreateInput;
@@ -10651,8 +10728,11 @@ export type ResolversParentTypes = {
   ChatMessage: ChatMessage;
   ChatMessageCreateInput: ChatMessageCreateInput;
   ChatMessageEdge: ChatMessageEdge;
+  ChatMessageParent: ChatMessageParent;
   ChatMessageSearchInput: ChatMessageSearchInput;
   ChatMessageSearchResult: ChatMessageSearchResult;
+  ChatMessageSearchTreeInput: ChatMessageSearchTreeInput;
+  ChatMessageSearchTreeResult: ChatMessageSearchTreeResult;
   ChatMessageTranslation: ChatMessageTranslation;
   ChatMessageTranslationCreateInput: ChatMessageTranslationCreateInput;
   ChatMessageTranslationUpdateInput: ChatMessageTranslationUpdateInput;
@@ -11509,15 +11589,17 @@ export type ChatMessageResolvers<ContextType = any, ParentType extends Resolvers
   chat?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isFork?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['ChatMessageParent']>, ParentType, ContextType>;
   reactionSummaries?: Resolver<Array<ResolversTypes['ReactionSummary']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  sequence?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ChatMessageTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['ChatMessageYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11528,9 +11610,22 @@ export type ChatMessageEdgeResolvers<ContextType = any, ParentType extends Resol
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type ChatMessageParentResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageParent'] = ResolversParentTypes['ChatMessageParent']> = {
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type ChatMessageSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageSearchResult'] = ResolversParentTypes['ChatMessageSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['ChatMessageEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatMessageSearchTreeResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageSearchTreeResult'] = ResolversParentTypes['ChatMessageSearchTreeResult']> = {
+  hasMoreDown?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  hasMoreUp?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  messages?: Resolver<Array<ResolversTypes['ChatMessage']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11715,7 +11810,7 @@ export type FocusModeSearchResultResolvers<ContextType = any, ParentType extends
 };
 
 export type HomeResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['HomeResult'] = ResolversParentTypes['HomeResult']> = {
-  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
+  recommended?: Resolver<Array<ResolversTypes['Resource']>, ParentType, ContextType>;
   reminders?: Resolver<Array<ResolversTypes['Reminder']>, ParentType, ContextType>;
   resources?: Resolver<Array<ResolversTypes['Resource']>, ParentType, ContextType>;
   schedules?: Resolver<Array<ResolversTypes['Schedule']>, ParentType, ContextType>;
@@ -12006,6 +12101,8 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   chatInviteCreate?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteCreateArgs, 'input'>>;
   chatInviteDecline?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteDeclineArgs, 'input'>>;
   chatInviteUpdate?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteUpdateArgs, 'input'>>;
+  chatInvitesCreate?: Resolver<Array<ResolversTypes['ChatInvite']>, ParentType, ContextType, RequireFields<MutationChatInvitesCreateArgs, 'input'>>;
+  chatInvitesUpdate?: Resolver<Array<ResolversTypes['ChatInvite']>, ParentType, ContextType, RequireFields<MutationChatInvitesUpdateArgs, 'input'>>;
   chatMessageCreate?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationChatMessageCreateArgs, 'input'>>;
   chatMessageUpdate?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationChatMessageUpdateArgs, 'input'>>;
   chatParticipantUpdate?: Resolver<ResolversTypes['ChatParticipant'], ParentType, ContextType, RequireFields<MutationChatParticipantUpdateArgs, 'input'>>;
@@ -12037,11 +12134,15 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   meetingInviteCreate?: Resolver<ResolversTypes['MeetingInvite'], ParentType, ContextType, RequireFields<MutationMeetingInviteCreateArgs, 'input'>>;
   meetingInviteDecline?: Resolver<ResolversTypes['MeetingInvite'], ParentType, ContextType, RequireFields<MutationMeetingInviteDeclineArgs, 'input'>>;
   meetingInviteUpdate?: Resolver<ResolversTypes['MeetingInvite'], ParentType, ContextType, RequireFields<MutationMeetingInviteUpdateArgs, 'input'>>;
+  meetingInvitesCreate?: Resolver<Array<ResolversTypes['MeetingInvite']>, ParentType, ContextType, RequireFields<MutationMeetingInvitesCreateArgs, 'input'>>;
+  meetingInvitesUpdate?: Resolver<Array<ResolversTypes['MeetingInvite']>, ParentType, ContextType, RequireFields<MutationMeetingInvitesUpdateArgs, 'input'>>;
   meetingUpdate?: Resolver<ResolversTypes['Meeting'], ParentType, ContextType, RequireFields<MutationMeetingUpdateArgs, 'input'>>;
   memberInviteAccept?: Resolver<ResolversTypes['MemberInvite'], ParentType, ContextType, RequireFields<MutationMemberInviteAcceptArgs, 'input'>>;
   memberInviteCreate?: Resolver<ResolversTypes['MemberInvite'], ParentType, ContextType, RequireFields<MutationMemberInviteCreateArgs, 'input'>>;
   memberInviteDecline?: Resolver<ResolversTypes['MemberInvite'], ParentType, ContextType, RequireFields<MutationMemberInviteDeclineArgs, 'input'>>;
   memberInviteUpdate?: Resolver<ResolversTypes['MemberInvite'], ParentType, ContextType, RequireFields<MutationMemberInviteUpdateArgs, 'input'>>;
+  memberInvitesCreate?: Resolver<Array<ResolversTypes['MemberInvite']>, ParentType, ContextType, RequireFields<MutationMemberInvitesCreateArgs, 'input'>>;
+  memberInvitesUpdate?: Resolver<Array<ResolversTypes['MemberInvite']>, ParentType, ContextType, RequireFields<MutationMemberInvitesUpdateArgs, 'input'>>;
   memberUpdate?: Resolver<ResolversTypes['Member'], ParentType, ContextType, RequireFields<MutationMemberUpdateArgs, 'input'>>;
   nodeCreate?: Resolver<ResolversTypes['Node'], ParentType, ContextType, RequireFields<MutationNodeCreateArgs, 'input'>>;
   nodeUpdate?: Resolver<ResolversTypes['Node'], ParentType, ContextType, RequireFields<MutationNodeUpdateArgs, 'input'>>;
@@ -12949,6 +13050,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   chatInvite?: Resolver<Maybe<ResolversTypes['ChatInvite']>, ParentType, ContextType, RequireFields<QueryChatInviteArgs, 'input'>>;
   chatInvites?: Resolver<ResolversTypes['ChatInviteSearchResult'], ParentType, ContextType, RequireFields<QueryChatInvitesArgs, 'input'>>;
   chatMessage?: Resolver<Maybe<ResolversTypes['ChatMessage']>, ParentType, ContextType, RequireFields<QueryChatMessageArgs, 'input'>>;
+  chatMessageTree?: Resolver<ResolversTypes['ChatMessageSearchTreeResult'], ParentType, ContextType, RequireFields<QueryChatMessageTreeArgs, 'input'>>;
   chatMessages?: Resolver<ResolversTypes['ChatMessageSearchResult'], ParentType, ContextType, RequireFields<QueryChatMessagesArgs, 'input'>>;
   chatParticipant?: Resolver<Maybe<ResolversTypes['ChatParticipant']>, ParentType, ContextType, RequireFields<QueryChatParticipantArgs, 'input'>>;
   chatParticipants?: Resolver<ResolversTypes['ChatParticipantSearchResult'], ParentType, ContextType, RequireFields<QueryChatParticipantsArgs, 'input'>>;
@@ -13976,6 +14078,7 @@ export type ScheduleExceptionSearchResultResolvers<ContextType = any, ParentType
 export type ScheduleRecurrenceResolvers<ContextType = any, ParentType extends ResolversParentTypes['ScheduleRecurrence'] = ResolversParentTypes['ScheduleRecurrence']> = {
   dayOfMonth?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   dayOfWeek?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  duration?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   endDate?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   interval?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -14655,6 +14758,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   invitedByUser?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   invitedUsers?: Resolver<Maybe<Array<ResolversTypes['User']>>, ParentType, ContextType>;
   isBot?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBotDepictingPerson?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApis?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApisCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -14849,7 +14953,9 @@ export type Resolvers<ContextType = any> = {
   ChatInviteYou?: ChatInviteYouResolvers<ContextType>;
   ChatMessage?: ChatMessageResolvers<ContextType>;
   ChatMessageEdge?: ChatMessageEdgeResolvers<ContextType>;
+  ChatMessageParent?: ChatMessageParentResolvers<ContextType>;
   ChatMessageSearchResult?: ChatMessageSearchResultResolvers<ContextType>;
+  ChatMessageSearchTreeResult?: ChatMessageSearchTreeResultResolvers<ContextType>;
   ChatMessageTranslation?: ChatMessageTranslationResolvers<ContextType>;
   ChatMessageYou?: ChatMessageYouResolvers<ContextType>;
   ChatMessageedOn?: ChatMessageedOnResolvers<ContextType>;

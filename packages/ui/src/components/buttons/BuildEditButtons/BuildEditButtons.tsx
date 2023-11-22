@@ -17,7 +17,7 @@ export const BuildEditButtons = ({
     scale,
 }: BuildEditButtonsProps) => {
 
-    const handleSliderChangeThrottled = useThrottle((delta) => {
+    const handleSliderChangeThrottled = useThrottle<[number]>((delta) => {
         handleScaleChange(delta);
     }, 50);
 

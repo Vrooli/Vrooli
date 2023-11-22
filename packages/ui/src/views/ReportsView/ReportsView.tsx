@@ -4,8 +4,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFetch } from "hooks/useFetch";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getLastUrlPart, useLocation } from "route";
-import { toDisplay } from "utils/display/pageTools";
+import { getLastPathnamePart, useLocation } from "route";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { ReportsViewProps } from "../types";
 
@@ -23,16 +22,15 @@ const objectTypeToIdField = {
 };
 
 export const ReportsView = ({
-    isOpen,
+    display,
     onClose,
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
-    const [location] = useLocation();
-    const { id } = useMemo(() => parseSingleItemUrl({ url: location }), [location]);
-    const objectType = useMemo(() => getLastUrlPart({ offset: 1 }), []);
+    const [{ pathname }] = useLocation();
+    const { id } = useMemo(() => parseSingleItemUrl({ pathname }), [pathname]);
+    const objectType = useMemo(() => getLastPathnamePart({ offset: 1 }), []);
 
     const { data } = useFetch<ReportSearchInput, ReportSearchResult>({
         ...endpointGetReports,

@@ -1,6 +1,6 @@
 import { ResourceListFor, ResourceListSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsResourceList, ResourceListEndpoints } from "../logic";
+import { EndpointsResourceList, ResourceListEndpoints } from "../logic/resourceList";
 
 export const typeDef = gql`
     enum ResourceListSortBy {

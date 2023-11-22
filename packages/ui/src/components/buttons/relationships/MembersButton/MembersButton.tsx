@@ -87,6 +87,7 @@ export const MembersButton = ({
         <>
             {/* Dialog for managing members */}
             <MemberManageView
+                display="dialog"
                 isOpen={isDialogOpen}
                 onClose={closeDialog}
                 organization={formikContext.values as MemberManageViewProps["organization"]}

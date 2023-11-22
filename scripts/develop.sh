@@ -1,10 +1,5 @@
 #!/bin/bash
 # Starts the development environment, using sensible defaults.
-#
-# Arguments (all optional):
-# -b: Build images - If set to "y", will build the Docker images
-# -f: Force rebuild - If set to "y", will force rebuild the Docker images
-# Plus any arguments for scripts/setup.sh
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
@@ -12,6 +7,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 BUILD=""
 FORCE_RECREATE=""
 DOCKER_COMPOSE_FILE="-f docker-compose.yml"
+USE_KUBERNETES=false
 
 # Read arguments
 SETUP_ARGS=()
@@ -26,6 +22,10 @@ for arg in "$@"; do
         FORCE_RECREATE="--force-recreate"
         shift
         ;;
+    -k | --kubernetes)
+        USE_KUBERNETES=true
+        shift
+        ;;
     -p | --prod)
         PROD_FLAG_FOUND=true
         SETUP_ARGS+=("$1")
@@ -35,6 +35,8 @@ for arg in "$@"; do
         echo "Usage: $0 [-b BUILD] [-f FORCE_RECREATE] [-h]"
         echo "  -b --build: Build images - If set to \"y\", will build the Docker images"
         echo "  -f --force-recreate: Force recreate - If set to \"y\", will force recreate the Docker images"
+        echo "  -k --kubernetes: If set, will use Kubernetes instead of Docker Compose"
+        echo "  -p --prod: If set, will use the production docker-compose file (docker-compose-prod.yml)"
         echo "  -h --help: Show this help message"
         exit 0
         ;;
@@ -53,11 +55,47 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-if $PROD_FLAG_FOUND; then
-    DOCKER_COMPOSE_FILE="-f docker-compose-prod.yml"
-fi
-info "Docker compose file: ${DOCKER_COMPOSE_FILE}"
+# If using Kubernetes, start Minikube. Otherwise, start Docker Compose
+if $USE_KUBERNETES; then
+    info "Starting development environment using Kubernetes..."
+    if ! minikube status >/dev/null 2>&1; then
+        info "Starting Minikube..."
+        # NOTE: If this is failing, try running `minikube delete` and then running this script again.
+        minikube start --driver=docker --force # TODO get rid of --force by running Docker in rootless mode
+        if [ $? -ne 0 ]; then
+            error "Failed to start Minikube"
+            exit 1
+        else
+            success "Minikube started successfully"
+        fi
+        # Enable ingress
+        info "Enabling ingress..."
+        minikube addons enable ingress
+        if [ $? -ne 0 ]; then
+            error "Failed to enable ingress"
+            exit 1
+        else
+            success "Ingress enabled successfully"
+        fi
+        info "Enabling ingress-dns..."
+        minikube addons enable ingress-dns
+        if [ $? -ne 0 ]; then
+            error "Failed to enable ingress-dns"
+            exit 1
+        else
+            success "Ingress-nginx enabled successfully"
+        fi
+        # TODO start the rest of the Kubernetes environment. Not sure exactly what's needed yet
+    else
+        success "Minikube is already running"
+    fi
+else
+    if $PROD_FLAG_FOUND; then
+        DOCKER_COMPOSE_FILE="-f docker-compose-prod.yml"
+    fi
+    info "Docker compose file: ${DOCKER_COMPOSE_FILE}"
 
-# Start the development environment
-info "Starting development environment..."
-docker-compose down && docker-compose $DOCKER_COMPOSE_FILE up $BUILD $FORCE_RECREATE -d
+    # Start the development environment
+    info "Starting development environment using Docker Compose..."
+    docker-compose down && docker-compose $DOCKER_COMPOSE_FILE up $BUILD $FORCE_RECREATE -d
+fi

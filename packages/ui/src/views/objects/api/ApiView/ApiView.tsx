@@ -18,20 +18,18 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { ApiViewProps } from "../types";
 
 export const ApiView = ({
-    isOpen,
+    display,
     onClose,
 }: ApiViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 

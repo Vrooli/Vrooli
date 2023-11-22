@@ -1,4 +1,4 @@
-import { exists } from "@local/shared";
+import { exists, noop } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
@@ -63,8 +63,7 @@ export function ProjectButton({
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isProjectDialogOpen) return ["ProjectVersion", handleProjectSelect, closeProjectDialog];
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        return [null, () => { }, () => { }];
+        return [null, noop, noop];
     }, [isProjectDialogOpen, handleProjectSelect, closeProjectDialog]);
 
     const { Icon, tooltip } = useMemo(() => {

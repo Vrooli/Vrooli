@@ -532,6 +532,30 @@
             "description": "Default response. Replace this with real responses."
           }
         }
+      },
+      "post": {
+        "operationId": "endpointPostChatInvites",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutChatInvites",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
       }
     },
     "/chatInvite": {
@@ -605,6 +629,20 @@
     "/chatMessages": {
       "get": {
         "operationId": "endpointGetChatMessages",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatMessageTree": {
+      "get": {
+        "operationId": "endpointGetChatMessageTree",
         "tags": [
           "chatMessage"
         ],
@@ -1104,6 +1142,30 @@
             "description": "Default response. Replace this with real responses."
           }
         }
+      },
+      "post": {
+        "operationId": "endpointPostMeetingInvites",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutMeetingInvites",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
       }
     },
     "/meetingInvite": {
@@ -1217,6 +1279,30 @@
     "/memberInvites": {
       "get": {
         "operationId": "endpointGetMemberInvites",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "post": {
+        "operationId": "endpointPostMemberInvites",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutMemberInvites",
         "tags": [
           "memberInvite"
         ],
@@ -6326,8 +6412,47 @@
             "nullable": true,
             "type": "string"
           },
+          "limitTo": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "Api",
+                    "Comment",
+                    "Issue",
+                    "Note",
+                    "Organization",
+                    "Post",
+                    "Project",
+                    "Question",
+                    "QuestionAnswer",
+                    "Quiz",
+                    "Routine",
+                    "SmartContract",
+                    "Standard",
+                    "Tag",
+                    "User"
+                  ],
+                  "title": "BookmarkSearchInput.limitTo",
+                  "type": "string"
+                },
+                "title": "BookmarkSearchInput.limitTo",
+                "type": "array"
+              },
+              {
+                "title": "BookmarkSearchInput.limitTo",
+                "nullable": true
+              }
+            ],
+            "title": "BookmarkSearchInput.limitTo"
+          },
           "listId": {
             "title": "BookmarkSearchInput.listId",
+            "nullable": true,
+            "type": "string"
+          },
+          "listLabel": {
+            "title": "BookmarkSearchInput.listLabel",
             "nullable": true,
             "type": "string"
           },
@@ -6568,6 +6693,10 @@
             "title": "BotCreateInput.id",
             "type": "string"
           },
+          "isBotDepictingPerson": {
+            "title": "BotCreateInput.isBotDepictingPerson",
+            "type": "boolean"
+          },
           "isPrivate": {
             "title": "BotCreateInput.isPrivate",
             "type": "boolean"
@@ -6599,6 +6728,7 @@
         "required": [
           "botSettings",
           "id",
+          "isBotDepictingPerson",
           "isPrivate",
           "name"
         ],
@@ -6624,6 +6754,11 @@
           "id": {
             "title": "BotUpdateInput.id",
             "type": "string"
+          },
+          "isBotDepictingPerson": {
+            "title": "BotUpdateInput.isBotDepictingPerson",
+            "nullable": true,
+            "type": "boolean"
           },
           "isPrivate": {
             "title": "BotUpdateInput.isPrivate",
@@ -7316,9 +7451,18 @@
             "title": "ChatMessage.id",
             "type": "string"
           },
-          "isFork": {
-            "title": "ChatMessage.isFork",
-            "type": "boolean"
+          "parent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatMessageParent",
+                "title": "ChatMessage.parent"
+              },
+              {
+                "title": "ChatMessage.parent",
+                "nullable": true
+              }
+            ],
+            "title": "ChatMessage.parent"
           },
           "reactionSummaries": {
             "items": {
@@ -7342,6 +7486,10 @@
             "title": "ChatMessage.score",
             "type": "number"
           },
+          "sequence": {
+            "title": "ChatMessage.sequence",
+            "type": "number"
+          },
           "translations": {
             "items": {
               "$ref": "#/components/schemas/ChatMessageTranslation"
@@ -7361,6 +7509,10 @@
             "$ref": "#/components/schemas/User",
             "title": "ChatMessage.user"
           },
+          "versionIndex": {
+            "title": "ChatMessage.versionIndex",
+            "type": "number"
+          },
           "you": {
             "$ref": "#/components/schemas/ChatMessageYou",
             "title": "ChatMessage.you"
@@ -7371,15 +7523,16 @@
           "chat",
           "created_at",
           "id",
-          "isFork",
           "reactionSummaries",
           "reports",
           "reportsCount",
           "score",
+          "sequence",
           "translations",
           "translationsCount",
           "updated_at",
           "user",
+          "versionIndex",
           "you"
         ],
         "additionalProperties": false,
@@ -7392,18 +7545,9 @@
             "title": "ChatMessageCreateInput.chatConnect",
             "type": "string"
           },
-          "forkId": {
-            "title": "ChatMessageCreateInput.forkId",
-            "nullable": true,
-            "type": "string"
-          },
           "id": {
             "title": "ChatMessageCreateInput.id",
             "type": "string"
-          },
-          "isFork": {
-            "title": "ChatMessageCreateInput.isFork",
-            "type": "boolean"
           },
           "translationsCreate": {
             "anyOf": [
@@ -7424,12 +7568,16 @@
           "userConnect": {
             "title": "ChatMessageCreateInput.userConnect",
             "type": "string"
+          },
+          "versionOfId": {
+            "title": "ChatMessageCreateInput.versionOfId",
+            "nullable": true,
+            "type": "string"
           }
         },
         "required": [
           "chatConnect",
           "id",
-          "isFork",
           "userConnect"
         ],
         "additionalProperties": false,
@@ -7463,6 +7611,33 @@
         "title": "ChatMessageEdge",
         "type": "object"
       },
+      "ChatMessageParent": {
+        "properties": {
+          "__typename": {
+            "title": "ChatMessageParent.__typename",
+            "enum": [
+              "ChatMessageParent"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "title": "ChatMessageParent.created_at",
+            "type": "string"
+          },
+          "id": {
+            "title": "ChatMessageParent.id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "__typename",
+          "created_at",
+          "id"
+        ],
+        "additionalProperties": false,
+        "title": "ChatMessageParent",
+        "type": "object"
+      },
       "ChatMessageSearchInput": {
         "properties": {
           "after": {
@@ -7472,7 +7647,6 @@
           },
           "chatId": {
             "title": "ChatMessageSearchInput.chatId",
-            "nullable": true,
             "type": "string"
           },
           "createdTimeFrame": {
@@ -7503,11 +7677,7 @@
               {
                 "enum": [
                   "DateCreatedAsc",
-                  "DateCreatedDesc",
-                  "DateUpdatedAsc",
-                  "DateUpdatedDesc",
-                  "ScoreAsc",
-                  "ScoreDesc"
+                  "DateCreatedDesc"
                 ],
                 "title": "ChatMessageSearchInput.sortBy",
                 "type": "string"
@@ -7559,6 +7729,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "chatId"
+        ],
         "additionalProperties": false,
         "title": "ChatMessageSearchInput",
         "type": "object"
@@ -7591,6 +7764,92 @@
         ],
         "additionalProperties": false,
         "title": "ChatMessageSearchResult",
+        "type": "object"
+      },
+      "ChatMessageSearchTreeInput": {
+        "properties": {
+          "chatId": {
+            "title": "ChatMessageSearchTreeInput.chatId",
+            "type": "string"
+          },
+          "excludeDown": {
+            "title": "ChatMessageSearchTreeInput.excludeDown",
+            "nullable": true,
+            "type": "boolean"
+          },
+          "excludeUp": {
+            "title": "ChatMessageSearchTreeInput.excludeUp",
+            "nullable": true,
+            "type": "boolean"
+          },
+          "sortBy": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DateCreatedAsc",
+                  "DateCreatedDesc"
+                ],
+                "title": "ChatMessageSearchTreeInput.sortBy",
+                "type": "string"
+              },
+              {
+                "title": "ChatMessageSearchTreeInput.sortBy",
+                "nullable": true
+              }
+            ],
+            "title": "ChatMessageSearchTreeInput.sortBy"
+          },
+          "startId": {
+            "title": "ChatMessageSearchTreeInput.startId",
+            "nullable": true,
+            "type": "string"
+          },
+          "take": {
+            "title": "ChatMessageSearchTreeInput.take",
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "chatId"
+        ],
+        "additionalProperties": false,
+        "title": "ChatMessageSearchTreeInput",
+        "type": "object"
+      },
+      "ChatMessageSearchTreeResult": {
+        "properties": {
+          "__typename": {
+            "title": "ChatMessageSearchTreeResult.__typename",
+            "enum": [
+              "ChatMessageSearchTreeResult"
+            ],
+            "type": "string"
+          },
+          "hasMoreDown": {
+            "title": "ChatMessageSearchTreeResult.hasMoreDown",
+            "type": "boolean"
+          },
+          "hasMoreUp": {
+            "title": "ChatMessageSearchTreeResult.hasMoreUp",
+            "type": "boolean"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "title": "ChatMessageSearchTreeResult.messages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "__typename",
+          "hasMoreDown",
+          "hasMoreUp",
+          "messages"
+        ],
+        "additionalProperties": false,
+        "title": "ChatMessageSearchTreeResult",
         "type": "object"
       },
       "ChatMessageTranslation": {
@@ -9464,6 +9723,7 @@
               "Api",
               "ApiVersion",
               "Bookmark",
+              "BookmarkList",
               "Chat",
               "ChatInvite",
               "ChatMessage",
@@ -9529,6 +9789,7 @@
               "Api",
               "ApiVersion",
               "Bookmark",
+              "BookmarkList",
               "Chat",
               "ChatInvite",
               "ChatMessage",
@@ -10462,19 +10723,12 @@
       },
       "HomeInput": {
         "properties": {
-          "searchString": {
-            "title": "HomeInput.searchString",
-            "type": "string"
-          },
-          "take": {
-            "title": "HomeInput.take",
+          "activeFocusModeId": {
+            "title": "HomeInput.activeFocusModeId",
             "nullable": true,
-            "type": "number"
+            "type": "string"
           }
         },
-        "required": [
-          "searchString"
-        ],
         "additionalProperties": false,
         "title": "HomeInput",
         "type": "object"
@@ -10488,11 +10742,11 @@
             ],
             "type": "string"
           },
-          "notes": {
+          "recommended": {
             "items": {
-              "$ref": "#/components/schemas/Note"
+              "$ref": "#/components/schemas/Resource"
             },
-            "title": "HomeResult.notes",
+            "title": "HomeResult.recommended",
             "type": "array"
           },
           "reminders": {
@@ -10519,7 +10773,7 @@
         },
         "required": [
           "__typename",
-          "notes",
+          "recommended",
           "reminders",
           "resources",
           "schedules"
@@ -16006,6 +16260,19 @@
             "nullable": true,
             "type": "number"
           },
+          "endCreate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NodeEndCreateInput",
+                "title": "NodeUpdateInput.endCreate"
+              },
+              {
+                "title": "NodeUpdateInput.endCreate",
+                "nullable": true
+              }
+            ],
+            "title": "NodeUpdateInput.endCreate"
+          },
           "endUpdate": {
             "anyOf": [
               {
@@ -16072,6 +16339,19 @@
               }
             ],
             "title": "NodeUpdateInput.nodeType"
+          },
+          "routineListCreate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NodeRoutineListCreateInput",
+                "title": "NodeUpdateInput.routineListCreate"
+              },
+              {
+                "title": "NodeUpdateInput.routineListCreate",
+                "nullable": true
+              }
+            ],
+            "title": "NodeUpdateInput.routineListCreate"
           },
           "routineListUpdate": {
             "anyOf": [
@@ -29906,6 +30186,11 @@
             "title": "ReminderItemCreateInput.index",
             "type": "number"
           },
+          "isComplete": {
+            "title": "ReminderItemCreateInput.isComplete",
+            "nullable": true,
+            "type": "boolean"
+          },
           "name": {
             "title": "ReminderItemCreateInput.name",
             "type": "string"
@@ -31533,78 +31818,17 @@
             ],
             "type": "string"
           },
-          "apiVersion": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ApiVersion",
-                "title": "ResourceList.apiVersion"
-              },
-              {
-                "title": "ResourceList.apiVersion",
-                "nullable": true
-              }
-            ],
-            "title": "ResourceList.apiVersion"
-          },
           "created_at": {
             "title": "ResourceList.created_at",
             "type": "string"
-          },
-          "focusMode": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FocusMode",
-                "title": "ResourceList.focusMode"
-              },
-              {
-                "title": "ResourceList.focusMode",
-                "nullable": true
-              }
-            ],
-            "title": "ResourceList.focusMode"
           },
           "id": {
             "title": "ResourceList.id",
             "type": "string"
           },
-          "organization": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Organization",
-                "title": "ResourceList.organization"
-              },
-              {
-                "title": "ResourceList.organization",
-                "nullable": true
-              }
-            ],
-            "title": "ResourceList.organization"
-          },
-          "post": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Post",
-                "title": "ResourceList.post"
-              },
-              {
-                "title": "ResourceList.post",
-                "nullable": true
-              }
-            ],
-            "title": "ResourceList.post"
-          },
-          "projectVersion": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ProjectVersion",
-                "title": "ResourceList.projectVersion"
-              },
-              {
-                "title": "ResourceList.projectVersion",
-                "nullable": true
-              }
-            ],
-            "title": "ResourceList.projectVersion"
+          "listFor": {
+            "$ref": "#/components/schemas/ResourceListOn",
+            "title": "ResourceList.listFor"
           },
           "resources": {
             "items": {
@@ -31612,45 +31836,6 @@
             },
             "title": "ResourceList.resources",
             "type": "array"
-          },
-          "routineVersion": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RoutineVersion",
-                "title": "ResourceList.routineVersion"
-              },
-              {
-                "title": "ResourceList.routineVersion",
-                "nullable": true
-              }
-            ],
-            "title": "ResourceList.routineVersion"
-          },
-          "smartContractVersion": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SmartContractVersion",
-                "title": "ResourceList.smartContractVersion"
-              },
-              {
-                "title": "ResourceList.smartContractVersion",
-                "nullable": true
-              }
-            ],
-            "title": "ResourceList.smartContractVersion"
-          },
-          "standardVersion": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/StandardVersion",
-                "title": "ResourceList.standardVersion"
-              },
-              {
-                "title": "ResourceList.standardVersion",
-                "nullable": true
-              }
-            ],
-            "title": "ResourceList.standardVersion"
           },
           "translations": {
             "items": {
@@ -31668,6 +31853,7 @@
           "__typename",
           "created_at",
           "id",
+          "listFor",
           "resources",
           "translations",
           "updated_at"
@@ -31682,7 +31868,11 @@
             "title": "ResourceListCreateInput.id",
             "type": "string"
           },
-          "listFor": {
+          "listForConnect": {
+            "title": "ResourceListCreateInput.listForConnect",
+            "type": "string"
+          },
+          "listForType": {
             "enum": [
               "ApiVersion",
               "FocusMode",
@@ -31693,11 +31883,7 @@
               "SmartContractVersion",
               "StandardVersion"
             ],
-            "title": "ResourceListCreateInput.listFor",
-            "type": "string"
-          },
-          "listForConnect": {
-            "title": "ResourceListCreateInput.listForConnect",
+            "title": "ResourceListCreateInput.listForType",
             "type": "string"
           },
           "resourcesCreate": {
@@ -31735,8 +31921,8 @@
         },
         "required": [
           "id",
-          "listFor",
-          "listForConnect"
+          "listForConnect",
+          "listForType"
         ],
         "additionalProperties": false,
         "title": "ResourceListCreateInput",
@@ -31768,6 +31954,43 @@
         "additionalProperties": false,
         "title": "ResourceListEdge",
         "type": "object"
+      },
+      "ResourceListOn": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/ApiVersion",
+            "title": "ResourceListOn"
+          },
+          {
+            "$ref": "#/components/schemas/FocusMode",
+            "title": "ResourceListOn"
+          },
+          {
+            "$ref": "#/components/schemas/Organization",
+            "title": "ResourceListOn"
+          },
+          {
+            "$ref": "#/components/schemas/Post",
+            "title": "ResourceListOn"
+          },
+          {
+            "$ref": "#/components/schemas/ProjectVersion",
+            "title": "ResourceListOn"
+          },
+          {
+            "$ref": "#/components/schemas/RoutineVersion",
+            "title": "ResourceListOn"
+          },
+          {
+            "$ref": "#/components/schemas/SmartContractVersion",
+            "title": "ResourceListOn"
+          },
+          {
+            "$ref": "#/components/schemas/StandardVersion",
+            "title": "ResourceListOn"
+          }
+        ],
+        "title": "ResourceListOn"
       },
       "ResourceListSearchInput": {
         "properties": {
@@ -43011,6 +43234,7 @@
           },
           "rootConnect": {
             "title": "StandardVersionCreateInput.rootConnect",
+            "nullable": true,
             "type": "string"
           },
           "rootCreate": {
@@ -43065,7 +43289,6 @@
           "id",
           "isPrivate",
           "props",
-          "rootConnect",
           "standardType",
           "versionLabel"
         ],
@@ -46067,6 +46290,10 @@
             "nullable": true,
             "type": "boolean"
           },
+          "id": {
+            "title": "TagCreateInput.id",
+            "type": "string"
+          },
           "tag": {
             "title": "TagCreateInput.tag",
             "type": "string"
@@ -46089,6 +46316,7 @@
           }
         },
         "required": [
+          "id",
           "tag"
         ],
         "additionalProperties": false,
@@ -46367,6 +46595,10 @@
             "nullable": true,
             "type": "boolean"
           },
+          "id": {
+            "title": "TagUpdateInput.id",
+            "type": "string"
+          },
           "tag": {
             "title": "TagUpdateInput.tag",
             "type": "string"
@@ -46421,6 +46653,7 @@
           }
         },
         "required": [
+          "id",
           "tag"
         ],
         "additionalProperties": false,
@@ -47197,6 +47430,10 @@
           },
           "isBot": {
             "title": "User.isBot",
+            "type": "boolean"
+          },
+          "isBotDepictingPerson": {
+            "title": "User.isBotDepictingPerson",
             "type": "boolean"
           },
           "isPrivate": {
@@ -48067,6 +48304,7 @@
           "created_at",
           "id",
           "isBot",
+          "isBotDepictingPerson",
           "isPrivate",
           "isPrivateApis",
           "isPrivateApisCreated",
@@ -48207,6 +48445,11 @@
             "nullable": true,
             "type": "boolean"
           },
+          "isBotDepictingPerson": {
+            "title": "UserSearchInput.isBotDepictingPerson",
+            "nullable": true,
+            "type": "boolean"
+          },
           "maxBookmarks": {
             "title": "UserSearchInput.maxBookmarks",
             "nullable": true,
@@ -48231,6 +48474,11 @@
             "title": "UserSearchInput.minViews",
             "nullable": true,
             "type": "number"
+          },
+          "notInChatId": {
+            "title": "UserSearchInput.notInChatId",
+            "nullable": true,
+            "type": "string"
           },
           "searchString": {
             "title": "UserSearchInput.searchString",

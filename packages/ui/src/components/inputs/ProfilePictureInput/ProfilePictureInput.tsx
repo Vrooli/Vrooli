@@ -21,7 +21,7 @@ const handleImagePreview = async (file: any) => {
     // .heic and .heif files are not supported by browsers, 
     // so we need to convert them to JPEGs (thanks, Apple)
     if (ext === "heic" || ext === "heif") {
-        PubSub.get().publishLoading(true);
+        PubSub.get().publish("loading", true);
         // Dynamic import of heic2any
         const heic2any = (await import("heic2any")).default;
 
@@ -31,7 +31,7 @@ const handleImagePreview = async (file: any) => {
             toType: "image/jpeg",
             quality: 0.7, // adjust quality as needed
         }) as Blob;
-        PubSub.get().publishLoading(false);
+        PubSub.get().publish("loading", false);
         // Return as object URL
         return URL.createObjectURL(outputBlob);
     }
@@ -39,7 +39,7 @@ const handleImagePreview = async (file: any) => {
     else {
         // But if it's a GIF, notify the user that it will be converted to a static image
         if (ext === "gif") {
-            PubSub.get().publishSnack({ messageKey: "GifWillBeStatic", severity: "Warning" });
+            PubSub.get().publish("snack", { messageKey: "GifWillBeStatic", severity: "Warning" });
         }
         return URL.createObjectURL(file);
     }
@@ -84,7 +84,6 @@ export const ProfilePictureInput = ({
         accept: ["image/*", ".heic", ".heif"],
         maxFiles: 1,
         onDrop: async acceptedFiles => {
-            console.log("profile image dropped", acceptedFiles);
             // Ignore if no files were uploaded
             if (acceptedFiles.length <= 0) {
                 console.error("No files were uploaded");
@@ -92,7 +91,6 @@ export const ProfilePictureInput = ({
             }
             // Process first file, and ignore any others
             handleImagePreview(acceptedFiles[0]).then(preview => {
-                console.log("preview", preview);
                 Object.assign(acceptedFiles[0], { preview });
                 onProfileImageChange(acceptedFiles[0]);
                 setProfileImageUrl(preview);

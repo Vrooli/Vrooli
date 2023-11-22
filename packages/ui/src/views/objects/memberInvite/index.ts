@@ -1,3 +1,3 @@
 
-export * from "./MemberInviteUpsert/MemberInviteUpsert";
+export * from "./MemberInvitesUpsert/MemberInvitesUpsert";
 

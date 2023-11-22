@@ -1,20 +1,20 @@
 import { MaxObjects, MeetingSortBy, meetingValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { MeetingFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { MeetingModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { MeetingModelLogic, OrganizationModelLogic } from "./types";
 
 const __typename = "Meeting" as const;
-const suppFields = ["you"] as const;
-export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
+export const MeetingModel: MeetingModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.meeting,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -29,7 +29,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: MeetingFormat,
     mutate: {
         shape: {
@@ -41,9 +41,9 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
                 id: data.id,
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
-                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Organization", parentRelationshipName: "meetings", data, ...rest })),
+                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "meetings", data, ...rest })),
                 ...(await shapeHelper({
-                    relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "", joinData: {
+                    relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
                         fieldName: "role",
                         uniqueFieldName: "meeting_roles_meetingid_roleid_unique",
                         childIdFieldName: "roleId",
@@ -51,16 +51,16 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
                         parentId: data.id ?? null,
                     }, data, ...rest,
                 })),
-                ...(await shapeHelper({ relation: "invites", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest })),
-                ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest })),
+                ...(await shapeHelper({ relation: "invites", relTypes: ["Create"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest })),
+                ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Meeting", relation: "labels", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
                 ...(await shapeHelper({
-                    relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "", joinData: {
+                    relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
                         fieldName: "role",
                         uniqueFieldName: "meeting_roles_meetingid_roleid_unique",
                         childIdFieldName: "roleId",
@@ -68,10 +68,10 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
                         parentId: data.id ?? null,
                     }, data, ...rest,
                 })),
-                ...(await shapeHelper({ relation: "invites", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest })),
-                ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Connect", "Update", "Delete"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest })),
+                ...(await shapeHelper({ relation: "invites", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest })),
+                ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Connect", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Create", "Update"], parentType: "Meeting", relation: "labels", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         trigger: {
@@ -108,7 +108,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
         }),
         supplemental: {
             dbFields: ["organizationId"],
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -118,7 +118,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -149,8 +149,8 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
                 ],
             },
             owner: (userId) => ({
-                organization: OrganizationModel.query.hasRoleQuery(userId),
+                organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId),
             }),
         },
-    },
+    }),
 });

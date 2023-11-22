@@ -11,6 +11,13 @@ This section covers everything related to testing the application.
   </div>
 
   <div class="card">
+    <a href="jest.html">
+      <h3>Testing with jest</h3>
+      <p>Unit, integration, and end-to-end testing</p>
+    </a>
+  </div>
+
+  <div class="card">
     <a href="profiling.html">
       <h3>Profiling</h3>
       <p>Measuring server performance</p>

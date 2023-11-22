@@ -29,14 +29,14 @@ export const SnackStack = () => {
     // Subscribe to snack events
     useEffect(() => {
         // Subscribe to basic snacks
-        const snackSub = PubSub.get().subscribeSnack((o) => {
+        const snackSub = PubSub.get().subscribe("snack", (o) => {
             // Add the snack to the queue
             setSnacks((snacks) => {
                 // event can define an id, or we generate one
                 const id = o.id ?? uuid();
                 let newSnacks = [...snacks, {
                     autoHideDuration: o.autoHideDuration,
-                    buttonClicked: o.buttonClicked,
+                    buttonClicked: (props) => { o.buttonClicked?.(props); handleClose(id); },
                     buttonText: o.buttonKey ? t(o.buttonKey, { ...o.buttonVariables, defaultValue: o.buttonKey }) : undefined,
                     data: o.data,
                     handleClose: () => handleClose(id),
@@ -56,7 +56,7 @@ export const SnackStack = () => {
             });
         });
         // Subscribe to special snack events
-        const cookiesSub = PubSub.get().subscribeCookies(() => {
+        const cookiesSub = PubSub.get().subscribe("cookies", () => {
             setIsCookieSnackOpen(true);
         });
         return () => {

@@ -1,7 +1,8 @@
 import { calculateOccurrences, GqlModelType, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { findFirstRel } from "../../builders";
-import { logger, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe } from "../../events";
+import { findFirstRel } from "../../builders/findFirstRel";
+import { logger } from "../../events/logger";
+import { scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe } from "../../events/schedule";
 import { Notify, parseSubscriptionContext, ScheduleSubscriptionContext } from "../../notify";
 import { withRedis } from "../../redisConn";
 import { PrismaType } from "../../types";

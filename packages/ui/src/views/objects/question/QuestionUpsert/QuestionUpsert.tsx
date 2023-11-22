@@ -1,31 +1,30 @@
-import { DUMMY_ID, endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, orDefault, Question, QuestionCreateInput, questionTranslationValidation, QuestionUpdateInput, questionValidation, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, noopSubmit, orDefault, Question, QuestionCreateInput, questionTranslationValidation, QuestionUpdateInput, questionValidation, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
-import { QuestionFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { forwardRef, useContext } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { toDisplay } from "utils/display/pageTools";
+import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
-import { QuestionUpsertProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues";
+import { QuestionFormProps, QuestionUpsertProps } from "../types";
 
 export const questionInitialValues = (
     session: Session | undefined,
@@ -50,23 +49,22 @@ export const questionInitialValues = (
 const transformQuestionValues = (values: QuestionShape, existing: QuestionShape, isCreate: boolean) =>
     isCreate ? shapeQuestion.create(values) : shapeQuestion.update(existing, values);
 
-const validateQuestionValues = async (values: QuestionShape, existing: QuestionShape, isCreate: boolean) => {
-    const transformedValues = transformQuestionValues(values, existing, isCreate);
-    const validationSchema = questionValidation[isCreate ? "create" : "update"]({});
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
-const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProps>(({
-    display,
+const QuestionForm = ({
+    disabled,
     dirty,
+    display,
+    existing,
+    handleUpdate,
     isCreate,
-    isLoading,
     isOpen,
+    isReadLoading,
     onCancel,
+    onClose,
+    onCompleted,
+    onDeleted,
     values,
     ...props
-}, ref) => {
+}: QuestionFormProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -82,17 +80,56 @@ const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name"],
-        validationSchema: questionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: questionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+    });
+
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Question>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "Question",
+        ...props,
+    });
+    const {
+        fetch,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertFetch<Question, QuestionCreateInput, QuestionUpdateInput>({
+        isCreate,
+        isMutate: true,
+        endpointCreate: endpointPostQuestion,
+        endpointUpdate: endpointPutQuestion,
+    });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Question" });
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useSubmitHelper<QuestionCreateInput | QuestionUpdateInput, Question>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformQuestionValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
     });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="question-upsert-dialog"
+            isOpen={isOpen}
+            onClose={onClose}
+        >
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t(isCreate ? "CreateQuestion" : "UpdateQuestion")}
+            />
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
-                ref={ref}
             >
                 <FormContainer>
                     <RelationshipList
@@ -108,7 +145,7 @@ const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProps>(({
                             handleCurrent={setLanguage}
                             languages={languages}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Name")}
                             language={language}
@@ -140,93 +177,54 @@ const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProps>(({
             <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                hideButtons={disabled}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
+                loading={isLoading}
+                onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
+                onSubmit={onSubmit}
             />
-        </>
+        </MaybeLargeDialog>
     );
-});
+};
 
 export const QuestionUpsert = ({
     isCreate,
     isOpen,
-    onCancel,
-    onCompleted,
     overrideObject,
+    ...props
 }: QuestionUpsertProps) => {
-    const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Question, QuestionShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Question, QuestionShape>({
         ...endpointGetQuestion,
+        isCreate,
         objectType: "Question",
         overrideObject,
         transform: (existing) => questionInitialValues(session, existing),
     });
-
-    const {
-        fetch,
-        handleCancel,
-        handleCompleted,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertActions<Question, QuestionCreateInput, QuestionUpdateInput>({
-        display,
-        endpointCreate: endpointPostQuestion,
-        endpointUpdate: endpointPutQuestion,
-        isCreate,
-        onCancel,
-        onCompleted,
-    });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="question-upsert-dialog"
-            isOpen={isOpen}
-            onClose={handleClose}
+        <Formik
+            enableReinitialize={true}
+            initialValues={{
+                ...existing,
+                forObject: null,
+            } as QuestionShape}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformQuestionValues, questionValidation)}
         >
-            <TopBar
-                display={display}
-                onClose={handleClose}
-                title={t(isCreate ? "CreateQuestion" : "UpdateQuestion")}
-            />
-            <Formik
-                enableReinitialize={true}
-                initialValues={{
-                    ...existing,
-                    forObject: null,
-                } as QuestionShape}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<QuestionCreateInput | QuestionUpdateInput, Question>({
-                        fetch,
-                        inputs: transformQuestionValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateQuestionValues(values, existing, isCreate)}
-            >
-                {(formik) => <QuestionForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    {...formik}
-                />}
-            </Formik>
-        </MaybeLargeDialog>
+            {(formik) => <QuestionForm
+                disabled={!(isCreate || canUpdate)}
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

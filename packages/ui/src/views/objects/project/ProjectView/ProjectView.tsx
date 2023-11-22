@@ -18,20 +18,18 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
-import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
-    isOpen,
+    display,
     onClose,
 }: ProjectViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion>({
         ...endpointGetProjectVersion,
@@ -133,7 +131,7 @@ export const ProjectView = ({
                             fontFamily="monospace"
                             onClick={() => {
                                 navigator.clipboard.writeText(`${window.location.origin}${LINKS.Project}/${handle}`);
-                                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                                PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
                             }}
                             sx={{
                                 color: palette.secondary.dark,
@@ -187,11 +185,7 @@ export const ProjectView = ({
                 /> */}
             </Box>
             {/* Edit button (if canUpdate) */}
-            <SideActionsButtons
-                // Treat as a dialog when build view is open
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {permissions.canUpdate ? (
                     <IconButton aria-label={t("UpdateProject")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />

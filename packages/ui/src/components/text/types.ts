@@ -12,7 +12,7 @@ export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
 }
 
 export interface OwnerLabelProps {
-    confirmOpen?: (callback: () => void) => void;
+    confirmOpen?: (callback: () => unknown) => unknown;
     language?: string
     objectType: ObjectType;
     owner: Routine["owner"] | null | undefined
@@ -22,7 +22,7 @@ export interface OwnerLabelProps {
 }
 
 export interface StatsCompactProps<T extends ListObject> {
-    handleObjectUpdate: (object: T) => void;
+    handleObjectUpdate: (object: T) => unknown;
     object: T | null | undefined;
 }
 
@@ -41,7 +41,7 @@ export interface TitleProps {
     options?: {
         Icon: SvgComponent;
         label: string;
-        onClick: (e?: any) => void;
+        onClick: (e?: any) => unknown;
     }[];
     sxs?: {
         stack?: SxType;
@@ -55,7 +55,7 @@ export interface TitleProps {
 }
 
 export interface VersionDisplayProps extends BoxProps {
-    confirmVersionChange?: (callback: () => void) => void;
+    confirmVersionChange?: (callback: () => unknown) => unknown;
     currentVersion: Partial<{ versionLabel: string }> | null | undefined;
     loading?: boolean;
     prefix?: string;

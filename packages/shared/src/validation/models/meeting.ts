@@ -3,20 +3,20 @@ import { meetingInviteValidation } from "./meetingInvite";
 import { scheduleValidation } from "./schedule";
 
 export const meetingTranslationValidation: YupModel = transRel({
-    create: {
+    create: (d) => ({
         name: opt(name),
         description: opt(description),
-        link: opt(url),
-    },
-    update: {
+        link: opt(url(d)),
+    }),
+    update: (d) => ({
         name: opt(name),
         description: opt(description),
-        link: opt(url),
-    },
+        link: opt(url(d)),
+    }),
 });
 
 export const meetingValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         openToAnyoneWithInvite: opt(bool),
         showOnOrganizationProfile: opt(bool),
@@ -27,8 +27,8 @@ export const meetingValidation: YupModel = {
         ["labels", ["Connect"], "many", "opt"],
         ["schedule", ["Create"], "one", "opt", scheduleValidation],
         ["translations", ["Create"], "many", "opt", meetingTranslationValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         openToAnyoneWithInvite: opt(bool),
         showOnOrganizationProfile: opt(bool),
@@ -37,6 +37,6 @@ export const meetingValidation: YupModel = {
         ["invites", ["Create", "Update", "Delete"], "many", "opt", meetingInviteValidation],
         ["labels", ["Connect", "Disconnect"], "many", "opt"],
         ["schedule", ["Create", "Update"], "one", "opt", scheduleValidation],
-        ["translations", ["Create"], "many", "opt", meetingTranslationValidation],
-    ], [], o),
+        ["translations", ["Create", "Update", "Delete"], "many", "opt", meetingTranslationValidation],
+    ], [], d),
 };

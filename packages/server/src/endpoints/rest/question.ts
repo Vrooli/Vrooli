@@ -1,5 +1,5 @@
 import { question_create, question_findMany, question_findOne, question_update } from "../generated";
-import { QuestionEndpoints } from "../logic";
+import { QuestionEndpoints } from "../logic/question";
 import { setupRoutes } from "./base";
 
 export const QuestionRest = setupRoutes({

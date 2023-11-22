@@ -1,7 +1,9 @@
 import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentUpdateInput, FindByIdInput } from "@local/shared";
-import { createHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CommentModel } from "../../models/base";
+import { createOneHelper } from "../../actions/creates";
+import { readOneHelper } from "../../actions/reads";
+import { updateOneHelper } from "../../actions/updates";
+import { rateLimit } from "../../middleware/rateLimit";
+import { CommentModel } from "../../models/base/comment";
 import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 
@@ -31,11 +33,11 @@ export const CommentEndpoints: EndpointsComment = {
     Mutation: {
         commentCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         commentUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
     },
 };

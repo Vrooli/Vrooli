@@ -3,7 +3,6 @@ import { ApolloServer } from "apollo-server-express";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";
-import fs from "fs";
 import { graphqlUploadExpress } from "graphql-upload";
 import i18next from "i18next";
 import { app } from "./app";
@@ -13,10 +12,11 @@ import * as restRoutes from "./endpoints/rest";
 import { logger } from "./events/logger";
 import { io } from "./io";
 import { context, depthLimit } from "./middleware";
+import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
 import { server, SERVER_URL } from "./server";
-import { setupStripe, setupValyxa } from "./services";
+import { setupStripe } from "./services";
 import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
 import { loadSecrets } from "./utils/loadSecrets";
 import { setupDatabase } from "./utils/setupDatabase";
@@ -30,7 +30,7 @@ const main = async () => {
     loadSecrets(process.env.NODE_ENV as "development" | "production");
 
     // Check for required .env variables
-    const requiredEnvs = ["PROJECT_DIR", "VITE_SERVER_LOCATION", "LETSENCRYPT_EMAIL", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"];
+    const requiredEnvs = ["jwt_priv", "jwt_pub", "PROJECT_DIR", "VITE_SERVER_LOCATION", "LETSENCRYPT_EMAIL", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             logger.error(`🚨 ${env} not in environment variables. Stopping server`, { trace: "0007" });
@@ -38,23 +38,11 @@ const main = async () => {
         }
     }
 
-    // Check for JWT public/private key files
-    const requiredKeyFiles = ["jwt_priv.pem", "jwt_pub.pem"];
-    for (const keyFile of requiredKeyFiles) {
-        try {
-            const key = fs.readFileSync(`${process.env.PROJECT_DIR}/${keyFile}`);
-            if (!key) {
-                logger.error(`🚨 ${keyFile} not found. Stopping server`, { trace: "0448" });
-                process.exit(1);
-            }
-        } catch (error) {
-            logger.error(`🚨 ${keyFile} not found. Stopping server`, { trace: "0449", error });
-            process.exit(1);
-        }
-    }
-
     // Initialize translations
     await i18next.init(i18nConfig(debug));
+
+    // Initialize singletons
+    await ModelMap.init();
 
     // Setup databases
     // Prisma
@@ -111,7 +99,6 @@ const main = async () => {
 
     // Set up external services (including webhooks)
     setupStripe(app);
-    setupValyxa(app);
 
     // Set static folders
     // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));

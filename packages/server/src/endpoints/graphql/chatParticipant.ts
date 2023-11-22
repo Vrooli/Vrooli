@@ -1,6 +1,6 @@
 import { ChatParticipantSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { ChatParticipantEndpoints, EndpointsChatParticipant } from "../logic";
+import { ChatParticipantEndpoints, EndpointsChatParticipant } from "../logic/chatParticipant";
 
 export const typeDef = gql`
     enum ChatParticipantSortBy {

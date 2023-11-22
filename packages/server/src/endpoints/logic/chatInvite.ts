@@ -1,7 +1,9 @@
 import { ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteUpdateInput, FindByIdInput } from "@local/shared";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
+import { createManyHelper, createOneHelper } from "../../actions/creates";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateManyHelper, updateOneHelper } from "../../actions/updates";
+import { CustomError } from "../../events/error";
+import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsChatInvite = {
@@ -11,7 +13,9 @@ export type EndpointsChatInvite = {
     },
     Mutation: {
         chatInviteCreate: GQLEndpoint<ChatInviteCreateInput, CreateOneResult<ChatInvite>>;
+        chatInvitesCreate: GQLEndpoint<ChatInviteCreateInput[], CreateOneResult<ChatInvite>[]>;
         chatInviteUpdate: GQLEndpoint<ChatInviteUpdateInput, UpdateOneResult<ChatInvite>>;
+        chatInvitesUpdate: GQLEndpoint<ChatInviteUpdateInput[], UpdateOneResult<ChatInvite>[]>;
         chatInviteAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<ChatInvite>>;
         chatInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<ChatInvite>>;
     }
@@ -32,11 +36,19 @@ export const ChatInviteEndpoints: EndpointsChatInvite = {
     Mutation: {
         chatInviteCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
+        },
+        chatInvitesCreate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ maxUser: 100, req });
+            return createManyHelper({ info, input, objectType, prisma, req });
         },
         chatInviteUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
+        },
+        chatInvitesUpdate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ maxUser: 250, req });
+            return updateManyHelper({ info, input, objectType, prisma, req });
         },
         chatInviteAccept: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });

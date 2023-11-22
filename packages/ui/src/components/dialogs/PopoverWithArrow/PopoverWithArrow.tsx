@@ -58,7 +58,7 @@ export const PopoverWithArrow = ({
 }: PopoverWithArrowProps) => {
     const { palette } = useTheme();
     const isOpen = Boolean(anchorEl);
-    const zIndex = useZIndex(isOpen);
+    const zIndex = useZIndex(isOpen, false, 1000);
     const [canTouch, setCanTouch] = useState(false);
     const [actualPlacement, setActualPlacement] = useState(placement);
 

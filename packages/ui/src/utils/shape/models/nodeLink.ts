@@ -7,7 +7,7 @@ export type NodeLinkShape = Pick<NodeLink, "id" | "operation"> & {
     __typename?: "NodeLink";
     from: { id: string };
     to: { id: string };
-    routineVersion: { id: string };
+    routineVersion: { __typename?: "RoutineVersion", id: string };
     whens?: NodeLinkWhenShape[];
 }
 

@@ -312,7 +312,7 @@ export function $createSpoilerNode(): SpoilerNode {
 const SPOILER_COMMAND: LexicalCommand<void> = createCommand("FORMAT_TEXT_COMMAND");
 
 /** Register commands for custom components (i.e. spoiler) */
-const registerCustomCommands = (editor: LexicalEditor): (() => void) => {
+const registerCustomCommands = (editor: LexicalEditor): (() => unknown) => {
     const removeListener = mergeRegister(
         editor.registerCommand<void>(
             SPOILER_COMMAND,
@@ -532,6 +532,7 @@ const RichInputLexicalComponents = ({
     name,
     onActiveStatesChange,
     onBlur,
+    onFocus,
     onChange,
     openAssistantDialog,
     placeholder = "",
@@ -637,7 +638,7 @@ const RichInputLexicalComponents = ({
             setActiveStates({ ...updatedStates });
             onActiveStatesChange({ ...updatedStates });
         }
-    }, [activeEditor]);
+    }, [activeEditor, onActiveStatesChange]);
     useEffect(() => {
         return editor.registerCommand(
             SELECTION_CHANGE_COMMAND,
@@ -666,7 +667,7 @@ const RichInputLexicalComponents = ({
     }, [onChange]);
 
     // Toolbar actions
-    const toggleHeading = (headingSize: HeadingTagType) => {
+    const toggleHeading = useCallback((headingSize: HeadingTagType) => {
         editor.update(() => {
             const selection = $getSelection();
             if (
@@ -676,13 +677,13 @@ const RichInputLexicalComponents = ({
                 $setBlocksType(selection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createParagraphNode() : $createHeadingNode(headingSize));
             }
         });
-    };
-    const toggleFormat = (formatType: TextFormatType) => {
+    }, [activeStates, editor]);
+    const toggleFormat = useCallback((formatType: TextFormatType) => {
         editor.dispatchCommand(FORMAT_TEXT_COMMAND, formatType);
-    };
-    const toggleSpoiler = () => {
+    }, [editor]);
+    const toggleSpoiler = useCallback(() => {
         editor.dispatchCommand(SPOILER_COMMAND, (void 0));
-    };
+    }, [editor]);
 
 
     useEffect(() => {
@@ -743,14 +744,20 @@ const RichInputLexicalComponents = ({
                 padding: "16.5px 14px",
                 minWidth: "-webkit-fill-available",
                 maxWidth: "-webkit-fill-available",
-                borderColor: error ? palette.error.main : palette.divider,
                 borderRadius: "0 0 4px 4px",
                 borderTop: "none",
                 fontFamily: typography.fontFamily,
                 fontSize: typography.fontSize + 2,
                 lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
-                backgroundColor: palette.background.paper,
+                backgroundColor: "transparent",
                 color: palette.text.primary,
+                border: `1px solid ${palette.divider}`,
+                "&:hover": {
+                    border: `1px solid ${palette.background.textPrimary}`,
+                },
+                "&:focus-within": {
+                    border: `2px solid ${palette.primary.main}`,
+                },
                 ...sx,
             }}>
             <RichTextPlugin
@@ -787,7 +794,7 @@ const RichInputLexicalComponents = ({
     );
 };
 
-/** TextField for entering WYSIWYG text */
+/** TextInput for entering WYSIWYG text */
 export const RichInputLexical = ({
     value,
     ...props

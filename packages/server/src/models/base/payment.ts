@@ -1,22 +1,20 @@
 import { MaxObjects, PaymentSortBy } from "@local/shared";
+import { ModelMap } from ".";
 import { defaultPermissions } from "../../utils";
 import { PaymentFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { PaymentModelLogic } from "./types";
+import { OrganizationModelLogic, PaymentModelLogic } from "./types";
 
 const __typename = "Payment" as const;
-const suppFields = [] as const;
-export const PaymentModel: ModelLogic<PaymentModelLogic, typeof suppFields> = ({
+export const PaymentModel: PaymentModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.payment,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, description: true }),
             // Cut off the description at 20 characters TODO should do this for every label
             get: (select) => select.description.length > 20 ? select.description.slice(0, 20) + "..." : select.description,
         },
-    },
+    }),
     format: PaymentFormat,
     search: {
         defaultSort: PaymentSortBy.DateCreatedDesc,
@@ -36,7 +34,7 @@ export const PaymentModel: ModelLogic<PaymentModelLogic, typeof suppFields> = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -57,9 +55,9 @@ export const PaymentModel: ModelLogic<PaymentModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

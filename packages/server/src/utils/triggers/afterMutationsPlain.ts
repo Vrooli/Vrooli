@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
-import { Trigger } from "../../events";
-import { getLogic } from "../../getters";
+import { Trigger } from "../../events/trigger";
+import { ModelMap } from "../../models/base";
 import { PrismaType, SessionUserToken } from "../../types";
 
 /**
@@ -29,7 +29,7 @@ export const afterMutationsPlain = async ({
     // Find owners of created and updated items
     const ownerMap: { [key: string]: { id: string, __typename: "User" | "Organization" } } = {};
     const createAndUpdateIds = [...createdIds, ...updatedIds];
-    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "afterMutationsPlain");
+    const { delegate } = ModelMap.getLogic(["delegate"], objectType);
     // Create select object depending on whether ownerOrganizationField and ownerUserField are defined
     const select = { id: true };
     if (ownerOrganizationField) {

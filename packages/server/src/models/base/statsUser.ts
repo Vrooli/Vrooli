@@ -1,25 +1,23 @@
 import { StatsUserSortBy } from "@local/shared";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsUserFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { StatsUserModelLogic, UserModelLogic } from "./types";
-import { UserModel } from "./user";
+import { StatsUserModelInfo, StatsUserModelLogic, UserModelInfo, UserModelLogic } from "./types";
 
 const __typename = "StatsUser" as const;
-const suppFields = [] as const;
-export const StatsUserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> = ({
+export const StatsUserModel: StatsUserModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_user,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, user: { select: UserModel.display.label.select() } }),
+            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages),
+                objectName: ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsUserFormat,
     search: {
         defaultSort: StatsUserSortBy.PeriodStartAsc,
@@ -28,9 +26,9 @@ export const StatsUserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> 
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ user: UserModel.search.searchStringQuery() }),
+        searchStringQuery: () => ({ user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -38,13 +36,13 @@ export const StatsUserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> 
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => UserModel.validate.owner(data?.user as UserModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<UserModelLogic>("User").validate().owner(data?.user as UserModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsUserModelLogic["PrismaSelect"]>([["user", "User"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsUserModelInfo["PrismaSelect"]>([["user", "User"]], ...rest),
         visibility: {
-            private: { user: UserModel.validate.visibility.private },
-            public: { user: UserModel.validate.visibility.public },
-            owner: (userId) => ({ user: UserModel.validate.visibility.owner(userId) }),
+            private: { user: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+            public: { user: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+            owner: (userId) => ({ user: ModelMap.get<UserModelLogic>("User").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

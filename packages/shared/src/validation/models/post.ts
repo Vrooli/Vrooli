@@ -3,7 +3,7 @@ import { resourceListValidation } from "./resourceList";
 import { tagValidation } from "./tag";
 
 export const postValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         isPinned: opt(bool),
         isPrivate: opt(bool),
@@ -13,13 +13,13 @@ export const postValidation: YupModel = {
         ["repostedFrom", ["Connect"], "one", "opt"],
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
-    ], [["organizationConnect", "userConnect"]], o),
-    update: ({ o }) => yupObj({
+    ], [["organizationConnect", "userConnect"]], d),
+    update: (d) => yupObj({
         id: req(id),
         isPinned: opt(bool),
         isPrivate: opt(bool),
     }, [
         ["resourceList", ["Update"], "one", "opt", resourceListValidation],
         ["tags", ["Connect", "Create", "Disconnect"], "many", "opt", tagValidation],
-    ], [], o),
+    ], [], d),
 };

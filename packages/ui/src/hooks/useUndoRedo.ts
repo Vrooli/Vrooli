@@ -21,7 +21,7 @@ export const useUndoRedo = <T>({
     initialValue: T;
     onChange: (updated: T) => unknown;
     /** Determines when the stack should be updated */
-    forceAddToStack?: (updated: T, resetStackDebounce: () => void) => boolean;
+    forceAddToStack?: (updated: T, resetStackDebounce: () => unknown) => boolean;
 }) => {
     const [internalValue, setInternalValue] = useState(initialValue);
     const [onChangeDebounced, cancelDebounce] = useDebounce(onChange, DEBOUNCE_TIME);

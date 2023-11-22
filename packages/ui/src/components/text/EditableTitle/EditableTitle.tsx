@@ -16,6 +16,7 @@ export interface EditableTitleProps extends TitleProps {
     isTitleTranslated?: boolean;
     isSubtitleTranslated?: boolean;
     language?: string;
+    onClose?: () => unknown;
     onSubmit?: () => unknown;
     subtitleField?: string;
     subtitleLabel?: string;
@@ -31,6 +32,7 @@ export const EditableTitle = ({
     isTitleTranslated = true,
     isSubtitleTranslated = true,
     language,
+    onClose,
     onSubmit,
     subtitleField,
     subtitleLabel,
@@ -52,7 +54,10 @@ export const EditableTitle = ({
     }, [formik.values, language, translationsField, translationsMeta]);
 
     const handleOpen = useCallback(() => { setIsDialogOpen(true); }, []);
-    const handleClose = () => { setIsDialogOpen(false); };
+    const handleClose = () => {
+        setIsDialogOpen(false);
+        onClose && onClose();
+    };
 
     const { title, subtitle } = useMemo(() => {
         return {

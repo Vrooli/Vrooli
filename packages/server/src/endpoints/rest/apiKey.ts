@@ -1,5 +1,5 @@
 import { apiKey_create, apiKey_deleteOne, apiKey_update, apiKey_validate } from "../generated";
-import { ApiKeyEndpoints } from "../logic";
+import { ApiKeyEndpoints } from "../logic/apiKey";
 import { setupRoutes } from "./base";
 
 export const ApiKeyRest = setupRoutes({

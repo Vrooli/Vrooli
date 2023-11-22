@@ -24,7 +24,6 @@ import { useLocation } from "route";
 import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
@@ -32,14 +31,13 @@ import { OrganizationPageTabOption, organizationTabParams } from "utils/search/o
 import { OrganizationViewProps } from "../types";
 
 export const OrganizationView = ({
-    isOpen,
+    display,
     onClose,
 }: OrganizationViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
@@ -210,7 +208,7 @@ export const OrganizationView = ({
                             fontFamily="monospace"
                             onClick={() => {
                                 navigator.clipboard.writeText(`${window.location.origin}${LINKS.Organization}/${handle}`);
-                                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                                PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
                             }}
                             sx={{
                                 color: palette.secondary.dark,
@@ -285,10 +283,7 @@ export const OrganizationView = ({
                     }
                 </Box>
             </Box>
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {/* Toggle search filters */}
                 {currTab.tabType !== OrganizationPageTabOption.Resource ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />

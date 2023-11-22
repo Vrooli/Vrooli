@@ -1,4 +1,4 @@
-import { CustomError } from "../events";
+import { CustomError } from "../events/error";
 
 /**
  * Versioned models shape create and update data from the perspective of the root object. 

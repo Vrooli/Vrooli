@@ -74,7 +74,7 @@ export const Dropzone = ({
         maxFiles,
         onDrop: acceptedFiles => {
             if (acceptedFiles.length <= 0) {
-                PubSub.get().publishSnack({ messageKey: "FilesNotAccepted", severity: "Error" });
+                PubSub.get().publish("snack", { messageKey: "FilesNotAccepted", severity: "Error" });
                 return;
             }
             setFiles(acceptedFiles.map(file => Object.assign(file, {
@@ -86,7 +86,7 @@ export const Dropzone = ({
     const upload = (e) => {
         e.stopPropagation();
         if (files.length === 0) {
-            PubSub.get().publishSnack({ messageKey: "NoFilesSelected", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "NoFilesSelected", severity: "Error" });
             return;
         }
         onUpload(files);

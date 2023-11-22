@@ -5,9 +5,24 @@ import { SxType } from "types";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 export interface ChatBubbleProps {
+    activeIndex: number;
+    chatWidth: number;
+    message: ChatMessageShape;
+    messagesCount: number;
+    isOwn: boolean;
+    onActiveIndexChange: (index: number) => unknown;
+    onDeleted: (message: ChatMessageShape) => unknown;
+    onReply: (message: ChatMessageShape) => unknown;
+    onRetry: (message: ChatMessageShape) => unknown;
+    onUpdated: (message: ChatMessageShape) => unknown;
+}
+
+export interface ChatBubbleTreeProps {
+    chatWidth: number;
     message: ChatMessageShape;
     index: number;
     isOwn: boolean;
+    onDeleted: (message: ChatMessageShape) => unknown;
     onUpdated: (message: ChatMessageShape) => unknown;
 }
 

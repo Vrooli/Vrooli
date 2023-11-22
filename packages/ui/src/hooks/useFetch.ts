@@ -1,6 +1,8 @@
-import { fetchData, Method, ServerResponse } from "api";
+import { errorToMessage, fetchData, Method, ServerResponse } from "api";
 import { useCallback, useEffect, useState } from "react";
+import { PubSub } from "utils/pubsub";
 import { useDebounce } from "./useDebounce";
+import { MakeLazyRequest } from "./useLazyFetch";
 
 type RequestState<TData> = {
     loading: boolean;
@@ -37,15 +39,23 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
     omitRestBase = false,
     debounceMs = 0,
 }: UseFetchProps<TInput, TData>, deps: any[] = []):
-    RequestState<TData> & { refetch: (input?: TInput) => void } {
+    RequestState<TData> & { refetch: (input?: TInput) => unknown } {
     const [state, setState] = useState<RequestState<TData>>({
         loading: false,
         data: undefined,
         errors: undefined,
     });
 
-    const refetch = useCallback<(input?: TInput) => Promise<ServerResponse<TData>>>(async (input?: TInput) => {
-        if (!endpoint) {
+    const displayErrors = (errors?: ServerResponse["errors"]) => {
+        if (!errors) return;
+        for (const error of errors) {
+            const message = errorToMessage({ errors: [error] }, ["en"]);
+            PubSub.get().publish("snack", { message, severity: "Error" });
+        }
+    };
+
+    const refetch = useCallback<MakeLazyRequest<TInput, TData>>(async (input, inputOptions) => {
+        if (!endpoint && !inputOptions?.endpointOverride) {
             const message = "No endpoint provided to useLazyFetch";
             console.error(message);
             return { errors: [{ message }] };
@@ -58,7 +68,7 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
         setState(s => ({ ...s, loading: true }));
 
         const result = await fetchData({
-            endpoint,
+            endpoint: endpoint ?? inputOptions?.endpointOverride as string,
             inputs,
             method,
             options,
@@ -66,10 +76,14 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
         })
             .then(({ data, errors, version }: ServerResponse) => {
                 setState({ loading: false, data, errors });
+                if (Array.isArray(errors) && errors.length > 0) {
+                    inputOptions?.displayError !== false && displayErrors(errors);
+                }
                 return { data, errors, version };
             })
             .catch(({ errors, version }: ServerResponse) => {
                 setState({ loading: false, data: undefined, errors });
+                inputOptions?.displayError !== false && displayErrors(errors);
                 return { errors, version };
             });
         return result;

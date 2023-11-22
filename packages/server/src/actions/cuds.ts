@@ -1,16 +1,19 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
-import { modelToGql, selectHelper } from "../builders";
+import { modelToGql } from "../builders/modelToGql";
+import { selectHelper } from "../builders/selectHelper";
 import { PartialGraphQLInfo, PrismaCreate, PrismaUpdate } from "../builders/types";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { ModelMap } from "../models/base";
 import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
-import { getAuthenticatedData } from "../utils";
 import { cudInputsToMaps } from "../utils/cudInputsToMaps";
 import { cudOutputsToMaps } from "../utils/cudOutputsToMaps";
+import { getAuthenticatedData } from "../utils/getAuthenticatedData";
 import { CudInputData } from "../utils/types";
-import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
+import { maxObjectsCheck } from "../validators/maxObjectsCheck";
+import { permissionsCheck } from "../validators/permissions";
+import { profanityCheck } from "../validators/profanityCheck";
 
 /**
  * Performs create, update, and delete operations. 
@@ -46,12 +49,12 @@ export async function cudHelper({
     for (let i = 0; i < inputData.length; i++) {
         const { actionType, input, objectType } = inputData[i];
         if (actionType === "Create") {
-            const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper create");
-            const transformedInput = mutate.yup.create && mutate.yup.create({}).cast(input, { stripUnknown: true });
+            const { mutate } = ModelMap.getLogic(["mutate"], objectType, true, "cudHelper cast create");
+            const transformedInput = mutate.yup.create && mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
             inputData[i].input = transformedInput;
         } else if (actionType === "Update") {
-            const { mutate } = getLogic(["mutate"], objectType, userData.languages, "cudHelper update");
-            const transformedInput = mutate.yup.update && mutate.yup.update({}).cast(input, { stripUnknown: true });
+            const { mutate } = ModelMap.getLogic(["mutate"], objectType, true, "cudHelper cast update");
+            const transformedInput = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
             inputData[i].input = transformedInput;
         }
     }
@@ -68,7 +71,7 @@ export async function cudHelper({
     for (const [type, inputs] of Object.entries(inputsByType)) {
         // Initialize type as empty object
         preMap[type] = {};
-        const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "preshape type");
+        const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudHelper preshape type");
         if (mutate.shape.pre) {
             const preResult = await mutate.shape.pre({ ...inputs, prisma, userData, inputsById });
             preMap[type] = preResult;
@@ -95,13 +98,13 @@ export async function cudHelper({
         topInputsByType[objectType]![actionType].push({ index, input: input as any });
     }
     // Initialize data for afterMutations trigger
-    const deletedIds: { [key in GqlModelType]?: string[] } = {};
+    const deletedIdsByType: { [key in GqlModelType]?: string[] } = {};
     const beforeDeletedData: { [key in GqlModelType]?: object } = {};
     // Create array to store operations for transaction
     const operations: PrismaPromise<any>[] = [];
     // Loop through each type to populate operations array
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
-        const { delegate, idField, mutate } = getLogic(["delegate", "idField", "mutate"], objectType as GqlModelType, userData.languages, "cudHelper.createOne");
+        const { delegate, idField, mutate } = ModelMap.getLogic(["delegate", "idField", "mutate"], objectType as GqlModelType, true, "cudHelper loop");
         const deletingIds = Delete.map(({ input }) => input);
         // Create
         if (Create.length > 0) {
@@ -141,7 +144,6 @@ export async function cudHelper({
         // Delete
         if (Delete.length > 0) {
             // Call beforeDeleted
-            const beforeDeletedData: object = [];
             if (mutate.trigger?.beforeDeleted) {
                 await mutate.trigger.beforeDeleted({ beforeDeletedData, deletingIds, prisma, userData });
             }
@@ -152,8 +154,8 @@ export async function cudHelper({
                     where: { [idField]: { in: deletingIds } },
                     select: { id: true },
                 }).then(x => x.map(({ id }) => id));
-                // Update deletedIds
-                deletedIds[objectType] = existingIds;
+                // Update deletedIdsByType
+                deletedIdsByType[objectType] = existingIds;
                 // Add to operations
                 const deleteOperation = delegate(prisma).deleteMany({
                     where: { [idField]: { in: existingIds } },
@@ -182,7 +184,7 @@ export async function cudHelper({
             transactionIndex++;
         }
         if (Delete.length > 0) {
-            const ids = deletedIds[objectType];
+            const ids = deletedIdsByType[objectType];
             for (const id of ids) {
                 const index = inputData.findIndex(({ input }) => input === id);
                 if (index >= 0) result[index] = true;
@@ -193,14 +195,20 @@ export async function cudHelper({
     // Similar to how we grouped inputs, now we need to group outputs
     const outputsByType = cudOutputsToMaps({ idsByAction, inputsById });
     // Call afterMutations function for each type
-    for (const [type, { createInputs, createdIds, updatedIds, updateInputs }] of Object.entries(outputsByType)) {
-        const { mutate } = getLogic(["mutate"], type as GqlModelType, userData.languages, "afterMutations type");
+    const allTypes = new Set([...Object.keys(outputsByType), ...Object.keys(deletedIdsByType)]);
+    for (const type of allTypes) {
+        const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudHelper afterMutations type");
         if (!mutate.trigger?.afterMutations) continue;
+        const createInputs = outputsByType[type]?.createInputs || [];
+        const createdIds = outputsByType[type]?.createdIds || [];
+        const updatedIds = outputsByType[type]?.updatedIds || [];
+        const updateInputs = outputsByType[type]?.updateInputs || [];
+        const deletedIds = deletedIdsByType[type as GqlModelType] || [];
         await mutate.trigger.afterMutations({
             beforeDeletedData,
             createdIds,
             createInputs,
-            deletedIds: deletedIds[type as GqlModelType] || [],
+            deletedIds,
             preMap,
             prisma,
             updatedIds,

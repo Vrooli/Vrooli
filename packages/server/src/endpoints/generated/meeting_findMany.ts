@@ -39,6 +39,7 @@ export const meeting_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           }
@@ -86,6 +87,7 @@ export const meeting_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -211,6 +213,7 @@ export const meeting_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },
@@ -286,6 +289,7 @@ export const meeting_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },

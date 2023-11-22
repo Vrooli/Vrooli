@@ -1,5 +1,5 @@
 import { post_create, post_findMany, post_findOne, post_update } from "../generated";
-import { PostEndpoints } from "../logic";
+import { PostEndpoints } from "../logic/post";
 import { setupRoutes } from "./base";
 
 export const PostRest = setupRoutes({

@@ -1,4 +1,4 @@
-import { ErrorTrace } from "../events";
+import { ErrorTrace } from "../events/error";
 import { PrismaType } from "../types";
 import { batchCollect, BatchCollectProps, FindManyArgs } from "./batchCollect";
 import { withPrisma } from "./withPrisma";

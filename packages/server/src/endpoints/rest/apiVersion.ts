@@ -1,5 +1,5 @@
 import { apiVersion_create, apiVersion_findMany, apiVersion_findOne, apiVersion_update } from "../generated";
-import { ApiVersionEndpoints } from "../logic";
+import { ApiVersionEndpoints } from "../logic/apiVersion";
 import { setupRoutes } from "./base";
 
 export const ApiVersionRest = setupRoutes({

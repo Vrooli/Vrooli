@@ -9,7 +9,6 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { SettingsDataFormProps, SettingsDataViewProps } from "../types";
 
 const DataOption = ({
@@ -58,7 +57,6 @@ const SettingsDataForm = ({
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 style={{ margin: "auto" }}
@@ -248,11 +246,10 @@ const SettingsDataForm = ({
 };
 
 export const SettingsDataView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsDataViewProps) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const [, setLocation] = useLocation();
 
     return (

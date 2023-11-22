@@ -1,7 +1,7 @@
 import { exists, GqlModelType } from "@local/shared";
-import { CustomError } from "../../events";
-import { getLogic } from "../../getters";
-import { transfer } from "../../models/base";
+import { CustomError } from "../../events/error";
+import { ModelMap } from "../../models/base";
+import { transfer } from "../../models/base/transfer";
 import { PrismaType, SessionUserToken } from "../../types";
 
 type HasCompleteVersionData = {
@@ -97,7 +97,7 @@ export const preShapeRoot = async ({
     transferMap: Record<string, boolean>,
 }> => {
     // Get prisma delegate
-    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "preHasPublics");
+    const { delegate } = ModelMap.getLogic(["delegate"], objectType);
     // Calculate hasCompleteVersion and hasCompleteAndPublic version flags
     const versionMap: Record<string, HasCompleteVersionData> = {};
     const triggerMap: Record<string, ObjectTriggerData> = {};

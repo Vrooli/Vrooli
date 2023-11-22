@@ -3,7 +3,6 @@ import { Box, Checkbox, CircularProgress, IconButton, Link, TypographyProps, use
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import hljs from "highlight.js";
 import "highlight.js/styles/monokai-sublime.css";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
 import { CopyIcon } from "icons";
@@ -28,7 +27,7 @@ const CodeBlock = ({ children }) => {
         if (textRef && textRef.current) {
             // Copy the text content of the code block
             navigator.clipboard.writeText(textRef.current.textContent ?? "");
-            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+            PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         }
     };
 
@@ -145,8 +144,7 @@ const CustomLink = ({ children, href }) => {
     const endpoint = (isSpecialLink && matchingRoute) ? routeToEndpoint[matchingRoute] : null;
 
     // Fetch hook
-    const [getData, { data, loading: isLoading, errors }] = useLazyFetch<any, any>(endpoint ?? endpointGetUser);
-    useDisplayServerError(errors);
+    const [getData, { data, loading: isLoading }] = useLazyFetch<any, any>(endpoint ?? endpointGetUser);
 
     // Get display data
     const { title, subtitle } = getDisplay(data, ["en"]);
@@ -155,12 +153,12 @@ const CustomLink = ({ children, href }) => {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = useCallback((target: EventTarget) => {
         setAnchorEl(target as HTMLElement);
-        const urlParams = parseSingleItemUrl({ url: href });
+        const urlParams = parseSingleItemUrl({ href });
         if (exists(urlParams.handle)) getData({ handle: urlParams.handle });
         else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });
         else if (exists(urlParams.id)) getData({ id: urlParams.id });
         else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot });
-        else PubSub.get().publishSnack({ message: "Invalid URL", severity: "Error" });
+        else PubSub.get().publish("snack", { message: "Invalid URL", severity: "Error" });
     }, [getData, href]);
     const close = useCallback(() => setAnchorEl(null), []);
 
@@ -312,7 +310,7 @@ export const MarkdownDisplay = ({
 }: {
     content: string | undefined;
     isEditable?: boolean;
-    onChange?: (content: string) => void;
+    onChange?: (content: string) => unknown;
     sx?: SxType;
     variant?: TypographyProps["variant"];
 }) => {

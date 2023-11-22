@@ -5,14 +5,6 @@
 # 2. Builds the React app, making sure to include environment variables and post-build commands.
 # 3. Builds all Docker containers, making sure to include environment variables and post-build commands.
 # 3. Copies the tarballs for the React app and Docker containers to the VPS.
-#
-# Arguments (all optional):
-# -v: Version number to use (e.g. "1.0.0")
-# -d: Deploy to VPS (y/N)
-# -u: Send to Docker Hub (y/N)
-# -h: Show this help message
-# -a: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)
-# -e: .env file location (e.g. "/root/my-folder/.env"). Defaults to .env-prod
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
@@ -20,30 +12,30 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ENV_FILE="${HERE}/../.env-prod"
 while getopts "v:d:u:ha:e:" opt; do
     case $opt in
-    v)
-        VERSION=$OPTARG
-        ;;
-    d)
-        DEPLOY=$OPTARG
-        ;;
-    u)
-        SEND_TO_DOCKER_HUB=$OPTARG
-        ;;
-    a)
-        API_GENERATE=$OPTARG
-        ;;
-    e)
-        ENV_FILE=$OPTARG
-        ;;
     h)
-        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-u SEND_TO_DOCKER_HUB] [-h] [-a API_GENERATE] [-e ENV_FILE]"
+        echo "Usage: $0 [-v VERSION] [-d DEPLOY_VPS_VPS] [-u USE_KUBERNETES] [-h] [-a API_GENERATE] [-e ENV_FILE]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
-        echo "  -d --deploy: Deploy to VPS (y/N)"
-        echo "  -u --send-to-docker-hub: Send to Docker Hub (y/N)"
+        echo "  -d --deploy-vps: Deploy to VPS? (y/N)"
+        echo "  -u --use-kubernetes: Deploy to Kubernetes? This overrides '--deploy-vps'. (y/N)"
         echo "  -h --help: Show this help message"
         echo "  -a --api-generate: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
         echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
         exit 0
+        ;;
+    a)
+        API_GENERATE=$OPTARG
+        ;;
+    d)
+        DEPLOY_VPS=$OPTARG
+        ;;
+    e)
+        ENV_FILE=$OPTARG
+        ;;
+    u)
+        USE_KUBERNETES=$OPTARG
+        ;;
+    v)
+        VERSION=$OPTARG
         ;;
     \?)
         echo "Invalid option: -$OPTARG" >&2
@@ -116,11 +108,34 @@ if [ "${SHOULD_UPDATE_VERSION}" = true ]; then
     done
 fi
 
+# Navigate to shared directory
+cd ${HERE}/../packages/shared
+
+# Run unit tests
+header "Running unit tests for shared..."
+yarn test
+if [ $? -ne 0 ]; then
+    error "Failed to run unit tests for shared"
+    exit 1
+fi
+
 # Navigate to server directory
 cd ${HERE}/../packages/server
 
+# Run unit tests
+header "Running unit tests for server..."
+yarn test
+if [ $? -ne 0 ]; then
+    error "Failed to run unit tests for server"
+    exit 1
+fi
+
 # Build shared
 "${HERE}/shared.sh"
+if [ $? -ne 0 ]; then
+    error "Failed to build shared"
+    exit 1
+fi
 
 # Build server
 info "Building server..."
@@ -132,6 +147,14 @@ fi
 
 # Navigate to UI directory
 cd ${HERE}/../packages/ui
+
+# Run unit tests
+header "Running unit tests for UI..."
+yarn test
+if [ $? -ne 0 ]; then
+    error "Failed to run unit tests for UI"
+    exit 1
+fi
 
 # Create local .env file
 touch .env
@@ -248,7 +271,7 @@ docker pull redis:7-alpine
 
 # Save and compress Docker images
 info "Saving Docker images..."
-docker save -o production-docker-images.tar ui:prod server:prod ankane/pgvector:v0.4.1 redis:7-alpine
+docker save -o production-docker-images.tar ui:prod server:prod docs:prod ankane/pgvector:v0.4.1 redis:7-alpine
 if [ $? -ne 0 ]; then
     error "Failed to save Docker images"
     exit 1
@@ -262,38 +285,79 @@ if [ $? -ne 0 ]; then
 fi
 
 # Send docker images to Docker Hub
-if [ -z "$SEND_TO_DOCKER_HUB" ]; then
-    prompt "Would you like to send the Docker images to Docker Hub? (y/N)"
-    read -n1 -r SEND_TO_DOCKER_HUB
+if [ -z "$USE_KUBERNETES" ]; then
+    prompt "Would you like to use Kubernetes? (y/N)"
+    read -n1 -r USE_KUBERNETES
     echo
 fi
-if [ "${SEND_TO_DOCKER_HUB}" = "y" ] || [ "${SEND_TO_DOCKER_HUB}" = "Y" ]; then
-    "${HERE}/dockerToRegistry.sh -b n -v ${VERSION}"
+
+if [ "${USE_KUBERNETES}" = "n" ] || [ "${USE_KUBERNETES}" = "N" ]; then
+    if [ -z "$DEPLOY_VPS" ]; then
+        prompt "Would you like to send the build to the production server? (y/N)"
+        read -n1 -r DEPLOY_VPS
+        echo
+    fi
+fi
+
+if [ "${USE_KUBERNETES}" = "y" ] || [ "${USE_KUBERNETES}" = "Y" ]; then
+    # Update build version in Kubernetes config
+    if [ "${SHOULD_UPDATE_VERSION}" = true ]; then
+        K8S_CONFIG_FILE="${HERE}/../k8s-docker-compose-prod-env.yml"
+        if [ -f "${K8S_CONFIG_FILE}" ]; then
+            info "Updating Kubernetes configuration file with version ${VERSION}"
+            sed -i "s/v[0-9]*\.[0-9]*\.[0-9]*/v${VERSION}/g" "${K8S_CONFIG_FILE}"
+            if [ $? -ne 0 ]; then
+                error "Failed to update Kubernetes configuration file"
+                # Consider whether to exit or not in case of failure
+                # exit 1
+            else
+                success "Kubernetes configuration file updated successfully."
+            fi
+        else
+            warning "Kubernetes configuration file not found. Continuing without updating."
+        fi
+    fi
+    # Upload images to Docker Hub
+    "${HERE}/dockerToRegistry.sh" -b n -v ${VERSION}
     if [ $? -ne 0 ]; then
         error "Failed to send Docker images to Docker Hub"
         exit 1
     fi
-fi
-
-# Copy build to VPS
-if [ -z "$DEPLOY" ]; then
-    prompt "Build successful! Would you like to send the build to the production server? (y/N)"
-    read -n1 -r DEPLOY
-    echo
-fi
-
-if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
+    # Store secrets used by Kubernetes
+    "${HERE}/setKubernetesSecrets.sh" -e "production"
+    if [ $? -ne 0 ]; then
+        error "Failed to set Kubernetes secrets"
+        exit 1
+    fi
+    # Add ui build to S3
+    S3_BUCKET="vrooli-bucket"
+    S3_PATH="builds/v${VERSION}/"
+    echo "AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}"
+    echo "AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}"
+    prompt "Going to upload build.tar.gz to s3://${S3_BUCKET}/${S3_PATH}. Press any key to continue..."
+    read -n1 -r -s
+    AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} aws s3 cp build.tar.gz s3://${S3_BUCKET}/${S3_PATH}build.tar.gz
+    if [ $? -ne 0 ]; then
+        error "Failed to upload build.tar.gz to s3://${S3_BUCKET}/${S3_PATH}"
+        exit 1
+    fi
+    success "build.tar.gz uploaded to s3://${S3_BUCKET}/${S3_PATH}!"
+elif [ "${DEPLOY_VPS}" = "y" ] || [ "${DEPLOY_VPS}" = "Y" ] || [ "${DEPLOY_VPS}" = "yes" ] || [ "${DEPLOY_VPS}" = "Yes" ]; then
+    # Copy build to VPS
     "${HERE}/keylessSsh.sh" -e ${ENV_FILE}
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
     read -n1 -r -s
-    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz ${ENV_FILE} root@${BUILD_DIR}
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz root@${BUILD_DIR}
+    # ENV_FILE must be copied as .env-prod since that's what deploy.sh expects
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" ${ENV_FILE} root@${BUILD_DIR}/.env-prod
     if [ $? -ne 0 ]; then
         error "Failed to copy files to ${BUILD_DIR}"
         exit 1
     fi
     success "Files copied to ${BUILD_DIR}! To finish deployment, run deploy.sh on the VPS."
 else
+    # Copy build locally
     BUILD_DIR="/var/tmp/${VERSION}"
     info "Copying build locally to ${BUILD_DIR}."
     # Make sure to create missing directories

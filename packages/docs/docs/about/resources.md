@@ -9,8 +9,8 @@
   </div>
 
   <div class="card">
-    <a href="https://twitter.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial" target="_blank" rel="noopener noreferrer">
-      <h3>Twitter</h3>
+    <a href="https://x.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial" target="_blank" rel="noopener noreferrer">
+      <h3>X/Twitter</h3>
     </a>
   </div>
 

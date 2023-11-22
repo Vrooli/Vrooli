@@ -52,7 +52,7 @@ export function ResourceListItem({
         // If no resource type or link, show error
         const resourceType = getResourceType(data.link);
         if (!resourceType || !href) {
-            PubSub.get().publishSnack({ messageKey: "CannotOpenLink", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CannotOpenLink", severity: "Error" });
             return;
         }
         // Open link
@@ -94,7 +94,7 @@ export function ResourceListItem({
                     width: "48px",
                     height: "48px",
                 }}>
-                    <Icon fill={palette.background.textPrimary} width="80%" height="80%" />
+                    {typeof Icon === "function" ? <Icon fill={palette.background.textPrimary} width="80%" height="80%" /> : Icon}
                 </IconButton>
                 <Stack direction="column" spacing={1} pl={2} sx={{ width: "-webkit-fill-available" }}>
                     {/* Name/Title */}

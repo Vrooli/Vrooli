@@ -1,18 +1,18 @@
 import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, userValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { UserFormat } from "../formats";
-import { ModelLogic, Mutater } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { UserModelLogic } from "./types";
-import { ViewModel } from "./view";
+import { SuppFields } from "../suppFields";
+import { Mutater } from "../types";
+import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types";
 
 const __typename = "User" as const;
-const suppFields = ["you"] as const;
 
-const updateProfile: Mutater<UserModelLogic & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
+const updateProfile: Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
     bannerImage: data.bannerImage,
     handle: data.handle ?? null,
     name: noNull(data.name),
@@ -39,24 +39,25 @@ const updateProfile: Mutater<UserModelLogic & { GqlUpdate: ProfileUpdateInput }>
     isPrivateVotes: noNull(data.isPrivateVotes),
     notificationSettings: data.notificationSettings ?? null,
     // languages: TODO!!!
-    ...(await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest })),
-    ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
+    ...(await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest })),
+    ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
 });
 
-const updateBot: Mutater<UserModelLogic & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
+const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
     bannerImage: data.bannerImage,
     botSettings: noNull(data.botSettings),
     handle: data.handle ?? null,
+    isBotDepictingPerson: noNull(data.isBotDepictingPerson),
     isPrivate: noNull(data.isPrivate),
     name: noNull(data.name),
     profileImage: data.profileImage,
-    ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
+    ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
 });
 
-export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
+export const UserModel: UserModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.user,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name ?? "",
@@ -72,7 +73,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: UserFormat,
     mutate: {
         shape: {
@@ -88,11 +89,12 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
                 botSettings: data.botSettings,
                 handle: data.handle ?? null,
                 isBot: true,
+                isBotDepictingPerson: data.isBotDepictingPerson,
                 isPrivate: data.isPrivate,
                 name: data.name,
                 profileImage: noNull(data.profileImage),
                 invitedByUser: { connect: { id: rest.userData.id } },
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             /** Update can be either a bot or your profile */
             update: async ({ data, ...rest }) => {
@@ -109,11 +111,13 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
             createdTimeFrame: true,
             excludeIds: true,
             isBot: true,
+            isBotDepictingPerson: true,
             maxBookmarks: true,
             maxViews: true,
             memberInOrganizationId: true,
             minBookmarks: true,
             minViews: true,
+            notInChatId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },
@@ -125,19 +129,19 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -163,5 +167,5 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
             }),
         },
         // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
-    },
+    }),
 });

@@ -1,0 +1,765 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db
+  name: db
+spec:
+  ports:
+    - name: "5432"
+      port: 5432
+      targetPort: 5432
+  selector:
+    io.kompose.service: db
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: docs
+  name: docs
+spec:
+  ports:
+    - name: "4000"
+      port: 4000
+      targetPort: 4000
+  selector:
+    io.kompose.service: docs
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: redis
+  name: redis
+spec:
+  ports:
+    - name: "6379"
+      port: 6379
+      targetPort: 6379
+  selector:
+    io.kompose.service: redis
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server
+  name: server
+spec:
+  ports:
+    - name: "5329"
+      port: 5329
+      targetPort: 5329
+  selector:
+    io.kompose.service: server
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: ui
+  name: ui
+spec:
+  ports:
+    - name: "3000"
+      port: 3000
+      targetPort: 3000
+  selector:
+    io.kompose.service: ui
+status:
+  loadBalancer: {}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vrooli-ingress
+spec:
+  rules:
+    - host: "docs.vrooli.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: docs
+                port:
+                  number: 4000
+    - host: "vrooli.com"
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: server
+                port:
+                  number: 5329
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ui
+                port:
+                  number: 3000
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db
+  name: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: db
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: db
+    spec:
+      initContainers:
+        - name: init-scripts 
+          image: alpine/git
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              rm -rf /scripts/* &&
+              git clone -n --depth=1 -b master --filter=tree:0 https://github.com/Vrooli/Vrooli /tmp/init-scripts &&
+              cd /tmp/init-scripts &&
+              git sparse-checkout set --no-cone scripts &&
+              git checkout &&
+              chmod +x ./scripts/*.sh &&
+              mv /tmp/init-scripts/scripts/* /scripts &&
+              rm -rf /tmp/init-scripts
+          volumeMounts:
+          - name: scripts-claim
+            mountPath: /scripts
+        - name: init-db-claim1
+          image: alpine/git
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              rm -rf /packages/db/entrypoint/* &&
+              git clone -n --depth=1 -b master --filter=tree:0 https://github.com/Vrooli/Vrooli /tmp/init-db-claim1 &&
+              cd /tmp/init-db-claim1 &&
+              git sparse-checkout set --no-cone packages/db/entrypoint &&
+              git checkout &&
+              mv /tmp/init-db-claim1/packages/db/entrypoint/* /packages/db/entrypoint &&
+              rm -rf /tmp/init-db-claim1
+          volumeMounts:
+          - name: db-claim1
+            mountPath: /docker-entrypoint-initdb.d
+      containers:
+        args:
+          - |
+            { ${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh production /tmp/secrets.$$ DB_PASSWORD:POSTGRES_PASSWORD 2>/dev/null && . /tmp/secrets.$$ } || echo 'Failed to get secrets.'; 
+            rm /tmp/secrets.$$ && 
+            exec docker-entrypoint.sh postgres"
+        env:
+          - name: POSTGRES_USER
+            value: site
+          - name: PROJECT_DIR
+            value: /srv/app
+        image: ankane/pgvector:v1.9.7
+        livenessProbe:
+          exec:
+            command:
+              - pg_isready -U site && psql -U site -d postgres -c 'SELECT 1'
+          failureThreshold: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+        name: db
+        ports:
+          - containerPort: 5432
+        resources: {}
+        volumeMounts:
+          - mountPath: /var/lib/postgresql/data
+            name: db-claim0
+          - mountPath: /docker-entrypoint-initdb.d
+            name: db-claim1
+          - mountPath: /run/secrets/vrooli/prod
+            name: db-claim2
+          - mountPath: /srv/app/scripts
+            name: scripts-claim
+      restartPolicy: Always
+      volumes:
+        - name: db-claim0
+          persistentVolumeClaim:
+            claimName: db-claim0
+        - name: db-claim1
+          persistentVolumeClaim:
+            claimName: db-claim1
+        - name: db-claim2
+          persistentVolumeClaim:
+            claimName: db-claim2
+        - name: scripts-claim
+          persistentVolumeClaim:
+            claimName: scripts-claim
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: scripts-claim
+  name: scripts-claim
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: ui-dist-claim
+  name: ui-dist-claim
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db-claim0
+  name: db-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db-claim1
+  name: db-claim1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db-claim2
+  name: db-claim2
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  creationTimestamp: null
+  name: vrooli-app
+spec:
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              io.kompose.network/vrooli-app: "true"
+  podSelector:
+    matchLabels:
+      io.kompose.network/vrooli-app: "true"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: docs
+  name: docs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: docs
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.network/nginx-proxy: "true"
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: docs
+    spec:
+      initContainers:
+        - name: init-docs-claim0
+          image: alpine/git
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              rm -rf /docs/* &&
+              git clone -n --depth=1 -b master --filter=tree:0 https://github.com/Vrooli/Vrooli /tmp/init-docs-claim0 &&
+              cd /tmp/init-docs-claim0 &&
+              git sparse-checkout set --no-cone packages/docs &&
+              git checkout &&
+              mv /tmp/init-docs-claim0/packages/docs/* /docs &&
+              rm -rf /tmp/init-docs-claim0
+          volumeMounts:
+            - name: docs-claim0
+              mountPath: /docs
+      containers:
+        - args:
+            - serve
+            - --dev-addr=0.0.0.0:4000
+          env:
+            - name: LETSENCRYPT_EMAIL
+              value: "matthalloran8@gmail.com"
+            - name: LETSENCRYPT_HOST
+              value: "docs.vrooli.com,www.docs.vrooli.com"
+            - name: VIRTUAL_HOST
+              value: "docs.vrooli.com,www.docs.vrooli.com"
+            - name: VIRTUAL_PORT
+              value: "4000"
+          image: matthalloran8/vrooli_docs:prod-1.9.7
+          name: docs
+          ports:
+            - containerPort: 4000
+          resources: {}
+          volumeMounts:
+            - mountPath: /docs
+              name: docs-claim0
+      restartPolicy: Always
+      volumes:
+        - name: docs-claim0
+          persistentVolumeClaim:
+            claimName: docs-claim0
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: docs-claim0
+  name: docs-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  creationTimestamp: null
+  name: nginx-proxy
+spec:
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              io.kompose.network/nginx-proxy: "true"
+  podSelector:
+    matchLabels:
+      io.kompose.network/nginx-proxy: "true"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: redis
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: redis
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: redis
+    spec:
+      containers:
+        - args:
+            - /bin/sh
+            - -c
+            - /srv/app/scripts/redis.sh
+          image: redis:7-alpine
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            failureThreshold: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          name: redis
+          ports:
+            - containerPort: 6379
+          resources: {}
+          volumeMounts:
+            - mountPath: /srv/app/data/redis
+              name: redis-claim0
+            - mountPath: /srv/app/scripts
+              name: scripts-claim
+      restartPolicy: Always
+      volumes:
+        - name: redis-claim0
+          persistentVolumeClaim:
+            claimName: redis-claim0
+        - name: scripts-claim
+          persistentVolumeClaim:
+            claimName: scripts-claim
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: redis-claim0
+  name: redis-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server
+  name: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: server
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.network/nginx-proxy: "true"
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: server
+    spec:
+      initContainers:
+        # Only one deployment needs to initialize the data
+        - name: init-ui
+          image: alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              apk --no-cache add aws-cli tar &&
+              aws s3 cp s3://vrooli-bucket/builds/v1.9.7/build.tar.gz /tmp/build.tar.gz &&
+              tar -xzvf /tmp/build.tar.gz -C /srv/app/packages/ui/dist &&
+              rm /tmp/build.tar.gz
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-s3-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-s3-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+          volumeMounts:
+            - name: ui-dist-claim
+              mountPath: /srv/app/packages/ui/dist
+      containers:
+        - args:
+            - /bin/sh
+            - -c
+            - /srv/app/scripts/server.sh
+          env:
+            - name: CREATE_MOCK_DATA
+              value: "false"
+            - name: DB_PULL
+              value: "false"
+            - name: DB_USER
+              value: site
+            - name: LETSENCRYPT_EMAIL
+              value: "matthalloran8@gmail.com"
+            - name: LETSENCRYPT_HOST
+              value: "vrooli.com,www.vrooli.com,app.vrooli.com,www.app.vrooli.com"
+            - name: NODE_ENV
+              value: production
+            - name: PROJECT_DIR
+              value: /srv/app
+            - name: REDIS_CONN
+              value: redis:6379
+            - name: SERVER_URL
+              value: "https://vrooli.com/api"
+            - name: SITE_EMAIL_ALIAS
+              value: "site@vrooli.com"
+            - name: SITE_EMAIL_FROM
+              value: "Vrooli"
+            - name: SITE_EMAIL_USERNAME
+              value: "matthalloran8@gmail.com"
+            - name: SITE_IP
+              value: "165.227.84.109"
+            - name: VAPID_PUBLIC_KEY
+              value: "BGiJ6LG94dTdY_nWFlq2yKGy7FgwtpgzVLCymhVXKlOfrnPOiSsXKXbKJm6bhXolXNnv0kvC6DzmCwUIRyXzG2M"
+            - name: VIRTUAL_HOST
+              value: "vrooli.com,www.vrooli.com,app.vrooli.com,www.app.vrooli.com"
+            - name: VIRTUAL_PATH
+              value: /api
+            - name: VIRTUAL_PORT
+              value: "5329"
+            - name: VITE_PORT_SERVER
+              value: "5329"
+            - name: VITE_SERVER_LOCATION
+              value: dns
+          image: matthalloran8/vrooli_server:prod-1.9.7
+          livenessProbe:
+            exec:
+              command:
+                - 'node -e "require(''http'').request({hostname: ''localhost'', port: process.env.PORT_SERVER || 5329, path: ''/healthcheck''}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on(''error'', err => { process.exit(1) }).end()"'
+            failureThreshold: 15
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            timeoutSeconds: 5
+          name: server
+          ports:
+            - containerPort: 5329
+          resources: {}
+          volumeMounts:
+            - mountPath: /srv/app/packages/ui/dist
+              name: ui-dist-claim
+            - mountPath: /srv/app/data/logs
+              name: server-claim0
+            - mountPath: /srv/app/data/uploads
+              name: server-claim1
+            - mountPath: /srv/app/data/stats
+              name: server-claim2
+            - mountPath: /run/secrets/vrooli/prod
+              name: server-claim3
+      restartPolicy: Always
+      volumes:
+        - name: ui-dist-claim
+          persistentVolumeClaim:
+            claimName: ui-dist-claim
+        - name: server-claim0
+          persistentVolumeClaim:
+            claimName: server-claim0
+        - name: server-claim1
+          persistentVolumeClaim:
+            claimName: server-claim1
+        - name: server-claim2
+          persistentVolumeClaim:
+            claimName: server-claim2
+        - name: server-claim3
+          persistentVolumeClaim:
+            claimName: server-claim3
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server-claim0
+  name: server-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server-claim1
+  name: server-claim1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server-claim2
+  name: server-claim2
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server-claim3
+  name: server-claim3
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: ui
+  name: ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: ui
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.network/nginx-proxy: "true"
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: ui
+    spec:
+      containers:
+        - args:
+            - /bin/sh
+            - -c
+            - /srv/app/scripts/ui.sh
+          env:
+            - name: LETSENCRYPT_EMAIL
+              value: "matthalloran8@gmail.com"
+            - name: LETSENCRYPT_HOST
+              value: "vrooli.com,www.vrooli.com,app.vrooli.com,www.app.vrooli.com"
+            - name: NODE_ENV
+              value: production
+            - name: PROJECT_DIR
+              value: /srv/app
+            - name: VIRTUAL_HOST
+              value: "vrooli.com,www.vrooli.com,app.vrooli.com,www.app.vrooli.com"
+            - name: VIRTUAL_PATH
+              value: /
+            - name: VIRTUAL_PORT
+              value: "3000"
+            - name: VITE_GOOGLE_ADSENSE_PUBLISHER_ID
+              value: "pub-7109871095821789"
+            - name: VITE_GOOGLE_TRACKING_ID
+              value: "G-6EB25MGZ6M"
+            - name: VITE_PORT_SERVER
+              value: "5329"
+            - name: VITE_SERVER_LOCATION
+              value: dns
+            - name: VITE_SERVER_URL
+              value: "https://vrooli.com/api"
+            - name: VITE_SITE_IP
+              value: "165.227.84.109"
+            - name: VITE_STRIPE_PUBLISHABLE_KEY
+              value: "pk_test_51MrSzGJq1sLW02CVaoAItQ0pG7B3FOZMxVCSLq4oxXFCFdUqEkH19eYEBbUFQVTpnHS7dOjLBVsGJAExPPdDmDSx0060zdA6NE"
+            - name: VITE_VAPID_PUBLIC_KEY
+              value: "BGiJ6LG94dTdY_nWFlq2yKGy7FgwtpgzVLCymhVXKlOfrnPOiSsXKXbKJm6bhXolXNnv0kvC6DzmCwUIRyXzG2M"
+          image: matthalloran8/vrooli_ui:prod-1.9.7
+          name: ui
+          ports:
+            - containerPort: 3000
+          resources: {}
+          volumeMounts:
+            - mountPath: /srv/app/packages/ui/dist
+              name: ui-dist-claim
+      restartPolicy: Always
+      volumes:
+        - name: ui-dist-claim
+          persistentVolumeClaim:
+            claimName: ui-dist-claim
+status: {}

@@ -159,7 +159,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                     <Grid container spacing={2} sx={{ padding: 1, ...linkColors(palette) }}>
                         <Grid item xs={12}>
                             <EditableText
-                                component='TextField'
+                                component="TextInput"
                                 isEditing={isEditing}
                                 name='name'
                                 props={{ label: t("Identifier"), fullWidth: true }}
@@ -167,12 +167,12 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                         </Grid>
                         <Grid item xs={12}>
                             <EditableText
-                                component='TranslatedTextField'
+                                component="TranslatedTextInput"
                                 isEditing={isEditing}
                                 name='description'
                                 props={{
+                                    isOptional: true,
                                     label: t("Description"),
-                                    placeholder: t("DescriptionOptional"),
                                     language,
                                     fullWidth: true,
                                 }}
@@ -183,7 +183,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 component='TranslatedMarkdown'
                                 isEditing={isEditing}
                                 name='helpText'
-                                props={{ placeholder: t("DetailsOptional"), language }}
+                                props={{ placeholder: t("Details"), language }}
                             />
                         </Grid>
                         {isInput && <Grid item xs={12}>

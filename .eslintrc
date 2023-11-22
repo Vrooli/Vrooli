@@ -21,8 +21,11 @@
         "sourceType": "module",
         "project": [
             "./packages/server/tsconfig.json",
+            "./packages/server/tsconfig.test.json",
             "./packages/shared/tsconfig.json",
-            "./packages/ui/tsconfig.json"
+            "./packages/shared/tsconfig.test.json",
+            "./packages/ui/tsconfig.json",
+            "./packages/ui/tsconfig.test.json"
         ]
     },
     "plugins": [

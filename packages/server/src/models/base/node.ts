@@ -1,25 +1,24 @@
 import { MaxObjects, nodeValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
-import { CustomError } from "../../events";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { CustomError } from "../../events/error";
 import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { RoutineVersionModel } from "./routineVersion";
-import { NodeModelLogic, RoutineVersionModelLogic } from "./types";
+import { NodeModelInfo, NodeModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
 
 const __typename = "Node" as const;
 const MAX_NODES_IN_ROUTINE = 100;
-const suppFields = [] as const;
-export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
+export const NodeModel: NodeModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.node,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
-    },
+    }),
     format: NodeFormat,
     mutate: {
         shape: {
@@ -43,39 +42,39 @@ export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
                 columnIndex: noNull(data.columnIndex),
                 nodeType: data.nodeType,
                 rowIndex: noNull(data.rowIndex),
-                ...(await shapeHelper({ relation: "end", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "NodeEnd", parentRelationshipName: "node", data, ...rest })),
-                ...(await shapeHelper({ relation: "loop", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "NodeLoop", parentRelationshipName: "node", data, ...rest })),
-                ...(await shapeHelper({ relation: "routineList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "NodeRoutineList", parentRelationshipName: "node", data, ...rest })),
-                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "RoutineVersion", parentRelationshipName: "nodes", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "end", relTypes: ["Create"], isOneToOne: true, objectType: "NodeEnd", parentRelationshipName: "node", data, ...rest })),
+                ...(await shapeHelper({ relation: "loop", relTypes: ["Create"], isOneToOne: true, objectType: "NodeLoop", parentRelationshipName: "node", data, ...rest })),
+                ...(await shapeHelper({ relation: "routineList", relTypes: ["Create"], isOneToOne: true, objectType: "NodeRoutineList", parentRelationshipName: "node", data, ...rest })),
+                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "nodes", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 id: data.id,
                 columnIndex: noNull(data.columnIndex),
                 nodeType: noNull(data.nodeType),
                 rowIndex: noNull(data.rowIndex),
-                ...(await shapeHelper({ relation: "end", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "NodeEnd", parentRelationshipName: "node", data, ...rest })),
-                ...(await shapeHelper({ relation: "loop", relTypes: ["Create", "Update", "Delete"], isOneToOne: true, isRequired: false, objectType: "NodeLoop", parentRelationshipName: "node", data, ...rest })),
-                ...(await shapeHelper({ relation: "routineList", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "NodeRoutineList", parentRelationshipName: "node", data, ...rest })),
-                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RoutineVersion", parentRelationshipName: "nodes", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "end", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "NodeEnd", parentRelationshipName: "node", data, ...rest })),
+                ...(await shapeHelper({ relation: "loop", relTypes: ["Create", "Update", "Delete"], isOneToOne: true, objectType: "NodeLoop", parentRelationshipName: "node", data, ...rest })),
+                ...(await shapeHelper({ relation: "routineList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "NodeRoutineList", parentRelationshipName: "node", data, ...rest })),
+                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "nodes", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         yup: nodeValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data?.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
-        isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeModelLogic["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().isDeleted(data.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
-            private: { routineVersion: RoutineVersionModel.validate.visibility.private },
-            public: { routineVersion: RoutineVersionModel.validate.visibility.public },
-            owner: (userId) => ({ routineVersion: RoutineVersionModel.validate.visibility.owner(userId) }),
+            private: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.private },
+            public: { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.public },
+            owner: (userId) => ({ routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

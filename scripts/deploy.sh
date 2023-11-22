@@ -9,11 +9,6 @@
 # 4. Runs setup.sh
 # 5. Moves build created by build.sh to the correct location.
 # 6. Restarts docker containers
-#
-# Arguments (all optional):
-# -v: Version number to use (e.g. "1.0.0")
-# -n: Nginx proxy location (e.g. "/root/NginxSSLReverseProxy")
-# -h: Show this help message
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 

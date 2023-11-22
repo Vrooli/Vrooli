@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { getLogic } from "../getters";
+import { ModelMap } from "../models/base";
 
 /**
  * Given permissions data and a list of fields and GraphQLModels which have validators, determines if one of the fields is public. 
@@ -15,9 +15,9 @@ export const oneIsPublic = <PrismaSelect extends { [x: string]: any }>(
     for (let i = 0; i < list.length; i++) {
         const [field, type] = list[i];
         // Get the validator for this type
-        const { idField, validate } = getLogic(["idField", "validate"], type, languages, "oneIsPublic");
+        const { idField, validate } = ModelMap.getLogic(["idField", "validate"], type);
         // Use validator to determine if this field is public
-        if (permissionsData[field] && validate.isPublic(permissionsData[field] ?? getParentInfo(permissionsData.id ?? permissionsData[idField], type), getParentInfo, languages)) {
+        if (permissionsData[field] && validate().isPublic(permissionsData[field] ?? getParentInfo(permissionsData.id ?? permissionsData[idField], type), getParentInfo, languages)) {
             return true;
         }
     }

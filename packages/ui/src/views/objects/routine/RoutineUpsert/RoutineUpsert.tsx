@@ -1,13 +1,13 @@
-import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, Node, NodeLink, orDefault, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, Node, NodeLink, noopSubmit, orDefault, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -15,30 +15,30 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
-import { RoutineFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { CompleteIcon, RoutineIcon } from "icons";
-import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
+import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { RoutineShape } from "utils/shape/models/routine";
 import { RoutineVersionShape, shapeRoutineVersion } from "utils/shape/models/routineVersion";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
+import { validateFormValues } from "utils/validateFormValues";
 import { BuildView } from "views/BuildView/BuildView";
-import { RoutineUpsertProps } from "../types";
+import { RoutineFormProps, RoutineUpsertProps } from "../types";
 
 export const routineInitialValues = (
     session: Session | undefined,
@@ -68,6 +68,10 @@ export const routineInitialValues = (
     resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
+        listFor: {
+            __typename: "RoutineVersion" as const,
+            id: DUMMY_ID,
+        },
     }),
     translations: orDefault(existing?.translations, [{
         __typename: "RoutineVersionTranslation" as const,
@@ -79,31 +83,29 @@ export const routineInitialValues = (
     }]),
 });
 
-const transformRoutineValues = (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) =>
+const transformRoutineVersionValues = (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) =>
     isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
-
-const validateRoutineValues = async (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) => {
-    const transformedValues = transformRoutineValues(values, existing, isCreate);
-    const validationSchema = routineVersionValidation[isCreate ? "create" : "update"]({});
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
 
 const helpTextSubroutines = "A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.";
 
-const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
-    display,
+const RoutineForm = ({
+    disabled,
     dirty,
+    display,
+    existing,
+    handleUpdate,
     isCreate,
-    isLoading,
     isOpen,
+    isReadLoading,
     isSubroutine,
     onCancel,
+    onClose,
+    onCompleted,
+    onDeleted,
     values,
     versions,
     ...props
-}, ref) => {
+}: RoutineFormProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -118,7 +120,7 @@ const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "instructions", "name"],
-        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     const [idField] = useField<string>("id");
@@ -152,7 +154,7 @@ const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
         // If setting from true to false, check if any nodes or nodeLinks have been added. 
         // If so, prompt the user to confirm (these will be lost).
         if (isMultiStep === false && (nodesField.value.length > 0 || nodeLinksField.value.length > 0)) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "SubroutineGraphDeleteConfirm",
                 buttons: [{
                     labelKey: "Yes",
@@ -165,7 +167,7 @@ const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
         // If settings from false to true, check if any inputs or outputs have been added.
         // If so, prompt the user to confirm (these will be lost).
         else if (isMultiStep === true && (inputsField.value.length > 0 || outputsField.value.length > 0)) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "RoutineInputsDeleteConfirm",
                 buttons: [{
                     labelKey: "Yes",
@@ -181,14 +183,53 @@ const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
         }
     }, [nodesField.value.length, nodeLinksField.value.length, inputsField.value.length, outputsField.value.length, handleGraphClose, handleGraphOpen]);
 
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<RoutineVersion>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "RoutineVersion",
+        ...props,
+    });
+    const {
+        fetch,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertFetch<RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput>({
+        isCreate,
+        isMutate: true,
+        endpointCreate: endpointPostRoutineVersion,
+        endpointUpdate: endpointPutRoutineVersion,
+    });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useSubmitHelper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformRoutineVersionValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
+
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="routine-upsert-dialog"
+            isOpen={isOpen}
+            onClose={onClose}
+        >
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t(isCreate ? "CreateRoutine" : "UpdateRoutine")}
+            />
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
-                ref={ref}
             >
                 <FormContainer>
                     <RelationshipList
@@ -207,7 +248,7 @@ const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
                             handleCurrent={setLanguage}
                             languages={languages}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Name")}
                             language={language}
@@ -284,8 +325,8 @@ const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
                         {
                             isMultiStep === true && (
                                 <>
-                                    {/* Dialog for building routine graph */}
                                     <BuildView
+                                        display="dialog"
                                         handleCancel={handleGraphClose}
                                         onClose={handleGraphClose}
                                         handleSubmit={handleGraphSubmit}
@@ -350,95 +391,54 @@ const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
             <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                hideButtons={disabled}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
+                loading={isLoading}
+                onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
+                onSubmit={onSubmit}
             />
-        </>
+        </MaybeLargeDialog>
     );
-});
+};
 
 export const RoutineUpsert = ({
     isCreate,
     isOpen,
     isSubroutine = false,
-    onCancel,
-    onCompleted,
     overrideObject,
+    ...props
 }: RoutineUpsertProps) => {
-    const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
         ...endpointGetRoutineVersion,
+        isCreate,
         objectType: "RoutineVersion",
         overrideObject,
         transform: (existing) => routineInitialValues(session, existing),
     });
-
-    const {
-        fetch,
-        handleCancel,
-        handleCompleted,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertActions<RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput>({
-        display,
-        endpointCreate: endpointPostRoutineVersion,
-        endpointUpdate: endpointPutRoutineVersion,
-        isCreate,
-        onCancel,
-        onCompleted,
-    });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="routine-upsert-dialog"
-            isOpen={isOpen}
-            onClose={handleClose}
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformRoutineVersionValues, routineVersionValidation)}
         >
-            <TopBar
-                display={display}
-                onClose={handleClose}
-                title={t(isCreate ? "CreateRoutine" : "UpdateRoutine")}
-            />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    console.log("ROUTINE VALUES", values);
-                    console.log("ROUTINE TRANSFORMED", transformRoutineValues(values, existing, isCreate));
-                    fetchLazyWrapper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
-                        fetch,
-                        inputs: transformRoutineValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateRoutineValues(values, existing, isCreate)}
-            >
-                {(formik) => <RoutineForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    isSubroutine={isSubroutine}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    versions={(existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? []}
-                    {...formik}
-                />}
-            </Formik>
-        </MaybeLargeDialog>
+            {(formik) => <RoutineForm
+                disabled={!(isCreate || canUpdate)}
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                isSubroutine={isSubroutine}
+                versions={(existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? []}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

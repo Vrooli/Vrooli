@@ -22,10 +22,6 @@ COPY --chown=node:node packages/ui/public packages/ui/public
 # Copy required script files
 COPY --chown=node:node scripts/* scripts/
 
-# Copy RSA public and private key files
-COPY --chown=node:node jwt_pub.pem ./
-COPY --chown=node:node jwt_priv.pem ./
-
 # Assign working directory to node
 RUN chown -R node:node .
 

@@ -1,27 +1,40 @@
 #!/bin/bash
 # Sets up NPM, Yarn, global dependencies, and anything else
 # required to get the project up and running.
-#
-# Arguments (all optional):
-# -m: Force install modules (y/N) - If set to "y", will delete all node_modules directories and reinstall
-# -r: Run on remote server (y/N) - If set to "y", will run additional commands to set up the remote server
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
-# Read arguments
+# Default values
 REINSTALL_MODULES=""
 ON_REMOTE=""
 ENVIRONMENT="dev"
 ENV_FILES_SET_UP=""
+USE_KUBERNETES=false
+
+# Read arguments
 for arg in "$@"; do
     case $arg in
-    -m | --modules-reinstall)
-        REINSTALL_MODULES="${2}"
+    -h | --help)
+        echo "Usage: $0 [-h HELP] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE]"
+        echo "  -h --help: Show this help message"
+        echo "  -e --env-setup: (Y/n) True if you want to create secret files for the environment variables. If not provided, will prompt."
+        echo "  -k --kubernetes: If set, will use Kubernetes instead of Docker Compose"
+        echo "  -m --modules-reinstall: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
+        echo "  -p --prod: If set, will skip steps that are only required for development"
+        echo "  -r --remote: (Y/n) True if this script is being run on a remote server"
+        exit 0
+        ;;
+    -e | --env-setup)
+        ENV_FILES_SET_UP="${2}"
         shift
         shift
         ;;
-    -r | --remote)
-        ON_REMOTE="${2}"
+    -k | --kubernetes)
+        USE_KUBERNETES=true
+        shift
+        ;;
+    -m | --modules-reinstall)
+        REINSTALL_MODULES="${2}"
         shift
         shift
         ;;
@@ -29,19 +42,10 @@ for arg in "$@"; do
         ENVIRONMENT="prod"
         shift
         ;;
-    -e | --env-setup)
-        ENV_FILES_SET_UP="${2}"
+    -r | --remote)
+        ON_REMOTE="${2}"
         shift
         shift
-        ;;
-    -h | --help)
-        echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE] [-p PROD] [-e ENV_SETUP]"
-        echo "  -h --help: Show this help message"
-        echo "  -m --modules-reinstall: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
-        echo "  -r --remote: (Y/n) True if this script is being run on the remote server"
-        echo "  -p --prod: If set, will skip steps that are only required for development"
-        echo "  -e --env-setup: (Y/n) True if you want to create secret files for the environment variables. If not provided, will prompt."
-        exit 0
         ;;
     esac
 done
@@ -54,9 +58,9 @@ RUNLEVEL=1 sudo apt-get -y upgrade
 header "Setting script permissions"
 chmod +x "${HERE}/"*.sh
 
-# If this script is being run on the remote server, enable PasswordAuthentication
+# If this script is being run on a remote server, enable PasswordAuthentication
 if [ -z "${ON_REMOTE}" ]; then
-    prompt "Is this script being run on the remote server? (Y/n)"
+    prompt "Is this script being run on a remote server? (Y/n)"
     read -n1 -r ON_REMOTE
     echo
 fi
@@ -87,7 +91,7 @@ if [ "${ON_REMOTE}" = "y" ] || [ "${ON_REMOTE}" = "Y" ] || [ "${ON_REMOTE}" = "y
     fi
 else
     # Otherwise, make sure mailx is installed. This may be used by some scripts which
-    # track errors on the remote server and notify the developer via email.
+    # track errors on a remote server and notify the developer via email.
     header "Installing mailx"
     # TODO - Not working for some reason
     # info "Select option 2 (Internet Site) then enter \"http://mirrors.kernel.org/ubuntu\" when prompted."
@@ -116,6 +120,92 @@ nvm alias default v16.16.0
 header "Installing Yarn"
 npm install -g yarn
 
+header "Installing jq for JSON parsing"
+sudo apt-get install -y jq
+
+# If using Kubernetes, install relevant tools
+if $USE_KUBERNETES; then
+    # Check if Kubernetes is installed
+    if ! [ -x "$(command -v kubectl)" ]; then
+        info "Kubernetes not found. Installing Kubernetes..."
+
+        # Install Kubernetes
+        curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x ./kubectl
+        sudo mv ./kubectl /usr/local/bin/kubectl
+
+        if ! [ -x "$(command -v kubectl)" ]; then
+            error "Failed to install Kubernetes"
+            exit 1
+        else
+            success "Kubernetes installed successfully"
+        fi
+    else
+        success "Kubernetes is already installed"
+    fi
+
+    # Check if Helm is installed (used to manage Kubernetes charts)
+    if ! [ -x "$(command -v helm)" ]; then
+        info "Helm not found. Installing Helm..."
+
+        # Install Helm
+        curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+        chmod 700 get_helm.sh
+        trap 'rm -f get_helm.sh' EXIT
+        ./get_helm.sh
+
+        if ! [ -x "$(command -v helm)" ]; then
+            error "Failed to install Helm"
+            exit 1
+        else
+            success "Helm installed successfully"
+        fi
+    else
+        success "Helm is already installed"
+    fi
+
+    # If in a development environment, install Minikube for running Kubernetes locally
+    if [ "${ENVIRONMENT}" = "dev" ]; then
+        if ! [ -x "$(command -v minikube)" ]; then
+            info "Minikube not found. Installing Minikube..."
+
+            # Install Minikube
+            curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+            sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+            if ! [ -x "$(command -v minikube)" ]; then
+                error "Failed to install Minikube"
+                exit 1
+            else
+                success "Minikube installed successfully"
+            fi
+
+            # Rename Minikube context to dev-cluster
+            kubectl config rename-context minikube vrooli-dev-cluster
+            # Set dev-cluster as the current context
+            kubectl config use-context vrooli-dev-cluster
+
+        else
+            success "Minikube is already installed"
+        fi
+    else
+        echo "TODO"
+        # TODO set up production Kubernetes cluster vrooli-prod-cluster. Might look something like this:
+        # # Set the cluster
+        # kubectl config set-cluster vrooli-prod-cluster --server=API_SERVER_ENDPOINT --certificate-authority=CA_DATA_PATH --embed-certs=true
+        # # Set the credentials
+        # kubectl config set-credentials prod-user --client-certificate=CLIENT_CERT_PATH --client-key=CLIENT_KEY_PATH --embed-certs=true
+        # # Or, for token-based authentication
+        # kubectl config set-credentials prod-user --token=YOUR_BEARER_TOKEN
+        # # Set the context
+        # kubectl config set-context vrooli-prod-cluster --cluster=vrooli-prod-cluster --user=prod-user
+        # # Switch to the new context
+        # kubectl config use-context vrooli-prod-cluster
+    fi
+fi
+
+# We still need Docker and Docker Compose for Kubernetes, mostly for local development.
+# May be able to skip some of this for production, but for now just install everything.
 if ! command -v docker &>/dev/null; then
     info "Docker is not installed. Installing Docker..."
     curl -fsSL https://get.docker.com -o get-docker.sh
@@ -128,6 +218,15 @@ if ! command -v docker &>/dev/null; then
     fi
 else
     info "Detected: $(docker --version)"
+fi
+
+# Try to start Docker (if already running, this should be a no-op)
+sudo service docker start
+
+# Verify Docker is running by attempting a command
+if ! docker version >/dev/null 2>&1; then
+    error "Failed to start Docker or Docker is not running. If you are in Windows Subsystem for Linux (WSL), please start Docker Desktop and try again."
+    exit 1
 fi
 
 if ! command -v docker-compose &>/dev/null; then
@@ -150,7 +249,7 @@ if [ $? -ne 0 ]; then
     true
 fi
 
-# Less needs to be done for production environments
+# Development-specific setup
 if [ "${ENVIRONMENT}" = "dev" ]; then
     header "Installing global dependencies"
     installedPackages=$(yarn global list)
@@ -193,12 +292,46 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
     cd "${HERE}/../packages/server" && prisma generate --schema ./src/db/schema.prisma
 
     "${HERE}/shared.sh"
+
+    # Install AWS CLI, for uploading to S3 bucket. This is used for Kubernetes deployments.
+    sudo apt-get install awscli
+
 else
+    # Less needs to be done for production environments
     info "Skipping global dependencies installation - production environment detected"
     info "Skipping local dependencies installation - production environment detected"
     info "Skipping type models generation - production environment detected"
     info "Skipping shared.sh - production environment detected"
 fi
+
+header "Setting up secrets vault"
+# Add HashiCorp's GPG key if it's not already added
+VAULT_KEYRING="/usr/share/keyrings/hashicorp-archive-keyring.gpg"
+if [ ! -f "$VAULT_KEYRING" ]; then
+    wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o "$VAULT_KEYRING"
+fi
+# Determine the distribution codename
+DISTRO_CODENAME=$(lsb_release -cs)
+if [ -z "$DISTRO_CODENAME" ]; then
+    echo "Error determining the distribution codename. Exiting."
+    exit 1
+fi
+# Add HashiCorp's APT repository if it's not already added
+VAULT_LIST="/etc/apt/sources.list.d/hashicorp.list"
+if [ ! -f "$VAULT_LIST" ]; then
+    echo "deb [signed-by=$VAULT_KEYRING] https://apt.releases.hashicorp.com $DISTRO_CODENAME main" | sudo tee "$VAULT_LIST"
+fi
+# Update APT and install Vault
+sudo apt update && sudo apt install -y vault
+# Setup vault based on environment
+FLAGS=""
+if [ "${ENVIRONMENT}" = "prod" ]; then
+    FLAGS="${FLAGS}-p "
+fi
+if $USE_KUBERNETES; then
+    FLAGS="${FLAGS}-k "
+fi
+"${HERE}/vaultSetup.sh" ${FLAGS}
 
 header "Generating JWT key pair for authentication"
 . "${HERE}/genJwt.sh"

@@ -1,5 +1,5 @@
 import { notificationSubscription_create, notificationSubscription_findMany, notificationSubscription_findOne, notificationSubscription_update } from "../generated";
-import { NotificationSubscriptionEndpoints } from "../logic";
+import { NotificationSubscriptionEndpoints } from "../logic/notificationSubscription";
 import { setupRoutes } from "./base";
 
 export const NotificationSubscriptionRest = setupRoutes({

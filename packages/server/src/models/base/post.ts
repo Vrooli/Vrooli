@@ -1,19 +1,18 @@
 import { MaxObjects, PostSortBy, postValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { PostFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { PostModelLogic } from "./types";
+import { OrganizationModelLogic, PostModelLogic } from "./types";
 
 const __typename = "Post" as const;
-const suppFields = [] as const;
-export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
+export const PostModel: PostModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.post,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -28,7 +27,7 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: PostFormat,
     mutate: {
         shape: {
@@ -42,17 +41,17 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
                 isPrivate: data.isPrivate,
                 organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
                 user: !data.organizationConnect ? { connect: { id: rest.userData.id } } : undefined,
-                ...(await shapeHelper({ relation: "repostedFrom", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Post", parentRelationshipName: "reposts", data, ...rest })),
-                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest })),
+                ...(await shapeHelper({ relation: "repostedFrom", relTypes: ["Connect"], isOneToOne: true, objectType: "Post", parentRelationshipName: "reposts", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Post", relation: "tags", data, ...rest })),
-                // ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                // ...(await translationShapeHelper({ relTypes: ["Create"],   embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPinned: noNull(data.isPinned),
                 isPrivate: noNull(data.isPrivate),
-                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Post", relation: "tags", data, ...rest })),
-                // ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                // ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"],   embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         trigger: {
@@ -92,7 +91,7 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted === true,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: false,
@@ -115,9 +114,9 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

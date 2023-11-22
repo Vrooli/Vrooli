@@ -42,21 +42,22 @@ export const ParticipantsButton = ({
         const hasMoreParticipants = (participantsField.value ?? []).length > maxUserIcons;
         if (hasMoreParticipants) maxUserIcons--;
         // Add the first X members
-        newIcons = (participantsField.value ?? []).slice(0, maxUserIcons).map((p: ChatParticipant) => (
-            <Avatar
+        newIcons = (participantsField.value ?? []).slice(0, maxUserIcons).map((p: ChatParticipant) => {
+            const colors = placeholderColor();
+            return <Avatar
                 src={extractImageUrl(p.user?.profileImage, p.user?.updated_at, 50)}
                 alt={`${getDisplay(p.user).title}'s profile picture`}
                 sx={{
-                    backgroundColor: placeholderColor()[0],
+                    backgroundColor: colors[0],
                     width: "24px",
                     height: "24px",
                     pointerEvents: "none",
                     ...(p.user?.isBot ? { borderRadius: "4px" } : {}),
                 }}
             >
-                {p.user?.isBot ? <BotIcon width="75%" height="75%" fill={palette.background.textPrimary} /> : <UserIcon width="75%" height="75%" fill={palette.background.textPrimary} />}
-            </Avatar>
-        ));
+                {p.user?.isBot ? <BotIcon width="75%" height="75%" fill={colors[1]} /> : <UserIcon width="75%" height="75%" fill={colors[1]} />}
+            </Avatar>;
+        });
         // Add the "+X" icon if there are more members than allowed
         if (hasMoreParticipants) {
             newIcons.push(
@@ -67,12 +68,12 @@ export const ParticipantsButton = ({
         }
         // Add the "Add" icon if editing
         if (isEditing) {
-            newIcons.push(<AddIcon key="add" width={24} height={24} fill={palette.background.textPrimary} />);
+            newIcons.push(<AddIcon key="add" width={24} height={24} fill={palette.primary.contrastText} />);
         }
         // Add null icons to fill the remaining space up to the max
         while (newIcons.length < maxIconsDisplayed) newIcons.push(null);
         return newIcons;
-    }, [isEditing, participantsField.value, palette.background.textPrimary]);
+    }, [isEditing, participantsField.value, palette.primary.contrastText]);
 
 
     if (!isAvailable || (!isEditing && (!Array.isArray(participantsField.value) || participantsField.value.length === 0))) return null;
@@ -81,6 +82,7 @@ export const ParticipantsButton = ({
         <>
             {/* Dialog for managing participants */}
             <ParticipantManageView
+                display="dialog"
                 isOpen={isDialogOpen}
                 onClose={closeDialog}
                 chat={formikContext.values as ParticipantManageViewProps["chat"]}
@@ -96,7 +98,7 @@ export const ParticipantsButton = ({
                         ...smallButtonProps(isEditing, true),
                         background: palette.primary.light,
                         borderRadius: "12px",
-                        color: "white",
+                        color: palette.primary.contrastText,
                         position: "relative",
                     }}
                     onClick={openDialog}

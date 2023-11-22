@@ -4,23 +4,23 @@ import { id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "
 const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(32768, maxStrErr);
 
 export const questionAnswerTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         text: req(text),
-    },
-    update: {
+    }),
+    update: () => ({
         text: opt(text),
-    },
+    }),
 });
 
 export const questionAnswerValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
     }, [
         ["translations", ["Create"], "many", "opt", questionAnswerTranslationValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
     }, [
         ["translations", ["Create", "Update", "Delete"], "many", "opt", questionAnswerTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

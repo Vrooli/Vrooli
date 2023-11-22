@@ -1,6 +1,6 @@
 import { RoutineVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsRoutineVersion, RoutineVersionEndpoints } from "../logic";
+import { EndpointsRoutineVersion, RoutineVersionEndpoints } from "../logic/routineVersion";
 
 export const typeDef = gql`
     enum RoutineVersionSortBy {

@@ -1,8 +1,11 @@
 import { ChatInvite } from "@local/shared";
-import { UpsertProps } from "../types";
-import { NewChatInviteShape } from "./ChatInviteUpsert/ChatInviteUpsert";
+import { FormProps } from "forms/types";
+import { ChatInviteShape } from "utils/shape/models/chatInvite";
+import { CrudPropsDialog } from "../types";
 
-export type ChatInviteUpsertProps = Omit<UpsertProps<ChatInvite>, "overrideObject"> & {
-    overrideObject?: NewChatInviteShape;
-}
-
+type ChatInvitesUpsertPropsDialog = Omit<CrudPropsDialog<ChatInvite[]>, "overrideObject"> & {
+    invites: ChatInviteShape[];
+    isMutate: boolean;
+};
+export type ChatInvitesUpsertProps = ChatInvitesUpsertPropsDialog; // Currently no page version
+export type ChatInvitesFormProps = FormProps<ChatInvite[], ChatInviteShape[]> & Pick<ChatInvitesUpsertPropsDialog, "isMutate">;

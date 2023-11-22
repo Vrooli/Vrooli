@@ -1,6 +1,6 @@
 import { UserSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsUser, UserEndpoints } from "../logic";
+import { EndpointsUser, UserEndpoints } from "../logic/user";
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -20,6 +20,7 @@ export const typeDef = gql`
         botSettings: String
         handle: String
         isBot: Boolean!
+        isBotDepictingPerson: Boolean!
         isPrivate: Boolean!
         isPrivateApis: Boolean!
         isPrivateApisCreated: Boolean!
@@ -143,6 +144,7 @@ export const typeDef = gql`
         bannerImage: Upload
         botSettings: String!
         handle: String
+        isBotDepictingPerson: Boolean!
         isPrivate: Boolean!
         name: String!
         profileImage: Upload
@@ -154,6 +156,7 @@ export const typeDef = gql`
         bannerImage: Upload
         botSettings: String
         handle: String
+        isBotDepictingPerson: Boolean
         isPrivate: Boolean
         name: String
         profileImage: Upload
@@ -220,8 +223,10 @@ export const typeDef = gql`
         memberInOrganizationId: ID
         minBookmarks: Int
         minViews: Int
+        notInChatId: ID
         ids: [ID!]
         isBot: Boolean
+        isBotDepictingPerson: Boolean
         sortBy: UserSortBy
         searchString: String
         createdTimeFrame: TimeFrame

@@ -1,8 +1,9 @@
-import { Grid, Slider, TextField, Typography } from "@mui/material";
+import { Grid, Slider, Typography } from "@mui/material";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { RichInput } from "components/inputs/RichInput/RichInput";
 import { Selector } from "components/inputs/Selector/Selector";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { Field, useFormikContext } from "formik";
 import { FieldDataText } from "forms/types";
 import { useTranslation } from "react-i18next";
@@ -25,7 +26,7 @@ const autoCompleteOptions = [
 ];
 
 /**
- * Input for entering (and viewing format of) TextField data that 
+ * Input for entering (and viewing format of) TextInput data that 
  * must match a certain schema.
  */
 export const TextStandardInput = ({
@@ -63,7 +64,7 @@ export const TextStandardInput = ({
                         disabled={!isEditing}
                         name="defaultValue"
                         label={t("DefaultValue")}
-                        as={TextField}
+                        as={TextInput}
                     />
                 }
             </Grid>

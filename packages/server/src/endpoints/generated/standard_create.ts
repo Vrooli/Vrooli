@@ -39,6 +39,7 @@ export const standard_create = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -70,8 +71,10 @@ export const standard_create = {
           "language": true,
           "description": true,
           "name": true
-        }
-      }
+        },
+        "__typename": "Resource"
+      },
+      "__typename": "ResourceList"
     },
     "translations": {
       "id": true,
@@ -135,6 +138,7 @@ export const standard_create = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -178,6 +182,7 @@ export const standard_create = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"

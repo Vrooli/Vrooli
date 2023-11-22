@@ -1,5 +1,5 @@
 import { ErrorKey } from "@local/shared";
-import { CustomError } from "../events";
+import { CustomError } from "../events/error";
 
 /**
  * Makes sure there are no more than k line breaks in the specified fields

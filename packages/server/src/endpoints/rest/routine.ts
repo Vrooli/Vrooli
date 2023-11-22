@@ -1,5 +1,5 @@
 import { routine_create, routine_findMany, routine_findOne, routine_update } from "../generated";
-import { RoutineEndpoints } from "../logic";
+import { RoutineEndpoints } from "../logic/routine";
 import { setupRoutes } from "./base";
 
 export const RoutineRest = setupRoutes({

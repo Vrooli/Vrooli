@@ -1,4 +1,4 @@
-import { exists } from "@local/shared";
+import { exists, noop } from "@local/shared";
 import { Avatar, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { RelationshipItemUser } from "components/lists/types";
@@ -55,8 +55,7 @@ export function UserButton({
     // FindObjectDialog
     const [findHandleAdd, findHandleClose] = useMemo<[(item: any) => unknown, () => unknown]>(() => {
         if (isDialogOpen) return [handleSelect, closeDialog];
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        return [() => { }, () => { }];
+        return [noop, noop];
     }, [isDialogOpen, handleSelect, closeDialog]);
 
     const tooltip = useMemo(() => {

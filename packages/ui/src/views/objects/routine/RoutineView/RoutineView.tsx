@@ -1,4 +1,4 @@
-import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
+import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
 import { Box, Button, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { RunButton } from "components/buttons/RunButton/RunButton";
@@ -29,11 +29,9 @@ import { useTranslation } from "react-i18next";
 import { parseSearchParams, setSearchParams, useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
-import { noopSubmit } from "utils/objects";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
 import { standardVersionToFieldData } from "utils/shape/general";
@@ -48,6 +46,7 @@ const statsHelpText =
     "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
 export const RoutineView = ({
+    display,
     isOpen,
     onClose,
 }: RoutineViewProps) => {
@@ -56,13 +55,12 @@ export const RoutineView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion>({
         ...endpointGetRoutineVersion,
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
-            if (!build || build !== true) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
+            if (!build || build !== true) PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
         },
         objectType: "RoutineVersion",
     });
@@ -138,7 +136,7 @@ export const RoutineView = ({
             return acc;
         }, {}),
         enableReinitialize: true,
-        onSubmit: () => { },
+        onSubmit: noopSubmit,
     });
 
     const [runComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
@@ -158,7 +156,7 @@ export const RoutineView = ({
                 buttonClicked: () => { openObject(data, setLocation); },
             }),
             onSuccess: (data) => {
-                PubSub.get().publishCelebration();
+                PubSub.get().publish("celebration");
             },
         });
     }, [formik.values, existing, runComplete, setLocation, name]);
@@ -171,9 +169,9 @@ export const RoutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+            PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         } else {
-            PubSub.get().publishSnack({ messageKey: "InputEmpty", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "InputEmpty", severity: "Error" });
         }
     }, [formik]);
 
@@ -216,13 +214,11 @@ export const RoutineView = ({
                     width: "min(100%, 700px)",
                     padding: 2,
                 }}>
-                    {/* Dialog for building routine */}
                     <BuildView
+                        display="dialog"
                         handleCancel={stopBuild}
                         onClose={stopBuild}
-                        // Intentionally blank, since this is a read-only view
-                        // eslint-disable-next-line @typescript-eslint/no-empty-function
-                        handleSubmit={() => { }}
+                        handleSubmit={noop}
                         isEditing={false}
                         isOpen={isBuildOpen}
                         loading={isLoading}
@@ -231,10 +227,8 @@ export const RoutineView = ({
                             language,
                             languages: availableLanguages,
                             setLanguage,
-                            // eslint-disable-next-line @typescript-eslint/no-empty-function
-                            handleAddLanguage: () => { },
-                            // eslint-disable-next-line @typescript-eslint/no-empty-function
-                            handleDeleteLanguage: () => { },
+                            handleAddLanguage: noop,
+                            handleDeleteLanguage: noop,
                         }}
                     />
                     {/* Relationships */}
@@ -353,7 +347,6 @@ export const RoutineView = ({
             <SideActionsButtons
                 // Treat as a dialog when build view is open
                 display={isBuildOpen ? "dialog" : display}
-                sx={{ position: "fixed" }}
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (

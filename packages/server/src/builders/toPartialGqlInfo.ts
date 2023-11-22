@@ -1,5 +1,5 @@
 import { GqlModelType, resolveGQLInfo } from "@local/shared";
-import { CustomError } from "../events";
+import { CustomError } from "../events/error";
 import { GqlRelMap, ModelLogicType } from "../models/types";
 import { injectTypenames } from "./injectTypenames";
 import { GraphQLInfo, PartialGraphQLInfo } from "./types";

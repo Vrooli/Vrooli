@@ -1,6 +1,8 @@
+import { OrArray } from "@local/shared";
 import * as yup from "yup";
+import { ObjectShape } from "yup/lib/object";
 import { id } from "../commonFields";
-import { YupModel } from "../types";
+import { YupModel, YupMutateParams } from "../types";
 import { opt } from "./opt";
 import { optArr } from "./optArr";
 import { req } from "./req";
@@ -8,31 +10,17 @@ import { reqArr } from "./reqArr";
 
 export type RelationshipType = "Connect" | "Create" | "Delete" | "Disconnect" | "Update";
 
-
-// Array if isOneToOne is false, otherwise single
-type MaybeArray<T extends "object" | "id", IsOneToOne extends "one" | "many"> =
-    T extends "object" ?
-    IsOneToOne extends "one" ? yup.ObjectSchema<any> : yup.ArraySchema<any> :
-    IsOneToOne extends "one" ? yup.StringSchema : yup.ArraySchema<any>;
-
-// Array if isOneToOne is false, otherwise boolean
-type MaybeArrayBoolean<IsOneToOne extends "one" | "many"> =
-    IsOneToOne extends "one" ? yup.BooleanSchema : yup.ArraySchema<any>;
-
-type RelOutput<
-    IsOneToOne extends "one" | "many",
-    RelTypes extends string,
-    FieldName extends string,
-> = (
-        ({ [x in `${FieldName}Connect`]: "Connect" extends RelTypes ? MaybeArray<"id", IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Create`]: "Create" extends RelTypes ? MaybeArray<"object", IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Delete`]: "Delete" extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Disconnect`]: "Disconnect" extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Update`]: "Update" extends RelTypes ? MaybeArray<"object", IsOneToOne> : never })
-    )
+type RelOutput<FieldName extends string> = (
+    ({ [x in `${FieldName}Connect`]?: OrArray<string> }) &
+    ({ [x in `${FieldName}Create`]?: OrArray<yup.ObjectSchema<ObjectShape>> }) &
+    ({ [x in `${FieldName}Delete`]?: number | boolean }) &
+    ({ [x in `${FieldName}Disconnect`]?: number | boolean }) &
+    ({ [x in `${FieldName}Update`]?: OrArray<yup.ObjectSchema<ObjectShape>> })
+)
 
 /**
  * Creates the validation fields for a relationship
+ * @param data Parameters for YupModel create and update
  * @param relation The name of the relationship field
  * @param relTypes The allowed operations on the relations (e.g. create, connect)
  * @param isRequired "opt" or "req" to mark the fields as optional or required. 
@@ -40,38 +28,31 @@ type RelOutput<
  * fields are marked as optional. If optional, all fields are marked as optional.
  * @param isOneToOne "one" if the relationship is one-to-one, and "many" otherwise. This makes the results a single object instead of an array
  * @param model The relationship's validation object
- * @parm omitFields An array of fields to omit from the validation object
+ * @param omitRels An array of fields to omit from the validation object. Replaces data.omitRels
  * @returns An object with the validation fields for the relationship
  */
 export const rel = <
-    IsOneToOne extends "one" | "many",
-    IsRequired extends "opt" | "req",
     RelTypes extends readonly RelationshipType[],
     FieldName extends string,
     // Model only required when RelTypes includes 'Create' or 'Update'
-    Model extends ("Create" extends RelTypes[number] ?
-        "Update" extends RelTypes[number] ?
-        YupModel<true, true> :
-        YupModel<true, false> :
-        "Update" extends RelTypes[number] ?
-        YupModel<false, true> :
-        never),
+    Model extends YupModel<boolean, boolean>,
     OmitField extends string,
 >(
+    data: YupMutateParams,
     relation: FieldName,
     relTypes: RelTypes,
-    isOneToOne: IsOneToOne,
-    isRequired: IsRequired,
-    // model only required if relTypes includes 'Create' or 'Update'
+    isOneToOne: "one" | "many",
+    isRequired: "opt" | "req",
+    // Model only required if relTypes includes 'Create' or 'Update'
     model?: Model,
-    omitFields?: OmitField | OmitField[],
-): RelOutput<IsOneToOne, RelTypes[number], FieldName> => {
+    omitRels?: OmitField | OmitField[],
+): RelOutput<FieldName> => {
     // Check if model is required
     if (relTypes.includes("Create") || relTypes.includes("Update")) {
         if (!model) throw new Error(`Model is required if relTypes includes "Create" or "Update": ${relation}`);
     }
     // Initialize result
-    const result: { [x: string]: any } = {};
+    const result: RelOutput<FieldName> = {};
     // Loop through relation types
     for (const t of relTypes) {
         // Determine if field is required. If both 'Connect' and 'Create' are allowed, both 
@@ -88,8 +69,8 @@ export const rel = <
         }
         else if (t === "Create") {
             result[`${relation}${t}`] = isOneToOne === "one" ?
-                required ? req((model as YupModel<true, true>).create({ o: omitFields })) : opt((model as YupModel<true, true>).create({ o: omitFields })) :
-                required ? reqArr((model as YupModel<true, true>).create({ o: omitFields })) : optArr((model as YupModel<true, true>).create({ o: omitFields }));
+                required ? req((model as YupModel<true, true>).create({ ...data, omitRels })) : opt((model as YupModel<true, true>).create({ ...data, omitRels })) :
+                required ? reqArr((model as YupModel<true, true>).create({ ...data, omitRels })) : optArr((model as YupModel<true, true>).create({ ...data, omitRels }));
         }
         else if (t === "Delete") {
             result[`${relation}${t}`] = isOneToOne === "one" ? opt(yup.bool()) : optArr(id);
@@ -98,9 +79,8 @@ export const rel = <
             result[`${relation}${t}`] = isOneToOne === "one" ? opt(yup.bool()) : optArr(id);
         }
         else if (t === "Update") {
-            result[`${relation}${t}`] = isOneToOne === "one" ? opt((model as YupModel<true, true>).update({ o: omitFields })) : optArr((model as YupModel<true, true>).update({ o: omitFields }));
+            result[`${relation}${t}`] = isOneToOne === "one" ? opt((model as YupModel<true, true>).update({ ...data, omitRels })) : optArr((model as YupModel<true, true>).update({ ...data, omitRels }));
         }
     }
-    // Return result
-    return result as any;
+    return result;
 };

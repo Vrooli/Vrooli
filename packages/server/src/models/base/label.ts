@@ -1,24 +1,24 @@
 import { LabelSortBy, labelValidation, MaxObjects } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { LabelFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { LabelModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { LabelModelInfo, LabelModelLogic, OrganizationModelLogic } from "./types";
 
 const __typename = "Label" as const;
-const suppFields = ["you"] as const;
-export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
+export const LabelModel: LabelModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.label,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, label: true }),
             get: (select) => select.label,
         },
-    },
+    }),
     format: LabelFormat,
     mutate: {
         shape: {
@@ -28,23 +28,23 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
                 color: noNull(data.color),
                 ownedByOrganization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
                 ownedByUser: !data.organizationConnect ? { connect: { id: rest.userData.id } } : undefined,
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 id: data.id,
                 label: noNull(data.label),
                 color: noNull(data.color),
-                ...(await shapeHelper({ relation: "apis", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Api", parentRelationshipName: "label", data, ...rest })),
-                ...(await shapeHelper({ relation: "focusModes", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "FocusMode", parentRelationshipName: "label", data, ...rest })),
-                ...(await shapeHelper({ relation: "issues", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Issue", parentRelationshipName: "label", data, ...rest })),
-                ...(await shapeHelper({ relation: "meetings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Meeting", parentRelationshipName: "label", data, ...rest })),
-                ...(await shapeHelper({ relation: "notes", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Note", parentRelationshipName: "label", data, ...rest })),
-                ...(await shapeHelper({ relation: "projects", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Project", parentRelationshipName: "label", data, ...rest })),
-                ...(await shapeHelper({ relation: "routines", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Routine", parentRelationshipName: "label", data, ...rest })),
-                ...(await shapeHelper({ relation: "schedules", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Schedule", parentRelationshipName: "label", data, ...rest })),
-                ...(await shapeHelper({ relation: "smartContracts", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "SmartContract", parentRelationshipName: "label", data, ...rest })),
-                ...(await shapeHelper({ relation: "standards", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Standard", parentRelationshipName: "label", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "apis", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Api", parentRelationshipName: "label", data, ...rest })),
+                ...(await shapeHelper({ relation: "focusModes", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "label", data, ...rest })),
+                ...(await shapeHelper({ relation: "issues", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Issue", parentRelationshipName: "label", data, ...rest })),
+                ...(await shapeHelper({ relation: "meetings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Meeting", parentRelationshipName: "label", data, ...rest })),
+                ...(await shapeHelper({ relation: "notes", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Note", parentRelationshipName: "label", data, ...rest })),
+                ...(await shapeHelper({ relation: "projects", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Project", parentRelationshipName: "label", data, ...rest })),
+                ...(await shapeHelper({ relation: "routines", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Routine", parentRelationshipName: "label", data, ...rest })),
+                ...(await shapeHelper({ relation: "schedules", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Schedule", parentRelationshipName: "label", data, ...rest })),
+                ...(await shapeHelper({ relation: "smartContracts", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "SmartContract", parentRelationshipName: "label", data, ...rest })),
+                ...(await shapeHelper({ relation: "standards", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Standard", parentRelationshipName: "label", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         yup: labelValidation,
@@ -59,14 +59,9 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
             translationLanguages: true,
             updatedTimeFrame: true,
         },
-        searchStringQuery: () => ({
-            OR: [
-                "labelWrapped",
-                "transDescriptionWrapped",
-            ],
-        }),
+        searchStringQuery: () => ({ OR: ["labelWrapped", "transDescriptionWrapped"] }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -76,7 +71,7 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -90,7 +85,7 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<LabelModelLogic["PrismaSelect"]>([
+        isPublic: (...rest) => oneIsPublic<LabelModelInfo["PrismaSelect"]>([
             ["ownedByOrganization", "Organization"],
             ["ownedByUser", "User"],
         ], ...rest),
@@ -100,9 +95,9 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

@@ -1,15 +1,18 @@
 #!/bin/bash
 # Adds production docker images to the Docker Hub registry
-# TODO NOTE: DO NOT RUN THIS YET. We need to implement a secret manager to store sensitive environment variables
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 . "${HERE}/../.env"
 
+# Exit if any command fails
+set -e
+
 # Default values for command line options
 BUILD="y"
+ENVIRONMENT="prod"
 
 # Read arguments
-while getopts "b:hv:" opt; do
+while getopts "b:e:hv:" opt; do
     case $opt in
     b)
         BUILD=$OPTARG
@@ -70,14 +73,14 @@ fi
 
 # Tag the Docker images
 info "Tagging Docker images"
-docker tag ui:prod $DOCKER_USERNAME/vrooli_ui:$VERSION
-docker tag server:prod $DOCKER_USERNAME/vrooli_server:$VERSION
-docker tag docs:prod $DOCKER_USERNAME/vrooli_docs:$VERSION
+docker tag ui:prod $DOCKER_USERNAME/vrooli_ui:${ENVIRONMENT}-${VERSION}
+docker tag server:prod $DOCKER_USERNAME/vrooli_server:${ENVIRONMENT}-${VERSION}
+docker tag docs:prod $DOCKER_USERNAME/vrooli_docs:${ENVIRONMENT}-${VERSION}
 
 # Push the Docker images to Docker Hub
 info "Pushing Docker images to Docker Hub"
-docker push $DOCKER_USERNAME/vrooli_ui:$VERSION
-docker push $DOCKER_USERNAME/vrooli_server:$VERSION
-docker push $DOCKER_USERNAME/vrooli_docs:$VERSION
+docker push $DOCKER_USERNAME/vrooli_ui:${ENVIRONMENT}-${VERSION}
+docker push $DOCKER_USERNAME/vrooli_server:${ENVIRONMENT}-${VERSION}
+docker push $DOCKER_USERNAME/vrooli_docs:${ENVIRONMENT}-${VERSION}
 
 success "Docker images pushed successfully"

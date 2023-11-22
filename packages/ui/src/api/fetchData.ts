@@ -2,7 +2,7 @@ import { Method, ServerResponse } from "api";
 import { stringifySearchParams } from "route";
 
 // Determine origin of API server
-const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.0.");
+const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.0.") || window.location.host.includes("127.0.0.1");
 const serverUrlProvided: boolean = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0;
 const portServer: string = import.meta.env.VITE_PORT_SERVER ?? "5329";
 export const urlBase: string = isLocalhost ?

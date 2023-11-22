@@ -7,7 +7,7 @@ import { ListContainer } from "components/containers/ListContainer/ListContainer
 import { SiteSearchBar } from "components/inputs/search";
 import { useFindMany } from "hooks/useFindMany";
 import { PlusIcon } from "icons";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ArgsType, NavigableObject } from "types";
@@ -16,22 +16,25 @@ import { openObject } from "utils/navigation/openObject";
 import { ObjectList } from "../ObjectList/ObjectList";
 import { ObjectListActions, SearchListProps } from "../types";
 
-export function SearchList<DataType extends NavigableObject>({
+export function SearchList<DataType extends ListObject>({
     canNavigate = () => true,
     canSearch,
     display,
     dummyLength = 5,
     handleAdd,
+    handleToggleSelect,
     hideUpdateButton,
     id,
+    isSelecting,
     searchPlaceholder,
     take = 20,
     resolve,
     searchType,
+    selectedItems,
     sxs,
     onItemClick,
     where,
-}: SearchListProps) {
+}: SearchListProps<DataType>) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -54,11 +57,17 @@ export function SearchList<DataType extends NavigableObject>({
         updateItem,
     } = useFindMany<DataType>({
         canSearch,
+        controlsUrl: display === "page", // Only update URL if this component is used for a page
         resolve,
         searchType,
         take,
         where,
     });
+    // Selected items which don't appear in allData (e.g. when searching)
+    const selectedItemsNotInSearch = useMemo(() => {
+        if (!selectedItems) return [];
+        return selectedItems.filter(item => !allData.some(d => d.id === item.id));
+    }, [allData, selectedItems]);
 
     const onAction = useCallback((action: keyof ObjectListActions<DataType>, ...data: unknown[]) => {
         switch (action) {
@@ -106,7 +115,6 @@ export function SearchList<DataType extends NavigableObject>({
         } else {
             return;
         }
-        console.log("handlescroll should load more?", scrolledY, scrollableHeight - 500);
         if (!loading && scrolledY > scrollableHeight - 500) {
             loadMore();
         }
@@ -135,6 +143,11 @@ export function SearchList<DataType extends NavigableObject>({
         // Determine object from selected label
         const selectedItem = allData.find(o => (o as any)?.id === newValue?.id);
         if (!selectedItem) return;
+        // If in selection mode, toggle selection instead of navigating
+        if (isSelecting) {
+            typeof handleToggleSelect === "function" && handleToggleSelect(selectedItem);
+            return;
+        }
         // If onItemClick is supplied, call it instead of navigating
         if (typeof onItemClick === "function") {
             onItemClick(selectedItem);
@@ -146,8 +159,8 @@ export function SearchList<DataType extends NavigableObject>({
             if (shouldContinue === false) return;
         }
         // Navigate to the object's page
-        openObject(selectedItem, setLocation);
-    }, [allData, canNavigate, onItemClick, setLocation]);
+        openObject(selectedItem as NavigableObject, setLocation);
+    }, [allData, canNavigate, handleToggleSelect, isSelecting, onItemClick, setLocation]);
 
     return (
         <>
@@ -174,6 +187,7 @@ export function SearchList<DataType extends NavigableObject>({
             <SearchButtons
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
+                controlsUrl={display === "page"}
                 searchType={searchType}
                 setAdvancedSearchParams={setAdvancedSearchParams}
                 setSortBy={setSortBy}
@@ -189,18 +203,21 @@ export function SearchList<DataType extends NavigableObject>({
             <ListContainer
                 ref={containerRef}
                 emptyText={t("NoResults", { ns: "error" })}
-                isEmpty={allData.length === 0 && !loading}
+                isEmpty={allData.length === 0 && selectedItemsNotInSearch.length === 0 && !loading}
                 sx={{ ...sxs?.listContainer }}
             >
                 <ObjectList
                     canNavigate={canNavigate}
                     dummyItems={new Array(dummyLength).fill(searchType)}
+                    handleToggleSelect={handleToggleSelect}
                     hideUpdateButton={hideUpdateButton}
-                    items={allData as ListObject[]}
+                    isSelecting={isSelecting}
+                    items={[...selectedItemsNotInSearch, ...allData] as ListObject[]}
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
                     onAction={onAction}
                     onClick={onItemClick}
+                    selectedItems={selectedItems}
                 />
             </ListContainer>
             {/* Add new button */}

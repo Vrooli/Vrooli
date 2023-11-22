@@ -1,25 +1,21 @@
 import { MaxObjects, NoteSortBy, noteValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { NoteFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { NoteVersionModel } from "./noteVersion";
-import { OrganizationModel } from "./organization";
-import { ReactionModel } from "./reaction";
-import { NoteModelLogic } from "./types";
-import { ViewModel } from "./view";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, NoteModelLogic, NoteVersionModelLogic, OrganizationModelLogic, ReactionModelLogic, ViewModelLogic } from "./types";
 
 const __typename = "Note" as const;
-const suppFields = ["you"] as const;
-export const NoteModel: ModelLogic<NoteModelLogic, typeof suppFields> = ({
+export const NoteModel: NoteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.note,
-    display: rootObjectDisplay(NoteVersionModel),
+    display: () => rootObjectDisplay(ModelMap.get<NoteVersionModelLogic>("NoteVersion")),
     format: NoteFormat,
     mutate: {
         shape: {
@@ -34,8 +30,8 @@ export const NoteModel: ModelLogic<NoteModelLogic, typeof suppFields> = ({
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
                 ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "NoteVersion", parentRelationshipName: "forks", data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "NoteVersion", parentRelationshipName: "forks", data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", relation: "tags", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", relation: "labels", data, ...rest })),
             }),
@@ -44,7 +40,7 @@ export const NoteModel: ModelLogic<NoteModelLogic, typeof suppFields> = ({
                 permissions: noNull(data.permissions),
                 ...rest.preMap[__typename].versionMap[data.id],
                 ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", relation: "tags", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", relation: "labels", data, ...rest })),
             }),
@@ -82,20 +78,20 @@ export const NoteModel: ModelLogic<NoteModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
         },
     },
-    validate: {
+    validate: () => ({
         hasCompleteVersion: () => true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted === true,
@@ -123,9 +119,9 @@ export const NoteModel: ModelLogic<NoteModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

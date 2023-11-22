@@ -8,7 +8,7 @@ import { scheduleExceptionValidation } from "./scheduleException";
 import { scheduleRecurrenceValidation } from "./scheduleRecurrence";
 
 export const scheduleValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         startTime: opt(startTime),
         endTime: opt(endTime),
@@ -21,8 +21,8 @@ export const scheduleValidation: YupModel = {
         ["recurrences", ["Create"], "many", "opt", scheduleRecurrenceValidation],
         ["runProject", ["Connect"], "one", "opt", runProjectValidation],
         ["runRoutine", ["Connect"], "one", "opt", runRoutineValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         startTime: opt(startTime),
         endTime: opt(endTime),
@@ -31,5 +31,5 @@ export const scheduleValidation: YupModel = {
         ["exceptions", ["Create", "Update", "Delete"], "many", "opt", scheduleExceptionValidation],
         ["labels", ["Create", "Connect", "Disconnect"], "many", "opt", labelValidation],
         ["recurrences", ["Create", "Update", "Delete"], "many", "opt", scheduleRecurrenceValidation],
-    ], [], o),
+    ], [], d),
 };

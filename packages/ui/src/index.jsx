@@ -32,7 +32,7 @@ if (import.meta.env.PROD) {
         navigator.serviceWorker.ready.then((registration) => {
             // Add listener to detect new updates, so we can show a message to the user
             registration.addEventListener("updatefound", () => {
-                PubSub.get().publishSnack({ message: "Downloading new updates...", autoHideDuration: "persist" });
+                PubSub.get().publish("snack", { message: "Downloading updates...", autoHideDuration: "persist" });
             });
             // Send message to service worker to let it know if this is a standalone (i.e. downloaded) PWA. 
             // Standalone PWAs come with more assets, like splash screens.

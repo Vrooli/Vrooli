@@ -723,10 +723,11 @@ export const handleTranslationChange = (
 export const getFormikErrorsWithTranslations = (
     field: FieldInputProps<any>,
     meta: FieldMetaProps<any>,
-    validationSchema: ObjectSchema<any>,
+    validationSchema: ObjectSchema<any> | undefined,
 ): { [key: string]: string | string[] } => {
     // Initialize errors object
     const errors: { [key: string]: string | string[] } = {};
+    if (!validationSchema) return errors;
     // Find translation errors. Since the given errors don't have the language subtag, we need to loop through all languages
     // and manually validate each field
     for (const translation of field.value as any) {

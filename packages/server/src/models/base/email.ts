@@ -1,21 +1,20 @@
 import { emailValidation, MaxObjects } from "@local/shared";
-import { CustomError, Trigger } from "../../events";
+import { CustomError } from "../../events/error";
+import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
 import { EmailFormat } from "../formats";
-import { ModelLogic } from "../types";
 import { EmailModelLogic } from "./types";
 
 const __typename = "Email" as const;
-const suppFields = [] as const;
-export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
+export const EmailModel: EmailModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.email,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, emailAddress: true }),
             get: (select) => select.emailAddress,
         },
-    },
+    }),
     format: EmailFormat,
     mutate: {
         shape: {
@@ -64,7 +63,7 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
         yup: emailValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -83,5 +82,5 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
             public: {},
             owner: (userId) => ({ user: { id: userId } }),
         },
-    },
+    }),
 });

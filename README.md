@@ -6,7 +6,7 @@
 &nbsp;&nbsp;
 
 [![Website](https://img.shields.io/website?label=vrooli.com&style=for-the-badge&url=https%3A%2F%2Fvrooli.com)][website]
-[![Twitter Follow](https://img.shields.io/twitter/follow/VrooliOfficial?color=1DA1F2&logo=twitter&style=for-the-badge)][twitter]
+[![X/Twitter Follow](https://img.shields.io/twitter/follow/VrooliOfficial?color=1DA1F2&logo=twitter&style=for-the-badge)][x]
 [![Discord](https://img.shields.io/discord/880439923876974643?&style=for-the-badge)][discord]
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 
@@ -32,7 +32,7 @@ Vrooli keeps you organized and focused on your personal and professional goals. 
 - [Motivations and goals](https://www.youtube.com/watch?v=hBHaPYi5esQ)
 - [White paper (plus long-term vision for Vrooli and the future of society)](https://docs.google.com/document/d/13Nag4UFxfuz-rVofhNEtqhZ63wOklzPjpbanGv_Po0Y/edit?usp=sharing)
 - [Join the discussion on Discord!](https://discord.com/invite/VyrDFzbmmF)
-- [Follow us on Twitter!](https://twitter.com/VrooliOfficial)
+- [Follow us on X/Twitter!](https://x.com/VrooliOfficial)
 
 ## 🙌 Progress
  - Q1 2022 
@@ -139,6 +139,6 @@ If you'd like to work with me on this project, or want to contact me for another
 [setup-guide]: https://github.com/MattHalloran/ReactGraphQLTemplate#how-to-start
 [directory-structure]: https://docs.vrooli.com/setup/design/database/
 [discord]: https://discord.com/invite/VyrDFzbmmF
-[twitter]: https://twitter.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial
+[x]: https://x.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial
 [youtube]: https://www.youtube.com/@vrooli
 [email]: mailto:support@vrooli.com

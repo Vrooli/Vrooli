@@ -1,37 +1,38 @@
-import { ApiVersion, ApiVersionCreateInput, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, orDefault, Session } from "@local/shared";
-import { Button, Grid, Stack, TextField } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { ApiVersion, ApiVersionCreateInput, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, noopSubmit, orDefault, Session } from "@local/shared";
+import { Button, Grid, InputAdornment, Stack } from "@mui/material";
+import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik } from "formik";
-import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
-import { ApiFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { CompleteIcon } from "icons";
-import { forwardRef, useContext, useState } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { CompleteIcon, LinkIcon } from "icons";
+import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
+import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
+import { ApiShape } from "utils/shape/models/api";
 import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion";
-import { ApiUpsertProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues";
+import { ApiFormProps, ApiUpsertProps } from "../types";
 
 const apiInitialValues = (
     session: Session | undefined,
@@ -46,6 +47,10 @@ const apiInitialValues = (
     resourceList: {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
+        listFor: {
+            __typename: "ApiVersion" as const,
+            id: DUMMY_ID,
+        },
     },
     versionLabel: "1.0.0",
     ...existing,
@@ -53,7 +58,7 @@ const apiInitialValues = (
         __typename: "Api" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
         tags: [],
         ...existing?.root,
     },
@@ -67,27 +72,23 @@ const apiInitialValues = (
     }]),
 });
 
-const transformApiValues = (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) =>
+const transformApiVersionValues = (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) =>
     isCreate ? shapeApiVersion.create(values) : shapeApiVersion.update(existing, values);
 
-const validateApiValues = async (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) => {
-    const transformedValues = transformApiValues(values, existing, isCreate);
-    const validationSchema = apiVersionValidation[isCreate ? "create" : "update"]({});
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
-
-const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
-    display,
+const ApiForm = ({
+    disabled,
     dirty,
+    display,
+    existing,
+    handleUpdate,
     isCreate,
-    isLoading,
     isOpen,
-    onCancel,
+    isReadLoading,
+    onClose,
     values,
     versions,
     ...props
-}, ref) => {
+}: ApiFormProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -108,19 +109,58 @@ const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["details", "name", "summary"],
-        validationSchema: apiVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: apiVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     const [hasDocUrl, setHasDocUrl] = useState(false);
 
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<ApiVersion>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "ApiVersion",
+        ...props,
+    });
+    const {
+        fetch,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertFetch<ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput>({
+        isCreate,
+        isMutate: true,
+        endpointCreate: endpointPostApiVersion,
+        endpointUpdate: endpointPutApiVersion,
+    });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "ApiVersion" });
+
+    const onSubmit = useSubmitHelper<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformApiVersionValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="api-upsert-dialog"
+            isOpen={isOpen}
+            onClose={onClose}
+        >
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t(isCreate ? "CreateApi" : "UpdateApi")}
+            />
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
-                ref={ref}
             >
                 <FormContainer>
                     <RelationshipList
@@ -135,7 +175,7 @@ const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                             handleCurrent={setLanguage}
                             languages={languages}
                         />
-                        <TranslatedTextField
+                        <TranslatedTextInput
                             fullWidth
                             label={t("Name")}
                             language={language}
@@ -163,8 +203,15 @@ const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                             fullWidth
                             name="callLink"
                             label={"Endpoint URL"}
-                            helperText={"The full URL to the endpoint"}
-                            as={TextField}
+                            placeholder={"https://example.com"}
+                            as={TextInput}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <LinkIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         {/* Selector for documentation URL or text */}
                         <Grid item xs={12} pb={2}>
@@ -199,7 +246,7 @@ const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                                     name="documentationLink"
                                     label={"Schema URL (Optional)"}
                                     helperText={"The full URL to the schema"}
-                                    as={TextField}
+                                    as={TextInput}
                                 />
                             )
                         }
@@ -230,90 +277,50 @@ const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
+                loading={isLoading}
+                onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
+                onSubmit={onSubmit}
             />
-        </>
+        </MaybeLargeDialog>
     );
-});
+};
 
 export const ApiUpsert = ({
     isCreate,
     isOpen,
-    onCancel,
-    onCompleted,
     overrideObject,
+    ...props
 }: ApiUpsertProps) => {
-    const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
         ...endpointGetApiVersion,
+        isCreate,
         objectType: "ApiVersion",
         overrideObject,
         transform: (data) => apiInitialValues(session, data),
     });
-
-    const {
-        fetch,
-        handleCancel,
-        handleCompleted,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertActions<ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput>({
-        display,
-        endpointCreate: endpointPostApiVersion,
-        endpointUpdate: endpointPutApiVersion,
-        isCreate,
-        onCancel,
-        onCompleted,
-    });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="api-upsert-dialog"
-            isOpen={isOpen}
-            onClose={handleClose}
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformApiVersionValues, apiVersionValidation)}
         >
-            <TopBar
-                display={display}
-                onClose={handleClose}
-                title={t(isCreate ? "CreateApi" : "UpdateApi")}
-            />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>({
-                        fetch,
-                        inputs: transformApiValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateApiValues(values, existing, isCreate)}
-            >
-                {(formik) => <ApiForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    versions={[]}
-                    {...formik}
-                />}
-            </Formik>
-        </MaybeLargeDialog>
+            {(formik) => <ApiForm
+                disabled={!(isCreate || canUpdate)}
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                versions={(existing?.root as ApiShape)?.versions?.map(v => v.versionLabel) ?? []}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

@@ -1,6 +1,8 @@
 import { FindByIdInput, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestUpdateInput } from "@local/shared";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { createOneHelper } from "../../actions/creates";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateOneHelper } from "../../actions/updates";
+import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsPullRequest = {
@@ -29,11 +31,11 @@ export const PullRequestEndpoints: EndpointsPullRequest = {
     Mutation: {
         pullRequestCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         pullRequestUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
             // TODO make sure to set hasBeenClosedOrRejected to true if status is closed or rejected
             // TODO 2 permissions for this differ from normal objects. Some fields can be updated by creator, and some by owner of object the pull request is for. Probably need to make custom endpoints like for transfers
         },

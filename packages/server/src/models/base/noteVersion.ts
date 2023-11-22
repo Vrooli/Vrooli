@@ -1,19 +1,19 @@
 import { MaxObjects, NoteVersionSortBy, noteVersionValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { NoteVersionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { NoteModel } from "./note";
-import { NoteModelLogic, NoteVersionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { NoteModelInfo, NoteModelLogic, NoteVersionModelInfo, NoteVersionModelLogic } from "./types";
 
 const __typename = "NoteVersion" as const;
-const suppFields = ["you"] as const;
-export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFields> = ({
+export const NoteVersionModel: NoteVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.note_version,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -33,7 +33,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: NoteVersionFormat,
     mutate: {
         shape: {
@@ -52,11 +52,11 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
-                const { translations } = await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const { translations } = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,
-                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
+                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
                 }));
                 const translationCreates = await Promise.all(translationCreatesPromises ?? []);
                 return {
@@ -67,17 +67,17 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                     translations: {
                         create: translationCreates,
                     },
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childNoteVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childNoteVersions", data, ...rest })),
+                    ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
                 };
             },
             update: async ({ data, ...rest }) => {
                 // Translated pages require custom logic
-                const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,
-                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
+                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
                 }));
                 const translationUpdatesPromises = translations?.update?.map(async (translation) => ({
                     where: translation.where,
@@ -86,7 +86,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                         pagesCreate: undefined,
                         pagesUpdate: undefined,
                         pagesDelete: undefined,
-                        ...(await shapeHelper({ relation: "pages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation.data, ...rest })),
+                        ...(await shapeHelper({ relation: "pages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation.data, ...rest })),
                     },
                 }));
                 const translationCreates = await Promise.all(translationCreatesPromises ?? []);
@@ -101,8 +101,8 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                         update: translationUpdates,
                         delete: translationDeletes,
                     },
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
+                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
                 };
             },
         },
@@ -140,7 +140,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -150,13 +150,13 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
-            oneIsPublic<NoteVersionModelLogic["PrismaSelect"]>([["root", "Note"]], data, ...rest),
+            oneIsPublic<NoteVersionModelInfo["PrismaSelect"]>([["root", "Note"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => NoteModel.validate.owner(data?.root as NoteModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<NoteModelLogic>("Note").validate().owner(data?.root as NoteModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -182,8 +182,8 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                 ],
             },
             owner: (userId) => ({
-                root: NoteModel.validate.visibility.owner(userId),
+                root: ModelMap.get<NoteModelLogic>("Note").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

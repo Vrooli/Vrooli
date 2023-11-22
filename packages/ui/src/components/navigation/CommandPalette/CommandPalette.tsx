@@ -4,7 +4,6 @@ import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "components/inputs/search";
 import { SessionContext } from "contexts/SessionContext";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { parseData } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -34,19 +33,18 @@ export const CommandPalette = () => {
     const close = useCallback(() => setOpen(false), []);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribeCommandPalette(() => {
+        const dialogSub = PubSub.get().subscribe("commandPalette", () => {
             setOpen(o => !o);
             setSearchString("");
         });
         return () => { PubSub.get().unsubscribe(dialogSub); };
     }, []);
 
-    const [refetch, { data, loading, errors }] = useLazyFetch<PopularSearchInput, PopularSearchResult>({
+    const [refetch, { data, loading }] = useLazyFetch<PopularSearchInput, PopularSearchResult>({
         ...endpointGetFeedPopular,
         inputs: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
     });
     useEffect(() => { open && refetch(); }, [open, refetch, searchString]);
-    useDisplayServerError(errors);
 
     const shortcutsItems = useMemo<ShortcutOption[]>(() => shortcuts.map(({ label, labelArgs, value }) => ({
         __typename: "Shortcut",

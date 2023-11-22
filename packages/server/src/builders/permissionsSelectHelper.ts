@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { ModelMap } from "../models/base";
 import { PermissionsMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 
@@ -48,7 +48,7 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
             // attempt to recurse using substitution
             if (value.length === 2 && typeof value[0] === "string" && value[0] in GqlModelType && Array.isArray(value[1])) {
                 // Check if the validator exists. If not, assume this is not a substitution and add it to the result
-                const { validate } = getLogic(["validate"], value[0] as GqlModelType, languages, "permissionsSelectHelper");
+                const validate = ModelMap.get(value[0] as GqlModelType, false)?.validate;
                 if (!validate) {
                     result[key] = value;
                 }
@@ -57,7 +57,7 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
                     // Child omit is curr omit with first dot level removed, combined with value[1]
                     const childOmitFields = removeFirstDotLayer(omitFields).concat(value[1]);
                     // Child map is the validator's permissionsSelect function
-                    const childMap = validate.permissionsSelect(userId, languages);
+                    const childMap = validate().permissionsSelect(userId, languages);
                     if (childMap) {
                         result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1, childOmitFields) };
                     }
@@ -79,7 +79,7 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
         // If the value is a GqlModelType, attempt to recurse using substitution
         else if (typeof value === "string" && value in GqlModelType) {
             // Check if the validator exists. If not, assume this is some other string and add it to the result
-            const { validate } = getLogic(["validate"], value as GqlModelType, languages, "permissionsSelectHelper");
+            const validate = ModelMap.get(value as GqlModelType, false)?.validate;
             if (!validate) {
                 result[key] = value;
             }
@@ -88,7 +88,7 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
                 // Child omit is curr omit with first dot level removed
                 const childOmitFields = removeFirstDotLayer(omitFields);
                 // Child map is the validator's permissionsSelect function
-                const childMap = validate.permissionsSelect(userId, languages);
+                const childMap = validate().permissionsSelect(userId, languages);
                 if (childMap) {
                     result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1, childOmitFields) };
                 }

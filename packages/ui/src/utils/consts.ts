@@ -3,7 +3,7 @@ import { InputType, ValueOf } from "@local/shared";
 
 export const Forms = {
     ForgotPassword: "forgot-password",
-    LogIn: "logIn",
+    Login: "login",
     Profile: "profile",
     ResetPassword: "reset-password",
     SignUp: "signUp",
@@ -38,7 +38,6 @@ export enum BuildAction {
     EditSubroutine = "EditSubroutine",
     DeleteSubroutine = "DeleteSubroutine",
     OpenSubroutine = "OpenSubroutine",
-    OpenRoutine = "OpenRoutine",
     DeleteNode = "DeleteNode",
     UnlinkNode = "UnlinkNode",
     AddEndAfterNode = "AddEndAfterNode",

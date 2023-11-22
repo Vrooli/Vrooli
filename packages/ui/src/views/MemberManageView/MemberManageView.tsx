@@ -1,32 +1,24 @@
-import { MemberInvite } from "@local/shared";
-import { Checkbox, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
+import { Checkbox, FormControlLabel, Stack } from "@mui/material";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { Field } from "formik";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { toDisplay } from "utils/display/pageTools";
 import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
-import { MemberInviteUpsert } from "views/objects/memberInvite";
 import { MemberManageViewProps } from "../types";
 
 /**
  * View members and invited members of an organization
  */
 export const MemberManageView = ({
+    display,
     onClose,
     organization,
     isOpen,
 }: MemberManageViewProps) => {
     console.log("in MemberManageView", organization);
-    const { palette } = useTheme();
-    const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const {
         currTab,
@@ -36,14 +28,29 @@ export const MemberManageView = ({
         where,
     } = useTabs<MemberManagePageTabOption>({ id: "member-manage-tabs", tabParams: memberTabParams, display });
 
-    const [isInviteDialogOpen, setInviteDialogOpen] = useState(false);
-    const onInviteStart = useCallback(() => {
-        setInviteDialogOpen(true);
-    }, []);
-    const onInviteCompleted = useCallback((invite: MemberInvite) => {
-        setInviteDialogOpen(false);
-        // TODO add or update list
-    }, []);
+    //    // Handle add/update invite dialog
+    //    const [invitesToUpsert, setInvitesToUpsert] = useState<MemberInviteShape[]>([]);
+    //    const handleInvitesUpdate = useCallback(() => {
+    //        if (currTab.tabType !== ParticipantManagePageTabOption.MemberInvite) return;
+    //        setInvitesToUpsert(selectedData as MemberInviteShape[]);
+    //    }, [currTab.tabType, selectedData]);
+    //    const handleInvitesCreate = useCallback(() => {
+    //        if (currTab.tabType !== ParticipantManagePageTabOption.Add) return;
+    //        const asInvites: MemberInviteShape[] = (selectedData as User[]).map(user => ({
+    //            __typename: "MemberInvite",
+    //            id: DUMMY_ID,
+    //            created_at: new Date().toISOString(),
+    //            updated_at: new Date().toISOString(),
+    //            status: MemberInviteStatus.Pending,
+    //            organization: { __typename: "Organization", id: organization.id },
+    //            user,
+    //        } as const));
+    //        setInvitesToUpsert(asInvites);
+    //    }, [organization.id, currTab.tabType, selectedData]);
+    //    const onInviteCompleted = () => {
+    //        // TODO Handle any post-completion tasks here, if necessary
+    //        setInvitesToUpsert([]);
+    //    };
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -67,13 +74,14 @@ export const MemberManageView = ({
             }}
         >
             {/* Dialog for creating new member invite */}
-            <MemberInviteUpsert
+            {/* <MemberInvitesUpsert
                 isCreate={true}
+                isMutate={false}
+                invites={invites}
                 isOpen={isInviteDialogOpen}
                 onCompleted={onInviteCompleted}
                 onCancel={() => setInviteDialogOpen(false)}
-                overrideObject={{ organization }}
-            />
+            />  */}
             {/* Main dialog */}
             <TopBar
                 display={display}
@@ -114,14 +122,14 @@ export const MemberManageView = ({
                     listContainer: { borderRadius: 0 },
                 }}
             />}
-            <SideActionsButtons display={display}>
+            {/* <SideActionsButtons display={display}>
                 <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>
                 <IconButton aria-label={t("CreateInvite")} onClick={onInviteStart} sx={{ background: palette.secondary.main }}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>
-            </SideActionsButtons>
+            </SideActionsButtons> */}
         </MaybeLargeDialog>
     );
 };

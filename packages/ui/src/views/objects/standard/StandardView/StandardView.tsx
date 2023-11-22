@@ -1,4 +1,4 @@
-import { CommentFor, endpointGetStandardVersion, StandardVersion } from "@local/shared";
+import { CommentFor, endpointGetStandardVersion, exists, noop, noopSubmit, StandardVersion } from "@local/shared";
 import { Box, IconButton, Palette, Stack, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
@@ -21,12 +21,10 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { noopSubmit } from "utils/objects";
 import { ResourceListShape } from "utils/shape/models/resourceList";
-import { RoutineShape } from "utils/shape/models/routine";
+import { StandardShape } from "utils/shape/models/standard";
 import { TagShape } from "utils/shape/models/tag";
 import { standardInitialValues } from "../StandardUpsert/StandardUpsert";
 import { StandardViewProps } from "../types";
@@ -42,14 +40,13 @@ const containerProps = (palette: Palette) => ({
 });
 
 export const StandardView = ({
-    isOpen,
+    display,
     onClose,
 }: StandardViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion>({
         ...endpointGetStandardVersion,
@@ -82,7 +79,7 @@ export const StandardView = ({
 
     const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
-    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
+    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as StandardShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     return (
         <>
@@ -113,12 +110,11 @@ export const StandardView = ({
                         objectType={"Routine"}
                     />
                     {/* Resources */}
-                    {Array.isArray(resourceList?.resources) && resourceList!.resources.length > 0 && <ResourceListHorizontal
+                    {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                         title={"Resources"}
                         list={resourceList as any}
                         canUpdate={false}
-                        // eslint-disable-next-line @typescript-eslint/no-empty-function
-                        handleUpdate={() => { }} // Intentionally blank
+                        handleUpdate={noop}
                         loading={isLoading}
                         parent={{ __typename: "StandardVersion", id: existing?.id ?? "" }}
                     />}
@@ -183,10 +179,7 @@ export const StandardView = ({
                     </Box>
                 </Box>}
             </Formik>
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
                     <IconButton aria-label={t("UpdateStandard")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "route";
 
 export const ScrollToTop = () => {
-    const pathname = useLocation();
+    const [location] = useLocation();
     useEffect(() => {
         if (window.location.hash !== "") {
             setTimeout(() => {
@@ -14,6 +14,6 @@ export const ScrollToTop = () => {
             }, 0);
         }
         else window.scrollTo(0, 0);
-    }, [pathname]);
+    }, [location]);
     return null;
 };

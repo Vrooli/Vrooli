@@ -2,9 +2,13 @@ import Bull from "bull";
 import { HOST, PORT } from "../../redisConn.js";
 import { importProcess } from "./process.js";
 
-const importQueue = new Bull("import", { redis: { port: PORT, host: HOST } });
+export type ImportProcessPayload = {
+
+}
+
+const importQueue = new Bull<ImportProcessPayload>("import", { redis: { port: PORT, host: HOST } });
 importQueue.process(importProcess);
 
-export function importData(data: any) {
+export function importData(data: ImportProcessPayload) {
     importQueue.add(data); //TODO
 }

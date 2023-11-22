@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { sendSubscriptionEnded } from "../../tasks";
+import { sendSubscriptionEnded } from "../../tasks/email/queue";
 import { batch } from "../../utils/batch";
 
 const commonSelect = {

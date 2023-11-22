@@ -2,7 +2,7 @@ import { id, intPositiveOrOne, language, opt, req, YupModel, yupObj } from "../u
 import { quizQuestionResponseValidation } from "./quizQuestionResponse";
 
 export const quizAttemptValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         contextSwitches: opt(intPositiveOrOne),
         timeTaken: opt(intPositiveOrOne),
@@ -10,12 +10,12 @@ export const quizAttemptValidation: YupModel = {
     }, [
         ["quiz", ["Connect"], "one", "req"],
         ["responses", ["Create"], "one", "opt", quizQuestionResponseValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         contextSwitches: opt(intPositiveOrOne),
         timeTaken: opt(intPositiveOrOne),
     }, [
         ["responses", ["Create", "Update", "Delete"], "one", "opt", quizQuestionResponseValidation],
-    ], [], o),
+    ], [], d),
 };

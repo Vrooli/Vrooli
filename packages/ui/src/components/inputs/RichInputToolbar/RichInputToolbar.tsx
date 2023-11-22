@@ -1,9 +1,10 @@
+import { noop } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
+import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
-import { useWindowSize } from "hooks/useWindowSize";
 import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, TableIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { forwardRef, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
@@ -11,6 +12,9 @@ import { keyComboToString } from "utils/display/device";
 import { RichInputAction, RichInputActiveStates } from "../types";
 
 type PopoverActionItem = { action: RichInputAction, icon: React.ReactNode, label: string };
+
+/** Determines how many options should be displayed directly */
+type ViewSize = "minimal" | "partial" | "full";
 
 export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {
     Bold: false,
@@ -33,7 +37,7 @@ export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {
     Underline: false,
 };
 
-const ToolButton = ({
+const ToolButton = forwardRef(({
     disabled,
     icon,
     isActive,
@@ -45,11 +49,12 @@ const ToolButton = ({
     icon: React.ReactNode,
     isActive?: boolean,
     label: string,
-    onClick: (event: React.MouseEvent<HTMLElement>) => void,
+    onClick: (event: React.MouseEvent<HTMLElement>) => unknown,
     palette: Palette,
-}) => (
+}, ref: React.Ref<HTMLButtonElement>) => (
     <Tooltip title={label}>
         <IconButton
+            ref={ref}
             disabled={disabled}
             size="small"
             onClick={onClick}
@@ -62,7 +67,7 @@ const ToolButton = ({
             {icon}
         </IconButton>
     </Tooltip>
-);
+));
 
 const ActionPopover = ({
     activeStates,
@@ -108,6 +113,7 @@ const usePopover = (initialState = null) => {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(initialState);
 
     const openPopover = (event: React.MouseEvent<HTMLElement>, condition = true) => {
+        console.log("in open popover", event, condition);
         if (!condition) return;
         setAnchorEl(event.currentTarget);
     };
@@ -161,8 +167,7 @@ const TablePopover = ({ isOpen, anchorEl, onClose, handleTableInsert, palette, t
                                     onMouseEnter={canHover ? () => {
                                         setHoveredRow(rowIndex + 1);
                                         setHoveredCol(colIndex + 1);
-                                        // eslint-disable-next-line @typescript-eslint/no-empty-function
-                                    } : () => { }}
+                                    } : noop}
                                     onClick={() => {
                                         setHoveredRow(rowIndex + 1);
                                         setHoveredCol(colIndex + 1);
@@ -225,7 +230,12 @@ export const RichInputToolbar = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const { dimensions, fromDims, ref: dimRef } = useDimensions();
+    const viewSize = useMemo<ViewSize>(() => {
+        if (dimensions.width <= 375) return "minimal";
+        if (dimensions.width <= breakpoints.values.sm) return "partial";
+        return "full";
+    }, [breakpoints, dimensions]);
     const isLeftHanded = useIsLeftHanded();
 
     const handleToggleAction = (action: string, data?: unknown) => {
@@ -253,6 +263,17 @@ export const RichInputToolbar = ({
         handleToggleAction("Table", { rows, cols });
         closeTable();
     };
+    const combinedButtonRef = useRef(null);
+    const [combinedAnchorEl, openCombinedSelect, closeCombined, combinedSelectOpen] = usePopover();
+    const handleCombinedAction = (action: string, data?: unknown) => {
+        if (action === "Table") {
+            closeCombined();
+            const syntheticEvent = { currentTarget: combinedButtonRef.current };
+            openTableSelect(syntheticEvent as any, true);
+        } else {
+            handleToggleAction(action, data);
+        }
+    };
 
     const headerItems: PopoverActionItem[] = [
         { action: "Header1", icon: <Header1Icon />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
@@ -274,13 +295,20 @@ export const RichInputToolbar = ({
         { action: "ListNumber", icon: <ListNumberIcon />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "8")})` },
         { action: "ListCheckbox", icon: <ListCheckIcon />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "9")})` },
     ];
+    // Combine format, link, list, and table actions for minimal view
+    const combinedItems: PopoverActionItem[] = [
+        ...formatItems,
+        { action: "Link", icon: <LinkIcon />, label: `${t("Link")} (${keyComboToString("Ctrl", "k")})` },
+        ...listItems,
+        { action: "Table", icon: <TableIcon />, label: t("TableInsert") },
+    ];
 
     return (
-        <Box sx={{
+        <Box ref={dimRef} sx={{
             display: "flex",
-            flexDirection: (isLeftHanded || !isMobile) ? "row" : "row-reverse",
+            flexDirection: (isLeftHanded || viewSize === "full") ? "row" : "row-reverse",
             width: "100%",
-            padding: "0.5rem",
+            padding: "2px",
             background: palette.primary.main,
             color: palette.primary.contrastText,
             borderRadius: "0.5rem 0.5rem 0 0",
@@ -289,9 +317,9 @@ export const RichInputToolbar = ({
             {/* Group of main editor controls including AI assistant and formatting tools */}
             <Stack
                 direction="row"
-                spacing={{ xs: 0, sm: 0.5, md: 1 }}
+                spacing={fromDims({ xs: 0, sm: 0.5, md: 1 })}
                 sx={{
-                    ...((isLeftHanded || !isMobile) ? { marginRight: "auto" } : { marginLeft: "auto" }),
+                    ...((isLeftHanded || viewSize === "full") ? { marginRight: "auto" } : { marginLeft: "auto" }),
                     visibility: disabled ? "hidden" : "visible",
                 }}
             >
@@ -319,72 +347,97 @@ export const RichInputToolbar = ({
                     handleAction={handleToggleAction}
                     palette={palette}
                 />
-                {/* Display format as popover on mobile, or display all options on desktop */}
-                {isMobile && (
+                {viewSize === "minimal" ? (
                     <>
                         <ToolButton
+                            ref={combinedButtonRef}
                             disabled={disabled}
                             icon={<CaseSensitiveIcon fill={palette.primary.contrastText} />}
-                            isActive={activeStates.Bold || activeStates.Italic || activeStates.Underline || activeStates.Strikethrough || activeStates.Spoiler}
                             label={t("TextFormat")}
-                            onClick={openFormatSelect}
+                            onClick={openCombinedSelect}
                             palette={palette}
                         />
                         <ActionPopover
                             activeStates={activeStates}
-                            idPrefix="format"
-                            isOpen={formatSelectOpen}
-                            anchorEl={formatAnchorEl}
-                            onClose={closeFormat}
-                            items={formatItems}
+                            idPrefix="combined"
+                            isOpen={combinedSelectOpen}
+                            anchorEl={combinedAnchorEl}
+                            onClose={closeCombined}
+                            items={combinedItems}
+                            handleAction={handleCombinedAction}
+                            palette={palette}
+                        />
+                    </>
+                ) : (
+                    <>
+                        {/* Display format as popover on mobile, or display all options on desktop */}
+                        {viewSize !== "full" && (
+                            <>
+                                <ToolButton
+                                    disabled={disabled}
+                                    icon={<CaseSensitiveIcon fill={palette.primary.contrastText} />}
+                                    isActive={activeStates.Bold || activeStates.Italic || activeStates.Underline || activeStates.Strikethrough || activeStates.Spoiler}
+                                    label={t("TextFormat")}
+                                    onClick={openFormatSelect}
+                                    palette={palette}
+                                />
+                                <ActionPopover
+                                    activeStates={activeStates}
+                                    idPrefix="format"
+                                    isOpen={formatSelectOpen}
+                                    anchorEl={formatAnchorEl}
+                                    onClose={closeFormat}
+                                    items={formatItems}
+                                    handleAction={handleToggleAction}
+                                    palette={palette}
+                                />
+                            </>
+                        )}
+                        {viewSize === "full" && formatItems.map(({ action, icon, label }) => (
+                            <ToolButton
+                                key={action}
+                                disabled={disabled}
+                                icon={icon}
+                                isActive={activeStates[action]}
+                                label={label}
+                                onClick={() => { handleToggleAction(action); }}
+                                palette={palette}
+                            />
+                        ))}
+                        <ToolButton
+                            disabled={disabled}
+                            icon={<LinkIcon fill={palette.primary.contrastText} />}
+                            label={`${t("Link")} (${keyComboToString("Ctrl", "k")})`}
+                            onClick={() => { handleToggleAction("Link"); }}
+                            palette={palette}
+                        />
+                        <ToolButton
+                            disabled={disabled}
+                            icon={<ListIcon fill={palette.primary.contrastText} />}
+                            isActive={activeStates.ListBullet || activeStates.ListNumber || activeStates.ListCheckbox}
+                            label={t("ListInsert")}
+                            onClick={openListSelect}
+                            palette={palette}
+                        />
+                        <ActionPopover
+                            activeStates={activeStates}
+                            idPrefix="list"
+                            isOpen={listSelectOpen}
+                            anchorEl={listAnchorEl}
+                            onClose={closeList}
+                            items={listItems}
                             handleAction={handleToggleAction}
+                            palette={palette}
+                        />
+                        <ToolButton
+                            disabled={disabled}
+                            icon={<TableIcon fill={palette.primary.contrastText} />}
+                            label={t("TableInsert")}
+                            onClick={openTableSelect}
                             palette={palette}
                         />
                     </>
                 )}
-                {!isMobile && formatItems.map(({ action, icon, label }) => (
-                    <ToolButton
-                        key={action}
-                        disabled={disabled}
-                        icon={icon}
-                        isActive={activeStates[action]}
-                        label={label}
-                        onClick={() => { handleToggleAction(action); }}
-                        palette={palette}
-                    />
-                ))}
-                <ToolButton
-                    disabled={disabled}
-                    icon={<LinkIcon fill={palette.primary.contrastText} />}
-                    label={`${t("Link")} (${keyComboToString("Ctrl", "k")})`}
-                    onClick={() => { handleToggleAction("Link"); }}
-                    palette={palette}
-                />
-                <ToolButton
-                    disabled={disabled}
-                    icon={<ListIcon fill={palette.primary.contrastText} />}
-                    isActive={activeStates.ListBullet || activeStates.ListNumber || activeStates.ListCheckbox}
-                    label={t("ListInsert")}
-                    onClick={openListSelect}
-                    palette={palette}
-                />
-                <ActionPopover
-                    activeStates={activeStates}
-                    idPrefix="list"
-                    isOpen={listSelectOpen}
-                    anchorEl={listAnchorEl}
-                    onClose={closeList}
-                    items={listItems}
-                    handleAction={handleToggleAction}
-                    palette={palette}
-                />
-                <ToolButton
-                    disabled={disabled}
-                    icon={<TableIcon fill={palette.primary.contrastText} />}
-                    label={t("TableInsert")}
-                    onClick={openTableSelect}
-                    palette={palette}
-                />
                 <TablePopover
                     isOpen={tableSelectOpen}
                     anchorEl={tableAnchorEl}

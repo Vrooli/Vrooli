@@ -1,9 +1,8 @@
-import { useTheme } from "@mui/material";
-import { CSSProperties, FC, useCallback, useEffect, useRef } from "react";
+import { FC, useCallback, useEffect, useRef } from "react";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
-import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
+import { TextInput } from "../TextInput/TextInput";
 import { RichInputMarkdownProps } from "../types";
 
 enum Headers {
@@ -103,7 +102,7 @@ const getSelection = (id: string) => {
     };
 };
 
-/** TextField for entering markdown text */
+/** TextInput for entering markdown text */
 export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     autoFocus = false,
     disabled = false,
@@ -114,6 +113,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     minRows = 4,
     name,
     onBlur,
+    onFocus,
     onChange,
     openAssistantDialog,
     placeholder = "",
@@ -125,7 +125,6 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     value,
     sx,
 }: RichInputMarkdownProps) => {
-    const { palette, typography } = useTheme();
 
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -343,7 +342,6 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                     return;
                 }
             }
-            console.log("tag info:", tagData.anchorEl, typeof getTaggableItems, e.key);
             // Handle tag dropdown. Triggered by "@" key press
             if (!tagData.anchorEl && typeof getTaggableItems === "function" && e.key === "@") {
                 console.log("opening dropdown for tags");
@@ -455,34 +453,32 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     return (
         <>
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
-            <textarea
+            <TextInput
                 id={id}
-                ref={textAreaRef}
+                ref={textAreaRef as any}
                 autoFocus={autoFocus}
                 disabled={disabled}
+                multiline
                 name={name}
                 placeholder={placeholder}
                 rows={minRows}
                 value={value}
                 onBlur={onBlur}
+                onFocus={onFocus}
                 onChange={(e) => { onChange(e.target.value); }}
                 tabIndex={tabIndex}
                 spellCheck
-                style={{
-                    padding: "16.5px 14px",
+                sx={{
                     minWidth: "-webkit-fill-available",
                     maxWidth: "-webkit-fill-available",
                     outline: "none",
                     resize: "none",
-                    borderColor: error ? palette.error.main : palette.divider,
-                    borderRadius: "0 0 4px 4px",
-                    fontFamily: typography.fontFamily,
-                    fontSize: typography.fontSize + 2,
-                    lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
-                    backgroundColor: palette.background.paper,
-                    color: palette.text.primary,
+                    "& .MuiOutlinedInput-notchedOutline": {
+                        borderRadius: "0 0 4px 4px",
+                        borderTop: "none",
+                    },
                     ...sx,
-                } as CSSProperties}
+                }}
             />
         </>
     );

@@ -8,6 +8,7 @@ import { SelectorBaseProps } from "../types";
 export function SelectorBase<T extends string | number | { [x: string]: any }>({
     addOption,
     autoFocus = false,
+    color,
     options,
     error,
     getOptionDescription,
@@ -44,11 +45,15 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
         const Icon = getOptionIcon ? getOptionIcon(option) : null;
         return (
             <MenuItem key={labelText} value={labelText} sx={{ whiteSpace: "normal" }}>
-                {Icon && <ListItemIcon sx={{
-                    minWidth: "32px",
-                }}>
-                    <Icon fill={palette.background.textSecondary} />
-                </ListItemIcon>}
+                {
+                    Icon ?
+                        typeof Icon === "function" ?
+                            <ListItemIcon sx={{ minWidth: "32px" }}>
+                                <Icon fill={palette.background.textSecondary} />
+                            </ListItemIcon> :
+                            Icon :
+                        null
+                }
                 <Stack direction="column">
                     <ListItemText sx={{
                         ...getOptionStyle(labelText),
@@ -83,7 +88,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
             <InputLabel
                 id={inputAriaLabel}
                 shrink={shrinkLabel}
-                sx={{ color: palette.background.textPrimary }}
+                sx={{ color: color ?? palette.background.textPrimary }}
             >
                 {label}
             </InputLabel>
@@ -102,13 +107,18 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 variant="outlined"
                 sx={{
                     ...sx,
-                    background: palette.background.paper,
-                    color: palette.background.textPrimary,
+                    color: color ?? palette.background.textPrimary,
                     "& .MuiSelect-select": {
                         paddingTop: "12px",
                         paddingBottom: "12px",
                         display: "flex",
                         alignItems: "center",
+                    },
+                    "& .MuiSelect-icon": {
+                        color: color ?? palette.background.textPrimary,
+                    },
+                    "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: color ?? palette.background.textPrimary,
                     },
                 }}
                 tabIndex={tabIndex}
@@ -117,8 +127,18 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                     const option = findOption(value as string);
                     if (!exists(option)) return null;
                     const labelText = getOptionLabel(option);
+                    const Icon = getOptionIcon ? getOptionIcon(option) : null;
                     return (
-                        <Stack direction="column">
+                        <Stack direction="row" alignItems="center">
+                            {
+                                Icon ?
+                                    typeof Icon === "function" ?
+                                        <ListItemIcon sx={{ minWidth: "32px" }}>
+                                            <Icon fill={palette.background.textSecondary} />
+                                        </ListItemIcon> :
+                                        Icon :
+                                    null
+                            }
                             <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
                         </Stack>
                     );
@@ -137,7 +157,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 {
                     addOption ? (
                         <MenuItem value="addOption" onClick={addOption.onSelect}>
-                            <AddIcon fill={palette.background.textPrimary} style={{ marginRight: "8px" }} />
+                            <AddIcon fill={color ?? palette.background.textPrimary} style={{ marginRight: "8px" }} />
                             <em>{addOption.label}</em>
                         </MenuItem>
                     ) : null

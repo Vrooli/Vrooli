@@ -1,6 +1,7 @@
 import { getActiveFocusMode, Session, SessionUser } from "@local/shared";
 import { Request } from "express";
-import { CustomError, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events";
+import { CustomError } from "../events/error";
+import { scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events/schedule";
 import { PrismaType, SessionData, SessionUserToken } from "../types";
 import { getUser } from "./request";
 

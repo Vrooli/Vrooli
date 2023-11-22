@@ -3,16 +3,14 @@ import { PageContainer } from "components/containers/PageContainer/PageContainer
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { ApiIcon, BotIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
+import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { SvgComponent } from "types";
-import { toDisplay } from "utils/display/pageTools";
 import { CreateViewProps } from "../types";
 
-type CreateType = "Api" | "Bot" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";
-
+type CreateType = "Api" | "Bot" | "Chat" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";
 type CreateInfo = {
     objectType: CreateType;
     description: CommonKey,
@@ -58,6 +56,12 @@ const createCards: CreateInfo[] = [
         id: "create-bot-card",
     },
     {
+        objectType: "Chat",
+        description: "CreateChatDescription",
+        Icon: CommentIcon,
+        id: "create-chat-card",
+    },
+    {
         objectType: "Question",
         description: "CreateQuestionDescription",
         Icon: HelpIcon,
@@ -84,12 +88,11 @@ const createCards: CreateInfo[] = [
 ];
 
 export const CreateView = ({
-    isOpen,
+    display,
     onClose,
 }: CreateViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const onSelect = useCallback((objectType: CreateType) => {
         setLocation(`${LINKS[objectType === "Bot" ? "User" : objectType]}/add`);

@@ -23,7 +23,7 @@ export const TranscriptDialog = ({
     showHint,
     transcript,
 }: TranscriptDialogProps) => {
-    const zIndex = useZIndex(isListening);
+    const zIndex = useZIndex(isListening, false, 1000);
     const { t } = useTranslation();
     const { palette } = useTheme();
 

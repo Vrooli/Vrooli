@@ -5,7 +5,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useContext } from "react";
 import { Redirect, stringifySearchParams, useLocation } from "route";
 import { PubSub } from "utils/pubsub";
-import { PageProps } from "../../views/wrapper/types";
+import { PageProps } from "views/types";
 
 export const Page = ({
     children,
@@ -16,14 +16,14 @@ export const Page = ({
 }: PageProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
-    const [location] = useLocation();
+    const [{ pathname }] = useLocation();
 
     // If this page has restricted access
     if (mustBeLoggedIn) {
         if (session?.isLoggedIn) return children;
-        if (sessionChecked && location !== LINKS.Start) {
-            PubSub.get().publishSnack({ messageKey: "PageRestricted", severity: "Error" });
-            return <Redirect to={`${LINKS.Start}${stringifySearchParams({ redirect: location })}`} />;
+        if (sessionChecked && pathname !== LINKS.Signup) {
+            PubSub.get().publish("snack", { messageKey: "PageRestricted", severity: "Error" });
+            return <Redirect to={`${LINKS.Signup}${stringifySearchParams({ redirect: pathname })}`} />;
         }
         return null;
     }

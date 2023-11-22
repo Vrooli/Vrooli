@@ -13,7 +13,7 @@ export type ProjectVersionShape = Pick<ProjectVersion, "id" | "isComplete" | "is
     __typename: "ProjectVersion";
     directories?: ProjectVersionDirectoryShape[] | null;
     resourceList?: { id: string } | ResourceListShape | null;
-    root?: { id: string } | ProjectShape | null;
+    root?: { __typename: "Project", id: string } | ProjectShape | null;
     suggestedNextByProject?: { id: string }[] | null;
     translations?: ProjectVersionTranslationShape[] | null;
 }

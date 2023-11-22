@@ -9,6 +9,7 @@ import { CharLimitIndicatorProps } from "components/inputs/types";
  */
 export const CharLimitIndicator = ({
     chars,
+    minCharsToShow,
     maxChars,
     size = 34,
 }: CharLimitIndicatorProps) => {
@@ -28,6 +29,9 @@ export const CharLimitIndicator = ({
         color = "success.main"; // green color
     }
 
+    if (minCharsToShow !== undefined && chars < minCharsToShow) {
+        return null;
+    }
     return (
         <Box position="relative" display="inline-flex" sx={{ verticalAlign: "middle" }}>
             <CircularProgress

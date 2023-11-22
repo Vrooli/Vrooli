@@ -1,16 +1,14 @@
 import { MaxObjects, pushDeviceValidation } from "@local/shared";
-import { noNull } from "../../builders";
+import { noNull } from "../../builders/noNull";
 import { defaultPermissions } from "../../utils";
 import { PushDeviceFormat } from "../formats";
-import { ModelLogic } from "../types";
 import { PushDeviceModelLogic } from "./types";
 
 const __typename = "PushDevice" as const;
-const suppFields = [] as const;
-export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields> = ({
+export const PushDeviceModel: PushDeviceModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.push_device,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true, p256dh: true }),
             get: (select) => {
@@ -20,7 +18,7 @@ export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields
                 return select.p256dh.length < 4 ? select.p256dh : `...${select.p256dh.slice(-4)}`;
             },
         },
-    },
+    }),
     format: PushDeviceFormat,
     mutate: {
         shape: {
@@ -39,7 +37,7 @@ export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields
         yup: pushDeviceValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -59,5 +57,5 @@ export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields
                 user: { id: userId },
             }),
         },
-    },
+    }),
 });

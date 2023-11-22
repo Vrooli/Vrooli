@@ -219,12 +219,12 @@ export const performAction = async (option: ActionOption, session: Session | nul
                 fetchWrapper<ProfileUpdateInput, User>({
                     ...endpointPutProfile,
                     inputs: { theme: "dark" },
-                    onSuccess: () => { PubSub.get().publishTheme("dark"); },
-                    onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
+                    onSuccess: () => { PubSub.get().publish("theme", "dark"); },
+                    onError: (error) => { PubSub.get().publish("snack", { message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
                 });
             }
             // Otherwise, just publish theme change.
-            else PubSub.get().publishTheme("dark");
+            else PubSub.get().publish("theme", "dark");
             break;
         case "activate-light-mode":
             // If logged in, update user profile and publish theme change.
@@ -232,18 +232,18 @@ export const performAction = async (option: ActionOption, session: Session | nul
                 fetchWrapper<ProfileUpdateInput, User>({
                     ...endpointPutProfile,
                     inputs: { theme: "light" },
-                    onSuccess: () => { PubSub.get().publishTheme("light"); },
-                    onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
+                    onSuccess: () => { PubSub.get().publish("theme", "light"); },
+                    onError: (error) => { PubSub.get().publish("snack", { message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
                 });
             }
             // Otherwise, just publish theme change.
-            else PubSub.get().publishTheme("light");
+            else PubSub.get().publish("theme", "light");
             break;
         case "tutorial":
             if (session?.isLoggedIn) {
-                PubSub.get().publishTutorial();
+                PubSub.get().publish("tutorial");
             } else {
-                PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
+                PubSub.get().publish("snack", { messageKey: "MustBeLoggedIn", severity: "Error" });
             }
             break;
     }

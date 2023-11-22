@@ -1,17 +1,15 @@
 import { MaxObjects, phoneValidation } from "@local/shared";
-import { Trigger } from "../../events";
+import { ModelMap } from ".";
+import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
 import { PhoneFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { PhoneModelLogic } from "./types";
+import { OrganizationModelLogic, PhoneModelLogic } from "./types";
 
 const __typename = "Phone" as const;
-const suppFields = [] as const;
-export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
+export const PhoneModel: PhoneModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.phone,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, phoneNumber: true }),
             // Only display last 4 digits of phone number
@@ -21,7 +19,7 @@ export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
                 return `...${select.phoneNumber.slice(-4)}`;
             },
         },
-    },
+    }),
     format: PhoneFormat,
     mutate: {
         shape: {
@@ -47,7 +45,7 @@ export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
         yup: phoneValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -68,9 +66,9 @@ export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

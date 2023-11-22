@@ -1,5 +1,5 @@
 import { reaction_findMany, reaction_react } from "../generated";
-import { ReactionEndpoints } from "../logic";
+import { ReactionEndpoints } from "../logic/reaction";
 import { setupRoutes } from "./base";
 
 export const ReactionRest = setupRoutes({

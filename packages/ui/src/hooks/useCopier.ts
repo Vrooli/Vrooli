@@ -1,4 +1,4 @@
-import { CopyInput, CopyResult, CopyType, endpointPostCopy, exists, GqlModelType } from "@local/shared";
+import { CopyInput, CopyResult, CopyType, endpointPostCopy, GqlModelType } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
@@ -9,7 +9,7 @@ type UseCopierProps = {
     objectId: string | null | undefined;
     objectName: string | null | undefined;
     objectType: `${GqlModelType}`
-    onActionComplete: (action: ObjectActionComplete.Fork, data: CopyResult) => void;
+    onActionComplete: (action: ObjectActionComplete.Fork, data: CopyResult) => unknown;
 }
 
 /**
@@ -23,16 +23,16 @@ export const useCopier = ({
 }: UseCopierProps) => {
     const [copy] = useLazyFetch<CopyInput, CopyResult>(endpointPostCopy);
 
-    const hasCopyingSupport = exists(CopyType[objectType]);
+    const hasCopyingSupport = objectType in CopyType;
 
     const handleCopy = useCallback(() => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (!hasCopyingSupport) {
-            PubSub.get().publishSnack({ messageKey: "CopyNotSupported", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CopyNotSupported", severity: "Error" });
             return;
         }
         fetchLazyWrapper<CopyInput, CopyResult>({

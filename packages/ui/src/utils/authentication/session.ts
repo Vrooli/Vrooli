@@ -67,20 +67,21 @@ export const getSiteLanguage = (session: Session | null | undefined): string => 
     return siteLanguages[0];
 };
 
-/**
- * Finds which focus mode the site should be displayed in, as well as 
- * all focus modes of the user
- * @param session Session object
- */
 export const getFocusModeInfo = (session: Session | null | undefined): {
     active: ActiveFocusMode | null,
     all: FocusMode[]
 } => {
     // Try to find focus modes user from session
     const { activeFocusMode, focusModes } = getCurrentUser(session);
-    // If not found, use cookies
-    return {
-        active: activeFocusMode ?? getCookieActiveFocusMode() ?? null,
-        all: focusModes ?? getCookieAllFocusModes() ?? [],
-    };
+
+    const active = activeFocusMode ?? getCookieActiveFocusMode() ?? null;
+    let all = focusModes ?? getCookieAllFocusModes() ?? [];
+
+    // If there is an active focus mode, move it to the first position in the 'all' array
+    if (active) {
+        all = all.filter(focusMode => focusMode.id !== active.mode.id);
+        all.unshift(active.mode);
+    }
+
+    return { active, all };
 };

@@ -1,5 +1,5 @@
 import { node_create, node_update } from "../generated";
-import { NodeEndpoints } from "../logic";
+import { NodeEndpoints } from "../logic/node";
 import { setupRoutes } from "./base";
 
 export const NodeRest = setupRoutes({

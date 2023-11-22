@@ -24,6 +24,10 @@
         "noImplicitAny": false,
         "jsx": "react-jsx",
         "baseUrl": "./src",
+        "types": [
+            "jest",
+            "@testing-library/jest-dom"
+        ]
     },
     "include": [
         "src",
@@ -33,7 +37,11 @@
         "src/api/hooks"
     ],
     "exclude": [
-        "node_modules"
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/__mocks__",
+        "**/config",
+        "node_modules",
     ],
     "references": [
         {

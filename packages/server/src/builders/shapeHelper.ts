@@ -1,6 +1,6 @@
 import { GqlModelType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
-import { CustomError } from "../events";
-import { ObjectMap } from "../models/base";
+import { CustomError } from "../events/error";
+import { ModelMap } from "../models/base";
 import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
 import { IdsCreateToConnect } from "../utils/types";
@@ -31,28 +31,20 @@ type ShapeHelperOptionalInput<
 
 export type ShapeHelperInput<
     IsOneToOne extends boolean,
-    IsRequired extends boolean,
     RelFields extends string,
-    FieldName extends string,
-> = IsRequired extends true ?
-    // If required, ensure that at least connect or create is present
+    FieldName extends string
+> =
     "Connect" extends RelFields ?
     "Create" extends RelFields ? ((
-        ({ [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> }) &
-        ({ [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined })
-    ) | (
         ({ [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> | null | undefined }) &
-        ({ [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> })
+        ({ [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined })
     ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName>) : (
-        { [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> }
+        { [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> | null | undefined }
     ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName> :
     "Create" extends RelFields ? (
-        { [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> }
+        { [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined }
     ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName> :
-    ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName> : (
-        ({ [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> | null | undefined }) &
-        ({ [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined })
-    ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName>
+    ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName>
 
 type ShapeHelperOptionalOutput<
     IsOneToOne extends boolean,
@@ -70,35 +62,17 @@ type WrapInField<T, FieldName extends string> = {
 
 export type ShapeHelperOutput<
     IsOneToOne extends boolean,
-    IsRequired extends boolean,
     RelFields extends string,
     FieldName extends string,
     PrimaryKey extends string,
-> = WrapInField<(IsRequired extends true ?
-    // If required, ensure that at least connect or create is present
-    "Connect" extends RelFields ?
-    "Create" extends RelFields ? ({
-        connect: MaybeArray<RelConnect<PrimaryKey>, IsOneToOne>,
-        create?: MaybeArray<RelCreate<any>, IsOneToOne> | undefined,
-    } | {
-        connect?: MaybeArray<RelConnect<PrimaryKey>, IsOneToOne> | undefined,
-        create: MaybeArray<RelCreate<any>, IsOneToOne>,
-    } & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>) : ({
-        connect: MaybeArray<RelConnect<PrimaryKey>, IsOneToOne>,
-    } & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>) :
-    "Create" extends RelFields ? ({
-        create: MaybeArray<RelCreate<any>, IsOneToOne>,
-    } & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>) :
-    ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey> : ({
-        connect?: "Connect" extends RelFields ? MaybeArray<RelConnect<PrimaryKey>, IsOneToOne> | undefined : never,
-        create?: "Create" extends RelFields ? MaybeArray<RelCreate<any>, IsOneToOne> | undefined : never,
-    } & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>)
-), FieldName>
+> = WrapInField<({
+    connect?: "Connect" extends RelFields ? MaybeArray<RelConnect<PrimaryKey>, IsOneToOne> | undefined : never,
+    create?: "Create" extends RelFields ? MaybeArray<RelCreate<any>, IsOneToOne> | undefined : never,
+} & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>), FieldName>
 
 export type ShapeHelperProps<
-    Input extends ShapeHelperInput<IsOneToOne, IsRequired, Types[number], RelField>,
+    Input extends ShapeHelperInput<IsOneToOne, Types[number], RelField>,
     IsOneToOne extends boolean,
-    IsRequired extends boolean,
     Types extends readonly RelationshipType[],
     RelField extends string,
     PrimaryKey extends string,
@@ -113,8 +87,6 @@ export type ShapeHelperProps<
      * the results a single object instead of an array
      */
     isOneToOne: IsOneToOne,
-    /** True if relationship must be provided */
-    isRequired: IsRequired,
     /**
     * If relationship is a join table, data required to create the join table record
     * 
@@ -163,17 +135,15 @@ export type ShapeHelperProps<
  */
 export const shapeHelper = async<
     IsOneToOne extends boolean,
-    IsRequired extends boolean,
     Types extends readonly RelationshipType[],
     RelField extends string,
     PrimaryKey extends string,
     SoftDelete extends boolean,
-    Input extends ShapeHelperInput<IsOneToOne, IsRequired, Types[number], RelField>,
+    Input extends ShapeHelperInput<IsOneToOne, Types[number], RelField>,
 >({
     data,
     idsCreateToConnect,
     isOneToOne,
-    isRequired,
     joinData,
     objectType,
     parentRelationshipName,
@@ -184,14 +154,10 @@ export const shapeHelper = async<
     relTypes,
     softDelete = false as SoftDelete,
     userData,
-}: ShapeHelperProps<Input, IsOneToOne, IsRequired, Types, RelField, PrimaryKey, SoftDelete>):
-    Promise<ShapeHelperOutput<IsOneToOne, IsRequired, Types[number], RelField, PrimaryKey>> => {
+}: ShapeHelperProps<Input, IsOneToOne, Types, RelField, PrimaryKey, SoftDelete>):
+    Promise<ShapeHelperOutput<IsOneToOne, Types[number], RelField, PrimaryKey>> => {
     // Initialize result
     let result: { [x: string]: any } = {};
-    // If both connect and create do not exist, and it's required, throw an error
-    if (!data[`${relation}Connect` as string] && !data[`${relation}Create` as string] && isRequired) {
-        throw new CustomError("0368", "InvalidArgs", ["en"], { relation, data });
-    }
     // Loop through relation types, and convert all to a Prisma-shaped array
     for (const t of relTypes) {
         // If not in data, skip
@@ -251,7 +217,7 @@ export const shapeHelper = async<
         delete result.delete;
     }
     // Perform nested shapes for create and update
-    const mutate = ObjectMap[objectType]?.mutate;
+    const mutate = ModelMap.get(objectType, false)?.mutate;
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
@@ -331,18 +297,9 @@ export const shapeHelper = async<
     // If one-to-one, perform some final checks and remove arrays
     if (isOneToOne) {
         // Perform the following checks:
-        // 1. If required:
-        //    1.a If adding, must have connect or create
-        //    a.b If updating and has a disconnect or delete, must have connect or create
-        // 3. Does not have both a connect and create
-        // 4. Does not have both a disconnect and delete
+        // 1. Does not have both a connect and create
+        // 2. Does not have both a disconnect and delete
         const isAdd = ("create" in result || "connect" in result) && !("delete" in result || "disconnect" in result || "update" in result);
-        if (isRequired) {
-            if (isAdd && !result.connect && !result.create)
-                throw new CustomError("0340", "InvalidArgs", userData.languages, { relation });
-            if (!isAdd && (result.disconnect || result.delete) && !result.connect && !result.create)
-                throw new CustomError("0341", "InvalidArgs", userData.languages, { relation });
-        }
         if (result.connect && result.create)
             throw new CustomError("0342", "InvalidArgs", userData.languages, { relation });
         if (result.disconnect && result.delete)

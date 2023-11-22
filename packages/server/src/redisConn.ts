@@ -2,7 +2,7 @@
  * Redis connection, so we don't have to keep creating new connections
  */
 import { createClient, RedisClientType } from "redis";
-import { ErrorTrace } from "./events";
+import { ErrorTrace } from "./events/error";
 import { logger } from "./events/logger";
 
 const split = (process.env.REDIS_CONN || "redis:6379").split(":");

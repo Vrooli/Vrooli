@@ -1,15 +1,14 @@
 import { MaxObjects, QuestionForType, QuestionSortBy, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuestionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { ReactionModel } from "./reaction";
-import { QuestionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, QuestionModelLogic, ReactionModelLogic } from "./types";
 
 const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["create"] } = {
     Api: "api",
@@ -22,11 +21,10 @@ const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["cr
 };
 
 const __typename = "Question" as const;
-const suppFields = ["you"] as const;
-export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = ({
+export const QuestionModel: QuestionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.question,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -41,7 +39,7 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: QuestionFormat,
     mutate: {
         shape: {
@@ -56,7 +54,7 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
                 createdBy: { connect: { id: rest.userData.id } },
                 ...((data.forObjectConnect && data.forObjectType) ? ({ [forMapper[data.forObjectType]]: { connect: { id: data.forObjectConnect } } }) : {}),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Question", relation: "tags", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
@@ -69,7 +67,7 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
                     },
                 } : {}),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Question", relation: "tags", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         trigger: {
@@ -112,19 +110,19 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
@@ -144,5 +142,5 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
                 createdBy: { id: userId },
             }),
         },
-    },
+    }),
 });

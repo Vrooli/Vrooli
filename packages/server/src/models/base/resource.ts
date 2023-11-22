@@ -1,23 +1,22 @@
 import { MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ResourceListModel } from "./resourceList";
-import { ResourceListModelLogic, ResourceModelLogic } from "./types";
+import { ResourceListModelInfo, ResourceListModelLogic, ResourceModelInfo, ResourceModelLogic } from "./types";
 
 const __typename = "Resource" as const;
-const suppFields = [] as const;
-export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = ({
+export const ResourceModel: ResourceModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.resource,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
-    },
+    }),
     format: ResourceFormat,
     mutate: {
         shape: {
@@ -26,15 +25,15 @@ export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = 
                 index: noNull(data.index),
                 link: data.link,
                 usedFor: data.usedFor,
-                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 index: noNull(data.index),
                 link: noNull(data.link),
                 usedFor: noNull(data.usedFor),
-                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         yup: resourceValidation,
@@ -56,21 +55,21 @@ export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = 
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             list: "ResourceList",
         }),
-        permissionResolvers: (params) => ResourceListModel.validate.permissionResolvers({ ...params, data: params.data.list as any }),
-        owner: (data, userId) => ResourceListModel.validate.owner(data?.list as ResourceListModelLogic["PrismaModel"], userId),
+        permissionResolvers: (params) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate().permissionResolvers({ ...params, data: params.data.list as any }),
+        owner: (data, userId) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate().owner(data?.list as ResourceListModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ResourceModelLogic["PrismaSelect"]>([["list", "ResourceList"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<ResourceModelInfo["PrismaSelect"]>([["list", "ResourceList"]], ...rest),
         visibility: {
             private: {},
             public: {},
-            owner: (userId) => ({ list: ResourceListModel.validate.visibility.owner(userId) }),
+            owner: (userId) => ({ list: ModelMap.get<ResourceListModelLogic>("ResourceList").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

@@ -1,5 +1,5 @@
 import { email_create, email_verify } from "../generated";
-import { EmailEndpoints } from "../logic";
+import { EmailEndpoints } from "../logic/email";
 import { setupRoutes } from "./base";
 
 export const EmailRest = setupRoutes({

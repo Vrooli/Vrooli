@@ -1,6 +1,6 @@
 import { TagSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsTag, TagEndpoints } from "../logic";
+import { EndpointsTag, TagEndpoints } from "../logic/tag";
 
 export const typeDef = gql`
     enum TagSortBy {

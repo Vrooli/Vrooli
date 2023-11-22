@@ -1,6 +1,6 @@
 import pkg from "@prisma/client";
 import { gql } from "apollo-server-express";
-import { EndpointsNode, NodeEndpoints } from "../logic";
+import { EndpointsNode, NodeEndpoints } from "../logic/node";
 
 const { NodeType } = pkg;
 

@@ -7,6 +7,7 @@ export const meetingInvite_decline = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -35,6 +36,7 @@ export const meetingInvite_decline = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -95,6 +97,7 @@ export const meetingInvite_decline = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -323,6 +326,7 @@ export const meetingInvite_decline = {
                   "bannerImage": true,
                   "handle": true,
                   "isBot": true,
+                  "isBotDepictingPerson": true,
                   "name": true,
                   "profileImage": true,
                   "__typename": "User"
@@ -366,6 +370,7 @@ export const meetingInvite_decline = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true,
                 "__typename": "User"
@@ -530,6 +535,7 @@ export const meetingInvite_decline = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -703,6 +709,7 @@ export const meetingInvite_decline = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"

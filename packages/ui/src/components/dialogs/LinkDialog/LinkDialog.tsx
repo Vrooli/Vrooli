@@ -2,8 +2,9 @@
  * Used to create/update a link between two routine nodes
  */
 import { NodeType, uuid } from "@local/shared";
-import { Autocomplete, Box, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { Autocomplete, Box, DialogContent, Stack, Typography, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getTranslation } from "utils/display/translationTools";
@@ -57,7 +58,7 @@ export const LinkDialog = ({
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.get().publishSnack({ messageKey: "SelectFromAndToNodes", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "SelectFromAndToNodes", severity: "Error" });
             return;
         }
         handleClose({
@@ -126,7 +127,7 @@ export const LinkDialog = ({
                     minWidth: 200,
                     maxWidth: 350,
                 }}
-                renderInput={(params) => <TextField {...params} label="From" />}
+                renderInput={(params) => <TextInput {...params} label="From" />}
             />
             {/* Right arrow */}
             <Box sx={{
@@ -153,7 +154,7 @@ export const LinkDialog = ({
                     minWidth: 200,
                     maxWidth: 350,
                 }}
-                renderInput={(params) => <TextField {...params} label="To" />}
+                renderInput={(params) => <TextInput {...params} label="To" />}
             />
         </Stack>
     ), [fromOptions, fromNode, palette.background.textPrimary, toOptions, toNode, getNodeTitle, handleFromSelect, handleToSelect]);

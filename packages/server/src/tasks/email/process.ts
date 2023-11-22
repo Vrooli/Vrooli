@@ -1,5 +1,7 @@
+import { Job } from "bull";
 import nodemailer from "nodemailer";
-import { logger } from "../../events";
+import { logger } from "../../events/logger";
+import { EmailProcessPayload } from "./queue";
 
 const HOST = "smtp.gmail.com";
 const PORT = 465;
@@ -25,7 +27,7 @@ export const setupTransporter = () => {
     }
 };
 
-export async function emailProcess(job: any) {
+export async function emailProcess(job: Job<EmailProcessPayload>) {
     setupTransporter();
     transporter!.sendMail({
         from: `"${process.env.SITE_EMAIL_FROM}" <${process.env.SITE_EMAIL_ALIAS ?? process.env.SITE_EMAIL_USERNAME}>`,

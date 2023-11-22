@@ -7,8 +7,6 @@ export const CheckboxInput = ({
     field,
     ...props
 }: CheckboxInputProps) => {
-    console.log("rendering checkbox input", name, field.value);
-
     return (
         <FormControlLabel
             control={
@@ -16,6 +14,17 @@ export const CheckboxInput = ({
                     {...props}
                     {...field}
                     checked={field.value}
+                    onChange={(event) => {
+                        // Explicitly set the value to true or false
+                        field.onChange({
+                            ...event,
+                            target: {
+                                ...event.target,
+                                value: event.target.checked,
+                                name: field.name,
+                            },
+                        });
+                    }}
                 />
             }
             label={label}

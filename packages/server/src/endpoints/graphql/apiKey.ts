@@ -1,5 +1,5 @@
 import { gql } from "apollo-server-express";
-import { ApiKeyEndpoints, EndpointsApiKey } from "../logic";
+import { ApiKeyEndpoints, EndpointsApiKey } from "../logic/apiKey";
 
 export const typeDef = gql`
     input ApiKeyCreateInput {

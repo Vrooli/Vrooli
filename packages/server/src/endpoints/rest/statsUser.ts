@@ -1,5 +1,5 @@
 import { statsUser_findMany } from "../generated";
-import { StatsUserEndpoints } from "../logic";
+import { StatsUserEndpoints } from "../logic/statsUser";
 import { setupRoutes } from "./base";
 
 export const StatsUserRest = setupRoutes({

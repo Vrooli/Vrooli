@@ -17,10 +17,13 @@ export const ReportButton = ({
     return (
         <>
             <ReportUpsert
+                display="dialog"
                 isCreate={true}
                 isOpen={open}
                 onCancel={closeDialog}
+                onClose={closeDialog}
                 onCompleted={closeDialog}
+                onDeleted={closeDialog}
                 overrideObject={{ createdFor: { __typename: reportFor, id: forId } }}
             />
             <Tooltip title="Report">

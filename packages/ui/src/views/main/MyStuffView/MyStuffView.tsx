@@ -14,14 +14,13 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { MyStuffPageTabOption, myStuffTabParams, SearchType } from "utils/search/objectToSearch";
 import { MyStuffViewProps } from "../types";
 
 export const MyStuffView = ({
-    isOpen,
+    display,
     onClose,
 }: MyStuffViewProps) => {
     const session = useContext(SessionContext);
@@ -36,7 +35,6 @@ export const MyStuffView = ({
         smartContractsCount,
         standardsCount,
     } = useMemo(() => getCurrentUser(session), [session]);
-    const display = toDisplay(isOpen);
 
     /**
      * Filter out certain tabs that we don't have any data for, 
@@ -131,10 +129,7 @@ export const MyStuffView = ({
                 where={where({ userId: userId ?? "" })}
                 sxs={{ search: { marginTop: 2 } }}
             />}
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton>

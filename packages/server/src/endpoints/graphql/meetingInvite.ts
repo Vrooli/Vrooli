@@ -1,6 +1,6 @@
 import { MeetingInviteSortBy, MeetingInviteStatus } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsMeetingInvite, MeetingInviteEndpoints } from "../logic";
+import { EndpointsMeetingInvite, MeetingInviteEndpoints } from "../logic/meetingInvite";
 
 export const typeDef = gql`
     enum MeetingInviteSortBy {
@@ -53,6 +53,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         status: MeetingInviteStatus
+        statuses: [MeetingInviteStatus!]
         meetingId: ID
         userId: ID
         organizationId: ID
@@ -80,7 +81,9 @@ export const typeDef = gql`
 
     extend type Mutation {
         meetingInviteCreate(input: MeetingInviteCreateInput!): MeetingInvite!
+        meetingInvitesCreate(input: [MeetingInviteCreateInput!]!): [MeetingInvite!]!
         meetingInviteUpdate(input: MeetingInviteUpdateInput!): MeetingInvite!
+        meetingInvitesUpdate(input: [MeetingInviteUpdateInput!]!): [MeetingInvite!]!
         meetingInviteAccept(input: FindByIdInput!): MeetingInvite!
         meetingInviteDecline(input: FindByIdInput!): MeetingInvite!
     }

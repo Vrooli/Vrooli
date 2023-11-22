@@ -17,8 +17,8 @@ export type PushPayload = {
     title: string | null | undefined;
 }
 
-const pushQueue = new Bull("push", { redis: { port: PORT, host: HOST } });
-pushQueue.process(pushProcess as any);
+const pushQueue = new Bull<PushSubscription & PushPayload>("push", { redis: { port: PORT, host: HOST } });
+pushQueue.process(pushProcess);
 
 export function sendPush(subscription: PushSubscription, payload: PushPayload, delay = 0) {
     pushQueue.add({

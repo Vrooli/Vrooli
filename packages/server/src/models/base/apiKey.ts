@@ -1,18 +1,16 @@
 import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
-import { randomString } from "../../auth";
-import { noNull } from "../../builders";
+import { ModelMap } from ".";
+import { randomString } from "../../auth/wallet";
+import { noNull } from "../../builders/noNull";
 import { defaultPermissions } from "../../utils";
 import { ApiKeyFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { ApiKeyModelLogic } from "./types";
+import { ApiKeyModelLogic, OrganizationModelLogic } from "./types";
 
 const __typename = "ApiKey" as const;
-const suppFields = [] as const;
-export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
+export const ApiKeyModel: ApiKeyModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.api_key,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, key: true }),
             // Of the form "1234...5678"
@@ -23,7 +21,7 @@ export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
                 return select.key.slice(0, 4) + "..." + select.key.slice(-4);
             },
         },
-    },
+    }),
     format: ApiKeyFormat,
     mutate: {
         shape: {
@@ -46,7 +44,7 @@ export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
         yup: apiKeyValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
@@ -67,9 +65,9 @@ export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

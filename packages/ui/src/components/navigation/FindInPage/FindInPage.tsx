@@ -1,5 +1,6 @@
-import { Box, Dialog, DialogContent, IconButton, Palette, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Dialog, DialogContent, IconButton, Palette, Tooltip, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useHotkeys } from "hooks/useHotkeys";
 import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "icons";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -127,7 +128,7 @@ const FindInPage = () => {
     }), [results.length]);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribeFindInPage(() => {
+        const dialogSub = PubSub.get().subscribe("findInPage", () => {
             setOpen(o => {
                 // If turning off, reset search values (but keep case sensitive and other buttons the same)
                 if (o) { close(); }
@@ -148,7 +149,7 @@ const FindInPage = () => {
     /**
      * Handles dialog close. Ignores backdrop click
      */
-    const handleClose = useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>, reason: "backdropClick" | "escapeKeyDown") => {
+    const onClose = useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>, reason: "backdropClick" | "escapeKeyDown") => {
         if (reason === "backdropClick") return;
         close();
     }, [close]);
@@ -156,7 +157,7 @@ const FindInPage = () => {
     return (
         <Dialog
             open={open}
-            onClose={handleClose}
+            onClose={onClose}
             ref={ref}
             disableScrollLock={true}
             BackdropProps={{ invisible: true }}
@@ -195,7 +196,7 @@ const FindInPage = () => {
                         border: `1px solid ${searchString.length > 0 && results.length === 0 ? "red" : palette.background.textPrimary}`,
                     }}>
                         {/* Search bar */}
-                        <TextField
+                        <TextInput
                             id="command-palette-search"
                             autoComplete='off'
                             autoFocus={true}

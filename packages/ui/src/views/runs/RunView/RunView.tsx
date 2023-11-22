@@ -15,7 +15,6 @@ import { pagePaddingBottom } from "styles";
 import { DecisionStep, DirectoryStep, EndStep, ProjectStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { base36ToUuid, tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -379,6 +378,7 @@ const convertProjectVersionToStep = (
 };
 
 export const RunView = ({
+    display,
     isOpen,
     onClose,
     runnableObject,
@@ -387,8 +387,6 @@ export const RunView = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
-    console.log("run view");
 
     // Find data in URL (e.g. current step, runID, whether or not this is a test run)
     const params = useReactSearch(null);
@@ -846,7 +844,7 @@ export const RunView = ({
                 },
                 successMessage: () => ({ messageKey: "RoutineCompleted" }),
                 onSuccess: () => {
-                    PubSub.get().publishCelebration();
+                    PubSub.get().publish("celebration");
                     removeSearchParams(setLocation, ["run", "step"]);
                     tryOnClose(onClose, setLocation);
                 },
@@ -863,7 +861,7 @@ export const RunView = ({
         const success = step.wasSuccessful ?? true;
         // Don't actually do it if in test mode
         if (testMode || !run) {
-            if (success) PubSub.get().publishCelebration();
+            if (success) PubSub.get().publish("celebration");
             removeSearchParams(setLocation, ["run", "step"]);
             tryOnClose(onClose, setLocation);
             return;
@@ -881,7 +879,7 @@ export const RunView = ({
             },
             successMessage: () => ({ messageKey: "RoutineCompleted" }),
             onSuccess: () => {
-                PubSub.get().publishCelebration();
+                PubSub.get().publish("celebration");
                 removeSearchParams(setLocation, ["run", "step"]);
                 tryOnClose(onClose, setLocation);
             },

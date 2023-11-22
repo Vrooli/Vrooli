@@ -12,7 +12,6 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { useTranslation } from "react-i18next";
 import { pagePaddingBottom } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { SettingsPrivacyFormProps, SettingsPrivacyViewProps } from "../types";
 
@@ -32,7 +31,6 @@ const SettingsPrivacyForm = ({
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
             >
@@ -89,7 +87,7 @@ const SettingsPrivacyForm = ({
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={props.errors as any}
+                errors={props.errors}
                 isCreate={false}
                 loading={props.isSubmitting}
                 onCancel={onCancel}
@@ -102,11 +100,10 @@ const SettingsPrivacyForm = ({
 
 
 export const SettingsPrivacyView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsPrivacyViewProps) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
@@ -134,7 +131,7 @@ export const SettingsPrivacyView = ({
                         } as ProfileUpdateInput}
                         onSubmit={(values, helpers) => {
                             if (!profile) {
-                                PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+                                PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
                             fetchLazyWrapper<ProfileUpdateInput, User>({
@@ -145,7 +142,7 @@ export const SettingsPrivacyView = ({
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={profileValidation.update({})}
+                        validationSchema={profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" })}
                     >
                         {(formik) => <SettingsPrivacyForm
                             display={display}

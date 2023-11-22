@@ -1,21 +1,24 @@
 import { MaxObjects, ProjectVersionSortBy, projectVersionValidation } from "@local/shared";
-import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
+import { ModelMap } from ".";
+import { addSupplementalFields } from "../../builders/addSupplementalFields";
+import { modelToGql } from "../../builders/modelToGql";
+import { noNull } from "../../builders/noNull";
+import { selectHelper } from "../../builders/selectHelper";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ProjectVersionFormat } from "../formats";
-import { ModelLogic } from "../types";
-import { ProjectModel } from "./project";
-import { RunProjectModel } from "./runProject";
-import { ProjectModelLogic, ProjectVersionModelLogic } from "./types";
+import { SuppFields } from "../suppFields";
+import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic, RunProjectModelLogic } from "./types";
 
 const __typename = "ProjectVersion" as const;
-const suppFields = ["you"] as const;
-export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof suppFields> = ({
+export const ProjectVersionModel: ProjectVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.project_version,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -35,7 +38,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: ProjectVersionFormat,
     mutate: {
         shape: {
@@ -59,19 +62,19 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
-                ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
-                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
+                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
                 versionLabel: noNull(data.versionLabel),
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: "directories", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
-                ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
-                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await shapeHelper({ relation: "directories", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
+                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         trigger: {
@@ -107,7 +110,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //         // Loop through search fields and add each to the search query, 
     //         // if the field is specified in the input
     //         const customQueries: { [x: string]: any }[] = [];
-    //         for (const field of Object.keys(CommentModel.search.searchFields)) {
+    //         for (const field of Object.keys(ModelMap.get<CommentModelLogic>("Comment").search.searchFields)) {
     //             if (input[field as string] !== undefined) {
     //                 customQueries.push(SearchMap[field as string](input, getUser(req.session), __typename));
     //             }
@@ -118,9 +121,9 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //         const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
     //         // Determine sort order
     //         // Make sure sort field is valid
-    //         const orderByField = input.sortBy ?? CommentModel.search.defaultSort;
-    //         const orderByIsValid = CommentModel.search.sortBy[orderByField] === undefined
-    //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search.defaultSort] : undefined;
+    //         const orderByField = input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort;
+    //         const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined
+    //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
     //         // Find requested search array
     //         const searchResults = await prisma.comment.findMany({
     //             where,
@@ -148,7 +151,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //         const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
     //             ids: searchResults.map(r => r.id),
     //             take: input.take ?? 10,
-    //             sortBy: input.sortBy ?? CommentModel.search.defaultSort,
+    //             sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
     //         }, info, nestLimit) : [];
     //         // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
     //         const flattenThreads = (threads: CommentThread[]) => {
@@ -231,14 +234,14 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
                 const runs = async () => {
                     if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add projectVersionId, so we 
                     // can associate runs with their project
                     const runPartial: PartialGraphQLInfo = {
-                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunProjectModel.format.gqlRelMap, userData.languages, true),
+                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, ModelMap.get<RunProjectModelLogic>("RunProject").format.gqlRelMap, userData.languages, true),
                         projectVersionId: true,
                     };
                     // Query runs made by user
@@ -268,14 +271,14 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<ProjectVersionModelLogic["PrismaSelect"]>([["root", "Project"]], data, ...rest),
+            oneIsPublic<ProjectVersionModelInfo["PrismaSelect"]>([["root", "Project"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ProjectModel.validate.owner(data?.root as ProjectModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.root as ProjectModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -301,8 +304,8 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
                 ],
             },
             owner: (userId) => ({
-                root: ProjectModel.validate.visibility.owner(userId),
+                root: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

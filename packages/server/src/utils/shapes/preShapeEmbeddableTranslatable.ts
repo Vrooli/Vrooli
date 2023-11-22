@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { getLogic } from "../../getters";
+import { ModelMap } from "../../models/base";
 import { WithIdField } from "../../types";
 
 /**
@@ -29,7 +29,7 @@ export const preShapeEmbeddableTranslatable = <IdField extends string = "id">({
     // Initialize map
     const embeddingNeedsUpdateMap: Record<string, { [language in string]: boolean }> = {};
     // Get id field
-    const { idField } = getLogic(["idField"], objectType, ["en"], "preShapeEmbeddableTranslatable");
+    const { idField } = ModelMap.getLogic(["idField"], objectType);
     // For Create, every language needs to be updated
     for (const { input } of Create) {
         embeddingNeedsUpdateMap[input[idField]] = input.translationsCreate?.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>) ?? {};
