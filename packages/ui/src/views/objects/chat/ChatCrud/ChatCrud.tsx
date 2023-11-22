@@ -337,7 +337,7 @@ const ChatForm = ({
         // Otherwise, set the message input to "@[handle_of_user_youre_replying_to] "
         else {
             PubSub.get().publish("chatMessageEdit", false);
-            setMessage(`@[${message.user?.name}] `);
+            setMessage(existingText => `@[${message.user?.name}] ${existingText}`);
         }
     }, [branches, existing?.participants?.length, session, setMessage, tree]);
 

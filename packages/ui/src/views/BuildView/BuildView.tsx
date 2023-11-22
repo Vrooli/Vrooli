@@ -74,7 +74,7 @@ export const BuildView = ({
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ["Calculating..."] });
     const [scale, setScale] = useState<number>(-1);
     const handleScaleChange = useCallback((delta: number) => {
-        PubSub.get().publishFastUpdate({ duration: 1000 });
+        PubSub.get().publish("fastUpdate", { duration: 1000 });
         // Limit to -3 to 0.5. These are determined by finding where the nodes stop shrinking/growing
         setScale(s => Math.min(Math.max(s + delta, -3), 0.5));
     }, []);
@@ -85,7 +85,7 @@ export const BuildView = ({
     const clearChangeStack = useCallback(() => {
         setChangeStack(stableRoutineVersion ? [stableRoutineVersion] : []);
         setChangeStackIndex(stableRoutineVersion ? 0 : -1);
-        PubSub.get().publishFastUpdate({ duration: 1000 });
+        PubSub.get().publish("fastUpdate", { duration: 1000 });
         setChangedRoutineVersion(stableRoutineVersion);
     }, [stableRoutineVersion]);
     useEffect(() => {
@@ -97,7 +97,7 @@ export const BuildView = ({
     const undo = useCallback(() => {
         if (changeStackIndex > 0) {
             setChangeStackIndex(changeStackIndex - 1);
-            PubSub.get().publishFastUpdate({ duration: 1000 });
+            PubSub.get().publish("fastUpdate", { duration: 1000 });
             setChangedRoutineVersion(changeStack[changeStackIndex - 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -108,7 +108,7 @@ export const BuildView = ({
     const redo = useCallback(() => {
         if (changeStackIndex < changeStack.length - 1) {
             setChangeStackIndex(changeStackIndex + 1);
-            PubSub.get().publishFastUpdate({ duration: 1000 });
+            PubSub.get().publish("fastUpdate", { duration: 1000 });
             setChangedRoutineVersion(changeStack[changeStackIndex + 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -122,7 +122,7 @@ export const BuildView = ({
         newChangeStack.push(changedRoutine);
         setChangeStack(newChangeStack);
         setChangeStackIndex(newChangeStack.length - 1);
-        PubSub.get().publishFastUpdate({ duration: 1000 });
+        PubSub.get().publish("fastUpdate", { duration: 1000 });
         setChangedRoutineVersion(changedRoutine);
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutineVersion]);
 
@@ -274,7 +274,7 @@ export const BuildView = ({
         };
         // Confirm if changes have been made
         if (changeStack.length > 1) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "UnsavedChangesBeforeCancel",
                 buttons: [
                     { labelKey: "Yes", onClick: () => { revert(); } },
@@ -491,7 +491,7 @@ export const BuildView = ({
         }
         // If one or the other is null, then there must be an error
         if (columnIndex === null || rowIndex === null) {
-            PubSub.get().publishSnack({ messageKey: "InvalidDropLocation", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "InvalidDropLocation", severity: "Error" });
             return;
         }
         // Otherwise, is a drop
@@ -601,7 +601,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its row and column
         const toNode = changedRoutineVersion.nodes.find(n => n.id === link.to.id);
         if (!toNode) {
-            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             return;
         }
         const { columnIndex, rowIndex } = toNode;
@@ -636,7 +636,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its column
         const toNode = changedRoutineVersion.nodes.find(n => n.id === link.to.id);
         if (!toNode) {
-            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             return;
         }
         // Find the largest row index in the column. New node will be placed in the next row
@@ -843,7 +843,7 @@ export const BuildView = ({
     const handleSubroutineViewFull = useCallback(() => {
         if (!openedSubroutine) return;
         if (!isEqual(routineVersion, changedRoutineVersion)) {
-            PubSub.get().publishSnack({ messageKey: "SaveChangesBeforeLeaving", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "SaveChangesBeforeLeaving", severity: "Error" });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines
@@ -1012,6 +1012,12 @@ export const BuildView = ({
                     nodeId={addSubroutineNode}
                     routineVersionId={routineVersion?.id}
                 />}
+                {/* Add new subroutine menu */}
+                {/* TODO need to combine new dialog with search. So you select type, search routines of that type, then create if none found */}
+                {/* <SubroutineCreateDialog
+                    isOpen={true}
+                    onClose={() => { }}
+                /> */}
                 {/* Popup for "Add after" dialog */}
                 {addAfterLinkNode && <AddAfterLinkDialog
                     handleSelect={handleNodeInsert}

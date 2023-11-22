@@ -46,7 +46,18 @@ export const TypingIndicator = ({
     if (!displayText) return null;
 
     return (
-        <Box display="flex" flexDirection="row" justifyContent="flex-start" alignItems="center" gap={0} p={1}>
+        <Box
+            display="flex"
+            flexDirection="row"
+            justifyContent="flex-start"
+            alignItems="center"
+            gap={0}
+            p={1}
+            sx={{
+                width: "min(100%, 700px)",
+                margin: "auto",
+            }}
+        >
             <Typography variant="body2" p={1}>{displayText} {dots}</Typography>
         </Box>
     );

@@ -182,6 +182,11 @@ export interface LinkDialogProps {
     routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
 }
 
+export interface SubroutineCreateDialogProps {
+    isOpen: boolean;
+    onClose: () => unknown;
+}
+
 export interface SubroutineInfoDialogProps {
     data: { node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null;
     defaultLanguage: string;

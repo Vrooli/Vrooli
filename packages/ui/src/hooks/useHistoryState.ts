@@ -14,13 +14,14 @@ export const useHistoryState = <T>(key: string, defaultTo: T) => {
         return value || defaultTo;
     });
 
-    function setState(value) {
+    const setState = (update: T | ((prevState: T) => T)) => {
+        const newValue = update instanceof Function ? update(state) : update;
         window.history.replaceState(
-            { ...window.history.state, [key]: value },
+            { ...window.history.state, [key]: newValue },
             document.title,
         );
-        rawSetState(value);
-    }
+        rawSetState(newValue);
+    };
 
     return [state, setState] as const;
 };
