@@ -90,7 +90,7 @@ services:
       retries: 15
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/server.sh"
   db:
-    image: ankane/pgvector:v0.4.1
+    image: ankane/pgvector:v0.4.4
     restart: always
     container_name: db
     environment:
