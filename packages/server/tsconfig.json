@@ -21,7 +21,7 @@
         "jsx": "react-jsx",
         "noImplicitAny": false,
         "noImplicitThis": true,
-        "sourceMap": true,
+        "sourceMap": false,
         "strictNullChecks": true,
         "removeComments": true,
     },
@@ -32,7 +32,9 @@
         "**/*.spec.ts",
         "**/*.test.ts",
         "**/__mocks__",
+        "**/coverage",
         "**/node_modules",
+        "**/dist",
         "**/.*/",
     ],
 }

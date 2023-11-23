@@ -37,5 +37,9 @@
         "**/*.spec.ts",
         "**/*.test.ts",
         "**/__mocks__",
+        "**/coverage",
+        "**/node_modules",
+        "**/dist",
+        "**/.*/",
     ]
 }

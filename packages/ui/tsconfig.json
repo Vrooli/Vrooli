@@ -40,8 +40,11 @@
         "**/*.spec.ts",
         "**/*.test.ts",
         "**/__mocks__",
+        "**/coverage",
         "**/config",
-        "node_modules",
+        "**/node_modules",
+        "**/dist",
+        "**/.*/",
     ],
     "references": [
         {

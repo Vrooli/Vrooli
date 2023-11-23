@@ -22,7 +22,7 @@
         "post-build-message-signing": "WPATH=\"auth/message_signing/rust/pkg\" && mkdir -p dist/$WPATH && cp src/$WPATH/*.wasm dist/$WPATH/ && cp src/$WPATH/*.json dist/$WPATH/ && [ -f src/$WPATH/emurgo_message_signing.js ] && cp src/$WPATH/emurgo_message_signing.js dist/$WPATH/ || echo 'emurgo_message_signing.js not found, skipping copy'",
         "post-build-email-templates": "[ -d src/notify/email/templates ] && cp -R src/notify/email/templates dist/notify/email/ || echo 'email templates directory not found, skipping copy'",
         "post-build-censor": "[ -f src/utils/censorDictionary.txt ] && cp src/utils/censorDictionary.txt dist/utils/censorDictionary.txt || echo 'censorDictionary.txt not found, skipping copy'",
-        "start-development": "yarn pre-build && yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js",
+        "start-development": "NODE_OPTIONS=\"--max-old-space-size=4096\" yarn pre-build && yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js",
         "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
         "graphql-generate": "graphql-codegen --config codegen.yml && sed -i 's/__typename?:/__typename:/g' generatedTypes.ts && mv generatedTypes.ts ../shared/src/api/generated/graphqlTypes.ts"
