@@ -15,8 +15,8 @@ nav:
       - Overview: routines/overview.md
       - Framework: routines/framework.md
       - Routine Complexity: testing/routine_complexity.md
-  - Valyxa:
-      - Overview: valyxa/overview.md
+  - Agents:
+      - Overview: agents/overview.md
   - API Reference:
       - Overview: api_reference/overview.md
       - Getting Access: api_reference/getting_access.md

@@ -13,9 +13,9 @@ In these docs, we cover the following topics:
   </div>
 
   <div class="card">
-    <a href="valyxa/overview.html">
-      <h3>Valyxa</h3>
-      <p>Our powerful AI assistant</p>
+    <a href="agents/overview.html">
+      <h3>Agents</h3>
+      <p>Our powerful AI assistants</p>
     </a>
   </div>
 

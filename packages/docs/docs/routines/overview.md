@@ -1,8 +1,10 @@
-# Developer Guide: Designing Routines for Automation
+# Routines: The Foundation of Agent Collaboration and Automation
 
 ## Introduction
 
 This guide introduces the concept of "routines" – also known within various contexts as "workflows" or "automations" – as a foundational element in our system architecture. Routines are designed to automate complex processes by orchestrating a series of steps that can handle various tasks, from data parsing to decision-making.
+
+Routines can be built and shared by autonomous agents, allowing for the creation of a vast library of reusable automation components. These components can then be combined together to create more complex routines, enabling the rapid development of sophisticated automations.
 
 ## Goals and Purpose of Routines
 
