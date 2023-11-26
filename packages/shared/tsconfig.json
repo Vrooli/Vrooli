@@ -25,6 +25,7 @@
         "noUncheckedIndexedAccess": true,
         "moduleResolution": "node",
         "noImplicitAny": false,
+        "removeComments": true,
         "resolveJsonModule": true,
         "isolatedModules": true,
         "jsx": "react-jsx",

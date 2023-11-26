@@ -153,14 +153,14 @@ export const TagSelectorBase = ({
             onClose={clearText}
             value={tags}
             // Filter out what has already been selected
-            filterOptions={(options, params) => options.filter(o => !tags.some(t => t.tag === o.tag))}
+            filterOptions={(options, params) => options.filter(o => !tags.some(t => t.tag === (o as TagShape | Tag).tag))}
             renderTags={(value, getTagProps) =>
-                value.map((option: TagShape | Tag, index) => (
+                value.map((option, index) => (
                     <Chip
                         variant="filled"
-                        label={option.tag}
+                        label={(option as TagShape | Tag).tag}
                         {...getTagProps({ index })}
-                        onDelete={() => onChipDelete(option)}
+                        onDelete={() => onChipDelete(option as TagShape | Tag)}
                         sx={{
                             backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
                             color: "white",
@@ -168,18 +168,18 @@ export const TagSelectorBase = ({
                     />
                 ),
                 )}
-            renderOption={(props, option: TagShape | Tag) => (
+            renderOption={(props, option) => (
                 <MenuItem
                     {...props}
                     onClick={() => onInputSelect(option as Tag)} //TODO
                 >
-                    <ListItemText>{option.tag}</ListItemText>
+                    <ListItemText>{(option as TagShape | Tag).tag}</ListItemText>
                     <BookmarkButton
                         objectId={(option as Tag).id ?? ""}
                         bookmarkFor={BookmarkFor.Tag}
                         isBookmarked={(option as Tag).you.isBookmarked}
                         bookmarks={(option as Tag).bookmarks}
-                        onChange={(isBookmarked) => { handleIsBookmarked(option.tag, isBookmarked); }}
+                        onChange={(isBookmarked) => { handleIsBookmarked((option as TagShape | Tag).tag, isBookmarked); }}
                     />
                 </MenuItem>
             )}

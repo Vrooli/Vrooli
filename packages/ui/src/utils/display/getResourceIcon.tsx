@@ -63,7 +63,6 @@ const LinkIconMap: { [key in LINKS]?: SvgComponent } = {
     [LINKS.SmartContract]: SmartContractIcon,
     [LINKS.Standard]: StandardIcon,
     [LINKS.Stats]: StatsIcon,
-    [LINKS.User]: UserIcon,
 };
 
 const getRoute = (pathname: string): LINKS | undefined => {

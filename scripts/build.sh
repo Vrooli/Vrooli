@@ -131,6 +131,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Build shared
+info "Building shared..."
 "${HERE}/shared.sh"
 if [ $? -ne 0 ]; then
     error "Failed to build shared"
@@ -139,7 +140,7 @@ fi
 
 # Build server
 info "Building server..."
-yarn build
+yarn pre-build && yarn build
 if [ $? -ne 0 ]; then
     error "Failed to build server"
     exit 1

@@ -1,5 +1,5 @@
 import moment from "moment";
-import { Schedule, ScheduleException, ScheduleRecurrence } from "../api";
+import type { Schedule, ScheduleException, ScheduleRecurrence } from "../api";
 import { uuid } from "../id";
 import { applyExceptions, calculateNextDailyOccurrence, calculateNextMonthlyOccurrence, calculateNextWeeklyOccurrence, calculateNextYearlyOccurrence, calculateOccurrences, jumpToFirstRelevantDailyOccurrence, jumpToFirstRelevantMonthlyOccurrence, jumpToFirstRelevantWeeklyOccurrence, jumpToFirstRelevantYearlyOccurrence, validateTimeFrame } from "./schedules";
 

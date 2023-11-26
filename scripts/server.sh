@@ -4,8 +4,7 @@ HERE=$(dirname $0)
 
 # If in development mode
 if [ "${NODE_ENV}" = "development" ]; then
-    # Convert shared packages to typescript.
-    # In production, this should already be done
+    # Convert shared packages to typescript. In production, this should already be done
     . "${HERE}/shared.sh"
 fi
 
@@ -20,7 +19,7 @@ yarn global add prisma@4.14.0
 yarn global bin
 
 cd ${PROJECT_DIR}/packages/server
-yarn pre-build-prisma
+yarn pre-develop && yarn build
 
 if [ "${DB_PULL}" = true ]; then
     info 'Generating schema.prisma file from database...'

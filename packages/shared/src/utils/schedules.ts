@@ -1,4 +1,4 @@
-import { Schedule, ScheduleRecurrence } from "@local/shared";
+import type { Schedule, ScheduleRecurrence } from "@local/shared";
 import moment from "moment-timezone"; // Native Date objects don't handle time zones well
 
 const ONE_YEAR_IN_MS = 1000 * 60 * 60 * 24 * 365;

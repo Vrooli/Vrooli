@@ -2,10 +2,10 @@
  * Drawer to display the steps of a routine, displayed as a vertical tree
  */
 import { noop } from "@local/shared";
-import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
-import { alpha, Box, Checkbox, IconButton, Palette, styled, SwipeableDrawer, Typography, useTheme } from "@mui/material";
+// import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
+import { IconButton, Palette, SwipeableDrawer, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
-import { ListNumberIcon, OpenInNewIcon, StepListCloseIcon, StepListEndIcon, StepListOpenIcon } from "icons";
+import { ListNumberIcon } from "icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
 import { ProjectStep } from "types";
@@ -26,90 +26,91 @@ interface StyledTreeItemProps {
     type: RoutineStepType | ProjectStepType | "placeholder";
 }
 
-const StyledTreeItem = styled((props: StyledTreeItemProps) => {
-    const {
-        label,
-        isComplete,
-        isSelected,
-        onLoad,
-        onToStep,
-        palette,
-        type,
-        ...other
-    } = props;
+//TODO implement tree structure myself, since MUI TreeView not supported anymore
+// const StyledTreeItem = styled((props: StyledTreeItemProps) => {
+//     const {
+//         label,
+//         isComplete,
+//         isSelected,
+//         onLoad,
+//         onToStep,
+//         palette,
+//         type,
+//         ...other
+//     } = props;
 
-    const canToStep = typeof onToStep === "function" && (type === RoutineStepType.Decision || type === RoutineStepType.Subroutine);
+//     const canToStep = typeof onToStep === "function" && (type === RoutineStepType.Decision || type === RoutineStepType.Subroutine);
 
-    /**
-     * Only trigger onToStep if the onToStep function is supplied, and the type is a decision or subroutine. 
-     * Only trigger onLoad if the onLoad function is supplied.
-     */
-    const handleTreeItemClick = (ev: React.MouseEvent) => {
-        if (typeof onLoad === "function") {
-            onLoad(ev);
-        }
-        if (canToStep) {
-            onToStep(ev);
-        }
-    };
+//     /**
+//      * Only trigger onToStep if the onToStep function is supplied, and the type is a decision or subroutine. 
+//      * Only trigger onLoad if the onLoad function is supplied.
+//      */
+//     const handleTreeItemClick = (ev: React.MouseEvent) => {
+//         if (typeof onLoad === "function") {
+//             onLoad(ev);
+//         }
+//         if (canToStep) {
+//             onToStep(ev);
+//         }
+//     };
 
-    return (
-        <TreeItem
-            label={
-                <Box
-                    onClick={handleTreeItemClick}
-                    sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        p: 0.5,
-                        pr: 0,
-                        color: palette.background.textPrimary,
-                    }}
-                >
-                    <Typography variant="body2" sx={{ fontWeight: "inherit", flexGrow: 1 }}>
-                        {label}
-                    </Typography>
-                    {/* Indicator for completeness */}
-                    {isComplete && <Checkbox
-                        id={`item-complete-checkbox-${props.nodeId}`}
-                        size="small"
-                        color='secondary'
-                        checked={true}
-                        disabled={true}
-                        sx={{
-                            "& svg": {
-                                color: palette.secondary.main,
-                            },
-                        }}
-                    />}
-                    {/* Redirects to step */}
-                    {canToStep && <IconButton size="small" onClick={onToStep}>
-                        <OpenInNewIcon fill={palette.background.textPrimary} />
-                    </IconButton>}
-                </Box>
-            }
-            {...other}
-        />
-    );
-})(({ theme }) => ({
-    [`& .${treeItemClasses.iconContainer}`]: {
-        "& .close": {
-            opacity: 0.3,
-        },
-    },
-    [`& .${treeItemClasses.group}`]: {
-        marginLeft: 15,
-        paddingLeft: 18,
-        borderLeft: `1px dashed ${alpha(theme.palette.text.primary, 0.4)}`,
-    },
-    [`& .${treeItemClasses.label}`]: {
-        fontSize: "1.2rem",
-        "& p": {
-            paddingTop: "12px",
-            paddingBottom: "12px",
-        },
-    },
-}));
+//     return (
+//         <TreeItem
+//             label={
+//                 <Box
+//                     onClick={handleTreeItemClick}
+//                     sx={{
+//                         display: "flex",
+//                         alignItems: "center",
+//                         p: 0.5,
+//                         pr: 0,
+//                         color: palette.background.textPrimary,
+//                     }}
+//                 >
+//                     <Typography variant="body2" sx={{ fontWeight: "inherit", flexGrow: 1 }}>
+//                         {label}
+//                     </Typography>
+//                     {/* Indicator for completeness */}
+//                     {isComplete && <Checkbox
+//                         id={`item-complete-checkbox-${props.nodeId}`}
+//                         size="small"
+//                         color='secondary'
+//                         checked={true}
+//                         disabled={true}
+//                         sx={{
+//                             "& svg": {
+//                                 color: palette.secondary.main,
+//                             },
+//                         }}
+//                     />}
+//                     {/* Redirects to step */}
+//                     {canToStep && <IconButton size="small" onClick={onToStep}>
+//                         <OpenInNewIcon fill={palette.background.textPrimary} />
+//                     </IconButton>}
+//                 </Box>
+//             }
+//             {...other}
+//         />
+//     );
+// })(({ theme }) => ({
+//     [`& .${treeItemClasses.iconContainer}`]: {
+//         "& .close": {
+//             opacity: 0.3,
+//         },
+//     },
+//     [`& .${treeItemClasses.group}`]: {
+//         marginLeft: 15,
+//         paddingLeft: 18,
+//         borderLeft: `1px dashed ${alpha(theme.palette.text.primary, 0.4)}`,
+//     },
+//     [`& .${treeItemClasses.label}`]: {
+//         fontSize: "1.2rem",
+//         "& p": {
+//             paddingTop: "12px",
+//             paddingBottom: "12px",
+//         },
+//     },
+// }));
 
 export const RunStepsDialog = ({
     currStep,
@@ -188,50 +189,53 @@ export const RunStepsDialog = ({
         switch (step.type) {
             // A decision step never has children
             case RoutineStepType.Decision:
-                return <StyledTreeItem
-                    isComplete={completed}
-                    isSelected={selected}
-                    label={`${realLocationLabel}. Decision`}
-                    nodeId={locationLabel}
-                    onToStep={toLocation}
-                    palette={palette}
-                    type={step.type}
-                />;
+                return null;
+            // return <StyledTreeItem
+            //     isComplete={completed}
+            //     isSelected={selected}
+            //     label={`${realLocationLabel}. Decision`}
+            //     nodeId={locationLabel}
+            //     onToStep={toLocation}
+            //     palette={palette}
+            //     type={step.type}
+            // />;
             // A subroutine may have children, but they may not be loaded
             case RoutineStepType.Subroutine:
                 // If there are further steps, add a "Loading" node
                 if (routineVersionHasSubroutines(step.routineVersion)) {
-                    return (
-                        <StyledTreeItem
-                            isComplete={completed}
-                            isSelected={selected}
-                            label={`${realLocationLabel}. ${step.name}`}
-                            nodeId={locationLabel}
-                            onLoad={() => { handleLoadSubroutine(step.routineVersion.id); }} // Load subroutine(s)
-                            onToStep={toLocation}
-                            palette={palette}
-                            type={step.type}
-                        >
-                            <StyledTreeItem
-                                isComplete={false}
-                                isSelected={false}
-                                label="Loading..."
-                                nodeId={`${locationLabel}-loading`}
-                                palette={palette}
-                                type={"placeholder"}
-                            />
-                        </StyledTreeItem>
-                    );
+                    return null;
+                    // return (
+                    //     <StyledTreeItem
+                    //         isComplete={completed}
+                    //         isSelected={selected}
+                    //         label={`${realLocationLabel}. ${step.name}`}
+                    //         nodeId={locationLabel}
+                    //         onLoad={() => { handleLoadSubroutine(step.routineVersion.id); }} // Load subroutine(s)
+                    //         onToStep={toLocation}
+                    //         palette={palette}
+                    //         type={step.type}
+                    //     >
+                    //         <StyledTreeItem
+                    //             isComplete={false}
+                    //             isSelected={false}
+                    //             label="Loading..."
+                    //             nodeId={`${locationLabel}-loading`}
+                    //             palette={palette}
+                    //             type={"placeholder"}
+                    //         />
+                    //     </StyledTreeItem>
+                    // );
                 }
-                return <StyledTreeItem
-                    isComplete={completed}
-                    isSelected={selected}
-                    label={`${realLocationLabel}. ${step.name}`}
-                    nodeId={locationLabel}
-                    onToStep={toLocation}
-                    palette={palette}
-                    type={step.type}
-                />;
+                return null;
+            // return <StyledTreeItem
+            //     isComplete={completed}
+            //     isSelected={selected}
+            //     label={`${realLocationLabel}. ${step.name}`}
+            //     nodeId={locationLabel}
+            //     onToStep={toLocation}
+            //     palette={palette}
+            //     type={step.type}
+            // />;
 
             // A routine list always has children
             case RoutineStepType.RoutineList:
@@ -239,18 +243,19 @@ export const RunStepsDialog = ({
                 const stepItems = step.steps;
                 // Don't wrap in a tree item if location is one element long (i.e. the root)
                 if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]));
-                return (
-                    <StyledTreeItem
-                        isComplete={completed}
-                        isSelected={selected}
-                        label={`${realLocationLabel}. ${step.name}`}
-                        nodeId={locationLabel}
-                        palette={palette}
-                        type={step.type}
-                    >
-                        {stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))}
-                    </StyledTreeItem>
-                );
+                return null;
+                // return (
+                //     <StyledTreeItem
+                //         isComplete={completed}
+                //         isSelected={selected}
+                //         label={`${realLocationLabel}. ${step.name}`}
+                //         nodeId={locationLabel}
+                //         palette={palette}
+                //         type={step.type}
+                //     >
+                //         {stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))}
+                //     </StyledTreeItem>
+                // );
             }
         }
     }, [isComplete, isSelected, setLocation, handleCurrStepLocationUpdate, palette, handleLoadSubroutine]);
@@ -282,7 +287,7 @@ export const RunStepsDialog = ({
                     title={`Steps (${Math.floor(percentComplete)}% Complete)`}
                 />
                 {/* Tree display of steps */}
-                <TreeView
+                {/* <TreeView
                     aria-label="routine steps navigator"
                     defaultCollapseIcon={<StepListCloseIcon fill={palette.background.textPrimary} />}
                     defaultExpandIcon={<StepListOpenIcon fill={palette.background.textPrimary} />}
@@ -298,7 +303,7 @@ export const RunStepsDialog = ({
                     }}
                 >
                     {rootStep && getTreeItem(rootStep)}
-                </TreeView>
+                </TreeView> */}
             </SwipeableDrawer>
         </>
     );
