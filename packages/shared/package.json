@@ -10,7 +10,7 @@
     "sideEffects": false,
     "type": "module",
     "scripts": {
-        "build": "yarn type-check && yarn swc src -d dist",
+        "build": "yarn swc src -d dist",
         "test": "jest --coverage",
         "type-check": "tsc --noEmit"
     },

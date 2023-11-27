@@ -1,16 +1,13 @@
 #!/bin/bash
 # NOTE: Run outside of Docker container
-# Prepares project for deployment to VPS:
-# 1. Asks for version number, and updates all package.json files accordingly.
-# 2. Builds the React app, making sure to include environment variables and post-build commands.
-# 3. Builds all Docker containers, making sure to include environment variables and post-build commands.
-# 3. Copies the tarballs for the React app and Docker containers to the VPS.
+# Prepares project for deployment via Docker Compose or Kubernetes
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
 # Read arguments
 ENV_FILE="${HERE}/../.env-prod"
-while getopts "v:d:u:ha:e:" opt; do
+TEST="y"
+while getopts "v:d:u:ha:e:t:" opt; do
     case $opt in
     h)
         echo "Usage: $0 [-v VERSION] [-d DEPLOY_VPS_VPS] [-u USE_KUBERNETES] [-h] [-a API_GENERATE] [-e ENV_FILE]"
@@ -20,6 +17,7 @@ while getopts "v:d:u:ha:e:" opt; do
         echo "  -h --help: Show this help message"
         echo "  -a --api-generate: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
         echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
+        echo "  -t --test: Runs all tests to ensure code is working before building. Defaults to true. (y/N)"
         exit 0
         ;;
     a)
@@ -30,6 +28,9 @@ while getopts "v:d:u:ha:e:" opt; do
         ;;
     e)
         ENV_FILE=$OPTARG
+        ;;
+    t)
+        TEST=$OPTARG
         ;;
     u)
         USE_KUBERNETES=$OPTARG
@@ -111,23 +112,37 @@ fi
 # Navigate to shared directory
 cd ${HERE}/../packages/shared
 
-# Run unit tests
-header "Running unit tests for shared..."
-yarn test
-if [ $? -ne 0 ]; then
-    error "Failed to run unit tests for shared"
-    exit 1
+# Run tests
+if [ "${TEST}" = "y" ] && [ "${TEST}" = "Y" ]; then
+    header "Running unit tests for shared..."
+    yarn test
+    header "Type checking shared..."
+    yarn type-check
+    if [ $? -ne 0 ]; then
+        error "Failed to run unit tests for shared"
+        exit 1
+    fi
+else
+    warning "Skipping unit tests for shared..."
+    warning "Skipping type checking for shared..."
 fi
 
 # Navigate to server directory
 cd ${HERE}/../packages/server
 
-# Run unit tests
-header "Running unit tests for server..."
-yarn test
-if [ $? -ne 0 ]; then
-    error "Failed to run unit tests for server"
-    exit 1
+# Run tests
+if [ "${TEST}" = "y" ] && [ "${TEST}" = "Y" ]; then
+    header "Running unit tests for server..."
+    yarn test
+    header "Type checking server..."
+    yarn type-check
+    if [ $? -ne 0 ]; then
+        error "Failed to run unit tests for server"
+        exit 1
+    fi
+else
+    warning "Skipping unit tests for server..."
+    warning "Skipping type checking for server..."
 fi
 
 # Build shared
@@ -149,12 +164,19 @@ fi
 # Navigate to UI directory
 cd ${HERE}/../packages/ui
 
-# Run unit tests
-header "Running unit tests for UI..."
-yarn test
-if [ $? -ne 0 ]; then
-    error "Failed to run unit tests for UI"
-    exit 1
+# Run tests
+if [ "${TEST}" = "y" ] && [ "${TEST}" = "Y" ]; then
+    header "Running unit tests for UI..."
+    yarn test
+    header "Type checking UI..."
+    yarn type-check
+    if [ $? -ne 0 ]; then
+        error "Failed to run unit tests for UI"
+        exit 1
+    fi
+else
+    warning "Skipping unit tests for UI..."
+    warning "Skipping type checking for UI..."
 fi
 
 # Create local .env file

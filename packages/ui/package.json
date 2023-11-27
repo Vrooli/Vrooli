@@ -75,7 +75,7 @@
         "zxcvbn": "^4.4.2"
     },
     "scripts": {
-        "build": "yarn type-check && vite build && node workbox-build.js",
+        "build": "vite build && node workbox-build.js",
         "start-development": "vite",
         "start-production": "serve --config serve.json",
         "analyze": "source-map-explorer dist/assets/*",
