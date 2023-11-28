@@ -76,7 +76,7 @@
     },
     "scripts": {
         "build": "vite build && node workbox-build.js",
-        "start-development": "vite",
+        "start-development": "yarn type-check && vite",
         "start-production": "serve --config serve.json",
         "analyze": "source-map-explorer dist/assets/*",
         "lint": "eslint src",

@@ -20,6 +20,10 @@ yarn global bin
 
 cd ${PROJECT_DIR}/packages/server
 yarn pre-develop && yarn build
+if [ $? -ne 0 ]; then
+    error "Failed to build server"
+    exit 1
+fi
 
 if [ "${DB_PULL}" = true ]; then
     info 'Generating schema.prisma file from database...'

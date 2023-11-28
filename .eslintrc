@@ -25,7 +25,8 @@
             "./packages/shared/tsconfig.json",
             "./packages/shared/tsconfig.test.json",
             "./packages/ui/tsconfig.json",
-            "./packages/ui/tsconfig.test.json"
+            "./packages/ui/tsconfig.test.json",
+            "./packages/ui/tsconfig.tools.json"
         ]
     },
     "plugins": [

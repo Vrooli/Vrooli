@@ -113,7 +113,7 @@ fi
 cd ${HERE}/../packages/shared
 
 # Run tests
-if [ "${TEST}" = "y" ] && [ "${TEST}" = "Y" ]; then
+if [ "${TEST}" = "y" ] || [ "${TEST}" = "Y" ] || [ "${TEST}" = "yes" ] || [ "${TEST}" = "Yes" ]; then
     header "Running unit tests for shared..."
     yarn test
     header "Type checking shared..."
@@ -131,7 +131,7 @@ fi
 cd ${HERE}/../packages/server
 
 # Run tests
-if [ "${TEST}" = "y" ] && [ "${TEST}" = "Y" ]; then
+if [ "${TEST}" = "y" ] || [ "${TEST}" = "Y" ] || [ "${TEST}" = "yes" ] || [ "${TEST}" = "Yes" ]; then
     header "Running unit tests for server..."
     yarn test
     header "Type checking server..."
@@ -165,7 +165,7 @@ fi
 cd ${HERE}/../packages/ui
 
 # Run tests
-if [ "${TEST}" = "y" ] && [ "${TEST}" = "Y" ]; then
+if [ "${TEST}" = "y" ] || [ "${TEST}" = "Y" ] || [ "${TEST}" = "yes" ] || [ "${TEST}" = "Yes" ]; then
     header "Running unit tests for UI..."
     yarn test
     header "Type checking UI..."

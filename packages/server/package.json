@@ -17,7 +17,7 @@
         "test": "jest --coverage --config jest.config.cjs",
         "pre-build": "yarn pre-build-dist-setup",
         "pre-build-dist-setup": "mkdir -p dist/db && [ -f src/db/schema.prisma ] && cp src/db/schema.prisma dist/db/schema.prisma || echo 'schema.prisma not found, skipping copy' && [ -d src/db/migrations ] && rm -rf dist/db/migrations && cp -r src/db/migrations dist/db/migrations || echo 'migrations directory not found, skipping copy'",
-        "pre-develop": "yarn pre-build && prisma migrate deploy && yarn prisma-generate",
+        "pre-develop": "yarn pre-build && prisma migrate deploy && yarn prisma-generate && yarn type-check",
         "build": "yarn swc src -d dist && yarn post-build",
         "post-build": "yarn post-build-message-signing && yarn post-build-email-templates && yarn post-build-censor",
         "post-build-message-signing": "WPATH=\"auth/message_signing/rust/pkg\" && mkdir -p dist/$WPATH && cp src/$WPATH/*.wasm dist/$WPATH/ && cp src/$WPATH/*.json dist/$WPATH/ && [ -f src/$WPATH/emurgo_message_signing.js ] && cp src/$WPATH/emurgo_message_signing.js dist/$WPATH/ || echo 'emurgo_message_signing.js not found, skipping copy'",
