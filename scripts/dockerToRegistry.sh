@@ -60,7 +60,7 @@ info "Logging into Docker Hub"
 docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 
 # Build the Docker images
-if [ "$BUILD" = "y" ] || [ "$BUILD" = "Y" ] || [ "$BUILD" = "yes" ] || [ "$BUILD" = "Yes" ] || [ "$BUILD" = "YES" ]; then
+if [[ "$BUILD" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     cd ${HERE}/..
     info "Building Docker images"
     docker-compose --env-file .env-prod -f docker-compose-prod.yml build

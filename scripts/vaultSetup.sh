@@ -5,9 +5,6 @@ HERE=$(dirname $0)
 . "${HERE}/prettify.sh"
 
 VAULT_PORT=8200
-# VAULT_ADDR specifies the address of the Vault server. It can be local or remote.
-LOCAL_ADDR="http://127.0.0.1:$VAULT_PORT"
-export VAULT_ADDR="$LOCAL_ADDR" # Should ideally be a remote address for production
 # Get the PID of the process running at the port, which is hopefully Vault
 VAULT_PID=$(lsof -ti :$VAULT_PORT)
 # Base path for secrets taken from the vault
@@ -16,15 +13,17 @@ SECRETS_PATH="/run/secrets/vrooli"
 # Default values
 ENVIRONMENT="dev"
 USE_KUBERNETES=false
+SHUTDOWN_VAULT=false
 
 # Read arguments
 for arg in "$@"; do
     case $arg in
     -h | --help)
-        echo "Usage: $0 [-h HELP] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE]"
+        echo "Usage: $0 [-h HELP] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE] [-x SHUTDOWN]"
         echo "  -h --help: Show this help message"
         echo "  -k --kubernetes: If set, will use Kubernetes instead of Docker Compose"
         echo "  -p --prod: If set, will skip steps that are only required for development"
+        echo "  -x --shutdown: If set, will shut down Vault instead of starting it"
         exit 0
         ;;
     -k | --kubernetes)
@@ -35,12 +34,31 @@ for arg in "$@"; do
         ENVIRONMENT="prod"
         shift
         ;;
+    -x | --shutdown)
+        SHUTDOWN_VAULT=true
+        shift
+        ;;
     esac
 done
 
+# Source .env or .env-prod file
+if [ "$ENVIRONMENT" = "dev" ]; then
+    if [ ! -f "${HERE}/../.env" ]; then
+        error "Environment file ${HERE}/../.env does not exist."
+        exit 1
+    fi
+    . "${HERE}/../.env"
+else
+    if [ ! -f "${HERE}/../.env-prod" ]; then
+        error "Environment file ${HERE}/../.env-prod does not exist."
+        exit 1
+    fi
+    . "${HERE}/../.env-prod"
+fi
+
 # When running locally, make sure the port specified for Vault is actually Vault
 assert_port_is_vault() {
-    if [[ ! -z "$VAULT_PID" && "$VAULT_ADDR" == "$LOCAL_ADDR" ]]; then
+    if [[ ! -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         if ! ps -p "$VAULT_PID" -o comm= | grep -q "vault"; then
             error "Port ${VAULT_PORT} is in use by another process. Please ensure Vault's port isn't conflicting with other services."
             exit 1
@@ -99,11 +117,15 @@ assert_vault_sealed_status() {
 }
 
 setup_docker_dev() {
+    # Define a log file for Vault output
+    local vault_log=".vault-local.log"
+
     # Start vault if address is local and it's not already running
-    if [[ -z "$VAULT_PID" && "$VAULT_ADDR" == "$LOCAL_ADDR" ]]; then
+    if [[ -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Starting vault..."
-        vault server -dev & # NOTE: Can stop vault using `pkill -9 vault`
-        sleep 5             # Give Vault some time to start up
+        vault server -dev >"$vault_log" 2>&1 & # NOTE: Can stop vault using `pkill -9 vault`
+        sleep 5                                # Give Vault some time to start up
+        success "Vault started. Logs (including root token) can be found in $vault_log"
     fi
 
     # Perform checks
@@ -113,7 +135,7 @@ setup_docker_dev() {
 
     # Setup roles, policies, etc. when using a local Vault address.
     # We'll assume that a remote Vault is already configured.
-    if [[ ! -z "$VAULT_PID" && "$VAULT_ADDR" == "$LOCAL_ADDR" ]]; then
+    if [[ ! -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         if ! vault auth list | grep -q "approle/"; then
             info "Configuring Vault policies and AppRole..."
             # Enable AppRole authentication
@@ -135,9 +157,32 @@ setup_docker_dev() {
     fi
 }
 
+shutdown_vault_confirm() {
+    warning "Shutting down Vault will delete all data stored in Vault."
+    prompt "Are you sure you want to continue? (y/n)"
+    read -n1 -r CONFIRM
+    echo
+
+    if [[ "$CONFIRM" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+        info "Shutting down Vault..."
+    else
+        info "Cancelling shutdown."
+        exit 0
+    fi
+}
+
+shutdown_docker_dev() {
+    shutdown_vault_confirm
+    # Stop Vault if address is local and it's running
+    if [[ ! -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
+        info "Shutting down Vault..."
+        pkill -9 vault
+    fi
+}
+
 setup_docker_prod() {
     # Start vault if address is local and it's not already running
-    if [[ -z "$VAULT_PID" && "$VAULT_ADDR" == "$LOCAL_ADDR" ]]; then
+    if [[ -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Starting vault in production mode..."
         vault server -config=/path/to/your/config.hcl & # TODO need config file
         sleep 10                                        # Give Vault some time to start up
@@ -158,7 +203,7 @@ setup_docker_prod() {
 
     # Check if we're working with a local Vault address to generate role_id and secret_id
     # TODO might need check to prevent generating ids if they already exist
-    if [[ "$VAULT_ADDR" == "$LOCAL_ADDR" ]]; then
+    if [[ "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Local Vault detected. Setting up roles and secrets..."
         vault auth enable approle
         echo 'path "*" { capabilities = ["create", "read", "update", "delete", "list", "sudo"] }' | vault policy write read-all -
@@ -177,6 +222,15 @@ setup_docker_prod() {
             echo "$ROLE_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_role_id"
             echo "$SECRET_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_secret_id"
         fi
+    fi
+}
+
+shutdown_docker_prod() {
+    shutdown_vault_confirm
+    # Stop Vault if address is local and it's running
+    if [[ ! -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
+        info "Shutting down Vault..."
+        pkill -9 vault
     fi
 }
 
@@ -217,10 +271,6 @@ setup_kubernetes_dev() {
         info "Vault is already deployed in the namespace $NAMESPACE."
     fi
 
-    # Setup Vault configurations TODO VAULT_ADDR defined at top. Need to move this at some point
-    VAULT_ADDR="http://vault.$NAMESPACE.svc.cluster.local:8200" # Address can vary based on your setup
-    export VAULT_ADDR
-
     # Initialize and unseal Vault
     if ! is_vault_initialized; then
         info "Initializing Vault..."
@@ -244,7 +294,23 @@ setup_kubernetes_dev() {
     fi
 }
 
+shutdown_kubernetes_dev() {
+    shutdown_vault_confirm
+    # Define some constants
+    NAMESPACE="vrooli-vault-dev"
+    RELEASE_NAME="vault"
+
+    # Check if Vault is already deployed within Kubernetes
+    if helm list -n $NAMESPACE | grep -q $RELEASE_NAME; then
+        info "Deleting Vault deployment..."
+        helm delete $RELEASE_NAME -n $NAMESPACE
+    else
+        info "Vault is not deployed in the namespace $NAMESPACE."
+    fi
+}
+
 setup_kubernetes_prod() {
+    echo "TODO"
     # # Check if the DOKS cluster is running using doctl
     # CLUSTER_NAME="my-doks-cluster"
 
@@ -277,21 +343,43 @@ setup_kubernetes_prod() {
     # # Use the command: `doctl kubernetes cluster delete <cluster-name>`
 }
 
+shutdown_kubernetes_prod() {
+    shutdown_vault_confirm
+    echo "TODO"
+}
+
 # Call the appropriate setup function
 info "Vault setup starting..."
 info "Environment: $ENVIRONMENT"
 info "Kubernetes: $USE_KUBERNETES"
+export VAULT_ADDR=$VAULT_ADDR
 if $USE_KUBERNETES; then
     if [ "$ENVIRONMENT" = "dev" ]; then
-        setup_kubernetes_dev
+        if $SHUTDOWN_VAULT; then
+            shutdown_kubernetes_dev
+        else
+            setup_kubernetes_dev
+        fi
     else
-        setup_kubernetes_prod
+        if $SHUTDOWN_VAULT; then
+            shutdown_kubernetes_prod
+        else
+            setup_kubernetes_prod
+        fi
     fi
 else
     if [ "$ENVIRONMENT" = "dev" ]; then
-        setup_docker_dev
+        if $SHUTDOWN_VAULT; then
+            shutdown_docker_dev
+        else
+            setup_docker_dev
+        fi
     else
-        setup_docker_prod
+        if $SHUTDOWN_VAULT; then
+            shutdown_docker_prod
+        else
+            setup_docker_prod
+        fi
     fi
 fi
 success "Vault setup complete!"

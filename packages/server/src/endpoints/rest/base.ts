@@ -5,7 +5,8 @@ import i18next from "i18next";
 import multer, { Options as MulterOptions } from "multer";
 import { getUser } from "../../auth/request";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { context, Context } from "../../middleware";
+import { CustomError } from "../../events/error";
+import { Context, context } from "../../middleware";
 import { GQLEndpoint, IWrap, SessionUserToken } from "../../types";
 import { processAndStoreFiles } from "../../utils/fileStorage";
 
@@ -69,14 +70,14 @@ export const handleEndpoint = async <TInput extends object | undefined, TResult 
     res: Response,
 ) => {
     try {
-        const data = await endpoint(undefined, (input ? { input } : undefined) as any, context({ req, res }), selection);
+        const data = await Promise.resolve(endpoint(undefined, (input ? { input } : undefined) as any, context({ req, res }), selection));
         res.json({ data, version });
-    } catch (error: any) {
+    } catch (error: unknown) {
         // Assume that error is from CustomError by default
-        const code = error.extensions?.code;
-        let message = error.message ?? error.name ?? "";
+        const code = (error as CustomError).extensions?.code;
+        let message = (error as CustomError).message ?? (error as CustomError).name ?? "";
         // If error is named ValidationError, it's from yup
-        if (error.name === "ValidationError") {
+        if ((error as CustomError).name === "ValidationError") {
             const languages = getUser(req.session)?.languages ?? ["en"];
             const lng = languages.length > 0 ? languages[0] : "en";
             message = i18next.t("error:ValidationFailed", { lng, defaultValue: "Validation failed." });

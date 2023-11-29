@@ -46,7 +46,7 @@ The auto-generated Kubernetes configuration will not work out of the box. You wi
 1. Change every deployment strategy to `RollingUpdate` instead of `Recreate`. This will allow pods to be updated without downtime.
 2. Remove `metadata.annotations` from every object. This is not necessary, and has no effect on the configuration.
 3. Change the `image` field for every container which uses a Dockerfile (i.e. is not an existing public image) to the format `<docker_username>/vrooli_<service_name>:<dev_or_prod>-<version>`. For example, `server:prod` becomes `matthalloran8/vrooli_server:prod-1.9.7`. This will allow Minikube to pull the correct images from Docker Hub.
-4. Replace every `secretKeyRef` with a hard-coded value. We can do this because true secrets are already handled on server startup using a vault. Any environment variables in the Dockerfile (and thus in the Kubernetes configuration) are not sensitive. For example, you would replace this:
+4. Replace every non-sensitive `secretKeyRef` (e.g. ports) with a hard-coded value. For example, you would replace this:
     ```yaml
     env:
       - name: VIRTUAL_HOST
@@ -61,10 +61,27 @@ The auto-generated Kubernetes configuration will not work out of the box. You wi
       - name: VIRTUAL_HOST
         value: "docs.vrooli.com,www.docs.vrooli.com"
     ```
-    Alternatively, you can use a vault agent sidecar to fetch these from our vault. But I haven't figured out how to do this yet.  
-5. Every *Deployment* uses `/src/app/scripts`, which means we can use one *Persistent Volume Claim (PVC)* for all of them. Find every `mountPath` that references `/src/app/scripts` and make sure they all use the same *PVC*. You should rename this *PVC* to `scripts-claim`, and change the `accessModes` to `ReadOnlyMany`. Make sure you have removed the other *PVCs* that aren't being used, and changed all corresponding `claimName` fields to `scripts-claim`.
-6. Do the same as number 5, but for `/src/app/packages/ui/dist`.
-7. Any PVC which references code stored in version control needs a corresponding `initContainers` section in the Kubernetes configuration. This is because the code is not stored in the Docker image, so it needs to be pulled from version control when the pod starts. For example, the `docs` service has this PVC mount:
+5. Keep every sensitive `secretKey`, but replace `secretKeyRef.name` with the same value as `secretKeyRef.key`. For example, you would replace this:
+    ```yaml
+    env:
+      - name: DB_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: db-claim3
+            key: DB_PASSWORD
+    ```
+    with this:
+    ```yaml
+    env:
+      - name: DB_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: DB_PASSWORD
+            key: DB_PASSWORD
+    ```
+6. Every *Deployment* uses `/src/app/scripts`, which means we can use one *Persistent Volume Claim (PVC)* for all of them. Find every `mountPath` that references `/src/app/scripts` and make sure they all use the same *PVC*. You should rename this *PVC* to `scripts-claim`, and change the `accessModes` to `ReadOnlyMany`. Make sure you have removed the other *PVCs* that aren't being used, and changed all corresponding `claimName` fields to `scripts-claim`.
+7. Do the same as number 5, but for `/src/app/packages/ui/dist`.
+8. Any PVC which references code stored in version control needs a corresponding `initContainers` section in the Kubernetes configuration. This is because the code is not stored in the Docker image, so it needs to be pulled from version control when the pod starts. For example, the `docs` service has this PVC mount:
     ```yaml
     volumeMounts:
         - mountPath: /docs
@@ -90,7 +107,7 @@ The auto-generated Kubernetes configuration will not work out of the box. You wi
             mountPath: /docs
     ```
     **NOTE:** There should only be one init section per PVC. If multiple deployments are using the same PVC, then only one of them should have an init section.
-8. Do something similar to step 7 for the ui dist folder. This is stored in S3 instead of git, so the init section should look something like this:
+9. Do something similar to step 7 for the ui dist folder. This is stored in S3 instead of git, so the init section should look something like this:
     ```yml
     initContainers:
         - name: init-ui
@@ -106,18 +123,18 @@ The auto-generated Kubernetes configuration will not work out of the box. You wi
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: aws-s3-credentials
+                  name: AWS_ACCESS_KEY_ID
                   key: AWS_ACCESS_KEY_ID
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: aws-s3-credentials
+                  name: AWS_SECRET_ACCESS_KEY
                   key: AWS_SECRET_ACCESS_KEY
           volumeMounts:
             - name: ui-dist-claim
               mountPath: /srv/app/packages/ui/dist
     ```
-9. Expose the ports for `server`, `ui`, and `docs`. This is accomplished by adding an *Ingress* resource. It should look something like this:
+10. Expose the ports for `server`, `ui`, and `docs`. This is accomplished by adding an *Ingress* resource. It should look something like this:
     ```yaml
     apiVersion: networking.k8s.io/v1
     kind: Ingress

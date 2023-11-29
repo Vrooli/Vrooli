@@ -21,8 +21,8 @@ const getJwtKeys = (): JwtKeys => {
     }
 
     // Load the keys from process.env. They may be in a single line, so replace \n with actual newlines
-    const privateKey = (process.env.jwt_priv ?? "").replace(/\\n/g, "\n");
-    const publicKey = (process.env.jwt_pub ?? "").replace(/\\n/g, "\n");
+    const privateKey = `${"-----BEGIN PRIVATE KEY-----"}\n${(process.env.JWT_PRIV ?? "").replace(/\\n/g, "\n")}\n${"-----END PRIVATE KEY-----"}`;
+    const publicKey = `${"-----BEGIN PUBLIC KEY-----"}\n${(process.env.JWT_PUB ?? "").replace(/\\n/g, "\n")}\n${"-----END PUBLIC KEY-----"}`;
 
     // Check if the keys are available and log an error if not
     if (privateKey.length <= 0) {

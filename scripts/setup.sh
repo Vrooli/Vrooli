@@ -64,7 +64,7 @@ if [ -z "${ON_REMOTE}" ]; then
     read -n1 -r ON_REMOTE
     echo
 fi
-if [ "${ON_REMOTE}" = "y" ] || [ "${ON_REMOTE}" = "Y" ] || [ "${ON_REMOTE}" = "yes" ] || [ "${ON_REMOTE}" = "Yes" ]; then
+if [[ "$ON_REMOTE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     header "Enabling PasswordAuthentication"
     sudo sed -i 's/#\?PasswordAuthentication .*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
     sudo sed -i 's/#\?PubkeyAuthentication .*/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
@@ -279,7 +279,7 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
     fi
 
     # If reinstalling modules, delete all node_modules directories before installing dependencies
-    if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
+    if [[ "$REINSTALL_MODULES" =~ ^[Yy]([Ee][Ss])?$ ]]; then
         header "Deleting all node_modules directories"
         find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
         header "Deleting yarn.lock"
@@ -341,7 +341,7 @@ if [ "${ENV_FILES_SET_UP}" = "" ]; then
     read -n1 -r ENV_FILES_SET_UP
     echo
 fi
-if [ "${ENV_FILES_SET_UP}" = "y" ] || [ "${ENV_FILES_SET_UP}" = "Y" ] || [ "${ENV_FILES_SET_UP}" = "yes" ] || [ "${ENV_FILES_SET_UP}" = "Yes" ]; then
+if [[ "$ENV_FILES_SET_UP" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     info "Setting up secrets for development environment..."
     "${HERE}/setSecrets.sh" -e development
     info "Setting up secrets for production environment..."

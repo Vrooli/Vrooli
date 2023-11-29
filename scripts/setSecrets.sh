@@ -3,6 +3,7 @@
 # Useful when developing locally with Docker Compose, instead of Kubernetes.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
+. "${HERE}/secretHelpers.sh"
 
 # Variable to hold environment
 environment=""
@@ -38,19 +39,21 @@ if [ -z "$environment" ]; then
     exit 1
 fi
 
-# Set env file and vault address based on the environment
+# Set env file based on the environment
 env_file="${HERE}/../.env"
-VAULT_ADDR="http://127.0.0.1:8200" # Assuming development Vault runs locally
-if [ "$environment" == "production" ]; then
+if [ "$environment" == "prod" ]; then
     env_file="${HERE}/../.env-prod"
-    # VAULT_ADDR="https://vault.myproductiondomain.com"  # Replace with your production Vault address TODO
 fi
-
 # Check if env file exists
 if [ ! -f "$env_file" ]; then
     error "Environment file $env_file does not exist."
     exit 1
 fi
+# Source the env file
+info "Sourcing environment file $env_file"
+. "$env_file"
+# Export vault address, so vault commands can be run
+export VAULT_ADDR=$VAULT_ADDR
 
 # Create directories if they don't exist
 mkdir -p /run/secrets/vrooli/$environment
@@ -58,9 +61,11 @@ mkdir -p /run/secrets/vrooli/$environment
 # Detect if a vault is running, and is in the desired state (i.e. sealed for prod)
 VAULT_RUNNING=false
 if [ $(curl -s -o /dev/null -w "%{http_code}" $VAULT_ADDR/v1/sys/health) == "200" ]; then
-    if [ "$environment" == "dev" ]; then
+    # If running production, should probably be sealed
+    if [ "$environment" == "prod" ] && [ $(curl -s $VAULT_ADDR/v1/sys/seal-status | jq '.sealed') == "true" ]; then
         VAULT_RUNNING=true
-    elif [ "$environment" == "prod" ] && [ $(curl -s $VAULT_ADDR/v1/sys/seal-status | jq '.sealed') == "true" ]; then
+    # If local, doesn't need to be sealed
+    elif [ "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]; then
         VAULT_RUNNING=true
     fi
 fi
@@ -74,14 +79,15 @@ store_in_vault() {
         return
     fi
     local value=$(cat "$file_path")
-    echo "$value" >"/run/secrets/vrooli/$environment/$key"
+    converted_value=$(convert_secret "$value")
+    echo "$converted_value" >"/run/secrets/vrooli/$environment/$key"
     if $VAULT_RUNNING; then
         vault kv put secret/vrooli/$environment/$key value="$value"
     fi
 }
 # Store JWT keys in vault
-store_in_vault "jwt_priv" "${HERE}/../jwt_priv.pem"
-store_in_vault "jwt_pub" "${HERE}/../jwt_pub.pem"
+store_in_vault "JWT_PRIV" "${HERE}/../jwt_priv.pem"
+store_in_vault "JWT_PUB" "${HERE}/../jwt_pub.pem"
 
 # Read lines in env file
 while IFS= read -r line || [ -n "$line" ]; do
@@ -93,6 +99,7 @@ while IFS= read -r line || [ -n "$line" ]; do
 
         # Set the secret in the vault if it's running TODO probably won't work for prod, since it's sealed
         if $VAULT_RUNNING; then
+            echo "setting secret $key in vault"
             vault kv put secret/vrooli/$environment/$key value="$value"
         fi
     fi

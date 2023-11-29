@@ -5,6 +5,7 @@
 # TMP_FILE=$(mktemp) && { ./getSecrets.sh <environment> <secret1> <secret2> ... > "$TMP_FILE" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."; rm "$TMP_FILE"
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "${HERE}/prettify.sh"
+. "${HERE}/secretHelpers.sh"
 
 # Check if at least two arguments were provided
 if [ $# -lt 2 ]; then
@@ -24,6 +25,21 @@ else
     error "Invalid environment: $environment. Expected 'development' or 'production'."
     exit 1
 fi
+
+# Set env file based on the environment
+env_file="${HERE}/../.env"
+if [ "$environment" == "production" ]; then
+    env_file="${HERE}/../.env-prod"
+fi
+# Check if env file exists
+if [ ! -f "$env_file" ]; then
+    error "Environment file $env_file does not exist."
+    exit 1
+fi
+# Source the env file
+. "$env_file"
+# Export vault address, so vault commands can be run
+export VAULT_ADDR=$VAULT_ADDR
 
 # Get temporary file
 TMP_FILE="$1"
@@ -90,20 +106,13 @@ while [ $# -gt 0 ]; do
                 exit 1
             else
                 # Store the fetched secret in /run/secrets/
-                echo "$fetched_secret" >"/run/secrets/vrooli/$environment/$secret"
+                converted_secret=$(convert_secret "$fetched_secret")
+                echo "$converted_secret" >"/run/secrets/vrooli/$environment/$secret"
             fi
         fi
     fi
     echo "Writing $rename to $TMP_FILE"
-    # Count the number of lines in the file
-    line_count=$(wc -l <"/run/secrets/vrooli/$environment/$secret")
-    # Multi-line files should be treated like PEM files
-    if [ "$line_count" -gt 1 ]; then
-        # For PEM files (multi-line): Remove BEGIN/END lines and convert newlines to \n
-        echo "$rename=$(sed -ne '/-BEGIN /,/-END /p' "/run/secrets/vrooli/$environment/$secret" | sed -e '/-BEGIN /d' -e '/-END /d' | awk 'NR > 1 { printf "\\n" } { printf "%s", $0 }')" >>"$TMP_FILE"
-    else
-        # For single-line files: Directly write the content
-        echo "$rename=$(cat "/run/secrets/vrooli/$environment/$secret")" >>"$TMP_FILE"
-    fi
+    converted_secret=$(convert_secret "$(cat "/run/secrets/vrooli/$environment/$secret")")
+    echo "$rename=$converted_secret" >>"$TMP_FILE"
     shift
 done

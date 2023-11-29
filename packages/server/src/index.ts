@@ -15,7 +15,7 @@ import { context, depthLimit } from "./middleware";
 import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
-import { server, SERVER_URL } from "./server";
+import { SERVER_URL, server } from "./server";
 import { setupStripe } from "./services";
 import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
 import { loadSecrets } from "./utils/loadSecrets";
@@ -30,7 +30,7 @@ const main = async () => {
     loadSecrets(process.env.NODE_ENV as "development" | "production");
 
     // Check for required .env variables
-    const requiredEnvs = ["jwt_priv", "jwt_pub", "PROJECT_DIR", "VITE_SERVER_LOCATION", "LETSENCRYPT_EMAIL", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"];
+    const requiredEnvs = ["JWT_PRIV", "JWT_PUB", "PROJECT_DIR", "VITE_SERVER_LOCATION", "LETSENCRYPT_EMAIL", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             logger.error(`🚨 ${env} not in environment variables. Stopping server`, { trace: "0007" });
@@ -157,6 +157,11 @@ const main = async () => {
         socket.on("disconnect", () => {
             console.log("user disconnected");
         });
+    });
+
+    // Unhandled Rejection Handler
+    process.on("unhandledRejection", (reason, promise) => {
+        logger.error("🚨 Unhandled Rejection", { trace: "0003", reason, promise });
     });
 
     // Start Express server

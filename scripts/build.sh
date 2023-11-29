@@ -113,7 +113,7 @@ fi
 cd ${HERE}/../packages/shared
 
 # Run tests
-if [ "${TEST}" = "y" ] || [ "${TEST}" = "Y" ] || [ "${TEST}" = "yes" ] || [ "${TEST}" = "Yes" ]; then
+if [[ "$TEST" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     header "Running unit tests for shared..."
     yarn test
     header "Type checking shared..."
@@ -131,7 +131,7 @@ fi
 cd ${HERE}/../packages/server
 
 # Run tests
-if [ "${TEST}" = "y" ] || [ "${TEST}" = "Y" ] || [ "${TEST}" = "yes" ] || [ "${TEST}" = "Yes" ]; then
+if [[ "$TEST" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     header "Running unit tests for server..."
     yarn test
     header "Type checking server..."
@@ -165,7 +165,7 @@ fi
 cd ${HERE}/../packages/ui
 
 # Run tests
-if [ "${TEST}" = "y" ] || [ "${TEST}" = "Y" ] || [ "${TEST}" = "yes" ] || [ "${TEST}" = "Yes" ]; then
+if [[ "$TEST" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     header "Running unit tests for UI..."
     yarn test
     header "Type checking UI..."
@@ -198,7 +198,7 @@ if [ -z "$API_GENERATE" ]; then
     read -n1 -r API_GENERATE
     echo
 fi
-if [ "${API_GENERATE}" = "y" ] || [ "${API_GENERATE}" = "Y" ] || [ "${API_GENERATE}" = "yes" ] || [ "${API_GENERATE}" = "Yes" ]; then
+if [[ "$API_GENERATE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
     NODE_OPTIONS="--max-old-space-size=4096" && ts-node --esm --experimental-specifier-resolution node ./src/tools/api/gqlSelects.ts
     if [ $? -ne 0 ]; then
@@ -322,7 +322,7 @@ if [ "${USE_KUBERNETES}" = "n" ] || [ "${USE_KUBERNETES}" = "N" ]; then
     fi
 fi
 
-if [ "${USE_KUBERNETES}" = "y" ] || [ "${USE_KUBERNETES}" = "Y" ]; then
+if [[ "$USE_KUBERNETES" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     # Update build version in Kubernetes config
     if [ "${SHOULD_UPDATE_VERSION}" = true ]; then
         K8S_CONFIG_FILE="${HERE}/../k8s-docker-compose-prod-env.yml"
@@ -347,7 +347,7 @@ if [ "${USE_KUBERNETES}" = "y" ] || [ "${USE_KUBERNETES}" = "Y" ]; then
         exit 1
     fi
     # Store secrets used by Kubernetes
-    "${HERE}/setKubernetesSecrets.sh" -e "production"
+    "${HERE}/setKubernetesSecrets.sh" -e "production" "${secrets[@]}"
     if [ $? -ne 0 ]; then
         error "Failed to set Kubernetes secrets"
         exit 1
@@ -355,8 +355,6 @@ if [ "${USE_KUBERNETES}" = "y" ] || [ "${USE_KUBERNETES}" = "Y" ]; then
     # Add ui build to S3
     S3_BUCKET="vrooli-bucket"
     S3_PATH="builds/v${VERSION}/"
-    echo "AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}"
-    echo "AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}"
     prompt "Going to upload build.tar.gz to s3://${S3_BUCKET}/${S3_PATH}. Press any key to continue..."
     read -n1 -r -s
     AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} aws s3 cp build.tar.gz s3://${S3_BUCKET}/${S3_PATH}build.tar.gz
@@ -365,7 +363,7 @@ if [ "${USE_KUBERNETES}" = "y" ] || [ "${USE_KUBERNETES}" = "Y" ]; then
         exit 1
     fi
     success "build.tar.gz uploaded to s3://${S3_BUCKET}/${S3_PATH}!"
-elif [ "${DEPLOY_VPS}" = "y" ] || [ "${DEPLOY_VPS}" = "Y" ] || [ "${DEPLOY_VPS}" = "yes" ] || [ "${DEPLOY_VPS}" = "Yes" ]; then
+elif [[ "$DEPLOY_VPS" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     # Copy build to VPS
     "${HERE}/keylessSsh.sh" -e ${ENV_FILE}
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"

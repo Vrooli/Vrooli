@@ -178,8 +178,16 @@ fi
 info "Stopping docker containers..."
 docker-compose --env-file ${BUILD_ZIP}/.env-prod down
 
+info "Getting production secrets..."
+readarray -t secrets <"${HERE}/secrets_list.txt"
+TMP_FILE=$(mktemp) && { "${HERE}/getSecrets.sh" production ${TMP_FILE} "${secrets[@]}" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."
+rm "$TMP_FILE"
+export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
+
 # Restart docker containers.
 info "Restarting docker containers..."
+export TEST_KEY1="testing1"
+export TEST_KEY3="testing3"
 docker-compose --env-file ${BUILD_ZIP}/.env-prod -f ${HERE}/../docker-compose-prod.yml up -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."

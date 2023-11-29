@@ -59,7 +59,7 @@ export const FocusModeEndpoints: EndpointsFocusMode = {
             if (!focusMode) throw new CustomError("0448", "NotFound", userData.languages);
             const activeFocusMode = {
                 __typename: "ActiveFocusMode" as const,
-                mode: focusMode as any as FocusMode,
+                mode: focusMode as unknown as FocusMode,
                 stopCondition: input.stopCondition,
                 stopTime: input.stopTime,
             };

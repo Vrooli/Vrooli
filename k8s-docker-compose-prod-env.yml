@@ -180,14 +180,17 @@ spec:
       containers:
         args:
           - |
-            { ${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh production /tmp/secrets.$$ DB_PASSWORD:POSTGRES_PASSWORD 2>/dev/null && . /tmp/secrets.$$ } || echo 'Failed to get secrets.'; 
-            rm /tmp/secrets.$$ && 
             exec docker-entrypoint.sh postgres"
         env:
           - name: POSTGRES_USER
             value: site
           - name: PROJECT_DIR
             value: /srv/app
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: POSTGRES_PASSWORD
+                key: POSTGRES_PASSWORD
         image: ankane/pgvector:v1.9.7
         livenessProbe:
           exec:
@@ -529,12 +532,12 @@ spec:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: aws-s3-credentials
+                  name: AWS_ACCESS_KEY_ID
                   key: AWS_ACCESS_KEY_ID
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: aws-s3-credentials
+                  name: AWS_SECRET_ACCESS_KEY
                   key: AWS_SECRET_ACCESS_KEY
           volumeMounts:
             - name: ui-dist-claim
@@ -549,8 +552,6 @@ spec:
               value: "false"
             - name: DB_PULL
               value: "false"
-            - name: DB_USER
-              value: site
             - name: LETSENCRYPT_EMAIL
               value: "matthalloran8@gmail.com"
             - name: LETSENCRYPT_HOST
@@ -583,6 +584,71 @@ spec:
               value: "5329"
             - name: VITE_SERVER_LOCATION
               value: dns
+            - name: ADMIN_WALLET
+              valueFrom:
+                secretKeyRef:
+                  name: ADMIN_WALLET
+                  key: ADMIN_WALLET
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ADMIN_PASSWORD
+                  key: ADMIN_PASSWORD
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: AWS_ACCESS_KEY_ID
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: AWS_SECRET_ACCESS_KEY
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: VALYXA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: VALYXA_PASSWORD
+                  key: VALYXA_PASSWORD
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: DB_URL
+                  key: DB_URL
+            - name: JWT_PRIV
+              valueFrom:
+                secretKeyRef:
+                  name: JWT_PRIV
+                  key: JWT_PRIV
+            - name: JWT_PUB
+              valueFrom:
+                secretKeyRef:
+                  name: JWT_PUB
+                  key: JWT_PUB
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: OPENAI_API_KEY
+                  key: OPENAI_API_KEY
+            - name: VAPID_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: VAPID_PRIVATE_KEY
+                  key: VAPID_PRIVATE_KEY
+            - name: SITE_EMAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: SITE_EMAIL_PASSWORD
+                  key: SITE_EMAIL_PASSWORD
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: STRIPE_SECRET_KEY
+                  key: STRIPE_SECRET_KEY
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: STRIPE_WEBHOOK_SECRET
+                  key: STRIPE_WEBHOOK_SECRET
           image: matthalloran8/vrooli_server:prod-1.9.7
           livenessProbe:
             exec:

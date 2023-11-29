@@ -55,6 +55,16 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+NODE_ENV="development"
+if $PROD_FLAG_FOUND; then
+    NODE_ENV="production"
+fi
+info "Getting ${NODE_ENV} secrets..."
+readarray -t secrets <"${HERE}/secrets_list.txt"
+TMP_FILE=$(mktemp) && { "${HERE}/getSecrets.sh" ${NODE_ENV} ${TMP_FILE} "${secrets[@]}" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."
+rm "$TMP_FILE"
+export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
+
 # If using Kubernetes, start Minikube. Otherwise, start Docker Compose
 if $USE_KUBERNETES; then
     info "Starting development environment using Kubernetes..."
@@ -84,6 +94,12 @@ if $USE_KUBERNETES; then
             exit 1
         else
             success "Ingress-nginx enabled successfully"
+        fi
+        # Store secrets used by Kubernetes
+        "${HERE}/setKubernetesSecrets.sh" -e "production" "${secrets[@]}"
+        if [ $? -ne 0 ]; then
+            error "Failed to set Kubernetes secrets"
+            exit 1
         fi
         # TODO start the rest of the Kubernetes environment. Not sure exactly what's needed yet
     else
