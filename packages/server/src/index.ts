@@ -55,7 +55,7 @@ const main = async () => {
     // app.use(express.urlencoded({ extended: false }));
 
     // For parsing cookies
-    app.use((req, res, next) => {
+    app.use((req, _res, next) => {
         req.cookies = cookie.parse(req.headers.cookie || "");
         next();
     });

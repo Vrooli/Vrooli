@@ -18,7 +18,7 @@
             "dockerRunCommand": "--env --publish 5329:5329 --publish 9229:9229 --name ${containerName} ${image}",
         },
         {
-            "name": "📲🐋 UI debug: Docker",
+            "name": "📲 UI debug",
             "type": "pwa-chrome",
             "request": "launch",
             "url": "http://localhost:3000",

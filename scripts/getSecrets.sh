@@ -55,8 +55,11 @@ prompt_for_secret() {
 }
 
 # To fetch secrets, we need the vault's role ID and secret ID
-vault_role_id_path="/run/secrets/vrooli/$environment/vault_role_id"
-vault_secret_id_path="/run/secrets/vrooli/$environment/vault_secret_id"
+# TODO for now, we'll share the vault used for dev with prod
+# vault_role_id_path="/run/secrets/vrooli/$environment/vault_role_id"
+# vault_secret_id_path="/run/secrets/vrooli/$environment/vault_secret_id"
+vault_role_id_path="/run/secrets/vrooli/dev/vault_role_id"
+vault_secret_id_path="/run/secrets/vrooli/dev/vault_secret_id"
 if [ ! -f "$vault_role_id_path" ]; then
     prompt_for_secret "vault_role_id"
 fi

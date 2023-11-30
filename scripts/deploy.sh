@@ -70,7 +70,7 @@ if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=ng
                 break
             else
                 error "Not found at that location."
-                prompt "Do you want to try again? Say no to clone and set up proxy containers (yes/no):"
+                prompt "Do you want to try again? Say no to clone and set up proxy containers (y/N):"
                 read -r TRY_AGAIN
                 if [[ "$TRY_AGAIN" =~ ^(no|n)$ ]]; then
                     info "Proceeding with cloning..."
