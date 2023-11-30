@@ -13,10 +13,6 @@ echo "DB_PASSWORD is ${DB_PASSWORD}"
 echo "JWT_PRIV is ${JWT_PRIV}"
 echo "DB_URL is ${DB_URL}"
 
-# Install prisma dependency
-# TODO shouldn't need these 2 lines, since Prisma is added in Dockerfile. But for some reason we do. Otherwise, prisma not found
-yarn global add prisma@4.14.0
-yarn global bin
 
 cd ${PROJECT_DIR}/packages/server
 yarn pre-develop && yarn build
@@ -27,7 +23,7 @@ fi
 
 if [ "${DB_PULL}" = true ]; then
     info 'Generating schema.prisma file from database...'
-    /usr/local/bin/prisma db pull
+    yarn prisma db pull
     if [ $? -ne 0 ]; then
         error "Failed to generate schema.prisma file from database"
         exit 1
@@ -35,7 +31,7 @@ if [ "${DB_PULL}" = true ]; then
     success 'Schema.prisma file generated'
 else
     info 'Running migrations...'
-    /usr/local/bin/prisma migrate deploy
+    yarn prisma migrate deploy
     if [ $? -ne 0 ]; then
         error "Migration or Server start failed, keeping container running for debug..."
         tail -f /dev/null
@@ -44,7 +40,7 @@ else
 fi
 
 info 'Generating Prisma schema...'
-/usr/local/bin/prisma generate
+yarn prisma generate
 if [ $? -ne 0 ]; then
     error "Failed to generate Prisma schema"
     exit 1
