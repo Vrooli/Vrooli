@@ -11,30 +11,20 @@ export enum SnackSeverity {
     Warning = "Warning",
 }
 
-const severityStyle = (severity: SnackSeverity | `${SnackSeverity}` | undefined, palette: Palette) => {
-    let backgroundColor: string = palette.primary.light;
-    let color: string = palette.primary.contrastText;
+const iconColor = (severity: SnackSeverity | `${SnackSeverity}` | undefined, palette: Palette) => {
     switch (severity) {
         case "Error":
-            backgroundColor = palette.error.dark;
-            color = palette.error.contrastText;
-            break;
+            return palette.error.dark;
         case "Info":
-            backgroundColor = palette.info.main;
-            color = palette.info.contrastText;
-            break;
+            return palette.info.main;
         case "Success":
-            backgroundColor = palette.success.main;
-            color = palette.success.contrastText;
-            break;
+            return palette.success.main;
+        case "Warning":
+            return palette.warning.main;
         default:
-            backgroundColor = palette.warning.main;
-            color = palette.warning.contrastText;
-            break;
+            return palette.primary.light;
     }
-    return { backgroundColor, color };
 };
-
 /**
  * Basic snack item in the snack stack. 
  * Look changes based on severity. 
@@ -125,10 +115,11 @@ export const BasicSnack = ({
                 padding: 1,
                 borderRadius: 2,
                 boxShadow: 8,
-                ...severityStyle(severity, palette),
+                background: palette.background.paper,
+                color: palette.background.textPrimary,
             }}>
             {/* Icon */}
-            <Icon fill="white" />
+            <Icon fill={iconColor(severity, palette)} />
             {/* Message */}
             <Box sx={{
                 flex: 1, // take up available space
@@ -139,7 +130,6 @@ export const BasicSnack = ({
                 <Typography
                     variant="body1"
                     sx={{
-                        color: "white",
                         marginLeft: "4px",
                         overflowWrap: "break-word",
                         wordWrap: "anywhere",
@@ -151,7 +141,13 @@ export const BasicSnack = ({
             {buttonText && buttonClicked && (
                 <Button
                     variant="text"
-                    sx={{ color: "white", marginLeft: "16px", padding: "4px", border: "1px solid white", borderRadius: "8px" }}
+                    sx={{
+                        color: palette.secondary.main,
+                        marginLeft: "16px",
+                        padding: "4px",
+                        border: `1px solid ${palette.secondary.main}`,
+                        borderRadius: "8px",
+                    }}
                     onClick={buttonClicked}
                 >
                     {buttonText}
@@ -159,7 +155,7 @@ export const BasicSnack = ({
             )}
             {/* Close icon */}
             <IconButton onClick={handleClose}>
-                <CloseIcon fill={palette.error.contrastText} />
+                <CloseIcon fill={palette.background.textPrimary} />
             </IconButton>
         </Box>
     );
