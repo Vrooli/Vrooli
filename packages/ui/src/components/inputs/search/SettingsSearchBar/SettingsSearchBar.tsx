@@ -1,56 +1,65 @@
 import { LINKS } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, PopperProps, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
-import { SearchIcon } from "icons";
+import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, SearchIcon, VisibleIcon, WalletIcon } from "icons";
 import { ChangeEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { findSearchResults, PreSearchItem, SearchItem, shapeSearchText, translateSearchItems } from "utils/search/siteToSearch";
+import { PreSearchItem, SearchItem, findSearchResults, shapeSearchText, translateSearchItems } from "utils/search/siteToSearch";
 import { SettingsSearchBarProps } from "../types";
 
 const searchItems: PreSearchItem[] = [
     {
+        Icon: ProfileIcon,
         label: "Profile",
         keywords: ["Bio", "Handle", "Name"],
         value: LINKS.SettingsProfile,
     },
     {
+        Icon: VisibleIcon,
         label: "Privacy",
         keywords: ["History", "Private"],
         value: LINKS.SettingsPrivacy,
     },
     {
+        Icon: ObjectIcon,
         label: "Data",
-        keywords: [],
+        keywords: ["Export"],
         value: LINKS.SettingsData,
     },
     {
+        Icon: LockIcon,
         label: "Authentication",
         keywords: [{ key: "Wallet", count: 1 }, { key: "Wallet", count: 2 }, { key: "Email", count: 1 }, { key: "Email", count: 2 }, "LogOut", "Security"],
         value: LINKS.SettingsAuthentication,
     },
     {
+        Icon: WalletIcon,
         label: "Payment",
         labelArgs: { count: 2 },
         keywords: [],
         value: LINKS.SettingsPayments,
     },
     {
+        Icon: ApiIcon,
         label: "Api",
         keywords: [{ key: "Api", count: 2 }],
         value: LINKS.SettingsApi,
     },
     {
+        Icon: LightModeIcon,
         label: "Display",
         keywords: ["Theme", "Light", "Dark", "Interests", "Hidden", { key: "Tag", count: 1 }, { key: "Tag", count: 2 }, "History"],
         value: LINKS.SettingsDisplay,
     },
     {
+        Icon: NotificationsCustomizedIcon,
         label: "Notification",
         labelArgs: { count: 2 },
         keywords: [{ key: "Alert", count: 1 }, { key: "Alert", count: 2 }, { key: "PushNotification", count: 1 }, { key: "PushNotification", count: 2 }],
         value: LINKS.SettingsNotifications,
     },
     {
+        Icon: HistoryIcon,
         label: "FocusMode",
         labelArgs: { count: 2 },
         keywords: [{ key: "Schedule", count: 1 }, { key: "Schedule", count: 2 }, { key: "FocusMode", count: 1 }],
@@ -146,15 +155,16 @@ export const SettingsSearchBar = ({
             onChange={onSubmit}
             PopperComponent={FullWidthPopper}
             renderOption={(props, option) => {
+                const { Icon, keywords, label, unshapedKeywords, value } = option;
                 // Check if any of the keywords matches the search string
                 const shapedSearchString = shapeSearchText(internalValue);
                 let displayedKeyword = "";
-                if (option.keywords && shapedSearchString.length > 0) {
-                    for (let i = 0; i < option.keywords?.length; i++) {
-                        const keyword = option.keywords[i];
-                        const unshapedKeyword = option.unshapedKeywords![i];
+                if (keywords && shapedSearchString.length > 0) {
+                    for (let i = 0; i < keywords?.length; i++) {
+                        const keyword = keywords[i];
+                        const unshapedKeyword = unshapedKeywords![i];
                         // Skip label
-                        if (unshapedKeyword === option.label || keyword.includes(shapedSearchString)) continue;
+                        if (unshapedKeyword === label) continue;
                         // If keyword includes search string, display it
                         if (keyword.includes(shapedSearchString)) {
                             displayedKeyword = unshapedKeyword;
@@ -162,17 +172,27 @@ export const SettingsSearchBar = ({
                         }
                     }
                 }
+                console.log("shapedSearchString", shapedSearchString);
+                console.log("option", option);
+                console.log("displayedKeyword", displayedKeyword);
                 return (
                     <MenuItem
                         {...props}
-                        key={option.value}
+                        key={value}
                         onClick={() => {
-                            const label = option.label ?? "";
-                            setInternalValue(label);
-                            onChange(label);
+                            setInternalValue(label ?? "");
+                            onChange(label ?? "");
                             handleSelect(option);
                         }}
                     >
+                        {/* Icon */}
+                        {Icon && (
+                            <Icon fill={palette.background.textSecondary} style={{
+                                width: "24px",
+                                height: "24px",
+                                marginRight: "8px",
+                            }} />
+                        )}
                         {/* Object title */}
                         <ListItemText sx={{
                             "& .MuiTypography-root": {
@@ -181,7 +201,7 @@ export const SettingsSearchBar = ({
                                 overflow: "hidden",
                             },
                         }}>
-                            {option.label}
+                            {label}
                         </ListItemText>
                         {/* If search string matches a keyword, display the first match */}
                         {displayedKeyword && (
@@ -190,6 +210,8 @@ export const SettingsSearchBar = ({
                                     textOverflow: "ellipsis",
                                     whiteSpace: "nowrap",
                                     overflow: "hidden",
+                                    textAlign: "right",
+                                    color: palette.background.textSecondary,
                                 },
                             }}>
                                 {displayedKeyword}
