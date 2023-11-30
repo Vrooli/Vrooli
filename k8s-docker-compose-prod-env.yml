@@ -208,8 +208,6 @@ spec:
             name: db-claim0
           - mountPath: /docker-entrypoint-initdb.d
             name: db-claim1
-          - mountPath: /run/secrets/vrooli/prod
-            name: db-claim2
           - mountPath: /srv/app/scripts
             name: scripts-claim
       restartPolicy: Always
@@ -671,8 +669,6 @@ spec:
               name: server-claim1
             - mountPath: /srv/app/data/stats
               name: server-claim2
-            - mountPath: /run/secrets/vrooli/prod
-              name: server-claim3
       restartPolicy: Always
       volumes:
         - name: ui-dist-claim

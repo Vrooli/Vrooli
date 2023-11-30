@@ -64,6 +64,10 @@ readarray -t secrets <"${HERE}/secrets_list.txt"
 TMP_FILE=$(mktemp) && { "${HERE}/getSecrets.sh" ${NODE_ENV} ${TMP_FILE} "${secrets[@]}" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."
 rm "$TMP_FILE"
 export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
+# Not sure why, but these need to be exported for the server to read them.
+# This is not the case for the other secrets.
+export JWT_PRIV
+export JWT_PUB
 
 # If using Kubernetes, start Minikube. Otherwise, start Docker Compose
 if $USE_KUBERNETES; then

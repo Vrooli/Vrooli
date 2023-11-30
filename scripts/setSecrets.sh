@@ -3,7 +3,6 @@
 # Useful when developing locally with Docker Compose, instead of Kubernetes.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
-. "${HERE}/secretHelpers.sh"
 
 # Variable to hold environment
 environment=""
@@ -70,8 +69,13 @@ if [ $(curl -s -o /dev/null -w "%{http_code}" $VAULT_ADDR/v1/sys/health) == "200
     fi
 fi
 
+if [ "$VAULT_RUNNING" == "false" ]; then
+    error "Vault is not running. Cannot set secrets."
+    exit 1
+fi
+
 # Function to store file in vault
-store_in_vault() {
+store_file_in_vault() {
     local key=$1
     local file_path=$2
     if [ ! -f "$file_path" ]; then
@@ -79,15 +83,13 @@ store_in_vault() {
         return
     fi
     local value=$(cat "$file_path")
-    converted_value=$(convert_secret "$value")
-    echo "$converted_value" >"/run/secrets/vrooli/$environment/$key"
-    if $VAULT_RUNNING; then
-        vault kv put secret/vrooli/$environment/$key value="$value"
-    fi
+    as_single_line=$(echo -n "$value" | sed ':a;N;$!ba;s/\n/\\n/g')
+    info "Adding $key to vault"
+    vault kv put secret/vrooli/$environment/$key value="$as_single_line"
 }
 # Store JWT keys in vault
-store_in_vault "JWT_PRIV" "${HERE}/../jwt_priv.pem"
-store_in_vault "JWT_PUB" "${HERE}/../jwt_pub.pem"
+store_file_in_vault "JWT_PRIV" "${HERE}/../jwt_priv.pem"
+store_file_in_vault "JWT_PUB" "${HERE}/../jwt_pub.pem"
 
 # Read lines in env file
 while IFS= read -r line || [ -n "$line" ]; do
@@ -95,12 +97,9 @@ while IFS= read -r line || [ -n "$line" ]; do
     if echo "$line" | grep -q -v '^#' && [ -n "$line" ]; then
         key=$(echo "$line" | cut -d '=' -f 1)
         value=$(echo "$line" | cut -d '=' -f 2-)
-        echo "$value" >"/run/secrets/vrooli/$environment/$key"
 
-        # Set the secret in the vault if it's running TODO probably won't work for prod, since it's sealed
-        if $VAULT_RUNNING; then
-            echo "setting secret $key in vault"
-            vault kv put secret/vrooli/$environment/$key value="$value"
-        fi
+        # Set the secret in the vault. TODO probably won't work for prod, since it's sealed
+        echo "setting secret $key in vault"
+        vault kv put secret/vrooli/$environment/$key value="$value"
     fi
 done <"$env_file"

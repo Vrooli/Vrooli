@@ -95,7 +95,6 @@ services:
       - ./data/uploads:${PROJECT_DIR:-/srv/app}/data/uploads:z
       - ./data/stats:${PROJECT_DIR:-/srv/app}/data/stats:z
       - ./packages/server/src/db/migrations:${PROJECT_DIR:-/srv/app}/packages/server/src/db/migrations
-      - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
     depends_on:
       redis:
         condition: service_healthy

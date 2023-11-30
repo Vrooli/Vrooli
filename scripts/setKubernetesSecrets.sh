@@ -50,21 +50,15 @@ create_or_update_k8s_secret() {
 
 # Process each secret passed as argument
 for secret in "$@"; do
-    secret_path="/run/secrets/vrooli/${ENVIRONMENT}/${secret}"
-    if [ -f "$secret_path" ]; then
-        secret_value=$(cat "$secret_path")
+    TMP_FILE=$(mktemp)
+    if ./getSecrets.sh "$ENVIRONMENT" "$TMP_FILE" "$secret" 2>/dev/null; then
+        . "$TMP_FILE"
+        secret_value=${!secret}
         create_or_update_k8s_secret "$secret" "$secret_value"
     else
-        TMP_FILE=$(mktemp)
-        if ./getSecrets.sh "$ENVIRONMENT" "$TMP_FILE" "$secret" 2>/dev/null; then
-            . "$TMP_FILE"
-            secret_value=${!secret}
-            create_or_update_k8s_secret "$secret" "$secret_value"
-        else
-            error "Failed to retrieve secret: $secret"
-            rm "$TMP_FILE"
-            exit 1
-        fi
+        error "Failed to retrieve secret: $secret"
         rm "$TMP_FILE"
+        exit 1
     fi
+    rm "$TMP_FILE"
 done

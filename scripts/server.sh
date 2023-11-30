@@ -6,19 +6,21 @@ HERE=$(dirname $0)
 if [ "${NODE_ENV}" = "development" ]; then
     # Convert shared packages to typescript. In production, this should already be done
     . "${HERE}/shared.sh"
-fi
-
-echo "DB_USER is ${DB_USER}"
-echo "DB_PASSWORD is ${DB_PASSWORD}"
-echo "JWT_PRIV is ${JWT_PRIV}"
-echo "DB_URL is ${DB_URL}"
-
-
-cd ${PROJECT_DIR}/packages/server
-yarn pre-develop && yarn build
-if [ $? -ne 0 ]; then
-    error "Failed to build server"
-    exit 1
+    # Perform pre-develop steps
+    cd ${PROJECT_DIR}/packages/server
+    yarn pre-develop
+    if [ $? -ne 0 ]; then
+        error "Failed pre-develop steps"
+        exit 1
+    fi
+else
+    # Perform pre-prod steps
+    cd ${PROJECT_DIR}/packages/server
+    yarn pre-prod
+    if [ $? -ne 0 ]; then
+        error "Failed pre-prod steps"
+        exit 1
+    fi
 fi
 
 if [ "${DB_PULL}" = true ]; then
