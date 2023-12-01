@@ -67,7 +67,6 @@ check_var() {
         info "Variable ${1} is set to ${!1}"
     fi
 }
-check_var SERVER_LOCATION
 check_var PORT_SERVER
 check_var SERVER_URL
 check_var SITE_IP

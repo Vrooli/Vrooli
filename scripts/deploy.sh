@@ -187,6 +187,13 @@ export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
 # This is not the case for the other secrets.
 export JWT_PRIV
 export JWT_PUB
+# Determine how CORS should be set up
+export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
+if [ $? -ne 0 ]; then
+    echo $SERVER_LOCATION
+    error "Failed to determine server location"
+    exit 1
+fi
 
 # Restart docker containers.
 info "Restarting docker containers..."

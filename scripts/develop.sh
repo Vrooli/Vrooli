@@ -68,6 +68,12 @@ export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
 # This is not the case for the other secrets.
 export JWT_PRIV
 export JWT_PUB
+export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
+if [ $? -ne 0 ]; then
+    echo $SERVER_LOCATION
+    error "Failed to determine server location"
+    exit 1
+fi
 
 # If using Kubernetes, start Minikube. Otherwise, start Docker Compose
 if $USE_KUBERNETES; then
