@@ -50,6 +50,10 @@ for arg in "$@"; do
     esac
 done
 
+header "Making sure the system clock is accurate"
+sudo hwclock -s
+info "System clock is now: $(date)"
+
 header "Checking for package updates"
 sudo apt-get update
 header "Running upgrade"
