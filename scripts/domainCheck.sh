@@ -24,6 +24,7 @@ info "Domain IP: $domain_ip"
 
 # Make sure the domain resolves to the server's IP
 if [[ "$domain_ip" != "$SITE_IP" ]]; then
+    VALID_IP=false
     error "SITE_IP does not point to the server associated with $domain"
 fi
 
@@ -34,6 +35,11 @@ info "Current IP: $current_ip"
 # If the current IP is the same as the domain IP ,
 # then we're running this script on a test/production server
 if [[ "$current_ip" == "$SITE_IP" ]]; then
+    # SITE_IP must be valid
+    if [[ "$VALID_IP" == false ]]; then
+        error "SITE_IP must be valid when running this script on a test/production server"
+        exit 1
+    fi
     echo "dns"
 else
     echo "local"

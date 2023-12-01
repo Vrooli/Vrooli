@@ -315,16 +315,19 @@ if [ ! -f "$VAULT_KEYRING" ]; then
     wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o "$VAULT_KEYRING"
 fi
 # Determine the distribution codename
-DISTRO_CODENAME=$(lsb_release -cs)
+DISTRO_CODENAME=$(lsb_release -cs | tail -n 1)
 if [ -z "$DISTRO_CODENAME" ]; then
-    echo "Error determining the distribution codename. Exiting."
-    exit 1
+    error "Error determining the distribution codename. Defaulting to 'bionic'."
+    DISTRO_CODENAME="bionic"
 fi
-# Add HashiCorp's APT repository if it's not already added
+# Check if the repository for the current distribution exists
+if ! curl --output /dev/null --silent --head --fail "https://apt.releases.hashicorp.com/dists/$DISTRO_CODENAME/Release"; then
+    warning "No release file found for $DISTRO_CODENAME. Using 'bionic' as fallback."
+    DISTRO_CODENAME="bionic"
+fi
+# Add HashiCorp's APT repository
 VAULT_LIST="/etc/apt/sources.list.d/hashicorp.list"
-if [ ! -f "$VAULT_LIST" ]; then
-    echo "deb [signed-by=$VAULT_KEYRING] https://apt.releases.hashicorp.com $DISTRO_CODENAME main" | sudo tee "$VAULT_LIST"
-fi
+echo "deb [signed-by=$VAULT_KEYRING] https://apt.releases.hashicorp.com $DISTRO_CODENAME main" | sudo tee "$VAULT_LIST"
 # Update APT and install Vault
 sudo apt update && sudo apt install -y vault
 # Setup vault based on environment
