@@ -70,7 +70,7 @@ if [ $(curl -s -o /dev/null -w "%{http_code}" $VAULT_ADDR/v1/sys/health) == "200
 fi
 
 if [ "$VAULT_RUNNING" == "false" ]; then
-    error "Vault is not running. Cannot set secrets."
+    error "Vault is not running, or is not in the appropriate state for $environment."
     exit 1
 fi
 

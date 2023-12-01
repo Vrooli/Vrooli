@@ -54,10 +54,43 @@ header "Making sure the system clock is accurate"
 sudo hwclock -s
 info "System clock is now: $(date)"
 
-header "Checking for package updates"
-sudo apt-get update
-header "Running upgrade"
-RUNLEVEL=1 sudo apt-get -y upgrade
+# Limit the number of apt-get update and upgrade calls
+should_run_apt_get_update() {
+    local last_update=$(stat -c %Y /var/lib/apt/lists/)
+    local current_time=$(date +%s)
+    local update_interval=$((24 * 60 * 60)) # 24 hours
+
+    if ((current_time - last_update > update_interval)); then
+        return 0 # true, should run
+    else
+        return 1 # false, should not run
+    fi
+}
+should_run_apt_get_upgrade() {
+    local last_upgrade=$(stat -c %Y /var/lib/dpkg/status)
+    local current_time=$(date +%s)
+    local upgrade_interval=$((7 * 24 * 60 * 60)) # 1 week
+
+    if ((current_time - last_upgrade > upgrade_interval)); then
+        return 0 # true, should run
+    else
+        return 1 # false, should not run
+    fi
+}
+
+# Check and run apt-get update and upgrade
+if should_run_apt_get_update; then
+    header "Updating apt-get package lists"
+    sudo apt-get update
+else
+    info "Skipping apt-get update - last update was less than 24 hours ago"
+fi
+if should_run_apt_get_upgrade; then
+    header "Upgrading apt-get packages"
+    RUNLEVEL=1 sudo apt-get -y upgrade
+else
+    info "Skipping apt-get upgrade - last upgrade was less than 1 week ago"
+fi
 
 header "Setting script permissions"
 chmod +x "${HERE}/"*.sh
@@ -349,10 +382,13 @@ if [ "${ENV_FILES_SET_UP}" = "" ]; then
     echo
 fi
 if [[ "$ENV_FILES_SET_UP" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-    info "Setting up secrets for development environment..."
-    "${HERE}/setSecrets.sh" -e development
-    info "Setting up secrets for production environment..."
-    "${HERE}/setSecrets.sh" -e production
+    if [ "${ENVIRONMENT}" = "dev" ]; then
+        info "Setting up secrets for development environment..."
+        "${HERE}/setSecrets.sh" -e development
+    else
+        info "Setting up secrets for production environment..."
+        "${HERE}/setSecrets.sh" -e production
+    fi
 fi
 
 info "Done! You may need to restart your editor for syntax highlighting to work correctly."

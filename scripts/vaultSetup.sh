@@ -86,6 +86,7 @@ assert_vault_initialized() {
         error "Vault at $VAULT_ADDR is not initialized!"
         exit 1
     fi
+    success "Vault is initialized."
 }
 
 # Checks if the Vault is either sealed or unsealed, depending on the expected status.
@@ -114,6 +115,7 @@ assert_vault_sealed_status() {
         error "Vault is not $EXPECTED_STATUS!"
         exit 1
     fi
+    success "Is vault sealed? $EXPECTED_STATUS"
 }
 
 setup_docker_dev() {
@@ -123,8 +125,29 @@ setup_docker_dev() {
     # Start vault if address is local and it's not already running
     if [[ -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Starting vault..."
-        vault server -dev >"$vault_log" 2>&1 & # NOTE: Can stop vault using `pkill -9 vault`
-        sleep 5                                # Give Vault some time to start up
+        vault server -dev >"$vault_log" 2>&1 &
+        VAULT_PID=$!
+
+        # Wait for Vault to start
+        info "Waiting for Vault to start..."
+        local max_attempts=10
+        local attempt=1
+        local vault_ready=0
+        while [ $attempt -le $max_attempts ]; do
+            if vault status >/dev/null 2>&1; then
+                vault_ready=1
+                break
+            fi
+            info "Waiting for Vault to start (attempt $attempt)..."
+            sleep 1
+            ((attempt++))
+        done
+
+        if [ $vault_ready -ne 1 ]; then
+            error "Vault did not start within expected time."
+            return 1
+        fi
+
         success "Vault started. Logs (including root token) can be found in $vault_log"
     fi
 
