@@ -154,7 +154,7 @@ fi
 
 # Build server
 info "Building server..."
-yarn pre-build && yarn build
+yarn build && yarn post-build
 if [ $? -ne 0 ]; then
     error "Failed to build server"
     exit 1

@@ -8,7 +8,7 @@ if [ "${NODE_ENV}" = "development" ]; then
     . "${HERE}/shared.sh"
     # Perform pre-develop steps
     cd ${PROJECT_DIR}/packages/server
-    yarn pre-develop
+    yarn build && yarn pre-develop
     if [ $? -ne 0 ]; then
         error "Failed pre-develop steps"
         exit 1
