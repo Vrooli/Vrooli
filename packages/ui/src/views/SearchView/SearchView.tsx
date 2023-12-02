@@ -1,13 +1,13 @@
 import { GqlModelType, LINKS } from "@local/shared";
-import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, useTheme } from "@mui/material";
+import { IconButton, useTheme } from "@mui/material";
+import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, SearchIcon } from "icons";
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
@@ -38,13 +38,10 @@ export const SearchView = ({
         where,
     } = useTabs<SearchPageTabOption>({ id: "search-tabs", tabParams: searchViewTabParams, display });
 
-    // Menu for selection object type to create
-    const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);
-
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
-        // If tab is 'All', open menu to select type
+        // If tab is 'All', go to "Create" page
         if (searchType === SearchType.Popular) {
-            setSelectCreateTypeAnchorEl(e.currentTarget);
+            setLocation(LINKS.Create);
             return;
         }
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
@@ -57,35 +54,11 @@ export const SearchView = ({
         // Otherwise, navigate to object's add page
         else setLocation(addUrl);
     }, [searchType, setLocation, userId]);
-    const onSelectCreateTypeClose = useCallback((type?: SearchType) => {
-        if (type) setLocation(`${getObjectUrlBase({ __typename: type as `${GqlModelType}` })}/add`);
-        else setSelectCreateTypeAnchorEl(null);
-    }, [setLocation]);
 
     const focusSearch = () => { scrollIntoFocusedView("search-bar-main-search-page-list"); };
 
     return (
         <>
-            <Menu
-                id="select-create-type-menu"
-                anchorEl={selectCreateTypeAnchorEl}
-                disableScrollLock={true}
-                open={Boolean(selectCreateTypeAnchorEl)}
-                onClose={() => onSelectCreateTypeClose()}
-            >
-                {/* Never show 'All' */}
-                {searchViewTabParams.filter((t) => ![SearchType.Popular].includes(t.searchType)).map(tab => (
-                    <MenuItem
-                        key={tab.searchType}
-                        onClick={() => onSelectCreateTypeClose(tab.searchType as SearchType)}
-                    >
-                        <ListItemIcon>
-                            <tab.Icon fill={palette.background.textPrimary} />
-                        </ListItemIcon>
-                        <ListItemText primary={t(tab.searchType, { count: 1, defaultValue: tab.searchType })} />
-                    </MenuItem>
-                ))}
-            </Menu>
             <TopBar
                 display={display}
                 hideTitleOnDesktop={true}
