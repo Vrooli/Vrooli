@@ -1,0 +1,40 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "rootDir": "./src",
+        "outDir": "./dist",
+        "lib": [
+            "ESNext"
+        ],
+        "allowJs": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "forceConsistentCasingInFileNames": true,
+        "noFallthroughCasesInSwitch": true,
+        // "noUncheckedIndexedAccess": true,
+        "moduleResolution": "node",
+        "module": "ESNext",
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "jsx": "react-jsx",
+        "noImplicitAny": false,
+        "noImplicitThis": true,
+        "sourceMap": false,
+        "strictNullChecks": true,
+        "removeComments": true,
+    },
+    "include": [
+        "src"
+    ],
+    "exclude": [
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/__mocks__",
+        "**/coverage",
+        "**/node_modules",
+        "**/dist",
+        "**/.*/",
+    ],
+}
