@@ -667,8 +667,6 @@ spec:
               name: server-claim0
             - mountPath: /srv/app/data/uploads
               name: server-claim1
-            - mountPath: /srv/app/data/stats
-              name: server-claim2
       restartPolicy: Always
       volumes:
         - name: ui-dist-claim

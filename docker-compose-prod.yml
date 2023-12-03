@@ -86,7 +86,6 @@ services:
     volumes:
       - ./data/logs:${PROJECT_DIR:-/srv/app}/data/logs:z
       - ./data/uploads:${PROJECT_DIR:-/srv/app}/data/uploads:z
-      - ./data/stats:${PROJECT_DIR:-/srv/app}/data/stats:z
       - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
     depends_on:
       redis:
