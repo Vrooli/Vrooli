@@ -155,7 +155,7 @@ export const initializeCronJob = (
             }
         });
     } catch (error) {
-        logger.error(`❌ Failed to initialize ${description} cron job.`, { error, trace: "0398" });
+        logger.error(`❌ Failed to initialize ${description} cron job.`, { error, trace: "0399" });
     }
 };
 
