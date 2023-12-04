@@ -51,7 +51,7 @@ const cronJobs: Record<string, CronJobDefinition> = {
         description: "fail payments",
     },
     paymentsFreeCredits: {
-        schedule: "24 4 * * *", // Every day at 4:24am (UTC)
+        schedule: "0 0 1 * *", // Every month on the 1st at midnight (UTC)
         jobFunction: paymentsFreeCredits,
         description: "free credits",
     },

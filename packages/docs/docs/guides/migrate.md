@@ -19,20 +19,21 @@ Before you even think about migrating your schema, make sure you have already cr
 1. Make sure schema.prisma matches the current database schema.  
 2. Create a backup of the database (`data/postgres`) and name it something like `postgres_backup_<DATE>`. Hopefully you won't need it, but it's better to be safe than sorry.
 3. Start the project with `docker-compose up -d`, and wait for the server container to finish starting.  
-4. `docker exec -it server sh`   
-5. `cd packages/server`  
-6. Check the migration status: `prisma migrate status`. If you get the message "Database schema is up to date!", then you should be good to continue. If not, you may need to mark migrations as applied (assuming they are already applied).
-7. Edit schema.prisma to how you'd like it to look, and save the file  
-8. Enter `prisma migrate dev --name <ENTER_NAME_FOR_MIGRATTION>`. Include `--create-only` if you want to create the migration without applying it (e.g. need to move data around)
-9. Type `exit` to exit the shell.  
-10. Move the new migration folder in `packages/server/dist/db/migrations` to `packages/server/src/db/migrations`.
-11. Restart the server with `docker-compose restart server` and make sure that it starts successfully. This will also apply the migration if you used `-create-only` in step 8.
-12. `cd packages/server`
-13. Enter `yarn prisma generate` to update the Prisma types.
+4. `docker exec -it server sh`  
+5. Follow the steps a few sections above to set the `DB_URL` environment variable. 
+6. `cd packages/server`  
+7. Check the migration status: `yarn prisma migrate status`. If you get the message "Database schema is up to date!", then you should be good to continue. If not, you may need to mark migrations as applied (assuming they are already applied).
+8. Edit schema.prisma to how you'd like it to look, and save the file  
+9. Enter `yarn prisma migrate dev --name <ENTER_NAME_FOR_MIGRATTION>`. Include `--create-only` if you want to create the migration without applying it (e.g. need to move data around)
+10. Type `exit` to exit the shell.  
+11. Move the new migration folder in `packages/server/dist/db/migrations` to `packages/server/src/db/migrations`.
+12. Restart the server with `docker-compose restart server` and make sure that it starts successfully. This will also apply the migration if you used `-create-only` in step 8.
+13. `cd packages/server`
+14. Enter `yarn prisma generate` to update the Prisma types.
 
 
 ## Resolving Migration Issues
-When resolving issues, the first thing to do is to enter this command: `prisma migrate status`, after following the same steps above for accessing the server.
+When resolving issues, the first thing to do is to enter this command: `yarn prisma migrate status`, after following the same steps above for accessing the server.
 
 ### Dumping and Reimporting the Database
 If that doesn't work, you might need to resort to more drastic measures. One such measure is by exporting the database, deleting it, and then reimporting it. Follow these steps:

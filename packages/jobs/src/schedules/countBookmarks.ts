@@ -1,43 +1,35 @@
-import { PrismaType, logger, withPrisma } from "@local/server";
+import { FindManyArgs, batch, logger } from "@local/server";
+import { GqlModelType, uppercaseFirstLetter } from "@local/shared";
+import pkg from "lodash";
 
-const processTableInBatches = async (prisma: PrismaType, tableName: string): Promise<void> => {
-    const batchSize = 100;
-    let skip = 0;
-    let continueProcessing = true;
+const { camelCase } = pkg;
 
-    while (continueProcessing) {
-        const items = await prisma[tableName].findMany({
-            skip,
-            take: batchSize,
-            select: {
-                id: true,
-                bookmarks: true,
-                _count: {
-                    select: {
-                        bookmarkedBy: true,
-                    },
+const processTableInBatches = async (tableName: string): Promise<void> => {
+    await batch<FindManyArgs>({
+        objectType: uppercaseFirstLetter(camelCase(tableName)) as GqlModelType,
+        processBatch: async (batch, prisma) => {
+            for (const item of batch) {
+                const actualCount = item._count.bookmarkedBy;
+                if (item.bookmarks !== actualCount) {
+                    logger.warn(`Updating ${tableName} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}.`, { trace: "0165" });
+                    await prisma[tableName].update({
+                        where: { id: item.id },
+                        data: { bookmarks: actualCount },
+                    });
+                }
+            }
+        },
+        select: {
+            id: true,
+            bookmarks: true,
+            _count: {
+                select: {
+                    bookmarkedBy: true,
                 },
             },
-        });
-
-        if (items.length === 0) {
-            continueProcessing = false;
-            break;
-        }
-
-        for (const item of items) {
-            const actualCount = item._count.bookmarkedBy;
-            if (item.bookmarks !== actualCount) {
-                logger.warn(`Had to update ${tableName} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}. This should not happen.`, { trace: "0166" });
-                await prisma[tableName].update({
-                    where: { id: item.id },
-                    data: { bookmarks: actualCount },
-                });
-            }
-        }
-
-        skip += batchSize;
-    }
+        },
+        trace: "0166",
+    });
 };
 
 export const countBookmarks = async (): Promise<void> => {
@@ -60,13 +52,7 @@ export const countBookmarks = async (): Promise<void> => {
         "user",
     ];
 
-    await withPrisma({
-        process: async (prisma) => {
-            for (const tableName of tableNames) {
-                await processTableInBatches(prisma, tableName);
-            }
-        },
-        trace: "0167",
-        traceObject: { tableNames },
-    });
+    for (const tableName of tableNames) {
+        await processTableInBatches(tableName);
+    }
 };

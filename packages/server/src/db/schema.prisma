@@ -1104,6 +1104,7 @@ model payment {
 
 model premium {
     id           String        @id @default(uuid()) @db.Uuid
+    credits      Int           @default(100)
     customPlan   String?       @db.VarChar(2048)
     enabledAt    DateTime?     @db.Timestamptz(6)
     expiresAt    DateTime?     @db.Timestamptz(6)
