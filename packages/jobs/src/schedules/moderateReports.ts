@@ -324,7 +324,7 @@ const nonVersionedObjectQuery3 = {
  *   the report is automatically accepted and the object is moderated accordingly.
  * 4. Notifications are sent to the relevant users when a decision is made, and reputation scores are updated.
  */
-export const checkReportResponses = async () => await batch<Prisma.reportFindManyArgs>({
+export const moderateReports = async () => await batch<Prisma.reportFindManyArgs>({
     objectType: "Report",
     processBatch: async (batch, prisma) => {
         Promise.all(batch.map(async (report) => {

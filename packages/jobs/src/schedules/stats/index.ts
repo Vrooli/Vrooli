@@ -1,12 +1,4 @@
-/**
- * Handles logging of object and site-wide statistics.
- * 
- * Statistics are stored by PeriodType (i.e. hourly, daily, weekly, monthly, yearly), which 
- * each have their own cron job. These are used to calculate line graphs on the frontend, 
- * by combining all matching period rows within a periodStart and periodEnd.
- */
 import { PeriodType } from "@prisma/client";
-import { initializeCronJob } from "../../initializeCronJob";
 import { logApiStats } from "./api";
 import { logOrganizationStats } from "./organization";
 import { logProjectStats } from "./project";
@@ -78,26 +70,27 @@ export const periodCron = {
 } as const;
 
 /**
- * Initializes cron jobs for logging statistics
+ * Handles logging of object and site-wide statistics.
+ * 
+ * Statistics are stored by PeriodType (i.e. hourly, daily, weekly, monthly, yearly), which 
+ * each have their own cron job. These are used to calculate line graphs on the frontend, 
+ * by combining all matching period rows within a periodStart and periodEnd.
  */
-export const initStatsCronJobs = () => {
-    // Start cron for each period
-    for (const [period, schedule] of Object.entries(periodCron)) {
-        // Find start and end of period
-        const periodStart = new Date(getPeriodStart(period as PeriodType)).toISOString();
-        const periodEnd = new Date().toISOString();
-        const params = [period as PeriodType, periodStart, periodEnd] as const;
-        // Trigger each stat group
-        initializeCronJob(schedule, () => Promise.all([
-            logSiteStats(...params),
-            logApiStats(...params),
-            logOrganizationStats(...params),
-            logProjectStats(...params),
-            logQuizStats(...params),
-            logRoutineStats(...params),
-            logSmartContractStats(...params),
-            logStandardStats(...params),
-            logUserStats(...params),
-        ]), `${period} stats`);
-    }
+
+export const initStatsPeriod = (period: string) => {
+    const periodStart = new Date(getPeriodStart(period as PeriodType)).toISOString();
+    const periodEnd = new Date().toISOString();
+    const params = [period as PeriodType, periodStart, periodEnd] as const;
+    // Trigger each stat group
+    Promise.all([
+        logSiteStats(...params),
+        logApiStats(...params),
+        logOrganizationStats(...params),
+        logProjectStats(...params),
+        logQuizStats(...params),
+        logRoutineStats(...params),
+        logSmartContractStats(...params),
+        logStandardStats(...params),
+        logUserStats(...params),
+    ]);
 };

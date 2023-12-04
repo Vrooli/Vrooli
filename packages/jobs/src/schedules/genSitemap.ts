@@ -189,11 +189,6 @@ export const genSitemap = async (): Promise<void> => {
     if (success) logger.info("✅ Sitemap generated successfully");
 };
 
-/**
- * Calls genSitemap if no sitemap.xml file exists
- */
-export const genSitemapIfNotExists = async (): Promise<void> => {
-    if (!fs.existsSync(`${sitemapIndexDir}/sitemap.xml`)) {
-        await genSitemap();
-    }
+export const isSitemapMissing = async (): Promise<boolean> => {
+    return !fs.existsSync(`${sitemapIndexDir}/sitemap.xml`);
 };

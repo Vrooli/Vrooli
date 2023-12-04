@@ -10,8 +10,6 @@
  */
 import { BatchProps, EmbeddableType, EmbeddingTables, FindManyArgs, GenericModelLogic, ModelMap, PrismaType, batch, getEmbeddings } from "@local/server";
 import { Prisma, RunStatus } from "@prisma/client";
-import { cronTimes } from "../../cronTimes";
-import { initializeCronJob } from "../../initializeCronJob";
 
 // WARNING: Setting this to true will cause the embeddings to be recalculated for all objects. 
 // This will take a long time and should only be done during development or if something is 
@@ -315,7 +313,7 @@ const batchEmbeddingsUser = async () => embeddingBatch<Prisma.userFindManyArgs>(
     },
 });
 
-const generateEmbeddings = async () => {
+export const generateEmbeddings = async () => {
     await batchEmbeddingsApiVersion();
     await batchEmbeddingsChat();
     await batchEmbeddingsIssue();
@@ -334,11 +332,4 @@ const generateEmbeddings = async () => {
     await batchEmbeddingsStandardVersion();
     await batchEmbeddingsTag();
     await batchEmbeddingsUser();
-};
-
-/**
- * Initializes cron jobs for generating text embeddings
- */
-export const initGenerateEmbeddingsCronJob = () => {
-    initializeCronJob(cronTimes.embeddings, generateEmbeddings, "generate embeddings");
 };

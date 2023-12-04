@@ -36,72 +36,71 @@ services:
       - ./packages/ui:${PROJECT_DIR:-/srv/app}/packages/ui:z
       - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/ui.sh"
-  # server:
-  #   build:
-  #     context: .
-  #     dockerfile: ./packages/server/Dockerfile
-  #     args:
-  #       PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
-  #   container_name: server
-  #   image: server:dev
-  #   restart: always
-  #   environment:
-  #     NODE_ENV: "development"
-  #     ADMIN_WALLET: "${ADMIN_WALLET}"
-  #     ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
-  #     AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
-  #     AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
-  #     VALYXA_PASSWORD: "${VALYXA_PASSWORD}"
-  #     PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
-  #     VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
-  #     VITE_PORT_SERVER: ${PORT_SERVER:-5329}
-  #     REDIS_CONN: "redis:${PORT_REDIS:-6379}"
-  #     DB_URL: "${DB_URL}"
-  #     DB_PULL: "${DB_PULL}"
-  #     JWT_PRIV: "${JWT_PRIV}"
-  #     JWT_PUB: "${JWT_PUB}"
-  #     OPENAI_API_KEY: "${OPENAI_API_KEY}"
-  #     CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
-  #     SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
-  #     VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
-  #     VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY}"
-  #     SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
-  #     SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"
-  #     SITE_EMAIL_ALIAS: "${SITE_EMAIL_ALIAS}"
-  #     SITE_IP: "${SITE_IP}"
-  #     STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
-  #     STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET}"
-  #     SERVER_URL: "${SERVER_URL}"
-  #     VIRTUAL_HOST: "${VIRTUAL_HOST}"
-  #     VIRTUAL_PORT: ${PORT_SERVER:-5329}
-  #     VIRTUAL_PATH: "/api"
-  #     LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
-  #     LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
-  #   ports:
-  #     - ${PORT_SERVER:-5329}:${PORT_SERVER:-5329}
-  #     - "9229:9229" # For debugger
-  #   networks:
-  #     - proxy
-  #     - app
-  #   volumes:
-  #     - ./packages/server:${PROJECT_DIR:-/srv/app}/packages/server:z
-  #     - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
-  #     - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
-  #     - ./data/logs:${PROJECT_DIR:-/srv/app}/data/logs:z
-  #     - ./data/uploads:${PROJECT_DIR:-/srv/app}/data/uploads:z
-  #     - ./packages/server/src/db/migrations:${PROJECT_DIR:-/srv/app}/packages/server/src/db/migrations
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #     db:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: [ "CMD-SHELL", "node -e \"require('http').request({hostname: 'localhost', port: process.env.PORT_SERVER || 5329, path: '/healthcheck'}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()\"" ]
-  #     start_period: 90s
-  #     interval: 20s
-  #     timeout: 5s
-  #     retries: 15
-  #   command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/server.sh"
+  server:
+    build:
+      context: .
+      dockerfile: ./packages/server/Dockerfile
+      args:
+        PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
+    container_name: server
+    image: server:dev
+    restart: always
+    environment:
+      NODE_ENV: "development"
+      ADMIN_WALLET: "${ADMIN_WALLET}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+      VALYXA_PASSWORD: "${VALYXA_PASSWORD}"
+      PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
+      VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
+      VITE_PORT_SERVER: ${PORT_SERVER:-5329}
+      REDIS_CONN: "redis:${PORT_REDIS:-6379}"
+      DB_URL: "${DB_URL}"
+      DB_PULL: "${DB_PULL}"
+      JWT_PRIV: "${JWT_PRIV}"
+      JWT_PUB: "${JWT_PUB}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
+      SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
+      VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
+      VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY}"
+      SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
+      SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"
+      SITE_EMAIL_ALIAS: "${SITE_EMAIL_ALIAS}"
+      SITE_IP: "${SITE_IP}"
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET}"
+      SERVER_URL: "${SERVER_URL}"
+      VIRTUAL_HOST: "${VIRTUAL_HOST}"
+      VIRTUAL_PORT: ${PORT_SERVER:-5329}
+      VIRTUAL_PATH: "/api"
+      LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+    ports:
+      - ${PORT_SERVER:-5329}:${PORT_SERVER:-5329}
+      - "9229:9229" # For debugger
+    networks:
+      - proxy
+      - app
+    volumes:
+      - ./packages/server:${PROJECT_DIR:-/srv/app}/packages/server:z
+      - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
+      - ./data/logs:${PROJECT_DIR:-/srv/app}/data/logs:z
+      - ./data/uploads:${PROJECT_DIR:-/srv/app}/data/uploads:z
+      - ./packages/server/src/db/migrations:${PROJECT_DIR:-/srv/app}/packages/server/src/db/migrations
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "node -e \"require('http').request({hostname: 'localhost', port: process.env.PORT_SERVER || 5329, path: '/healthcheck'}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()\"" ]
+      start_period: 90s
+      interval: 20s
+      timeout: 5s
+      retries: 15
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/server.sh"
   jobs:
     build:
       context: .
@@ -149,11 +148,10 @@ services:
       - ./packages/jobs:${PROJECT_DIR:-/srv/app}/packages/jobs:z
       - ./packages/server:${PROJECT_DIR:-/srv/app}/packages/server:z
       - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
+      - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
       - ./data/logs:${PROJECT_DIR:-/srv/app}/data/logs:z
     depends_on:
-      redis:
-        condition: service_healthy
-      db:
+      server:
         condition: service_healthy
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/jobs.sh"
   db:

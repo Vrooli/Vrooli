@@ -18,6 +18,7 @@
         "noFallthroughCasesInSwitch": true,
         // "noUncheckedIndexedAccess": true,
         "resolveJsonModule": true,
+        "incremental": true,
         "isolatedModules": true,
         "noEmit": true,
         "noImplicitAny": false,

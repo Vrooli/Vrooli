@@ -24,7 +24,7 @@ const commonWhere = {
 /**
  * Expires premium status for users and organizations
  */
-export const expirePremium = async () => {
+export const paymentsExpirePremium = async () => {
     // Expire for organizations
     await batch<Prisma.organizationFindManyArgs>({
         objectType: "Organization",

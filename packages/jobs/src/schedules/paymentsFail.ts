@@ -6,7 +6,7 @@ const PENDING_TIMEOUT = 7 * 24 * 60 * 60 * 1000; // 7 days
 /**
  * Updates pending payments to failed if they have been stuck in pending for a long time
  */
-export const failPayments = async () => {
+export const paymentsFail = async () => {
     await batch<Prisma.paymentFindManyArgs>({
         objectType: "Payment",
         processBatch: async (batch, prisma) => {
