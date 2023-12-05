@@ -212,6 +212,7 @@ export async function generateSessionJwt(
                 stopCondition: user.activeFocusMode.stopCondition,
                 stopTime: user.activeFocusMode.stopTime,
             } : undefined,
+            credits: user.credits,
             handle: user.handle,
             hasPremium: user.hasPremium ?? false,
             languages: user.languages ?? [],

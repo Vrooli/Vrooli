@@ -45,6 +45,7 @@ export const paymentsFreeCredits = async (): Promise<void> => {
                 },
             },
         },
+        where: { isBot: false },
         trace: "0470",
     });
 };

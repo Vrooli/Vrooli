@@ -23,7 +23,7 @@ export interface SessionToken extends BasicToken {
     // Supports logging in with multiple accounts
     users: SessionUserToken[];
 }
-export type SessionUserToken = Pick<SessionUser, "id" | "handle" | "hasPremium" | "languages" | "name" | "profileImage" | "updated_at"> & {
+export type SessionUserToken = Pick<SessionUser, "id" | "credits" | "handle" | "hasPremium" | "languages" | "name" | "profileImage" | "updated_at"> & {
     activeFocusMode?: {
         mode: { id: string; },
         stopCondition: FocusModeStopCondition,

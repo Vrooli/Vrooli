@@ -645,6 +645,7 @@ const ChatForm = ({
 };
 
 export const ChatCrud = ({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -660,7 +661,7 @@ export const ChatCrud = ({
         onError: (errors) => {
             // If the chat doesn't exist, switch to create mode
             if (hasErrorCode({ errors }, "NotFound")) {
-                setLocation(`${LINKS.Chat}/add`, { replace: true, searchParams: parseSearchParams() });
+                if (display === "page") setLocation(`${LINKS.Chat}/add`, { replace: true, searchParams: parseSearchParams() });
                 setExisting(chatInitialValues(session, task, t, getUserLanguages(session)[0]));
             }
         },

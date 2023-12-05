@@ -23,7 +23,7 @@ import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { Cookies } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { getUserActions, NavAction, NAV_ACTION_TAGS } from "utils/navigation/userActions";
+import { getUserActions, NAV_ACTION_TAGS, NavAction } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { shapeProfile } from "utils/shape/models/profile";
@@ -196,7 +196,10 @@ export const SideMenu = () => {
                     height="75%"
                 />
             </Avatar>
-            <ListItemText primary={account.name ?? account.handle} />
+            <ListItemText
+                primary={account.name ?? account.handle}
+                secondary={`${t("Credit", { count: 2 })}: ${account.credits ?? 0}`}
+            />
         </ListItem>
     ), [accounts, handleUserClick]);
 

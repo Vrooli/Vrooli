@@ -23,7 +23,7 @@ Before you even think about migrating your schema, make sure you have already cr
 5. Follow the steps a few sections above to set the `DB_URL` environment variable. 
 6. `cd packages/server`  
 7. Check the migration status: `yarn prisma migrate status`. If you get the message "Database schema is up to date!", then you should be good to continue. If not, you may need to mark migrations as applied (assuming they are already applied).
-8. Edit schema.prisma to how you'd like it to look, and save the file  
+8. Edit schema.prisma **in the `dist` directory** to how you'd like it to look, and save the file  
 9. Enter `yarn prisma migrate dev --name <ENTER_NAME_FOR_MIGRATTION>`. Include `--create-only` if you want to create the migration without applying it (e.g. need to move data around)
 10. Type `exit` to exit the shell.  
 11. Move the new migration folder in `packages/server/dist/db/migrations` to `packages/server/src/db/migrations`.

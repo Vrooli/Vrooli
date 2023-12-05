@@ -72,6 +72,11 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
                 data: message,
                 message: fullMessageData,
             });
+            // Reduce user's credits by 1
+            await prisma.user.update({
+                where: { id: userData.id },
+                data: { premium: { update: { credits: { decrement: 1 } } } },
+            });
         },
         trace: "0081",
     });

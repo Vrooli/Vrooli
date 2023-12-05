@@ -1,6 +1,6 @@
 import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
-import { fetchLazyWrapper, socket } from "api";
+import { fetchLazyWrapper, hasErrorCode, socket } from "api";
 import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -84,6 +84,26 @@ export const DashboardView = ({
         setCookieMatchingChat(loadedChat.id, [VALYXA_ID]);
     }, [loadedChat, loadedChat?.id, session]);
 
+    const createNewChat = useCallback(() => {
+        console.log("creating chattttt", chat);
+        chatCreateStatus.current = "inProgress";
+        fetchLazyWrapper<ChatCreateInput, Chat>({
+            fetch: fetchCreate,
+            inputs: transformChatValues(withoutOtherMessages(chat, session), withoutOtherMessages(chat, session), true),
+            onSuccess: (data) => {
+                console.log("created new chat!", data);
+                setChat(data);
+                setCookieMatchingChat(data.id, [VALYXA_ID]);
+            },
+            onCompleted: () => {
+                chatCreateStatus.current = "complete";
+            },
+            onError: (response) => {
+                console.log("failed to create NEW chat", response);
+            },
+        });
+    }, [chat, fetchCreate, session]);
+
     // Create chats automatically
     const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
     useEffect(() => {
@@ -99,23 +119,20 @@ export const DashboardView = ({
                     console.log("fetched chattttt", data);
                     setChat(data);
                 },
+                onError: (response) => {
+                    console.log("bleep error 0", response);
+                    if (hasErrorCode(response, "NotFound")) {
+                        createNewChat();
+                    } else {
+                        console.log("bleep error 1");
+                    }
+                },
             });
         }
         else if (!isChatValid && chatCreateStatus.current === "notStarted") {
-            console.log("creating chattttt", chat);
-            chatCreateStatus.current = "inProgress";
-            fetchLazyWrapper<ChatCreateInput, Chat>({
-                fetch: fetchCreate,
-                inputs: transformChatValues(withoutOtherMessages(chat, session), withoutOtherMessages(chat, session), true),
-                onSuccess: (data) => {
-                    setChat(data);
-                },
-                onCompleted: () => {
-                    chatCreateStatus.current = "complete";
-                },
-            });
+            createNewChat();
         }
-    }, [chat, display, fetchCreate, getChat, isOpen, session, setLocation]);
+    }, [chat, createNewChat, display, fetchCreate, getChat, isOpen, session, setLocation]);
 
     // Handle focus modes
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
@@ -298,18 +315,6 @@ export const DashboardView = ({
         });
     }, [chat, fetch, setChat, session, setMessage]);
 
-    const startNewChat = useCallback(() => {
-        const freshChat = chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS);
-        fetchLazyWrapper<ChatCreateInput, Chat>({
-            fetch: fetchCreate,
-            inputs: transformChatValues(withoutOtherMessages(freshChat, session), withoutOtherMessages(freshChat, session), true),
-            onSuccess: (data) => {
-                clearMessages();
-                setChat(data);
-            },
-        });
-    }, [session, t, languages, fetchCreate, clearMessages]);
-
     // Handle websocket connection/disconnection
     useEffect(() => {
         // Only connect to the websocket if the chat exists
@@ -454,7 +459,7 @@ export const DashboardView = ({
                         </Button>
                         <Button
                             color="primary"
-                            onClick={startNewChat}
+                            onClick={createNewChat}
                             variant="contained"
                             sx={{ margin: 2, borderRadius: 8 }}
                             startIcon={<AddIcon />}

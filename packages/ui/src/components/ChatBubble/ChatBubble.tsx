@@ -181,9 +181,9 @@ const ChatBubbleReactions = ({
     return (
         <Box
             display="flex"
-            justifyContent="left"
             alignItems="center"
-            flexDirection={isOwn ? "row-reverse" : "row"}
+            flexDirection="row"
+            justifyContent={isOwn ? "flex-end" : "flex-start"}
         >
             <Stack
                 direction="row"
