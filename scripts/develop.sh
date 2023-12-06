@@ -121,7 +121,14 @@ else
     fi
     info "Docker compose file: ${DOCKER_COMPOSE_FILE}"
 
+    docker-compose down
+
+    # If server is not local, set up reverse proxy
+    if [[ "$SERVER_LOCATION" != "local" ]]; then
+        . "${HERE}/proxySetup.sh" -n "${NGINX_LOCATION}"
+    fi
+
     # Start the development environment
     info "Starting development environment using Docker Compose..."
-    docker-compose down && docker-compose $DOCKER_COMPOSE_FILE up $BUILD $FORCE_RECREATE -d
+    docker-compose $DOCKER_COMPOSE_FILE up $BUILD $FORCE_RECREATE -d
 fi

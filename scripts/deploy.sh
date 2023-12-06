@@ -55,49 +55,6 @@ if [ -z "$VERSION" ]; then
     fi
 fi
 
-# Check if nginx-proxy and nginx-proxy-le are running
-if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
-    error "Proxy containers are not running!"
-    if [ -z "$NGINX_LOCATION" ]; then
-        while true; do
-            prompt "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
-            read -r NGINX_LOCATION
-            if [ -z "$NGINX_LOCATION" ]; then
-                NGINX_LOCATION="/root/NginxSSLReverseProxy"
-            fi
-
-            if [ -d "${NGINX_LOCATION}" ]; then
-                break
-            else
-                error "Not found at that location."
-                prompt "Do you want to try again? Say no to clone and set up proxy containers (y/N):"
-                read -r TRY_AGAIN
-                if [[ "$TRY_AGAIN" =~ ^(no|n)$ ]]; then
-                    info "Proceeding with cloning..."
-                    break
-                fi
-            fi
-        done
-    fi
-
-    # Check if the NginxSSLReverseProxy directory exists
-    if [ ! -d "${NGINX_LOCATION}" ]; then
-        info "NginxSSLReverseProxy not installed. Cloning and setting up..."
-        git clone --depth 1 --branch main https://github.com/MattHalloran/NginxSSLReverseProxy.git "${NGINX_LOCATION}"
-        chmod +x "${NGINX_LOCATION}/scripts/*"
-        "${NGINX_LOCATION}/scripts/fullSetup.sh"
-    fi
-
-    # Check if ${NGINX_LOCATION}/docker-compose.yml or ${NGINX_LOCATION}/docker-compose.yaml exists
-    if [ -f "${NGINX_LOCATION}/docker-compose.yml" ] || [ -f "${NGINX_LOCATION}/docker-compose.yaml" ]; then
-        info "Starting proxy containers..."
-        cd "${NGINX_LOCATION}" && docker-compose up -d
-    else
-        error "Could not find docker-compose.yml file in ${NGINX_LOCATION}"
-        exit 1
-    fi
-fi
-
 # Copy current database and build to a safe location, under a temporary directory.
 cd ${HERE}/..
 DB_TMP="/var/tmp/${VERSION}/postgres"
@@ -193,6 +150,11 @@ if [ $? -ne 0 ]; then
     echo $SERVER_LOCATION
     error "Failed to determine server location"
     exit 1
+fi
+
+# If server is not local, set up reverse proxy
+if [[ "$SERVER_LOCATION" != "local" ]]; then
+    . "${HERE}/proxySetup.sh" -n "${NGINX_LOCATION}"
 fi
 
 # Restart docker containers.
