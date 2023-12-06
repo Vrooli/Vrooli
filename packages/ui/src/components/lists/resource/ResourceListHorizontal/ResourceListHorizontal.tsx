@@ -306,7 +306,7 @@ export const ResourceListHorizontal = ({
                 { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
                 resourceInitialValues(undefined, {
                     index: 0,
-                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listForType: parent.__typename as ResourceListFor, listForId: parent.id },
+                    list: list?.id && list.id !== DUMMY_ID ? list : { listForType: parent.__typename as ResourceListFor, listForId: parent.id },
                 }) as NewResourceShape}
         /> : null
     ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, onDeleted, parent.__typename, parent.id]);
@@ -385,7 +385,7 @@ export const ResourceListHorizontal = ({
                                             key={`resource-card-${index}`}
                                             index={index}
                                             isEditing={isEditing}
-                                            data={c}
+                                            data={{ ...c, list }}
                                             onContextMenu={openContext}
                                             onEdit={openUpdateDialog}
                                             onDelete={onDelete}

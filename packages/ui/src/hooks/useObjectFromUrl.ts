@@ -36,6 +36,7 @@ export function useObjectFromUrl<
     TData extends UrlObject = PartialWithType<PData>,
     TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
 >({
+    displayError,
     endpoint,
     isCreate,
     objectType,
@@ -44,6 +45,8 @@ export function useObjectFromUrl<
     overrideObject,
     transform,
 }: {
+    /** If true, shows error snack when fetching fails */
+    displayError?: boolean,
     endpoint: string,
     /** If passed, tries to find existing form data in cache */
     isCreate?: boolean,
@@ -107,10 +110,10 @@ export function useObjectFromUrl<
         // If overrideObject provided, don't fetch
         if (typeof overrideObject === "object") return;
         // Objects can be found using a few different unique identifiers
-        if (exists(urlParams.handle)) getData({ handle: urlParams.handle }, { onError: stableOnError });
-        else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot }, { onError: stableOnError });
-        else if (exists(urlParams.id)) getData({ id: urlParams.id }, { onError: stableOnError });
-        else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot }, { onError: stableOnError });
+        if (exists(urlParams.handle)) getData({ handle: urlParams.handle }, { onError: stableOnError, displayError });
+        else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot }, { onError: stableOnError, displayError });
+        else if (exists(urlParams.id)) getData({ id: urlParams.id }, { onError: stableOnError, displayError });
+        else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot }, { onError: stableOnError, displayError });
         // If transform provided, ignore bad URL params. This is because we only use the transform for 
         // upsert forms, which don't have a valid URL if the object doesn't exist yet (i.e. when creating)
         else if (typeof stableTransform === "function") return;
@@ -118,7 +121,7 @@ export function useObjectFromUrl<
         else if (exists(stableOnInvalidUrlParams)) stableOnInvalidUrlParams(urlParams);
         // Else, show error
         else PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
-    }, [stableOnError, getData, objectType, overrideObject, stableOnInvalidUrlParams, stableTransform, urlParams]);
+    }, [stableOnError, getData, objectType, overrideObject, displayError, stableOnInvalidUrlParams, stableTransform, urlParams]);
     useEffect(() => {
         // If overrideObject provided, use it
         if (typeof overrideObject === "object") {

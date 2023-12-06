@@ -665,6 +665,7 @@ export const ChatCrud = ({
                 setExisting(chatInitialValues(session, task, t, getUserLanguages(session)[0]));
             }
         },
+        displayError: display === "page" || isOpen === true, // Suppress errors from closed dialogs
         isCreate,
         objectType: "Chat",
         overrideObject: overrideObject as unknown as Chat,
@@ -683,6 +684,7 @@ export const ChatCrud = ({
                 <>
                     <ChatForm
                         disabled={!(isCreate || canUpdate)}
+                        display={display}
                         existing={existing}
                         handleUpdate={setExisting}
                         isCreate={isCreate}
