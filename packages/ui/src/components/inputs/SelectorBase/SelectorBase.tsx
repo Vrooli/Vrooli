@@ -120,6 +120,9 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                     "& .MuiOutlinedInput-notchedOutline": {
                         borderColor: color ?? palette.background.textPrimary,
                     },
+                    "& .MuiPaper-root": {
+                        zIndex: 9999,
+                    },
                 }}
                 tabIndex={tabIndex}
                 // Don't show description

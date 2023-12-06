@@ -306,6 +306,7 @@ const RoutineForm = ({
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
                                 <Button
+                                    disabled={isMultiStep === true}
                                     fullWidth
                                     color="secondary"
                                     onClick={() => handleMultiStepChange(true)}
@@ -313,6 +314,7 @@ const RoutineForm = ({
                                     startIcon={isMultiStep === true ? <CompleteIcon /> : undefined}
                                 >{t("Yes")}</Button>
                                 <Button
+                                    disabled={isMultiStep === false}
                                     fullWidth
                                     color="secondary"
                                     onClick={() => handleMultiStepChange(false)}

@@ -1,4 +1,4 @@
-import { getActiveFocusMode, Session, SessionUser } from "@local/shared";
+import { ActiveFocusMode, FocusMode, getActiveFocusMode, Session, SessionUser } from "@local/shared";
 import { Request } from "express";
 import { CustomError } from "../events/error";
 import { scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events/schedule";
@@ -153,7 +153,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             languages: { select: { language: true } },
             name: true,
             theme: true,
-            premium: { select: { id: true, expiresAt: true } },
+            premium: { select: { id: true, credits: true, expiresAt: true } },
             profileImage: true,
             bookmakLists: {
                 select: {
@@ -192,8 +192,8 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         currentModeData ? {
             ...currentActiveFocusMode,
             mode: currentModeData,
-        } as any : undefined,
-        (userData.focusModes as any) ?? [],
+        } as ActiveFocusMode : undefined,
+        (userData.focusModes as unknown as FocusMode[]) ?? [],
     );
     // Calculate langugages, by combining user's languages with languages 
     // in request. Make sure to remove duplicates
@@ -208,8 +208,9 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         bookmarkLists: userData.bookmakLists.map(({ _count, ...rest }) => ({
             ...rest,
             bookmarksCount: _count?.bookmarks ?? 0,
-        })) as any[],
-        focusModes: userData.focusModes as any[],
+        })) as SessionUser["bookmarkLists"],
+        credits: userData.premium?.credits ?? 0,
+        focusModes: userData.focusModes as unknown as SessionUser["focusModes"],
         handle: userData.handle ?? undefined,
         hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
         id: user.id,

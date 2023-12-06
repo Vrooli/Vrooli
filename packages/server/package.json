@@ -1,11 +1,12 @@
 {
-    "name": "server",
+    "name": "@local/server",
     "author": "Vrooli",
     "license": "GPL-3.0",
     "version": "1.9.7",
     "private": true,
     "main": "dist/index.js",
     "type": "module",
+    "typings": "src/types.d.ts",
     "directories": {
         "test": "tests"
     },
@@ -20,7 +21,7 @@
         "pre-prod": "prisma migrate deploy && yarn prisma-generate",
         "post-build": "yarn post-build-dist-setup && yarn post-build-message-signing && yarn post-build-email-templates && yarn post-build-censor",
         "post-build-dist-setup": "mkdir -p dist/db && [ -f src/db/schema.prisma ] && cp src/db/schema.prisma dist/db/schema.prisma || echo 'schema.prisma not found, skipping copy' && [ -d src/db/migrations ] && rm -rf dist/db/migrations && cp -r src/db/migrations dist/db/migrations || echo 'migrations directory not found, skipping copy'",
-        "post-build-message-signing": "WPATH=\"auth/message_signing/rust/pkg\" && mkdir -p dist/$WPATH && cp src/$WPATH/*.wasm dist/$WPATH/ && cp src/$WPATH/*.json dist/$WPATH/ && [ -f src/$WPATH/emurgo_message_signing.js ] && cp src/$WPATH/emurgo_message_signing.js dist/$WPATH/ || echo 'emurgo_message_signing.js not found, skipping copy'",
+        "post-build-message-signing": "WPATH=\"auth/message_signing/rust/pkg\" && mkdir -p dist/$WPATH && cp src/$WPATH/*.wasm dist/$WPATH/ && cp src/$WPATH/*.json dist/$WPATH/ && [ -f src/$WPATH/emurgo_message_signing.cjs ] && cp src/$WPATH/emurgo_message_signing.cjs dist/$WPATH/ || echo 'emurgo_message_signing.cjs not found, skipping copy'",
         "post-build-email-templates": "[ -d src/notify/email/templates ] && cp -R src/notify/email/templates dist/notify/email/ || echo 'email templates directory not found, skipping copy'",
         "post-build-censor": "[ -f src/utils/censorDictionary.txt ] && cp src/utils/censorDictionary.txt dist/utils/censorDictionary.txt || echo 'censorDictionary.txt not found, skipping copy'",
         "start-development": "NODE_OPTIONS=\"--max-old-space-size=4096\" nodemon dist/index.js",

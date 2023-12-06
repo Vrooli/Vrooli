@@ -58,7 +58,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         fetchParamsRef.current = { endpoint, method, options, inputs };
     }, [endpoint, method, options, inputs]); // This will update the ref each time endpoint, method, options or inputs change
 
-    const makeRequest = useCallback<MakeLazyRequest<TInput, TData>>(async (input, inputOptions) => {
+    const getData = useCallback<MakeLazyRequest<TInput, TData>>(async (input, inputOptions) => {
         // Update the inputs stored in the ref if a new input is provided
         if (input) {
             fetchParamsRef.current.inputs = input;
@@ -105,5 +105,5 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         return result;
     }, []);
 
-    return [makeRequest, state];
+    return [getData, state];
 }

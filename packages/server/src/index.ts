@@ -14,7 +14,6 @@ import { io } from "./io";
 import { context, depthLimit } from "./middleware";
 import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
-import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
 import { SERVER_URL, server } from "./server";
 import { setupStripe } from "./services";
 import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
@@ -163,16 +162,18 @@ const main = async () => {
     // Start Express server
     server.listen(5329);
 
-    // Start cron jobs
-    initStatsCronJobs();
-    initEventsCronJobs();
-    initCountsCronJobs();
-    initSitemapCronJob();
-    initModerationCronJobs();
-    initExpirePremiumCronJob();
-    initGenerateEmbeddingsCronJob();
-
     logger.info(`🚀 Server running at ${SERVER_URL}`);
 };
 
 main();
+
+// Export files for "jobs" package
+export * from "./builders";
+export * from "./events";
+export * from "./models";
+export * from "./notify";
+export * from "./redisConn";
+export * from "./tasks";
+export * from "./utils";
+export * from "./validators";
+

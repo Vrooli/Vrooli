@@ -1,5 +1,5 @@
 import { FC, useCallback, useEffect, useRef } from "react";
-import { getDisplay, ListObject } from "utils/display/listTools";
+import { ListObject, getDisplay } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { TextInput } from "../TextInput/TextInput";
@@ -476,6 +476,12 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                     "& .MuiOutlinedInput-notchedOutline": {
                         borderRadius: "0 0 4px 4px",
                         borderTop: "none",
+                    },
+                    "& .MuiInputBase-root": {
+                        minHeight: sx?.minHeight ?? "unset",
+                        "& > textarea": {
+                            marginBottom: "auto",
+                        },
                     },
                     ...sx,
                 }}

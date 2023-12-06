@@ -1,5 +1,6 @@
 #!/bin/sh
 HERE=$(dirname $0)
+start_time=$(date +%s)
 . "${HERE}/prettify.sh"
 
 # If in development mode
@@ -48,7 +49,10 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+end_time=$(date +%s)
+duration=$((end_time - start_time))
+info "Server setup time: $duration seconds"
+
 info 'Starting server...'
 cd ${PROJECT_DIR}/packages/server
 yarn start-${NODE_ENV}
-success 'Server started'

@@ -20,6 +20,7 @@
         "ecmaVersion": 2018,
         "sourceType": "module",
         "project": [
+            "./packages/jobs/tsconfig.json",
             "./packages/server/tsconfig.json",
             "./packages/server/tsconfig.test.json",
             "./packages/shared/tsconfig.json",
