@@ -99,7 +99,7 @@
         "eslint-config-react-app": "^7.0.1",
         "mocha": "^9.1.1",
         "source-map-explorer": "^2.5.2",
-        "vite": "^4.4.4",
+        "vite": "^4.4.12",
         "workbox-build": "^7.0.0"
     },
     "eslintConfig": {
