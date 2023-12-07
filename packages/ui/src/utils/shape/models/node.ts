@@ -1,7 +1,8 @@
 import { Node, NodeCreateInput, NodeTranslation, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { NodeEndShape, shapeNodeEnd } from "./nodeEnd";
 import { NodeRoutineListShape, shapeNodeRoutineList } from "./nodeRoutineList";
+import { RoutineVersionShape } from "./routineVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type NodeTranslationShape = Pick<NodeTranslation, "id" | "language" | "description" | "name"> & {
@@ -13,7 +14,7 @@ export type NodeShape = Pick<Node, "id" | "columnIndex" | "rowIndex" | "nodeType
     // loop?: LoopShape | null
     end?: NodeEndShape | null;
     routineList?: NodeRoutineListShape | null;
-    routineVersion: { __typename: "RoutineVersion", id: string };
+    routineVersion: CanConnect<Omit<RoutineVersionShape, "nodes">>;
     translations: NodeTranslationShape[];
 }
 

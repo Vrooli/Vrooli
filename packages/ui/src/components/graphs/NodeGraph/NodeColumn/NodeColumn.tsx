@@ -1,14 +1,14 @@
 /**
  * Displays a list of nodes vertically.
  */
-import { Node, NodeRoutineList, NodeType } from "@local/shared";
+import { NodeType } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { useMemo } from "react";
 import { BuildAction } from "utils/consts";
 import { getTranslation } from "utils/display/translationTools";
 import { NodeShape } from "utils/shape/models/node";
-import { NodeWithEnd } from "views/objects/node/types";
-import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from "../nodes";
+import { NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
+import { EndNode, RedirectNode, RoutineListNode, StartNode, calculateNodeSize } from "../nodes";
 import { NodeColumnProps } from "../types";
 
 export const NodeColumn = ({
@@ -72,10 +72,10 @@ export const NodeColumn = ({
                     return <EndNode
                         {...nodeProps}
                         handleDelete={(node) => { handleAction(BuildAction.DeleteNode, node.id); }}
-                        handleUpdate={handleNodeUpdate}
+                        handleUpdate={handleNodeUpdate as ((updatedNode: NodeWithEndShape) => unknown)}
                         language={language}
                         linksIn={links.filter(l => l.to.id === node.id)}
-                        node={node as NodeWithEnd}
+                        node={node as NodeWithEndShape}
                     />;
                 case NodeType.Redirect:
                     return <RedirectNode
@@ -87,11 +87,11 @@ export const NodeColumn = ({
                         {...nodeProps}
                         canExpand={true}
                         handleDelete={(node) => { handleAction(BuildAction.DeleteNode, node.id); }}
-                        handleUpdate={handleNodeUpdate}
+                        handleUpdate={handleNodeUpdate as ((updatedNode: NodeWithRoutineListShape) => unknown)}
                         language={language}
                         linksIn={links.filter(l => l.to.id === node.id)}
                         linksOut={links.filter(l => l.from.id === node.id)}
-                        node={node as Node & { routineList: NodeRoutineList }}
+                        node={node as NodeWithRoutineListShape}
                     />);
                 case NodeType.Start:
                     return <StartNode

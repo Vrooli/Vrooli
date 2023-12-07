@@ -2,7 +2,7 @@ import { OrArray, RoutineVersion } from "@local/shared";
 import { ReactNode } from "react";
 import { PartialOrArrayWithType, SxType } from "types";
 import { ListObject } from "utils/display/listTools";
-import { ChatInviteShape } from "utils/shape/models/chatInvite";
+import { ChatShape } from "utils/shape/models/chat";
 import { MemberInviteShape } from "utils/shape/models/memberInvite";
 
 /** Views can be displayed as full pages or as dialogs */
@@ -59,7 +59,7 @@ export type MemberManageViewProps = ViewProps & {
     organization: MemberInviteShape["organization"];
 }
 export type ParticipantManageViewProps = ViewProps & {
-    chat: ChatInviteShape["chat"];
+    chat: ChatShape;
 }
 export type PremiumViewProps = ViewProps
 export type ResetPasswordViewProps = ViewProps

@@ -7,7 +7,7 @@ export type TagTranslationShape = Pick<TagTranslation, "id" | "language" | "desc
 }
 
 export type TagShape = Pick<Tag, "id" | "tag"> & {
-    __typename?: "Tag";
+    __typename: "Tag";
     anonymous?: boolean | null;
     translations?: TagTranslationShape[] | null;
 }

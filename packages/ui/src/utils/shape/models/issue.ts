@@ -1,5 +1,5 @@
 import { Issue, IssueCreateInput, IssueFor, IssueTranslation, IssueTranslationCreateInput, IssueTranslationUpdateInput, IssueUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
@@ -8,10 +8,10 @@ export type IssueTranslationShape = Pick<IssueTranslation, "id" | "language" | "
 }
 
 export type IssueShape = Pick<Issue, "id"> & {
-    __typename?: "Issue";
+    __typename: "Issue";
     issueFor: IssueFor;
     for: { id: string };
-    labels?: ({ id: string } | LabelShape)[];
+    labels?: CanConnect<LabelShape>[] | null;
     translations: IssueTranslationShape[];
 }
 

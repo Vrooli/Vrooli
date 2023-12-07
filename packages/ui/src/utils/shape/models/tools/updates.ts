@@ -2,7 +2,7 @@ import { DUMMY_ID, exists, uuid } from "@local/shared";
 import { ShapeModel } from "types";
 import { PubSub } from "utils/pubsub";
 import { hasObjectChanged } from "utils/shape/general";
-import { createOwner, createRel, hasOnlyConnectData } from "./creates";
+import { createOwner, createRel, shouldConnect } from "./creates";
 
 type OwnerPrefix = "" | "ownedBy";
 type OwnerType = "User" | "Organization";
@@ -264,7 +264,7 @@ export const updateRel = <
             if (!updatedItem || !updatedItem[idField]) continue;
             const oi = originalRelation.find(item => item[idField] === updatedItem[idField]);
             // Add if not found in original, and not a connect-only item
-            if (!oi && !hasOnlyConnectData(updatedItem)) {
+            if (!oi && !shouldConnect(updatedItem)) {
                 shaped.push((shape as ShapeModel<object, object, object | null>).create(updatedItem));
             }
         }

@@ -1,7 +1,9 @@
 import { Meeting, MeetingCreateInput, MeetingTranslation, MeetingTranslationCreateInput, MeetingTranslationUpdateInput, MeetingUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { LabelShape } from "./label";
 import { MeetingInviteShape, shapeMeetingInvite } from "./meetingInvite";
 import { OrganizationShape } from "./organization";
+import { RoleShape } from "./role";
 import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
@@ -11,11 +13,11 @@ export type MeetingTranslationShape = Pick<MeetingTranslation, "id" | "language"
 
 export type MeetingShape = Pick<Meeting, "id" | "openToAnyoneWithInvite" | "showOnOrganizationProfile"> & {
     __typename: "Meeting";
-    organization: { id: string } | OrganizationShape;
-    restrictedToRoles?: { id: string }[] | null;
-    invites?: MeetingInviteShape[] | null;
-    labels?: { id: string }[] | null;
-    schedule?: ScheduleShape | null;
+    organization: CanConnect<OrganizationShape> | null;
+    restrictedToRoles?: CanConnect<RoleShape>[] | null;
+    invites?: CanConnect<MeetingInviteShape>[] | null;
+    labels?: CanConnect<LabelShape>[] | null;
+    schedule?: CanConnect<ScheduleShape> | null;
     translations?: MeetingTranslationShape[] | null;
 }
 

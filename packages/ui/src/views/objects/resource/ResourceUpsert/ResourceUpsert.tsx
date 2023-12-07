@@ -1,4 +1,4 @@
-import { CommonKey, DUMMY_ID, endpointGetResource, endpointPostResource, endpointPutResource, noopSubmit, orDefault, Resource, ResourceCreateInput, ResourceListFor, ResourceUpdateInput, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
+import { CommonKey, DUMMY_ID, endpointGetResource, endpointPostResource, endpointPutResource, noopSubmit, orDefault, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
 import { Button, Divider, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -30,33 +30,23 @@ import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 import { validateFormValues } from "utils/validateFormValues";
 import { ResourceFormProps, ResourceUpsertProps } from "../types";
 
-/** New resources must include a list ID and an index */
-export type NewResourceShape = Partial<Omit<Resource, "list">> & {
-    index: number,
-    list: Partial<Resource["list"]> & ({ id: string } | { listForType: ResourceListFor | `${ResourceListFor}`, listForId: string })
-};
-
 export const resourceInitialValues = (
     session: Session | undefined,
-    existing: NewResourceShape,
+    existing: Partial<ResourceShape>,
 ): ResourceShape => {
-    let listFor: { __typename: ResourceListFor, id: string };
-    if ("listForId" in existing.list && "listForType" in existing.list) {
-        listFor = {
-            __typename: existing.list.listForType as ResourceListFor,
-            id: existing.list.listForId,
-        };
-    } else if ("listFor" in existing.list) {
-        listFor = existing.list.listFor as { __typename: ResourceListFor, id: string };
+    console.log("qwaf resourceInitialValues start", existing);
+    let listFor: ResourceShape["list"]["listFor"];
+    if (existing.list && "listFor" in existing.list) {
+        console.log("qwaf yeet2");
+        listFor = existing.list.listFor as ResourceShape["list"]["listFor"];
     } else {
-        listFor = {
-            __typename: "RoutineVersion" as ResourceListFor,
-            id: DUMMY_ID,
-        };
+        console.log("qwaf yeet3");
+        listFor = { __typename: "RoutineVersion", id: DUMMY_ID };
     }
     return {
         __typename: "Resource" as const,
         id: DUMMY_ID,
+        index: 0,
         link: "",
         usedFor: ResourceUsedFor.Context,
         ...existing,
@@ -96,6 +86,7 @@ const ResourceForm = ({
     values,
     ...props
 }: ResourceFormProps) => {
+    console.log("qwaf reesourceupsert render", existing, values);
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -155,6 +146,7 @@ const ResourceForm = ({
             return;
         }
         if (isMutate) {
+            console.log("qwaf mutatinggggg", values, transformResourceValues(values, existing, isCreate));
             fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
                 fetch,
                 inputs: transformResourceValues(values, existing, isCreate),
@@ -178,6 +170,7 @@ const ResourceForm = ({
         setResourceType(updatedResourceType);
     }, []);
     const handleShortcutChange = useCallback((shortcut: PreSearchItem | null) => {
+        console.log("handleshortcutchange", shortcut);
         setSelectedShortCut(shortcut);
         if (shortcut) {
             // props.setFieldValue("link", shortcut.value);
@@ -306,7 +299,7 @@ export const ResourceUpsert = ({
         isCreate,
         objectType: "Resource",
         overrideObject: overrideObject as Resource,
-        transform: (existing) => resourceInitialValues(session, existing as NewResourceShape),
+        transform: (existing) => resourceInitialValues(session, existing as ResourceShape),
     });
     const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 

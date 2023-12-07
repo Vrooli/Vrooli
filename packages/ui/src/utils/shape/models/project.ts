@@ -1,17 +1,17 @@
 import { Project, ProjectCreateInput, ProjectUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
 import { ProjectVersionShape, shapeProjectVersion } from "./projectVersion";
-import { shapeTag, TagShape } from "./tag";
+import { TagShape, shapeTag } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 
 export type ProjectShape = Pick<Project, "id" | "handle" | "isPrivate" | "permissions"> & {
     __typename: "Project";
-    labels?: ({ id: string } | LabelShape)[];
+    labels?: CanConnect<LabelShape>[] | null;
     owner: OwnerShape | null | undefined;
-    parent?: { id: string } | null;
-    tags?: ({ tag: string } | TagShape)[];
+    parent?: CanConnect<ProjectVersionShape> | null;
+    tags?: CanConnect<TagShape, "tag">[] | null;
     versions?: Omit<ProjectVersionShape, "root">[] | null;
 }
 

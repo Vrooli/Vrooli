@@ -62,11 +62,12 @@ export const LinkDialog = ({
             return;
         }
         handleClose({
+            __typename: "NodeLink",
             id: uuid(),
-            from: { id: fromNode.id },
+            from: { __typename: "Node", id: fromNode.id },
             operation: null, //TODO
-            routineVersion: { id: routineVersion.id },
-            to: { id: toNode.id },
+            routineVersion: { __typename: "RoutineVersion", id: routineVersion.id },
+            to: { __typename: "Node", id: toNode.id },
             whens: [], //TODO
         });
         setFromNode(null);

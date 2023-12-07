@@ -1,13 +1,13 @@
 import { RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { NodeShape } from "./node";
 import { RoutineVersionShape } from "./routineVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type RunRoutineStepShape = Pick<RunRoutineStep, "id" | "contextSwitches" | "name" | "order" | "status" | "step" | "timeElapsed"> & {
-    __typename?: "RunRoutineStep";
-    node?: { id: string } | NodeShape | null;
-    subroutineVersion?: { id: string } | RoutineVersionShape | null;
+    __typename: "RunRoutineStep";
+    node?: CanConnect<NodeShape> | null;
+    subroutineVersion?: CanConnect<RoutineVersionShape> | null;
 }
 
 export const shapeRunRoutineStep: ShapeModel<RunRoutineStepShape, RunRoutineStepCreateInput, RunRoutineStepUpdateInput> = {

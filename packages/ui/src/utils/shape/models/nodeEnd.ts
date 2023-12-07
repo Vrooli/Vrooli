@@ -1,11 +1,13 @@
 import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { NodeShape } from "./node";
+import { RoutineVersionShape } from "./routineVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type NodeEndShape = Pick<NodeEnd, "id" | "wasSuccessful" | "suggestedNextRoutineVersions"> & {
-    __typename?: "NodeEnd";
-    node: { __typename?: "Node", id: string };
-    suggestedNextRoutineVersions?: { id: string }[] | null;
+    __typename: "NodeEnd";
+    node: CanConnect<Omit<NodeShape, "end">>;
+    suggestedNextRoutineVersions?: CanConnect<RoutineVersionShape>[] | null;
 }
 
 export const shapeNodeEnd: ShapeModel<NodeEndShape, NodeEndCreateInput, NodeEndUpdateInput> = {

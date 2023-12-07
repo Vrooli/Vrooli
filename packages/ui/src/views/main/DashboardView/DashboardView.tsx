@@ -178,6 +178,7 @@ export const DashboardView = ({
     useEffect(() => {
         // Resources are added to the focus mode's resource list
         if (activeFocusMode?.mode?.resourceList?.id && activeFocusMode.mode?.resourceList.id !== DUMMY_ID) {
+            console.log("qwaf setting resource list from activeFocusMode.mode.resourceList", activeFocusMode.mode.resourceList);
             setResourceList({
                 ...activeFocusMode.mode.resourceList,
                 __typename: "ResourceList",

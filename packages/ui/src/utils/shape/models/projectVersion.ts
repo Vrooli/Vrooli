@@ -1,5 +1,5 @@
 import { ProjectVersion, ProjectVersionCreateInput, ProjectVersionTranslation, ProjectVersionTranslationCreateInput, ProjectVersionTranslationUpdateInput, ProjectVersionUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { ProjectShape, shapeProject } from "./project";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { ResourceListShape } from "./resourceList";
@@ -12,9 +12,9 @@ export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, "id
 export type ProjectVersionShape = Pick<ProjectVersion, "id" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
     __typename: "ProjectVersion";
     directories?: ProjectVersionDirectoryShape[] | null;
-    resourceList?: { id: string } | ResourceListShape | null;
-    root?: { __typename: "Project", id: string } | ProjectShape | null;
-    suggestedNextByProject?: { id: string }[] | null;
+    resourceList?: CanConnect<ResourceListShape> | null;
+    root?: CanConnect<ProjectShape> | null;
+    suggestedNextByProject?: CanConnect<ProjectShape>[] | null;
     translations?: ProjectVersionTranslationShape[] | null;
 }
 

@@ -52,7 +52,7 @@ const projectInitialValues = (
         tags: [],
         ...existing?.root,
     },
-    directories: orDefault(existing?.directories, [{
+    directories: orDefault<ProjectVersionDirectoryShape[]>(existing?.directories, [{
         __typename: "ProjectVersionDirectory" as const,
         id: DUMMY_ID,
         isRoot: true,
@@ -63,7 +63,7 @@ const projectInitialValues = (
         childRoutineVersions: [],
         childSmartContractVersions: [],
         childStandardVersions: [],
-    } as ProjectVersionDirectoryShape]),
+    }]),
     translations: orDefault(existing?.translations, [{
         __typename: "ProjectVersionTranslation" as const,
         id: DUMMY_ID,

@@ -48,6 +48,7 @@ const noteInitialValues = (
     versionLabel: existing?.versionLabel ?? "1.0.0",
     ...existing,
     root: {
+        __typename: "Note" as const,
         id: DUMMY_ID,
         isPrivate: true,
         owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" } as OwnerShape,

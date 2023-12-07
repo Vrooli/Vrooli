@@ -1,8 +1,8 @@
 import { StandardVersion, StandardVersionCreateInput, StandardVersionTranslation, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, StandardVersionUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
-import { shapeProjectVersionDirectory } from "./projectVersionDirectory";
+import { CanConnect, ShapeModel } from "types";
+import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
-import { shapeStandard, StandardShape } from "./standard";
+import { StandardShape, shapeStandard } from "./standard";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, "id" | "language" | "description" | "jsonVariable" | "name"> & {
@@ -11,7 +11,7 @@ export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, "
 
 export type StandardVersionShape = Pick<StandardVersion, "id" | "isComplete" | "isPrivate" | "isFile" | "default" | "props" | "yup" | "standardType" | "versionLabel" | "versionNotes"> & {
     __typename: "StandardVersion";
-    directoryListings?: { id: string }[] | null;
+    directoryListings?: CanConnect<ProjectVersionDirectoryShape>[] | null;
     root: StandardShape;
     resourceList?: ResourceListShape | null;
     translations?: StandardVersionTranslationShape[] | null;

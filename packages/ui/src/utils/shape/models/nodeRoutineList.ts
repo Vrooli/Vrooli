@@ -1,12 +1,13 @@
 import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { NodeShape } from "./node";
 import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "./nodeRoutineListItem";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type NodeRoutineListShape = Pick<NodeRoutineList, "id" | "isOptional" | "isOrdered"> & {
-    __typename?: "NodeRoutineList";
+    __typename: "NodeRoutineList";
     items: NodeRoutineListItemShape[];
-    node: { __typename?: "Node", id: string };
+    node: CanConnect<Omit<NodeShape, "routineList">>;
 }
 
 export const shapeNodeRoutineList: ShapeModel<NodeRoutineListShape, NodeRoutineListCreateInput, NodeRoutineListUpdateInput> = {

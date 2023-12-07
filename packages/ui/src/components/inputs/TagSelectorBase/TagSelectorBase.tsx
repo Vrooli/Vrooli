@@ -62,7 +62,7 @@ export const TagSelectorBase = ({
             return;
         }
         // Add tag
-        handleTagAdd({ id: DUMMY_ID, tag: tagLabel });
+        handleTagAdd({ __typename: "Tag", id: DUMMY_ID, tag: tagLabel });
         // Clear input
         clearText();
     }, [clearText, handleTagAdd, inputValue, tags]);

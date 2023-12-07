@@ -14,7 +14,6 @@ import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { SessionContext } from "contexts/SessionContext";
-import { NodeWithRoutineListShape } from "forms/types";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useStableObject } from "hooks/useStableObject";
@@ -32,6 +31,7 @@ import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
+import { NodeWithRoutineListShape } from "views/objects/node/types";
 import { BuildViewProps } from "../types";
 
 /**
@@ -42,10 +42,11 @@ import { BuildViewProps } from "../types";
  * @returns The new link object
  */
 const generateNewLink = (fromId: string, toId: string, routineVersionId: string): NodeLinkShape => ({
+    __typename: "NodeLink",
     id: uuid(),
-    from: { id: fromId },
-    to: { id: toId },
-    routineVersion: { id: routineVersionId },
+    from: { __typename: "Node", id: fromId },
+    to: { __typename: "Node", id: toId },
+    routineVersion: { __typename: "RoutineVersion", id: routineVersionId },
 });
 
 // RoutineVersion with fields required for the build view
@@ -400,7 +401,7 @@ export const BuildView = ({
             end: {
                 __typename: "NodeEnd" as const,
                 id: uuid(),
-                node: { id: newNodeId },
+                node: { __typename: "Node", id: newNodeId },
                 suggestedNextRoutineVersions: [],
                 wasSuccessful: true,
             },
@@ -946,9 +947,9 @@ export const BuildView = ({
                         rowIndex,
                         columnIndex,
                         end: {
-                            __typename: "NodeEnd" as const,
+                            __typename: "NodeEnd",
                             id: uuid(),
-                            node: { id: newEndNodeId },
+                            node: { __typename: "Node", id: newEndNodeId },
                             suggestedNextRoutineVersions: [],
                             wasSuccessful: false,
                         },

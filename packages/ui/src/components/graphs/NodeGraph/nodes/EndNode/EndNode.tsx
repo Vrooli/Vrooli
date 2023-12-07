@@ -5,7 +5,8 @@ import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
 import { NodeWithEndCrud } from "views/objects/node";
-import { calculateNodeSize, DraggableNode, NodeContextMenu, NodeWidth } from "../..";
+import { NodeWithEnd } from "views/objects/node/types";
+import { DraggableNode, NodeContextMenu, NodeWidth, calculateNodeSize } from "../..";
 import { nodeLabel } from "../styles";
 import { EndNodeProps } from "../types";
 
@@ -98,12 +99,12 @@ export const EndNode = ({
                 onCancel={closeEditDialog}
                 onClose={closeEditDialog}
                 onCompleted={handleUpdate}
-                onDeleted={handleDelete}
+                onDeleted={handleDelete as ((data: NodeWithEnd) => unknown)}
                 isCreate={false}
                 isEditing={isEditing}
                 isOpen={editDialogOpen}
                 language={language}
-                overrideObject={node}
+                overrideObject={node as NodeWithEnd}
             />
             <DraggableNode
                 className="handle"

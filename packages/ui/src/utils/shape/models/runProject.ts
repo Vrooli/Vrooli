@@ -1,5 +1,5 @@
 import { RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { OrganizationShape } from "./organization";
 import { ProjectVersionShape } from "./projectVersion";
 import { RunProjectStepShape, shapeRunProjectStep } from "./runProjectStep";
@@ -10,8 +10,8 @@ export type RunProjectShape = Pick<RunProject, "id" | "isPrivate" | "completedCo
     __typename: "RunProject";
     steps?: RunProjectStepShape[] | null;
     schedule?: ScheduleShape | null;
-    projectVersion?: { __typename: "ProjectVersion", id: string } | ProjectVersionShape | null;
-    organization?: { id: string } | OrganizationShape | null;
+    projectVersion?: CanConnect<ProjectVersionShape> | null;
+    organization?: CanConnect<OrganizationShape> | null;
 }
 
 export const shapeRunProject: ShapeModel<RunProjectShape, RunProjectCreateInput, RunProjectUpdateInput> = {

@@ -101,11 +101,13 @@ export const createPrims = <T, K extends keyof T>(
 };
 
 /**
- * Helper function that checks if an object only has data for connecting
+ * Checks if an object should be connected or created.
  * @param data The object to check
- * @returns True if the object does not contain any data other than IDs and __typename
+ * @returns True if the object does not contain any data other than IDs and __typename 
+ * OR if it contains `__connect: true`
  */
-export const hasOnlyConnectData = (data: object) => {
+export const shouldConnect = (data: object) => {
+    if (data["__connect"] === true) return true;
     const validKeys = Object.keys(data).filter(key => data[key] !== undefined);
     return validKeys.every(k => ["id", "__typename"].includes(k));
 };
@@ -163,10 +165,10 @@ export const createRel = <
     for (const t of relTypes) {
         // If type is connect, add IDs to result
         if (t === "Connect") {
-            // If create is an option, ignore items which have more than just connect data, since they must be creates instead
+            // If create is an option, ignore items which should be created
             let filteredRelationData = Array.isArray(shapedRelationData) ? shapedRelationData : [shapedRelationData];
             if (relTypes.includes("Create")) {
-                filteredRelationData = filteredRelationData.filter((x) => hasOnlyConnectData(x));
+                filteredRelationData = filteredRelationData.filter((x) => shouldConnect(x));
             }
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === "one" ?
@@ -174,9 +176,9 @@ export const createRel = <
                 (filteredRelationData as Array<object>).map((x) => x[shape?.idField ?? "id"]);
         }
         else if (t === "Create") {
-            // Ignore items which only have connect data
+            // Ignore items which should be connected
             let filteredRelationData = Array.isArray(shapedRelationData) ? shapedRelationData : [shapedRelationData];
-            filteredRelationData = filteredRelationData.filter((x) => !hasOnlyConnectData(x));
+            filteredRelationData = filteredRelationData.filter((x) => !shouldConnect(x));
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === "one" ?
                 shape!.create(filteredRelationData[0]) :

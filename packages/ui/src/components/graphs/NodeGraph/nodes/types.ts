@@ -1,9 +1,9 @@
-import { Node, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from "@local/shared";
+import { Node, NodeLink, NodeLoop, NodeRoutineListItem, NodeType } from "@local/shared";
 import { BoxProps } from "@mui/material";
 import { MouseEvent, ReactNode } from "react";
 import { BuildAction } from "utils/consts";
 import { NodeShape } from "utils/shape/models/node";
-import { NodeWithEnd } from "views/objects/node/types";
+import { NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
 
 /**
  * Props for all scalable objects
@@ -52,10 +52,10 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
 export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     handleAction: (action: BuildAction, nodeId: string) => unknown;
     handleDelete: (node: NodeShape) => unknown;
-    handleUpdate: (updatedNode: NodeWithEnd) => unknown;
+    handleUpdate: (updatedNode: NodeWithEndShape) => unknown;
     language: string;
     linksIn: NodeLink[];
-    node: NodeWithEnd;
+    node: NodeWithEndShape;
 }
 
 /**
@@ -80,11 +80,11 @@ export interface RoutineListNodeProps extends ScaleProps, LabelledProps, Editabl
     canExpand: boolean;
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => unknown;
     handleDelete: (node: NodeShape) => unknown;
-    handleUpdate: (updatedNode: Node & { routineList: NodeRoutineList }) => unknown;
+    handleUpdate: (updatedNode: NodeWithRoutineListShape) => unknown;
     language: string;
     linksIn: NodeLink[];
     linksOut: NodeLink[];
-    node: Node & { routineList: NodeRoutineList };
+    node: NodeWithRoutineListShape;
 }
 
 /**

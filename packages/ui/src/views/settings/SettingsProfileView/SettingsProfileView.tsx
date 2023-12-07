@@ -170,6 +170,7 @@ export const SettingsProfileView = ({
                                 inputs: shapeProfile.update(profile, {
                                     id: profile.id,
                                     ...values,
+                                    __typename: "User",
                                 }),
                                 successMessage: () => ({ messageKey: "SettingsUpdated" }),
                                 onSuccess: (updated) => { onProfileUpdate(updated); },

@@ -1,14 +1,12 @@
 import { InputType, Node, OrArray } from "@local/shared";
 import { SubroutineInfoDialogProps } from "components/dialogs/types";
-import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
+import { CodeInputProps as CP, DropzoneProps as DP, LanguageInputProps as LP, IntegerInputProps as QP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, SetStateAction } from "react";
 import { ListObject } from "utils/display/listTools";
-import { NodeShape } from "utils/shape/models/node";
-import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { TagShape } from "utils/shape/models/tag";
-import { NodeWithEndCrudProps, NodeWithEndShape } from "views/objects/node/types";
+import { NodeWithEndCrudProps, NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
 import { CrudProps } from "views/objects/types";
 
 //==============================================================
@@ -26,7 +24,6 @@ export interface BaseGeneratedFormProps {
     onSubmit: (values: any) => unknown;
 }
 
-export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };
 export type NodeEndFormProps = Omit<FormProps<Node, NodeWithEndShape>, "onCancel" | "onClose" | "onCompleted"> & Pick<NodeWithEndCrudProps, "onCancel" | "onClose" | "onCompleted"> & {
     isEditing: boolean;
 }

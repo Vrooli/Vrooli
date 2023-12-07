@@ -8,7 +8,7 @@ import { AddIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { updateArray } from "utils/shape/general";
-import { NewResourceShape, resourceInitialValues, ResourceUpsert } from "views/objects/resource";
+import { resourceInitialValues, ResourceUpsert } from "views/objects/resource";
 import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceListVerticalProps } from "../types";
@@ -108,14 +108,19 @@ export const ResourceListVertical = ({
             onClose={closeDialog}
             onCompleted={onCompleted}
             onDeleted={onDeleted}
-            overrideObject={editingIndex >= 0 && list?.resources ?
-                { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
+            overrideObject={(editingIndex >= 0 && list?.resources ?
+                { ...list.resources[editingIndex as number], index: editingIndex } :
                 resourceInitialValues(undefined, {
                     index: 0,
-                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listForType: parent.__typename, listForId: parent.id },
-                }) as NewResourceShape}
+                    list: {
+                        __connect: true,
+                        ...(list?.id && list.id !== DUMMY_ID ? list : { listFor: parent }),
+                        id: list?.id ?? DUMMY_ID,
+                        __typename: "ResourceList",
+                    },
+                }) as Resource)}
         />;
-    }, [closeDialog, editingIndex, isDialogOpen, list?.id, list?.resources, mutate, onCompleted, onDeleted, parent.__typename, parent.id]);
+    }, [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, onDeleted, parent]);
 
     return (
         <>

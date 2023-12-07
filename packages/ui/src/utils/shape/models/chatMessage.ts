@@ -1,5 +1,5 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageTranslation, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput, ChatMessageUpdateInput, ChatMessageYou, ReactionSummary, User } from "@local/shared";
-import { ShapeModel } from "types";
+import { ChatMessage, ChatMessageCreateInput, ChatMessageParent, ChatMessageTranslation, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput, ChatMessageUpdateInput, ChatMessageYou, ReactionSummary, User } from "@local/shared";
+import { CanConnect, ShapeModel } from "types";
 import { ChatShape } from "./chat";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
@@ -11,13 +11,13 @@ export type ChatMessageShape = Pick<ChatMessage, "id"> & {
     __typename: "ChatMessage";
     created_at: string; // Only used by the UI
     updated_at: string; // Only used by the UI
-    chat?: { id: string } | ChatShape;
+    chat?: CanConnect<ChatShape> | null;
     isUnsent?: boolean; // Only used by the UI
     versionOfId?: string;
-    parent?: { id: string } | ChatMessageShape | null;
+    parent?: CanConnect<ChatMessageParent> | null;
     reactionSummaries: ReactionSummary[]; // Only used by the UI
     translations: ChatMessageTranslationShape[];
-    user?: Partial<User> & { id: string };
+    user?: CanConnect<User> | null;
     you?: ChatMessageYou; // Only used by the UI
 }
 

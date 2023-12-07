@@ -1,5 +1,6 @@
 import { ChatInvite, ChatInviteCreateInput, ChatInviteStatus, ChatInviteUpdateInput, ChatInviteYou } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { ChatShape } from "./chat";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type ChatInviteShape = Pick<ChatInvite, "id" | "message"> & {
@@ -7,7 +8,7 @@ export type ChatInviteShape = Pick<ChatInvite, "id" | "message"> & {
     created_at: string; // Only used by the UI
     updated_at: string; // Only used by the UI
     status: ChatInviteStatus; // Ignored when mutating, so don't get any ideas
-    chat: { __typename: "Chat", id: string };
+    chat: CanConnect<ChatShape> | null;
     user: { __typename: "User", id: string };
     you?: ChatInviteYou; // Only used by the UI
 }

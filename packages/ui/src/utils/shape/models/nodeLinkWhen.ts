@@ -1,5 +1,6 @@
 import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenTranslation, NodeLinkWhenTranslationCreateInput, NodeLinkWhenTranslationUpdateInput, NodeLinkWhenUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { NodeLinkShape } from "./nodeLink";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type NodeLinkWhenTranslationShape = Pick<NodeLinkWhenTranslation, "id" | "language" | "description" | "name"> & {
@@ -7,8 +8,8 @@ export type NodeLinkWhenTranslationShape = Pick<NodeLinkWhenTranslation, "id" | 
 }
 
 export type NodeLinkWhenShape = Pick<NodeLinkWhen, "id" | "condition"> & {
-    __typename?: "NodeLinkWhen";
-    link: { id: string };
+    __typename: "NodeLinkWhen";
+    link: CanConnect<NodeLinkShape>;
     translations?: NodeLinkWhenTranslationShape[] | null;
 }
 

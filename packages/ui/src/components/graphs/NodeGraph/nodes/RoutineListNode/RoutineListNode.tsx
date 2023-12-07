@@ -11,7 +11,8 @@ import { firstString } from "utils/display/stringTools";
 import { getTranslation } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { NodeWithRoutineListCrud } from "views/objects/node/NodeWithRoutineListCrud/NodeWithRoutineListCrud";
-import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
+import { NodeWithRoutineList } from "views/objects/node/types";
+import { DraggableNode, SubroutineNode, calculateNodeSize } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
 import { routineNodeActionStyle, routineNodeCheckboxOption } from "../styles";
 import { RoutineListNodeProps } from "../types";
@@ -222,7 +223,7 @@ export const RoutineListNode = ({
     const listItems = useMemo(() => [...(node.routineList.items ?? [])].sort((a, b) => a.index - b.index).map(item => (
         <SubroutineNode
             key={`${item.id}`}
-            data={item}
+            data={item as NodeRoutineListItem}
             handleAction={handleSubroutineAction}
             handleUpdate={handleSubroutineUpdate}
             isEditing={isEditing}
@@ -282,7 +283,7 @@ export const RoutineListNode = ({
                 isEditing={isEditing}
                 isOpen={editDialogOpen}
                 language={language}
-                overrideObject={node}
+                overrideObject={node as NodeWithRoutineList}
             />
             <DraggableNode
                 className="handle"

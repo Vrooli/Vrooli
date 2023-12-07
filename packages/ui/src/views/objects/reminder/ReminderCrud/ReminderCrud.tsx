@@ -30,9 +30,7 @@ import { ReminderItemShape } from "utils/shape/models/reminderItem";
 import { validateFormValues } from "utils/validateFormValues";
 import { ReminderCrudProps, ReminderFormProps } from "../types";
 
-export type NewReminderShape = Partial<Omit<Reminder, "reminderList">> & { reminderList: Partial<Reminder["reminderList"]> & { id: string } };
-
-const getFallbackReminderList = (session: Session | undefined, existing: Partial<NewReminderShape> | null | undefined) => {
+const getFallbackReminderList = (session: Session | undefined, existing: Partial<ReminderShape> | null | undefined) => {
     const { active: activeFocusMode, all: allFocusModes } = getFocusModeInfo(session);
     const activeMode = activeFocusMode?.mode;
 
@@ -66,7 +64,7 @@ const getFallbackReminderList = (session: Session | undefined, existing: Partial
 
 const reminderInitialValues = (
     session: Session | undefined,
-    existing?: Partial<NewReminderShape> | null | undefined,
+    existing?: Partial<ReminderShape> | null | undefined,
 ): ReminderShape => ({
     __typename: "Reminder" as const,
     id: DUMMY_ID,

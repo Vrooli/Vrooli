@@ -1,6 +1,7 @@
 import { ApiVersion, ApiVersionCreateInput, ApiVersionTranslation, ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput, ApiVersionUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { ApiShape, shapeApi } from "./api";
+import { ProjectVersionDirectoryShape } from "./projectVersionDirectory";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
@@ -10,9 +11,9 @@ export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, "id" | "lan
 
 export type ApiVersionShape = Pick<ApiVersion, "id" | "callLink" | "documentationLink" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
     __typename: "ApiVersion";
-    directoryListings?: { id: string }[] | null;
+    directoryListings?: CanConnect<ProjectVersionDirectoryShape>[] | null;
     resourceList?: ResourceListShape | null;
-    root?: { __typename: "Api", id: string } | ApiShape | null;
+    root?: CanConnect<ApiShape> | null;
     translations?: ApiVersionTranslationShape[] | null;
 }
 

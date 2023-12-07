@@ -97,9 +97,11 @@ export const SideMenu = () => {
             }
             if (!formik.isValid) return;
             const input = shapeProfile.update({
+                __typename: "User",
                 id: userId,
                 theme: getCurrentUser(session).theme ?? "light",
             }, {
+                __typename: "User",
                 id: userId,
                 theme: values.theme,
             });

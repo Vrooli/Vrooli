@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { CommonKey, Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource, ResourceListFor, ResourceUsedFor } from "@local/shared";
+import { CommonKey, Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource, ResourceUsedFor } from "@local/shared";
 import { Box, IconButton, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
@@ -21,7 +21,7 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { updateArray } from "utils/shape/general";
-import { NewResourceShape, resourceInitialValues, ResourceUpsert } from "views/objects/resource";
+import { resourceInitialValues, ResourceUpsert } from "views/objects/resource";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceCardProps, ResourceListHorizontalProps } from "../types";
 
@@ -196,6 +196,7 @@ export const ResourceListHorizontal = ({
     parent,
     title,
 }: ResourceListHorizontalProps) => {
+    console.log("qwaf resource list render", list);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -302,14 +303,19 @@ export const ResourceListHorizontal = ({
             onClose={closeDialog}
             onCompleted={onCompleted}
             onDeleted={onDeleted}
-            overrideObject={editingIndex >= 0 && list?.resources ?
-                { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
+            overrideObject={(editingIndex >= 0 && list?.resources ?
+                { ...list.resources[editingIndex as number], index: editingIndex } :
                 resourceInitialValues(undefined, {
                     index: 0,
-                    list: list?.id && list.id !== DUMMY_ID ? list : { listForType: parent.__typename as ResourceListFor, listForId: parent.id },
-                }) as NewResourceShape}
+                    list: {
+                        __connect: true,
+                        ...(list?.id && list.id !== DUMMY_ID ? list : { listFor: parent }),
+                        id: list?.id ?? DUMMY_ID,
+                        __typename: "ResourceList",
+                    },
+                }) as Resource)}
         /> : null
-    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, onDeleted, parent.__typename, parent.id]);
+    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, onDeleted, parent]);
 
     return (
         <>

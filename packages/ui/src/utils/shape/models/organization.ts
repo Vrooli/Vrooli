@@ -1,9 +1,9 @@
 import { Organization, OrganizationCreateInput, OrganizationTranslation, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { MemberInviteShape, shapeMemberInvite } from "./memberInvite";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { RoleShape, shapeRole } from "./role";
-import { shapeTag, TagShape } from "./tag";
+import { TagShape, shapeTag } from "./tag";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type OrganizationTranslationShape = Pick<OrganizationTranslation, "id" | "language" | "bio" | "name"> & {
@@ -18,7 +18,7 @@ export type OrganizationShape = Pick<Organization, "id" | "handle" | "isOpenToNe
     profileImage?: string | File | null;
     resourceList?: Omit<ResourceListShape, "listFor"> | null;
     roles?: RoleShape[] | null;
-    tags?: ({ tag: string } | TagShape)[] | null;
+    tags?: CanConnect<TagShape, "tag">[] | null;
     translations?: OrganizationTranslationShape[] | null;
 }
 

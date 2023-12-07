@@ -1,11 +1,12 @@
 import { FocusModeFilter, FocusModeFilterCreateInput } from "@local/shared";
-import { ShapeModel } from "types";
-import { shapeTag, TagShape } from "./tag";
+import { CanConnect, ShapeModel } from "types";
+import { FocusModeShape } from "./focusMode";
+import { TagShape, shapeTag } from "./tag";
 import { createPrims, createRel } from "./tools";
 
 export type FocusModeFilterShape = Pick<FocusModeFilter, "id" | "filterType"> & {
-    __typename?: "FocusModeFilter";
-    focusMode: { id: string },
+    __typename: "FocusModeFilter";
+    focusMode: CanConnect<FocusModeShape>;
     tag: TagShape,
 }
 

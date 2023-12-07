@@ -1,5 +1,5 @@
 import { Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { FocusModeShape } from "./focusMode";
 import { LabelShape, shapeLabel } from "./label";
 import { MeetingShape } from "./meeting";
@@ -12,12 +12,12 @@ import { createPrims, createRel, shapeDate, shapeUpdate, updatePrims, updateRel 
 export type ScheduleShape = Pick<Schedule, "id" | "startTime" | "endTime" | "timezone"> & {
     __typename: "Schedule";
     exceptions: ScheduleExceptionShape[];
-    focusMode?: { id: string } | FocusModeShape | null;
+    focusMode?: CanConnect<FocusModeShape> | null;
     labels?: LabelShape[] | null;
-    meeting?: { id: string } | MeetingShape | null;
+    meeting?: CanConnect<MeetingShape> | null;
     recurrences: ScheduleRecurrenceShape[];
-    runProject?: { id: string } | RunProjectShape | null;
-    runRoutine?: { id: string } | RunRoutineShape | null;
+    runProject?: CanConnect<RunProjectShape> | null;
+    runRoutine?: CanConnect<RunRoutineShape> | null;
 }
 
 export const shapeSchedule: ShapeModel<ScheduleShape, ScheduleCreateInput, ScheduleUpdateInput> = {

@@ -1,11 +1,12 @@
 import { NotePage, NotePageCreateInput, NotePageUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionTranslation, NoteVersionTranslationCreateInput, NoteVersionTranslationUpdateInput, NoteVersionUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { NoteShape, shapeNote } from "./note";
+import { ProjectVersionDirectoryShape } from "./projectVersionDirectory";
 import { ResourceListShape } from "./resourceList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type NotePageShape = Pick<NotePage, "id" | "pageIndex" | "text"> & {
-    __typename?: "NotePage";
+    __typename: "NotePage";
 }
 
 export type NoteVersionTranslationShape = Pick<NoteVersionTranslation, "id" | "language" | "description" | "name"> & {
@@ -15,9 +16,9 @@ export type NoteVersionTranslationShape = Pick<NoteVersionTranslation, "id" | "l
 
 export type NoteVersionShape = Pick<NoteVersion, "id" | "isPrivate" | "versionLabel" | "versionNotes"> & {
     __typename: "NoteVersion";
-    directoryListings?: { id: string }[] | null;
-    resourceList?: { id: string } | ResourceListShape | null;
-    root?: { id: string } | NoteShape | null;
+    directoryListings?: CanConnect<ProjectVersionDirectoryShape>[] | null;
+    resourceList?: CanConnect<ResourceListShape> | null;
+    root?: CanConnect<NoteShape> | null;
     translations?: NoteVersionTranslationShape[] | null;
 }
 

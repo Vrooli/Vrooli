@@ -1,11 +1,11 @@
 import { ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { ScheduleShape } from "./schedule";
 import { createPrims, createRel, shapeDate, shapeUpdate, updatePrims } from "./tools";
 
 export type ScheduleExceptionShape = Pick<ScheduleException, "id" | "originalStartTime" | "newStartTime" | "newEndTime"> & {
-    __typename?: "ScheduleException";
-    schedule: ScheduleShape | { __typename?: "Schedule", id: string };
+    __typename: "ScheduleException";
+    schedule: CanConnect<ScheduleShape>;
 }
 
 export const shapeScheduleException: ShapeModel<ScheduleExceptionShape, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput> = {

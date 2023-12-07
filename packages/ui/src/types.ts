@@ -211,6 +211,11 @@ export interface CalendarEventOption {
 
 export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
 
+export type CanConnect<
+    RelationShape extends ({ [key in IDField]: string } & { __typename: string }),
+    IDField extends string = "id",
+> = RelationShape | (Pick<RelationShape, IDField | "__typename"> & { __connect?: boolean } & { [key: string]: any });
+
 declare global {
     interface Window {
         // Enable Nami integration

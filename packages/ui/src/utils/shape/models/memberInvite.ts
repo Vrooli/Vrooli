@@ -1,10 +1,11 @@
 import { MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { OrganizationShape } from "./organization";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type MemberInviteShape = Pick<MemberInvite, "id" | "message" | "willBeAdmin" | "willHavePermissions"> & {
     __typename: "MemberInvite";
-    organization: { __typename: "Organization", id: string };
+    organization: CanConnect<OrganizationShape>;
     user: { __typename: "User", id: string };
 }
 

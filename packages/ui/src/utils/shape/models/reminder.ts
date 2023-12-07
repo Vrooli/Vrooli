@@ -1,13 +1,13 @@
 import { Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { ReminderItemShape, shapeReminderItem } from "./reminderItem";
 import { ReminderListShape, shapeReminderList } from "./reminderList";
 import { createPrims, createRel, shapeDate, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type ReminderShape = Pick<Reminder, "id" | "name" | "description" | "dueDate" | "index" | "isComplete"> & {
     __typename: "Reminder";
-    reminderList: { id: string } | ReminderListShape;
-    reminderItems?: ReminderItemShape[] | null,
+    reminderList: CanConnect<ReminderListShape>;
+    reminderItems?: CanConnect<ReminderItemShape>[] | null;
 }
 
 export const shapeReminder: ShapeModel<ReminderShape, ReminderCreateInput, ReminderUpdateInput> = {

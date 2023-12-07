@@ -271,7 +271,7 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
             isOptional: false,
             isOrdered: false,
             items: [],
-            node: { id: routineListNodeId },
+            node: { __typename: "Node", id: routineListNodeId },
         },
         routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
         translations: [{
@@ -292,7 +292,7 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
             __typename: "NodeEnd",
             id: uuid(),
             wasSuccessful: true,
-            node: { id: endNodeId },
+            node: { __typename: "Node", id: endNodeId },
         },
         routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
         translations: [],

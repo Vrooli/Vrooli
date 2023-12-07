@@ -1,8 +1,8 @@
 import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionTranslation, SmartContractVersionTranslationCreateInput, SmartContractVersionTranslationUpdateInput, SmartContractVersionUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
-import { shapeSmartContract, SmartContractShape } from "./smartContract";
+import { SmartContractShape, shapeSmartContract } from "./smartContract";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTranslation, "id" | "language" | "description" | "name" | "jsonVariable"> & {
@@ -13,8 +13,8 @@ export type SmartContractVersionShape = Pick<SmartContractVersion, "id" | "conte
     __typename: "SmartContractVersion";
     directoryListings?: ProjectVersionDirectoryShape[] | null;
     resourceList?: ResourceListShape | null;
-    root?: { __typename: "SmartContract", id: string } | SmartContractShape | null;
-    suggestedNextBySmartContract?: { id: string }[] | null;
+    root?: CanConnect<SmartContractShape> | null;
+    suggestedNextBySmartContract?: CanConnect<SmartContractVersionShape>[] | null;
     translations?: SmartContractVersionTranslationShape[] | null;
 }
 

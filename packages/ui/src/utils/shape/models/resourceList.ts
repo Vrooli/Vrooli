@@ -8,18 +8,11 @@ export type ResourceListTranslationShape = Pick<ResourceListTranslation, "id" | 
 }
 
 export type ResourceListShape = Pick<ResourceList, "id"> & {
-    __typename?: "ResourceList";
+    __typename: "ResourceList";
+    listFor: Pick<ResourceList["listFor"], "id" | "__typename">;
     resources?: ResourceShape[] | null;
     translations?: ResourceListTranslationShape[] | null;
-} & ({
-    listForId: string;
-    listForType: ResourceListFor | `${ResourceListFor}`;
-} | {
-    listFor: {
-        __typename: ResourceListFor | `${ResourceListFor}`;
-        id: string;
-    };
-})
+}
 
 export const shapeResourceListTranslation: ShapeModel<ResourceListTranslationShape, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
@@ -31,11 +24,8 @@ export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreate
         const prims = createPrims(d, "id");
         let listForConnect: string | undefined;
         let listForType: ResourceListFor | undefined;
-        console.log("in shapeResourceListCreate", d, "listForId" in d, "listForType" in d, "listFor" in d);
-        if ("listForId" in d && "listForType" in d) {
-            listForConnect = d.listForId;
-            listForType = d.listForType as ResourceListFor;
-        } else if ("listFor" in d) {
+        console.log("in shapeResourceListCreate", d, "listFor" in d);
+        if ("listFor" in d) {
             listForConnect = d.listFor.id;
             listForType = d.listFor.__typename as ResourceListFor;
         }

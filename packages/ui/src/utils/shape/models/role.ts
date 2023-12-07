@@ -1,5 +1,7 @@
 import { Role, RoleCreateInput, RoleTranslation, RoleTranslationCreateInput, RoleTranslationUpdateInput, RoleUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { MemberShape } from "./member";
+import { OrganizationShape } from "./organization";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type RoleTranslationShape = Pick<RoleTranslation, "id" | "language" | "description"> & {
@@ -7,9 +9,9 @@ export type RoleTranslationShape = Pick<RoleTranslation, "id" | "language" | "de
 }
 
 export type RoleShape = Pick<Role, "id" | "name" | "permissions"> & {
-    __typename?: "Role";
-    members?: { id: string }[] | null;
-    organization: { id: string };
+    __typename: "Role";
+    members?: CanConnect<MemberShape>[] | null;
+    organization: CanConnect<OrganizationShape>;
     translations?: RoleTranslationShape[] | null;
 }
 
