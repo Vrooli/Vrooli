@@ -122,6 +122,27 @@ assert_vault_sealed_status() {
     success "Is vault sealed? $EXPECTED_STATUS"
 }
 
+prompt_switch_to_development() {
+    prompt "Vault is sealed (production mode). This needs to be shut down to set up a development vault. Continue? (y/N): "
+    read -n1 -r confirm
+    echo
+    if [[ "$confirm" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+        return 0 # User confirmed
+    else
+        return 1 # User did not confirm
+    fi
+}
+prompt_switch_to_production() {
+    prompt "Vault is unsealed (development mode). This needs to be shut down to set up a production vault. Continue? (y/N): "
+    read -n1 -r confirm
+    echo
+    if [[ "$confirm" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+        return 0 # User confirmed
+    else
+        return 1 # User did not confirm
+    fi
+}
+
 setup_docker_dev() {
     # Define a log file for Vault output
     local vault_log=".vault-local.log"
@@ -158,7 +179,22 @@ setup_docker_dev() {
     # Perform checks
     assert_port_is_vault # Correct port if local
     assert_vault_initialized
-    assert_vault_sealed_status "false" # Unsealed
+
+    # Check if Vault is in development mode and switch if necessary
+    if is_vault_sealed_status "true"; then
+        if prompt_switch_to_development; then
+            info "Switching to development mode..."
+            # Shut down Vault and restart in development mode
+            shutdown_docker_prod
+            success "Vault shut down."
+            setup_docker_dev
+            assert_vault_sealed_status "false"
+        else
+            warning "Vault is in production mode. This is not recommended for development environments."
+            assert_vault_sealed_status "true"
+            return
+        fi
+    fi
 
     # Setup roles, policies, etc. when using a local Vault address.
     # We'll assume that a remote Vault is already configured.
@@ -217,17 +253,6 @@ shutdown_docker_dev() {
     fi
 }
 
-prompt_switch_to_production() {
-    prompt "Vault is unsealed (development mode). This needs to be shut down to set up a production vault. Continue? (y/N): "
-    read -n1 -r confirm
-    echo
-    if [[ "$confirm" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-        return 0 # User confirmed
-    else
-        return 1 # User did not confirm
-    fi
-}
-
 setup_docker_prod() {
     INIT_OUTPUT_FILE="${HERE}/../.vault-init-output.txt"
 
@@ -257,7 +282,6 @@ setup_docker_prod() {
             shutdown_docker_dev
             success "Vault shut down."
             setup_docker_prod
-            # This might involve stopping the current Vault process and restarting with production configuration
             assert_vault_sealed_status "true"
         else
             warning "Vault is in development mode. This is not recommended for production environments."
@@ -311,14 +335,31 @@ setup_docker_prod() {
     fi
 
     # Check if we're working with a local Vault address to generate role_id and secret_id
-    # TODO might need check to prevent generating ids if they already exist
     if [[ "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Local Vault detected. Setting up roles and secrets..."
-        vault auth enable approle
-        echo 'path "*" { capabilities = ["create", "read", "update", "delete", "list", "sudo"] }' | vault policy write read-all -
-        vault write auth/approle/role/my-role policies=read-all
+
+        # Check if approle auth is already enabled
+        if ! vault auth list | grep -q '^approle/'; then
+            info "Enabling approle auth method..."
+            vault auth enable approle
+        else
+            info "Approle auth method is already enabled."
+        fi
+
+        # Write policy if it doesn't exist
+        if ! vault policy list | grep -q 'read-all'; then
+            echo 'path "*" { capabilities = ["create", "read", "update", "delete", "list", "sudo"] }' | vault policy write read-all -
+        fi
+
+        # Check if role exists
+        if ! vault read auth/approle/role/my-role >/dev/null 2>&1; then
+            vault write auth/approle/role/my-role policies=read-all
+        fi
+
+        # Fetch or generate role_id and secret_id
         ROLE_ID=$(vault read -field=role_id auth/approle/role/my-role/role-id)
         SECRET_ID=$(vault write -f -field=secret_id auth/approle/role/my-role/secret-id)
+
         mkdir -p "$SECRETS_PATH/$ENVIRONMENT"
         echo "$ROLE_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_role_id"
         echo "$SECRET_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_secret_id"
@@ -352,8 +393,16 @@ shutdown_docker_prod() {
     # Stop Vault if address is local and it's running
     if [[ ! -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Shutting down Vault..."
-        pkill -9 vault
+
+        if kill -9 "$VAULT_PID"; then
+            echo "Vault (PID: $VAULT_PID) shut down successfully."
+        else
+            echo "Failed to shut down Vault (PID: $VAULT_PID)."
+            return 1
+        fi
+
         VAULT_PID=""
+        return 0
     fi
 }
 

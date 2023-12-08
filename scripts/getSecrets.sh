@@ -8,7 +8,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 
 # Check if at least two arguments were provided
 if [ $# -lt 2 ]; then
-    error "Not enough provided. Usage: ./getSecrets.sh <environment> <tmp_file> <secret_1> <secret_2> ..."
+    error "Not enough arguments provided. Usage: ./getSecrets.sh <environment> <tmp_file> <secret_1> <secret_2> ..."
     exit 1
 fi
 
@@ -54,12 +54,9 @@ prompt_for_secret() {
     read -r secret_value
 }
 
-# To fetch secrets, we need the vault's role ID and secret ID
-# TODO for now, we'll share the vault used for dev with prod
-# vault_role_id_path="/run/secrets/vrooli/$environment/vault_role_id"
-# vault_secret_id_path="/run/secrets/vrooli/$environment/vault_secret_id"
-vault_role_id_path="/run/secrets/vrooli/dev/vault_role_id"
-vault_secret_id_path="/run/secrets/vrooli/dev/vault_secret_id"
+# Fetch the vault's role ID and secret ID
+vault_role_id_path="/run/secrets/vrooli/$environment/vault_role_id"
+vault_secret_id_path="/run/secrets/vrooli/$environment/vault_secret_id"
 if [ ! -f "$vault_role_id_path" ]; then
     prompt_for_secret "vault_role_id"
 fi
@@ -69,8 +66,8 @@ fi
 vault_role_id_value=$(cat "${vault_role_id_path}")
 vault_secret_id_value=$(cat "${vault_secret_id_path}")
 
-# Authenticate with Vault
-# vault login -method=approle role_id="$vault_role_id_value" secret_id="$vault_secret_id_value"
+# Authenticate with Vault using AppRole
+vault login -method=approle role_id="$vault_role_id_value" secret_id="$vault_secret_id_value"
 
 # Loop over the rest of the arguments to get secrets
 while [ $# -gt 0 ]; do
@@ -87,8 +84,9 @@ while [ $# -gt 0 ]; do
     info "Fetching $secret from $secret_path in Vault"
     fetched_secret=$(vault kv get -field=value $secret_path)
     if [ -z "$fetched_secret" ]; then
-        error "Failed to fetch the secret: $secret"
-        exit 1
+        error "Failed to fetch the secret: $secret $?"
+        shift
+        continue
     fi
 
     echo "Writing $rename to $TMP_FILE"

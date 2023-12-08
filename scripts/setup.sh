@@ -118,7 +118,7 @@ if [[ "$ON_REMOTE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     sudo service sshd restart
     # If sshd fails, try to restart ssh
     if [ $? -ne 0 ]; then
-        echo "Failed to restart sshd, trying ssh..."
+        warning "Failed to restart sshd, trying ssh..."
         sudo systemctl restart ssh
         # If ssh also fails, exit with an error
         if [ $? -ne 0 ]; then
