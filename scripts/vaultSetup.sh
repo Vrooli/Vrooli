@@ -41,20 +41,18 @@ for arg in "$@"; do
     esac
 done
 
-# Source .env or .env-prod file
+# Set env file based on the environment
+env_file="${HERE}/../.env-prod"
 if [ "$ENVIRONMENT" = "dev" ]; then
-    if [ ! -f "${HERE}/../.env" ]; then
-        error "Environment file ${HERE}/../.env does not exist."
-        exit 1
-    fi
-    . "${HERE}/../.env"
-else
-    if [ ! -f "${HERE}/../.env-prod" ]; then
-        error "Environment file ${HERE}/../.env-prod does not exist."
-        exit 1
-    fi
-    . "${HERE}/../.env-prod"
+    env_file="${HERE}/../.env"
 fi
+# Check if env file exists
+if [ ! -f "$env_file" ]; then
+    error "Environment file $env_file does not exist."
+    exit 1
+fi
+# Source the env file
+. "$env_file"
 
 # When running locally, make sure the port specified for Vault is actually Vault
 assert_port_is_vault() {
@@ -71,14 +69,15 @@ is_vault_initialized() {
     OUTPUT=$(vault status 2>&1)
     EXIT_STATUS=$?
 
-    if [ $EXIT_STATUS -ne 0 ]; then
-        error "Failed to get Vault status. Error: $OUTPUT"
+    # Check if Vault is not initialized
+    if echo "$OUTPUT" | grep -Eq "Initialized\s*false"; then
         return 1
-    elif ! echo "$OUTPUT" | grep -Eq "Initialized\s*true"; then
-        error "Vault at $VAULT_ADDR is not initialized!"
-        return 1
-    else
+    elif echo "$OUTPUT" | grep -Eq "Initialized\s*true"; then
         return 0
+    else
+        error "Failed to get Vault status. Received exit number $EXIT_STATUS"
+        error "Output: $OUTPUT"
+        return 1
     fi
 }
 assert_vault_initialized() {
@@ -96,23 +95,28 @@ is_vault_sealed_status() {
     OUTPUT=$(vault status 2>&1)
     EXIT_STATUS=$?
 
-    if [ $EXIT_STATUS -ne 0 ]; then
-        error "Failed to get Vault status. Error: $OUTPUT"
-        return 1
-    elif [ "$EXPECTED_STATUS" = "true" ] && echo "$OUTPUT" | grep -Eq "Sealed\s*false"; then
-        error "Vault is not sealed. This typically indicates a development environment. Please ensure it's sealed before continuing."
-        return 1
-    elif [ "$EXPECTED_STATUS" = "false" ] && echo "$OUTPUT" | grep -Eq "Sealed\s*true"; then
-        error "Vault is sealed. This typically indicates a production environment. Please ensure it's unsealed before continuing."
-        return 1
+    # Check if Vault is sealed or unsealed
+    if echo "$OUTPUT" | grep -Eq "Sealed\s*true"; then
+        CURRENT_STATUS="true"
+    elif echo "$OUTPUT" | grep -Eq "Sealed\s*false"; then
+        CURRENT_STATUS="false"
     else
+        error "Failed to get Vault status. Received exit number $EXIT_STATUS"
+        error "Output: $OUTPUT"
+        return 1
+    fi
+
+    # Compare the current status with the expected status
+    if [ "$CURRENT_STATUS" = "$EXPECTED_STATUS" ]; then
         return 0
+    else
+        return 1
     fi
 }
 assert_vault_sealed_status() {
     EXPECTED_STATUS="$1"
     if ! is_vault_sealed_status "$EXPECTED_STATUS"; then
-        error "Vault is not $EXPECTED_STATUS!"
+        error "Expected vault sealed status to be $EXPECTED_STATUS, but it was not."
         exit 1
     fi
     success "Is vault sealed? $EXPECTED_STATUS"
@@ -172,6 +176,7 @@ setup_docker_dev() {
             # Generate a new secret_id
             SECRET_ID=$(vault write -f -field=secret_id auth/approle/role/my-role/secret-id)
             # Store the role_id and secret_id in the specified locations
+            mkdir -p "$SECRETS_PATH/$ENVIRONMENT"
             echo "$ROLE_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_role_id"
             echo "$SECRET_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_secret_id"
         else
@@ -199,30 +204,111 @@ shutdown_docker_dev() {
     # Stop Vault if address is local and it's running
     if [[ ! -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Shutting down Vault..."
-        pkill -9 vault
+
+        if kill -9 "$VAULT_PID"; then
+            echo "Vault (PID: $VAULT_PID) shut down successfully."
+        else
+            echo "Failed to shut down Vault (PID: $VAULT_PID)."
+            return 1
+        fi
+
+        VAULT_PID=""
+        return 0
+    fi
+}
+
+prompt_switch_to_production() {
+    prompt "Vault is unsealed (development mode). This needs to be shut down to set up a production vault. Continue? (y/N): "
+    read -n1 -r confirm
+    echo
+    if [[ "$confirm" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+        return 0 # User confirmed
+    else
+        return 1 # User did not confirm
     fi
 }
 
 setup_docker_prod() {
+    INIT_OUTPUT_FILE="${HERE}/../.vault-init-output.txt"
+
     # Start vault if address is local and it's not already running
     if [[ -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Starting vault in production mode..."
-        vault server -config=/path/to/your/config.hcl & # TODO need config file
-        sleep 10                                        # Give Vault some time to start up
+        # TODO improve config later - can add storage backend for high availability, enable tls, setting up certificate, access control, etc.
+        vault server -config="${HERE}/../vault-config.hcl" &
+        sleep 10 # Give Vault some time to start up
     fi
 
-    # Perform checks
     assert_port_is_vault # Correct port if local
-    assert_vault_initialized
-    assert_vault_sealed_status "true" # Sealed
 
-    # Now unseal the vault
-    while vault status | grep -Eq "Sealed\s*true"; do
-        info "Vault is sealed. Unsealing..."
-        # Normally, multiple unseal commands with different unseal keys might be needed. This is a simplification.
-        read -p "Enter an unseal key: " UNSEAL_KEY
-        vault operator unseal "$UNSEAL_KEY"
-    done
+    # Check if Vault is initialized, if not, initialize it
+    if ! is_vault_initialized; then
+        info "Initializing Vault..."
+        vault operator init >"$INIT_OUTPUT_FILE"
+        info "Vault initialized. Unseal keys and root token are stored in vault-init-output.txt"
+    fi
+    assert_vault_initialized
+
+    # Check if Vault is in development mode and switch if necessary
+    if is_vault_sealed_status "false"; then
+        if prompt_switch_to_production; then
+            info "Switching to production mode..."
+            # Shut down Vault and restart in production mode
+            shutdown_docker_dev
+            success "Vault shut down."
+            setup_docker_prod
+            # This might involve stopping the current Vault process and restarting with production configuration
+            assert_vault_sealed_status "true"
+        else
+            warning "Vault is in development mode. This is not recommended for production environments."
+            assert_vault_sealed_status "false"
+            return
+        fi
+    fi
+
+    # Unseal the vault
+    if is_vault_sealed_status "true"; then
+        info "Vault is sealed. Starting unsealing process..."
+
+        if [ -f "$INIT_OUTPUT_FILE" ]; then
+            info "Reading unseal keys from $INIT_OUTPUT_FILE"
+            UNSEAL_KEYS=$(grep 'Unseal Key' "$INIT_OUTPUT_FILE" | awk '{print $4}')
+            for KEY in $UNSEAL_KEYS; do
+                vault operator unseal "$KEY"
+                if is_vault_sealed_status "false"; then
+                    success "Vault is unsealed."
+                    break
+                fi
+            done
+        else
+            warning "Unseal keys file not found at $INIT_OUTPUT_FILE. Please enter the unseal keys manually."
+            for i in {1..3}; do
+                read -p "Enter Unseal Key $i: " UNSEAL_KEY
+                vault operator unseal "$UNSEAL_KEY"
+                if is_vault_sealed_status "false"; then
+                    success "Vault is unsealed."
+                    break
+                fi
+            done
+        fi
+    fi
+
+    # Authenticate with Vault using the initial root token
+    if [ -f "$INIT_OUTPUT_FILE" ]; then
+        ROOT_TOKEN=$(grep 'Initial Root Token' "$INIT_OUTPUT_FILE" | awk '{print $4}')
+        if [ -n "$ROOT_TOKEN" ]; then
+            info "Authenticating with Vault using the initial root token..."
+            vault login "$ROOT_TOKEN"
+        else
+            warning "Root token not found in $INIT_OUTPUT_FILE. Please enter the root token manually."
+            read -p "Enter the root token: " ROOT_TOKEN
+            vault login "$ROOT_TOKEN"
+        fi
+    else
+        warning "Initialization output file not found. Please enter the root token manually."
+        read -p "Enter the root token: " ROOT_TOKEN
+        vault login "$ROOT_TOKEN"
+    fi
 
     # Check if we're working with a local Vault address to generate role_id and secret_id
     # TODO might need check to prevent generating ids if they already exist
@@ -233,6 +319,7 @@ setup_docker_prod() {
         vault write auth/approle/role/my-role policies=read-all
         ROLE_ID=$(vault read -field=role_id auth/approle/role/my-role/role-id)
         SECRET_ID=$(vault write -f -field=secret_id auth/approle/role/my-role/secret-id)
+        mkdir -p "$SECRETS_PATH/$ENVIRONMENT"
         echo "$ROLE_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_role_id"
         echo "$SECRET_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_secret_id"
     else
@@ -242,9 +329,21 @@ setup_docker_prod() {
             error "Role ID and/or Secret ID missing for remote Vault!"
             read -p "Enter the role_id for AppRole 'my-role': " ROLE_ID
             read -p "Enter the secret_id for AppRole 'my-role': " SECRET_ID
+            mkdir -p "$SECRETS_PATH/$ENVIRONMENT"
             echo "$ROLE_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_role_id"
             echo "$SECRET_ID" >"$SECRETS_PATH/$ENVIRONMENT/vault_secret_id"
         fi
+    fi
+
+    # Reseal the vault
+    info "Resealing Vault..."
+    vault operator seal
+
+    # Confirm that the Vault is sealed
+    if is_vault_sealed_status "true"; then
+        success "Vault has been successfully resealed."
+    else
+        error "Failed to reseal Vault. Please investigate."
     fi
 }
 
@@ -254,6 +353,7 @@ shutdown_docker_prod() {
     if [[ ! -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Shutting down Vault..."
         pkill -9 vault
+        VAULT_PID=""
     fi
 }
 
@@ -372,9 +472,9 @@ shutdown_kubernetes_prod() {
 }
 
 # Call the appropriate setup function
-info "Vault setup starting..."
-info "Environment: $ENVIRONMENT"
-info "Kubernetes: $USE_KUBERNETES"
+header "Vault setup starting..."
+header "Environment: $ENVIRONMENT"
+header "Kubernetes: $USE_KUBERNETES"
 export VAULT_ADDR=$VAULT_ADDR
 if $USE_KUBERNETES; then
     if [ "$ENVIRONMENT" = "dev" ]; then

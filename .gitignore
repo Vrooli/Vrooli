@@ -172,3 +172,6 @@ packages/ui/public/sitemaps/
 # JWT keys
 jwt_pub.pem
 jwt_priv.pem
+
+# Vault keys
+.vault*
