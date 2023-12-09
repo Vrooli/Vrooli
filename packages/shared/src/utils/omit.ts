@@ -1,3 +1,7 @@
+const isUnsafeKey = (key: string) => {
+    return key === "__proto__" || key === "constructor" || key === "prototype";
+};
+
 /**
  * Omit an array of keys from an object. Supports dot notation.
  * @param obj The object to omit keys from
@@ -13,11 +17,11 @@ export const omit = <T extends Record<string, any>>(obj: T, keysToOmit: string[]
         let current = obj;
         for (let i = 0; i < path.length - 1; i++) {
             const keyPart = path[i];
-            if (keyPart === undefined || typeof current[keyPart] !== "object") return;
+            if (keyPart === undefined || typeof current[keyPart] !== "object" || isUnsafeKey(keyPart)) return;
             current = current[keyPart];
         }
         const lastKey = path[path.length - 1];
-        if (lastKey) {
+        if (lastKey && !isUnsafeKey(lastKey)) {
             delete current[lastKey];
         }
     };
