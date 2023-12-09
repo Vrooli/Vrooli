@@ -3,6 +3,7 @@
 # either directly on the host machine or in a Kubernetes cluster.
 HERE=$(dirname $0)
 . "${HERE}/prettify.sh"
+. "${HERE}/vaultTools.sh"
 
 VAULT_PORT=8200
 # Get the PID of the process running at the port, which is hopefully Vault
@@ -64,85 +65,6 @@ assert_port_is_vault() {
     fi
 }
 
-# Checks if Vault is initialized.
-is_vault_initialized() {
-    OUTPUT=$(vault status 2>&1)
-    EXIT_STATUS=$?
-
-    # Check if Vault is not initialized
-    if echo "$OUTPUT" | grep -Eq "Initialized\s*false"; then
-        return 1
-    elif echo "$OUTPUT" | grep -Eq "Initialized\s*true"; then
-        return 0
-    else
-        error "Failed to get Vault status. Received exit number $EXIT_STATUS"
-        error "Output: $OUTPUT"
-        return 1
-    fi
-}
-assert_vault_initialized() {
-    if ! is_vault_initialized; then
-        error "Vault at $VAULT_ADDR is not initialized!"
-        exit 1
-    fi
-    success "Vault is initialized."
-}
-
-# Checks if the Vault is either sealed or unsealed, depending on the expected status.
-is_vault_sealed_status() {
-    EXPECTED_STATUS="$1" # Either "true" or "false"
-
-    OUTPUT=$(vault status 2>&1)
-    EXIT_STATUS=$?
-
-    # Check if Vault is sealed or unsealed
-    if echo "$OUTPUT" | grep -Eq "Sealed\s*true"; then
-        CURRENT_STATUS="true"
-    elif echo "$OUTPUT" | grep -Eq "Sealed\s*false"; then
-        CURRENT_STATUS="false"
-    else
-        error "Failed to get Vault status. Received exit number $EXIT_STATUS"
-        error "Output: $OUTPUT"
-        return 1
-    fi
-
-    # Compare the current status with the expected status
-    if [ "$CURRENT_STATUS" = "$EXPECTED_STATUS" ]; then
-        return 0
-    else
-        return 1
-    fi
-}
-assert_vault_sealed_status() {
-    EXPECTED_STATUS="$1"
-    if ! is_vault_sealed_status "$EXPECTED_STATUS"; then
-        error "Expected vault sealed status to be $EXPECTED_STATUS, but it was not."
-        exit 1
-    fi
-    success "Is vault sealed? $EXPECTED_STATUS"
-}
-
-prompt_switch_to_development() {
-    prompt "Vault is sealed (production mode). This needs to be shut down to set up a development vault. Continue? (y/N): "
-    read -n1 -r confirm
-    echo
-    if [[ "$confirm" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-        return 0 # User confirmed
-    else
-        return 1 # User did not confirm
-    fi
-}
-prompt_switch_to_production() {
-    prompt "Vault is unsealed (development mode). This needs to be shut down to set up a production vault. Continue? (y/N): "
-    read -n1 -r confirm
-    echo
-    if [[ "$confirm" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-        return 0 # User confirmed
-    else
-        return 1 # User did not confirm
-    fi
-}
-
 setup_docker_dev() {
     # Define a log file for Vault output
     local vault_log=".vault-local.log"
@@ -182,7 +104,7 @@ setup_docker_dev() {
 
     # Check if Vault is in development mode and switch if necessary
     if is_vault_sealed_status "true"; then
-        if prompt_switch_to_development; then
+        if prompt_confirm "Vault is sealed (production mode). This needs to be shut down to set up a development vault. Continue? (y/N): "; then
             info "Switching to development mode..."
             # Shut down Vault and restart in development mode
             shutdown_docker_prod
@@ -223,11 +145,7 @@ setup_docker_dev() {
 
 shutdown_vault_confirm() {
     warning "Shutting down Vault will delete all data stored in Vault."
-    prompt "Are you sure you want to continue? (y/n)"
-    read -n1 -r CONFIRM
-    echo
-
-    if [[ "$CONFIRM" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+    if prompt_confirm "Are you sure you want to continue? (y/n): "; then
         info "Shutting down Vault..."
     else
         info "Cancelling shutdown."
@@ -255,6 +173,7 @@ shutdown_docker_dev() {
 
 setup_docker_prod() {
     INIT_OUTPUT_FILE="${HERE}/../.vault-init-output.txt"
+    KV_PATH="secret"
 
     # Start vault if address is local and it's not already running
     if [[ -z "$VAULT_PID" && "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
@@ -276,7 +195,7 @@ setup_docker_prod() {
 
     # Check if Vault is in development mode and switch if necessary
     if is_vault_sealed_status "false"; then
-        if prompt_switch_to_production; then
+        if prompt_confirm "Vault is unsealed (development mode). This needs to be shut down to set up a production vault. Continue? (y/N): "; then
             info "Switching to production mode..."
             # Shut down Vault and restart in production mode
             shutdown_docker_dev
@@ -291,52 +210,26 @@ setup_docker_prod() {
     fi
 
     # Unseal the vault
-    if is_vault_sealed_status "true"; then
-        info "Vault is sealed. Starting unsealing process..."
+    MAX_UNSEAL_ATTEMPTS=3
+    unseal_vault "$INIT_OUTPUT_FILE" "$MAX_UNSEAL_ATTEMPTS"
 
-        if [ -f "$INIT_OUTPUT_FILE" ]; then
-            info "Reading unseal keys from $INIT_OUTPUT_FILE"
-            UNSEAL_KEYS=$(grep 'Unseal Key' "$INIT_OUTPUT_FILE" | awk '{print $4}')
-            for KEY in $UNSEAL_KEYS; do
-                vault operator unseal "$KEY"
-                if is_vault_sealed_status "false"; then
-                    success "Vault is unsealed."
-                    break
-                fi
-            done
-        else
-            warning "Unseal keys file not found at $INIT_OUTPUT_FILE. Please enter the unseal keys manually."
-            for i in {1..3}; do
-                read -p "Enter Unseal Key $i: " UNSEAL_KEY
-                vault operator unseal "$UNSEAL_KEY"
-                if is_vault_sealed_status "false"; then
-                    success "Vault is unsealed."
-                    break
-                fi
-            done
-        fi
-    fi
-
-    # Authenticate with Vault using the initial root token
-    if [ -f "$INIT_OUTPUT_FILE" ]; then
-        ROOT_TOKEN=$(grep 'Initial Root Token' "$INIT_OUTPUT_FILE" | awk '{print $4}')
-        if [ -n "$ROOT_TOKEN" ]; then
-            info "Authenticating with Vault using the initial root token..."
-            vault login "$ROOT_TOKEN"
-        else
-            warning "Root token not found in $INIT_OUTPUT_FILE. Please enter the root token manually."
-            read -p "Enter the root token: " ROOT_TOKEN
-            vault login "$ROOT_TOKEN"
-        fi
-    else
-        warning "Initialization output file not found. Please enter the root token manually."
-        read -p "Enter the root token: " ROOT_TOKEN
-        vault login "$ROOT_TOKEN"
-    fi
+    # Authenticate with Vault using the root token
+    login_root "$INIT_OUTPUT_FILE"
 
     # Check if we're working with a local Vault address to generate role_id and secret_id
     if [[ "$VAULT_ADDR" == "$VAULT_ADDR_LOCAL" ]]; then
         info "Local Vault detected. Setting up roles and secrets..."
+
+        # Enable the KV secrets engine if not already
+        if ! vault secrets list | grep -q "^$KV_PATH/"; then
+            info "Enabling KV secrets engine at path '$KV_PATH'..."
+            vault secrets enable -path="$KV_PATH" kv || {
+                error "Failed to enable KV secrets engine at path '$KV_PATH'."
+                return 1
+            }
+        else
+            info "KV secrets engine is already enabled at path '$KV_PATH'."
+        fi
 
         # Check if approle auth is already enabled
         if ! vault auth list | grep -q '^approle/'; then

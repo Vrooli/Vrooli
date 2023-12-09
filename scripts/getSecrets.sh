@@ -5,6 +5,7 @@
 # TMP_FILE=$(mktemp) && { ./getSecrets.sh <environment> <secret1> <secret2> ... > "$TMP_FILE" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."; rm "$TMP_FILE"
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "${HERE}/prettify.sh"
+. "${HERE}/vaultTools.sh"
 
 # Check if at least two arguments were provided
 if [ $# -lt 2 ]; then
@@ -15,19 +16,22 @@ fi
 # Get environment
 environment="$1"
 shift
-# Check if valid environment
-if [ "$environment" = "development" ]; then
+case $environment in
+[Dd]ev*)
     environment="dev"
-elif [ "$environment" = "production" ]; then
+    ;;
+[Pp]rod*)
     environment="prod"
-else
-    error "Invalid environment: $environment. Expected 'development' or 'production'."
+    ;;
+*)
+    error "Invalid environment: $environment. Expected 'dev' or 'prod'."
     exit 1
-fi
+    ;;
+esac
 
 # Set env file based on the environment
 env_file="${HERE}/../.env"
-if [ "$environment" == "production" ]; then
+if [ "$environment" == "prod" ]; then
     env_file="${HERE}/../.env-prod"
 fi
 # Check if env file exists
@@ -39,6 +43,22 @@ fi
 . "$env_file"
 # Export vault address, so vault commands can be run
 export VAULT_ADDR=$VAULT_ADDR
+
+# Check if Vault is initialized and unsealed
+assert_vault_initialized
+STARTED_SEALED="false"
+if is_vault_sealed_status "true"; then
+    STARTED_SEALED="true"
+    INIT_OUTPUT_FILE="${HERE}/../.vault-init-output.txt"
+    unseal_vault "$INIT_OUTPUT_FILE" 3
+fi
+
+reseal() {
+    if [ "$STARTED_SEALED" = "true" ]; then
+        info "Resealing Vault"
+        vault operator seal
+    fi
+}
 
 # Get temporary file
 TMP_FILE="$1"
@@ -54,20 +74,15 @@ prompt_for_secret() {
     read -r secret_value
 }
 
-# Fetch the vault's role ID and secret ID
-vault_role_id_path="/run/secrets/vrooli/$environment/vault_role_id"
-vault_secret_id_path="/run/secrets/vrooli/$environment/vault_secret_id"
-if [ ! -f "$vault_role_id_path" ]; then
-    prompt_for_secret "vault_role_id"
-fi
-if [ ! -f "$vault_secret_id_path" ]; then
-    prompt_for_secret "vault_secret_id"
-fi
-vault_role_id_value=$(cat "${vault_role_id_path}")
-vault_secret_id_value=$(cat "${vault_secret_id_path}")
-
 # Authenticate with Vault using AppRole
-vault login -method=approle role_id="$vault_role_id_value" secret_id="$vault_secret_id_value"
+get_role_keys "$environment"
+vault write auth/approle/login role_id="$vault_role_id_value" secret_id="$vault_secret_id_value"
+login_status=$?
+if [ $login_status -ne 0 ]; then
+    error "Failed to authenticate with Vault using AppRole: $login_status"
+    reseal
+    exit 1
+fi
 
 # Loop over the rest of the arguments to get secrets
 while [ $# -gt 0 ]; do
@@ -83,8 +98,13 @@ while [ $# -gt 0 ]; do
     secret_path="secret/vrooli/$environment/$secret"
     info "Fetching $secret from $secret_path in Vault"
     fetched_secret=$(vault kv get -field=value $secret_path)
-    if [ -z "$fetched_secret" ]; then
-        error "Failed to fetch the secret: $secret $?"
+    fetch_status=$?
+    if [ $fetch_status -ne 0 ]; then
+        error "Failed to fetch the secret $secret. Got status $fetch_status"
+        shift
+        continue
+    elif [ -z "$fetched_secret" ]; then
+        error "Secret $secret is empty."
         shift
         continue
     fi
@@ -94,3 +114,5 @@ while [ $# -gt 0 ]; do
     echo "$rename=\"$as_single_line\"" >>"$TMP_FILE"
     shift
 done
+
+reseal
