@@ -1,4 +1,7 @@
 import { Request } from "express";
+import pkg from "lodash";
+
+const { escapeRegExp } = pkg;
 
 let cachedOrigins: Array<string | RegExp> | null = null;
 
@@ -24,14 +27,28 @@ const ipv6Pattern = `
     )
     `.replace(/\s*#.*$/gm, "").replace(/\s+/g, "");
 const ipv6Regex = new RegExp(ipv6Pattern);
+const domainRegex = /^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,63}$/i;
+const localhostRegex = /^http:\/\/localhost(?::[0-9]+)?$/;
+const localhostIpRegex = /^http:\/\/192\.168\.[0-9]{1,3}\.[0-9]{1,3}(?::[0-9]+)?$/;
 
 /**
  * Validate if the given string is a valid IP address.
  * @param {string} ip - The IP address to validate.
  * @returns {boolean} - True if valid, false otherwise.
  */
-const isValidIP = (ip: string): boolean => {
+export const isValidIP = (ip: string): boolean => {
     return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+};
+
+/**
+ * Validate if the given string is a valid domain name 
+ * (e.g. vrooli.com, www.vrooli.com, subdomain.vrooli.com).
+ * @param {string} domain - The domain name to validate.
+ * @returns {boolean} - True if valid, false otherwise.
+ */
+export const isValidDomain = (domain: string): boolean => {
+    if (domain.length > 253) return false;
+    return domainRegex.test(domain);
 };
 
 /**
@@ -46,24 +63,15 @@ export const safeOrigins = (): Array<string | RegExp> => {
     const origins: Array<string | RegExp> = [];
     const siteIp = process.env.SITE_IP;
     if (process.env.VITE_SERVER_LOCATION === "local") {
-        origins.push(
-            /^http:\/\/localhost(?::[0-9]+)?$/,
-            /^http:\/\/192.168.0.[0-9]{1,2}(?::[0-9]+)?$/,
-            "https://studio.apollographql.com",
-        );
-        if (siteIp && isValidIP(siteIp)) {
-            origins.push(new RegExp(`^http(s)?://${siteIp}(?::[0-9]+)?$`));
-        }
+        origins.push(localhostRegex, localhostIpRegex, "https://studio.apollographql.com");
     }
-    else {
-        // Parse URLs from process.env.VIRTUAL_HOST
-        const domains = (process.env.VIRTUAL_HOST ?? "").split(",");
-        for (const domain of domains) {
-            origins.push(new RegExp(`^http(s)?://${domain}$`));
-        }
-        if (siteIp && isValidIP(siteIp)) {
-            origins.push(new RegExp(`^http(s)?://${siteIp}(?::[0-9]+)?$`));
-        }
+    const domains = (process.env.VIRTUAL_HOST ?? "").split(",");
+    for (const domain of domains) {
+        if (!isValidDomain(domain)) continue;
+        origins.push(new RegExp(`^http(s)?://${escapeRegExp(domain)}$`));
+    }
+    if (siteIp && isValidIP(siteIp)) {
+        origins.push(new RegExp(`^http(s)?://${escapeRegExp(siteIp)}(?::[0-9]+)?$`));
     }
 
     cachedOrigins = origins;
