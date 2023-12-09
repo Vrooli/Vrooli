@@ -9,7 +9,7 @@ import { DialogTitle } from "../DialogTitle/DialogTitle";
 
 interface StateButton {
     label: string;
-    onClick?: (() => void);
+    onClick?: (() => unknown);
 }
 
 export interface AlertDialogState {
@@ -31,10 +31,10 @@ export const AlertDialog = () => {
 
     const [state, setState] = useState<AlertDialogState>(defaultState());
     const [open, setOpen] = useState(false);
-    const zIndex = useZIndex(open);
+    const zIndex = useZIndex(open, false, 1000);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribeAlertDialog((o) => {
+        const dialogSub = PubSub.get().subscribe("alertDialog", (o) => {
             setState({
                 title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
                 message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details ?? translateSnackMessage(o.messageKey, o.messageVariables).message : undefined,
@@ -48,7 +48,7 @@ export const AlertDialog = () => {
         return () => { PubSub.get().unsubscribe(dialogSub); };
     }, [t]);
 
-    const handleClick = useCallback((event: any, action: ((e?: any) => void) | null | undefined) => {
+    const handleClick = useCallback((event: any, action: ((e?: unknown) => unknown) | null | undefined) => {
         if (action) action(event);
         setOpen(false);
     }, []);

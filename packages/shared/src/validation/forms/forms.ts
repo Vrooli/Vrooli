@@ -1,6 +1,5 @@
-import { id, optArr } from "@local/shared";
 import * as yup from "yup";
-import { blankToUndefined, description, email, maxStrErr, name, opt, password, req } from "../utils";
+import { description, email, id, maxStrErr, name, opt, optArr, password, req } from "../utils";
 
 export const nodeEndFormValidation = yup.object().shape({
     wasSuccessful: opt(yup.boolean()),
@@ -10,10 +9,18 @@ export const nodeEndFormValidation = yup.object().shape({
 
 export const emailLogInFormValidation = yup.object().shape({
     email: req(email),
-    password: req(yup.string().transform(blankToUndefined).max(128, maxStrErr)),
+    password: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
 });
 
 export const emailSignUpFormValidation = yup.object().shape({
+    name: req(name),
+    email: req(email),
+    marketingEmails: req(yup.boolean()),
+    agreeToTerms: req(yup.boolean().oneOf([true])), // Has to be true
+    password: req(password),
+});
+
+export const emailSignUpValidation = yup.object().shape({
     name: req(name),
     email: req(email),
     marketingEmails: req(yup.boolean()),

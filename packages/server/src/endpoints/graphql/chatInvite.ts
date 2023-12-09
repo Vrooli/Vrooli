@@ -1,6 +1,6 @@
 import { ChatInviteSortBy, ChatInviteStatus } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { ChatInviteEndpoints, EndpointsChatInvite } from "../logic";
+import { ChatInviteEndpoints, EndpointsChatInvite } from "../logic/chatInvite";
 
 export const typeDef = gql`
     enum ChatInviteSortBy {
@@ -52,6 +52,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         status: ChatInviteStatus
+        statuses: [ChatInviteStatus!]
         chatId: ID
         userId: ID
         searchString: String
@@ -78,7 +79,9 @@ export const typeDef = gql`
 
     extend type Mutation {
         chatInviteCreate(input: ChatInviteCreateInput!): ChatInvite!
+        chatInvitesCreate(input: [ChatInviteCreateInput!]!): [ChatInvite!]!
         chatInviteUpdate(input: ChatInviteUpdateInput!): ChatInvite!
+        chatInvitesUpdate(input: [ChatInviteUpdateInput!]!): [ChatInvite!]!
         chatInviteAccept(input: FindByIdInput!): ChatInvite!
         chatInviteDecline(input: FindByIdInput!): ChatInvite!
     }

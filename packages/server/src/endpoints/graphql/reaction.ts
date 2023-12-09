@@ -1,7 +1,7 @@
 import { ReactionFor, ReactionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { UnionResolver } from "../../types";
-import { EndpointsReaction, ReactionEndpoints } from "../logic";
+import { EndpointsReaction, ReactionEndpoints } from "../logic/reaction";
 import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`

@@ -1,5 +1,5 @@
 import { smartContract_create, smartContract_findMany, smartContract_findOne, smartContract_update } from "../generated";
-import { SmartContractEndpoints } from "../logic";
+import { SmartContractEndpoints } from "../logic/smartContract";
 import { setupRoutes } from "./base";
 
 export const SmartContractRest = setupRoutes({

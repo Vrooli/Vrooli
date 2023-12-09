@@ -1,48 +1,88 @@
 #!/bin/sh
-# Gets required secrets from secrets manager, if not already in /run/secrets.
-# How to use:
-# 1. Create a temporary file (e.g. `TMP_FILE=$(mktemp)`, `TMP_FILE=/tmp/secrets`, `TMP_FILE=/tmp/secrets.$$`, etc.)
-# 2. Call this script: `./getSecrets.sh <environment> <tmp_file> <secret1> <secret2> ...`
-# 3. Source the temporary file: `. "$TMP_FILE"`
-# 4. Remove the temporary file: `rm "$TMP_FILE"`
+# Gets required secrets from secrets manager.
+# Example usage:
 #
-# Arguments:
-# - environment: Either 'development' or 'production'
-# - tmp_file: The temporary file to store secrets in
-# - secret1, secret2, ...: The secrets to fetch from the secret manager
-#   Secrets can be renamed with the format `old_name:new_name`. If there's no `:`, the name saved in the file
-#   will be the same as the name of the secret in the secret manager.
-#
-# NOTE: Due to incompatability with some shells and minimal images, we cannot rely on exporting secrets as environment variables.
-# This is why it's written to a temporary file, which can be sourced by the parent script.
+# TMP_FILE=$(mktemp) && { ./getSecrets.sh <environment> <secret1> <secret2> ... > "$TMP_FILE" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."; rm "$TMP_FILE"
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "${HERE}/prettify.sh"
+. "${HERE}/vaultTools.sh"
 
 # Check if at least two arguments were provided
 if [ $# -lt 2 ]; then
-    error "Not enough provided. Usage: ./getSecrets.sh <environment> <tmp_file> <secret_1> <secret_2> ..."
+    error "Not enough arguments provided. Usage: ./getSecrets.sh <environment> <tmp_file> <secret_1> <secret_2> ..."
     exit 1
 fi
 
 # Get environment
 environment="$1"
 shift
-# Check if valid environment
-if [ "$environment" = "development" ]; then
+case $environment in
+[Dd]ev*)
     environment="dev"
-elif [ "$environment" = "production" ]; then
+    ;;
+[Pp]rod*)
     environment="prod"
-else
-    error "Invalid environment: $environment. Expected 'development' or 'production'."
+    ;;
+*)
+    error "Invalid environment: $environment. Expected 'dev' or 'prod'."
+    exit 1
+    ;;
+esac
+
+# Set env file based on the environment
+env_file="${HERE}/../.env"
+if [ "$environment" == "prod" ]; then
+    env_file="${HERE}/../.env-prod"
+fi
+# Check if env file exists
+if [ ! -f "$env_file" ]; then
+    error "Environment file $env_file does not exist."
     exit 1
 fi
+# Source the env file
+. "$env_file"
+# Export vault address, so vault commands can be run
+export VAULT_ADDR=$VAULT_ADDR
+
+# Check if Vault is initialized and unsealed
+assert_vault_initialized
+STARTED_SEALED="false"
+if is_vault_sealed_status "true"; then
+    STARTED_SEALED="true"
+    INIT_OUTPUT_FILE="${HERE}/../.vault-init-output.txt"
+    unseal_vault "$INIT_OUTPUT_FILE" 3
+fi
+
+reseal() {
+    if [ "$STARTED_SEALED" = "true" ]; then
+        info "Resealing Vault"
+        vault operator seal
+    fi
+}
 
 # Get temporary file
 TMP_FILE="$1"
 shift
 
-info "Creating or clearing temporary file: $TMP_FILE"
-echo "" >>"$TMP_FILE"
+info "Creating temporary file: $TMP_FILE"
+echo "" >"$TMP_FILE"
+
+# Function to prompt for a secret (that can't be fetched from Vault)
+prompt_for_secret() {
+    local secret_name="$1"
+    echo "Please enter the value for $secret_name: "
+    read -r secret_value
+}
+
+# Authenticate with Vault using AppRole
+get_role_keys "$environment"
+vault write auth/approle/login role_id="$vault_role_id_value" secret_id="$vault_secret_id_value"
+login_status=$?
+if [ $login_status -ne 0 ]; then
+    error "Failed to authenticate with Vault using AppRole: $login_status"
+    reseal
+    exit 1
+fi
 
 # Loop over the rest of the arguments to get secrets
 while [ $# -gt 0 ]; do
@@ -55,17 +95,24 @@ while [ $# -gt 0 ]; do
         rename="$1"
     fi
 
-    # Check if the secret doesn't exist in /run/secrets
-    if [ ! -f "/run/secrets/vrooli/$environment/$secret" ]; then
-        # Fetch the secret from the secret manager and store it in /run/secrets/
-        # Note: The following is a placeholder and should be replaced with an actual command to fetch the secret
-        info "Fetching $secret from the secret manager"
-        # TODO Complete
-        error "Fetching secrets is not yet implemented"
-        exit 1
+    secret_path="secret/vrooli/$environment/$secret"
+    info "Fetching $secret from $secret_path in Vault"
+    fetched_secret=$(vault kv get -field=value $secret_path)
+    fetch_status=$?
+    if [ $fetch_status -ne 0 ]; then
+        error "Failed to fetch the secret $secret. Got status $fetch_status"
+        shift
+        continue
+    elif [ -z "$fetched_secret" ]; then
+        error "Secret $secret is empty."
+        shift
+        continue
     fi
-    # Store the secret in the temporary file using rename
-    echo "Writing $secret to $TMP_FILE as $rename"
-    echo "$rename=$(cat "/run/secrets/vrooli/$environment/$secret")" >>"$TMP_FILE"
+
+    echo "Writing $rename to $TMP_FILE"
+    as_single_line=$(echo -n "$fetched_secret" | sed ':a;N;$!ba;s/\n/\\n/g')
+    echo "$rename=\"$as_single_line\"" >>"$TMP_FILE"
     shift
 done
+
+reseal

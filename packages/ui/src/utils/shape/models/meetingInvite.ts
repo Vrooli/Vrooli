@@ -1,10 +1,11 @@
 import { MeetingInvite, MeetingInviteCreateInput, MeetingInviteUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { MeetingShape } from "./meeting";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type MeetingInviteShape = Pick<MeetingInvite, "id" | "message"> & {
-    __typename?: "MeetingInvite";
-    meeting: { id: string };
+    __typename: "MeetingInvite";
+    meeting: CanConnect<MeetingShape>;
     user: { id: string };
 }
 

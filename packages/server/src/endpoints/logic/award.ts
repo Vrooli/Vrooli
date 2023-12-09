@@ -1,6 +1,6 @@
 import { Award, AwardSearchInput } from "@local/shared";
-import { readManyHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { readManyHelper } from "../../actions/reads";
+import { rateLimit } from "../../middleware/rateLimit";
 import { FindManyResult, GQLEndpoint } from "../../types";
 
 export type EndpointsAward = {

@@ -1,24 +1,7 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { ModelMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
-
-type VersionsCheckProps = {
-    prisma: PrismaType,
-    objectType: `${GqlModelType.ApiVersion | GqlModelType.NoteVersion | GqlModelType.ProjectVersion | GqlModelType.RoutineVersion | GqlModelType.SmartContractVersion | GqlModelType.StandardVersion}`,
-    createList: {
-        id: string,
-        rootConnect?: string | null | undefined,
-        rootCreate?: { id: string } | null | undefined,
-        versionLabel?: string | null | undefined
-    }[],
-    updateList: {
-        id: string,
-        versionLabel?: string | null | undefined,
-    }[],
-    deleteList: string[],
-    userData: SessionUserToken,
-}
 
 const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);
 
@@ -34,31 +17,52 @@ const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, G
 export const versionsCheck = async ({
     prisma,
     objectType,
-    createList,
-    updateList,
-    deleteList,
+    Create,
+    Update,
+    Delete,
     userData,
-}: VersionsCheckProps) => {
+}: {
+    prisma: PrismaType,
+    objectType: `${GqlModelType.ApiVersion | GqlModelType.NoteVersion | GqlModelType.ProjectVersion | GqlModelType.RoutineVersion | GqlModelType.SmartContractVersion | GqlModelType.StandardVersion}`,
+    Create: {
+        input: {
+            id: string,
+            rootConnect?: string | null | undefined,
+            rootCreate?: { id: string } | null | undefined,
+            versionLabel?: string | null | undefined
+        }
+    }[],
+    Update: {
+        input: {
+            id: string,
+            versionLabel?: string | null | undefined,
+        }
+    }[],
+    Delete: {
+        input: string;
+    }[],
+    userData: SessionUserToken,
+}) => {
     // Filter unchanged versions from create and update data
-    const create = createList.filter(x => x.versionLabel).map(x => ({
-        id: x.id,
-        rootId: x.rootConnect || x.rootCreate?.id as string,
-        versionLabel: x.versionLabel,
+    const create = Create.filter(x => x.input.versionLabel).map(x => ({
+        id: x.input.id,
+        rootId: x.input.rootConnect || x.input.rootCreate?.id as string,
+        versionLabel: x.input.versionLabel,
     }));
-    const update = updateList.filter(x => x.versionLabel).map(x => ({
-        id: x.id,
-        versionLabel: x.versionLabel,
+    const update = Update.filter(x => x.input.versionLabel).map(x => ({
+        id: x.input.id,
+        versionLabel: x.input.versionLabel,
     }));
     // Find unique root ids from create data
     const createRootIds = create.map(x => x.rootId);
     const uniqueRootIds = [...new Set(createRootIds)];
     // Find unique version ids from update and delete data
     const updateIds = update.map(x => x.id);
-    const deleteIds = deleteList;
+    const deleteIds = Delete;
     const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
     // Query the database for existing data (by root)
     const rootType = objectType.replace("Version", "") as GqlModelType;
-    const { delegate } = getLogic(["delegate"], rootType, userData.languages, "versionsCheck");
+    const delegate = ModelMap.get(rootType).delegate;
     let existingRoots: any[];
     let where: { [key: string]: any } = {};
     let select: { [key: string]: any } = {};

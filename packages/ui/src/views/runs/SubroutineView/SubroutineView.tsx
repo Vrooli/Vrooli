@@ -1,4 +1,4 @@
-import { CommentFor, exists, ResourceList, RoutineVersion, Tag } from "@local/shared";
+import { CommentFor, exists, noop, ResourceList, RoutineVersion, Tag } from "@local/shared";
 import { Box, Button, LinearProgress, Palette, Stack, Typography, useTheme } from "@mui/material";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -14,7 +14,6 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { useFormik } from "formik";
-import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
 import { useObjectActions } from "hooks/useObjectActions";
 import { SuccessIcon } from "icons";
@@ -22,7 +21,6 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
-import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsToFormik } from "utils/runUtils";
@@ -30,6 +28,7 @@ import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
+import { routineInitialValues } from "views/objects/routine";
 import { SubroutineViewProps } from "../types";
 
 const containerProps = (palette: Palette) => ({
@@ -43,7 +42,6 @@ const containerProps = (palette: Palette) => ({
 });
 
 export const SubroutineView = ({
-    isOpen,
     loading,
     handleUserInputsUpdate,
     handleSaveProgress,
@@ -56,7 +54,7 @@ export const SubroutineView = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
+    const display = "dialog";
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const [internalRoutineVersion, setInternalRoutineVersion] = useState(routineVersion);
@@ -83,7 +81,7 @@ export const SubroutineView = ({
 
     const confirmLeave = useCallback((callback: () => any) => {
         // Confirmation dialog for leaving routine
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "RunStopConfirm",
             buttons: [
                 {
@@ -128,8 +126,7 @@ export const SubroutineView = ({
             return acc;
         }, {}),
         enableReinitialize: true,
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onSubmit: () => { },
+        onSubmit: noop,
     });
 
     /**
@@ -163,9 +160,9 @@ export const SubroutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+            PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         } else {
-            PubSub.get().publishSnack({ messageKey: "InputEmpty", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "InputEmpty", severity: "Error" });
         }
     }, [formik.values]);
 
@@ -180,8 +177,7 @@ export const SubroutineView = ({
                         fieldData={fieldData}
                         index={index}
                         textPrimary={palette.background.textPrimary}
-                        // eslint-disable-next-line @typescript-eslint/no-empty-function
-                        onUpload={() => { }}
+                        onUpload={noop}
                     />
                 ))}
             </Box>
@@ -259,8 +255,7 @@ export const SubroutineView = ({
                     title={"Resources"}
                     list={resourceList as unknown as ResourceList}
                     canUpdate={false}
-                    // eslint-disable-next-line @typescript-eslint/no-empty-function
-                    handleUpdate={() => { }} // Intentionally blank
+                    handleUpdate={noop}
                     loading={loading}
                     parent={{ __typename: "RoutineVersion", id: routineVersion?.id ?? "" }}
                 />}

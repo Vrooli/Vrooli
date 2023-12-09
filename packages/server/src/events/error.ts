@@ -1,8 +1,10 @@
-import { ErrorKey } from "@local/shared";
+import type { ErrorKey } from "@local/shared";
 import { ApolloError } from "apollo-server-express";
 import i18next from "i18next";
-import { randomString } from "../auth";
+import { randomString } from "../auth/wallet";
 import { logger } from "./logger";
+
+export type ErrorTrace = Record<string, any>;
 
 /**
  * Generates unique error code by appending 
@@ -18,7 +20,7 @@ function genTrace(locationCode: string): string {
 }
 
 export class CustomError extends ApolloError {
-    constructor(traceBase: string, errorCode: ErrorKey, languages: string[], data?: { [key: string]: any }) {
+    constructor(traceBase: string, errorCode: ErrorKey, languages: string[], data?: ErrorTrace) {
         // Find message in user's language
         const lng = languages.length > 0 ? languages[0] : "en";
         const message = i18next.t(`error:${errorCode}`, { lng }) ?? errorCode;

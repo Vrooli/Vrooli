@@ -1,5 +1,5 @@
 import { smartContractVersion_create, smartContractVersion_findMany, smartContractVersion_findOne, smartContractVersion_update } from "../generated";
-import { SmartContractVersionEndpoints } from "../logic";
+import { SmartContractVersionEndpoints } from "../logic/smartContractVersion";
 import { setupRoutes } from "./base";
 
 export const SmartContractVersionRest = setupRoutes({

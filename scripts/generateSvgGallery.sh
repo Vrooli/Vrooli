@@ -1,9 +1,5 @@
 #!/bin/bash
 # Generates an HTML file to display all svg files in a folder
-# Arguments:
-# -d: Directory containing the SVG files
-# -o: Output file name (default: svgGallery.html)
-# -h: Show this help message
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
@@ -65,7 +61,7 @@ cat >$OUT_FILE <<EOL
   h1 { text-align: center; }
   .container { display: flex; flex-wrap: wrap; justify-content: center; }
   .item { padding: 15px; text-align: center; }
-  .item img { max-width: 100%; height: auto; }
+  .item img { max-width: 100%; height: auto; fill: currentColor }
 </style>
 <script>
   function resizeIcons() {
@@ -76,9 +72,28 @@ cat >$OUT_FILE <<EOL
     }
   }
 
+  function setSvgBrightness(filterValue) {
+      var icons = document.getElementsByTagName("img");
+      for (var i = 0; i < icons.length; i++) {
+          icons[i].style.filter = filterValue;
+      }
+  }
+
   function changeBackgroundColor() {
     var color = document.getElementById("colorPicker").value;
     document.body.style.backgroundColor = color;
+
+    // Calculate luminance of the color
+    var r = parseInt(color.substr(1, 2), 16) / 255;
+    var g = parseInt(color.substr(3, 2), 16) / 255;
+    var b = parseInt(color.substr(5, 2), 16) / 255;
+    var luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+
+    // If luminance is low (color is dark), set text color to white
+    var contrastColor = luminance < 0.5 ? "white" : "black";
+    document.body.style.color = contrastColor;
+    var filterColor = luminance < 0.5 ? "brightness(0) invert(1)" : "brightness(0) invert(0)";
+    setSvgBrightness(filterColor);
   }
 
   function searchIcons() {
@@ -105,7 +120,7 @@ cat >$OUT_FILE <<EOL
   }
 </script>
 </head>
-<body onload="updateTotalResults()">
+<body onload="updateTotalResults(); resizeIcons(); changeBackgroundColor();">
 <h1>SVG Gallery <span id="totalResults"></span></h1>
 <div style="text-align: center;">
   <label for="sizeSlider">Icon size:</label>

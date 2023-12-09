@@ -1,8 +1,13 @@
 import { Resource } from "@local/shared";
-import { NewResourceShape } from "forms/ResourceForm/ResourceForm";
-import { UpsertProps } from "../types";
+import { FormProps } from "forms/types";
+import { ResourceShape } from "utils/shape/models/resource";
+import { CrudPropsDialog, CrudPropsPage } from "../types";
 
-export type ResourceUpsertProps = Omit<UpsertProps<Resource>, "overrideObject"> & {
+type ResourceUpsertPropsPage = CrudPropsPage & {
     isMutate: boolean;
-    overrideObject?: NewResourceShape;
-}
+};
+type ResourceUpsertPropsDialog = CrudPropsDialog<Resource> & {
+    isMutate: boolean;
+};
+export type ResourceUpsertProps = ResourceUpsertPropsPage | ResourceUpsertPropsDialog;
+export type ResourceFormProps = FormProps<Resource, ResourceShape> & Pick<ResourceUpsertProps, "isMutate">;

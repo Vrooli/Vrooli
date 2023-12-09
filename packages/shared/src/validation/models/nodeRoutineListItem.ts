@@ -2,18 +2,18 @@ import { bool, description, id, index, name, opt, req, transRel, YupModel, yupOb
 import { routineVersionValidation } from "./routineVersion";
 
 export const nodeRoutineListItemTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         description: opt(description),
         name: req(name),
-    },
-    update: {
+    }),
+    update: () => ({
         description: opt(description),
         name: opt(name),
-    },
+    }),
 });
 
 export const nodeRoutineListItemValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         index: req(index),
         isOptional: opt(bool),
@@ -21,13 +21,13 @@ export const nodeRoutineListItemValidation: YupModel = {
         ["list", ["Connect"], "one", "req"],
         ["routineVersion", ["Connect"], "one", "req"], // Creating subroutines must be done in a separate request
         ["translations", ["Create"], "many", "opt", nodeRoutineListItemTranslationValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         index: opt(index),
         isOptional: opt(bool),
     }, [
         ["routineVersion", ["Update"], "one", "opt", routineVersionValidation, ["nodes", "nodeLinks"]], // Create/update/delete of subroutines must be done in a separate request
         ["translations", ["Create", "Update", "Delete"], "many", "opt", nodeRoutineListItemTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

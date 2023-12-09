@@ -1,5 +1,6 @@
 import pkg from "@prisma/client";
-import { logger } from "../events";
+import { ErrorTrace } from "../events/error";
+import { logger } from "../events/logger";
 import { PrismaType } from "../types";
 
 const { PrismaClient } = pkg;
@@ -8,7 +9,7 @@ const { PrismaClient } = pkg;
 interface WithPrismaProps {
     process: (prisma: PrismaType) => Promise<void>,
     trace: string,
-    traceObject?: Record<string, any>,
+    traceObject?: ErrorTrace,
 }
 
 /**

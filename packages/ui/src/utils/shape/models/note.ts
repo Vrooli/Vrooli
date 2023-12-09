@@ -1,17 +1,17 @@
 import { Note, NoteCreateInput, NoteUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
 import { NoteVersionShape, shapeNoteVersion } from "./noteVersion";
-import { shapeTag, TagShape } from "./tag";
+import { TagShape, shapeTag } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 
 export type NoteShape = Pick<Note, "id" | "isPrivate"> & {
-    __typename?: "Note";
-    labels?: ({ id: string } | LabelShape)[];
+    __typename: "Note";
+    labels?: CanConnect<LabelShape>[] | null;
     owner: OwnerShape | null | undefined;
-    parent?: { id: string } | null;
-    tags?: ({ tag: string } | TagShape)[];
+    parent?: CanConnect<NoteVersionShape> | null;
+    tags?: CanConnect<TagShape, "tag">[] | null;
     versions?: Omit<NoteVersionShape, "root">[] | null;
 }
 

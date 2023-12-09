@@ -1,18 +1,16 @@
 import { MaxObjects, RoutineSortBy, routineValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
-import { RoutineFormat } from "../format/routine";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { OrganizationModel } from "./organization";
-import { ReactionModel } from "./reaction";
-import { RoutineVersionModel } from "./routineVersion";
-import { RoutineModelLogic } from "./types";
-import { ViewModel } from "./view";
+import { RoutineFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelLogic, ViewModelLogic } from "./types";
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
 //     select: {
@@ -197,11 +195,10 @@ import { ViewModel } from "./view";
 // })
 
 const __typename = "Routine" as const;
-const suppFields = ["you", "translatedName"] as const;
-export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
+export const RoutineModel: RoutineModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.routine,
-    display: rootObjectDisplay(RoutineVersionModel),
+    display: () => rootObjectDisplay(ModelMap.get<RoutineVersionModelLogic>("RoutineVersion")),
     format: RoutineFormat,
     mutate: {
         shape: {
@@ -215,13 +212,13 @@ export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isInternal: noNull(data.isInternal),
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
                 ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RoutineVersion", parentRelationshipName: "forks", data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "forks", data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", relation: "tags", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", relation: "labels", data, ...rest })),
             }),
@@ -231,14 +228,14 @@ export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
                 permissions: noNull(data.permissions),
                 ...rest.preMap[__typename].versionMap[data.id],
                 ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", relation: "tags", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", relation: "labels", data, ...rest })),
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonRoot({ ...params, objectType: __typename });
+            afterMutations: async (params) => {
+                await afterMutationsRoot({ ...params, objectType: __typename });
             },
         },
         yup: routineValidation,
@@ -277,36 +274,36 @@ export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                     "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
                 };
             },
         },
     },
-    validate: {
+    validate: () => ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
             data.isInternal === false &&
-            oneIsPublic<Prisma.routineSelect>(data, [
+            oneIsPublic<RoutineModelInfo["PrismaSelect"]>([
                 ["ownedByOrganization", "Organization"],
                 ["ownedByUser", "User"],
-            ], languages),
+            ], data, ...rest),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+            Organization: data?.ownedByOrganization,
+            User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
@@ -327,9 +324,9 @@ export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

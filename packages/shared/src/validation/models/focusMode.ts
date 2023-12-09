@@ -6,7 +6,7 @@ import { resourceListValidation } from "./resourceList";
 import { scheduleValidation } from "./schedule";
 
 export const focusModeValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         name: req(name),
         description: opt(description),
@@ -16,8 +16,8 @@ export const focusModeValidation: YupModel = {
         ["reminderList", ["Create", "Connect"], "one", "opt", reminderListValidation],
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
         ["schedule", ["Create"], "one", "opt", scheduleValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         name: opt(name),
         description: opt(description),
@@ -27,5 +27,5 @@ export const focusModeValidation: YupModel = {
         ["reminderList", ["Connect", "Disconnect", "Create", "Update"], "one", "opt", reminderListValidation],
         ["resourceList", ["Create", "Update"], "one", "opt", resourceListValidation],
         ["schedule", ["Create", "Update"], "one", "opt", scheduleValidation],
-    ], [], o),
+    ], [], d),
 };

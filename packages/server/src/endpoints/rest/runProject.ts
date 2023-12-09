@@ -1,5 +1,5 @@
 import { runProject_cancel, runProject_complete, runProject_create, runProject_deleteAll, runProject_findMany, runProject_findOne, runProject_update } from "../generated";
-import { RunProjectEndpoints } from "../logic";
+import { RunProjectEndpoints } from "../logic/runProject";
 import { setupRoutes } from "./base";
 
 export const RunProjectRest = setupRoutes({

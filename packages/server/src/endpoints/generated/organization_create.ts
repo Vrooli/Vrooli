@@ -44,6 +44,10 @@ export const organization_create = {
         },
         "__typename": "Role"
       },
+      "you": {
+        "canDelete": true,
+        "canUpdate": true
+      },
       "__typename": "Member"
     },
     "id": true,

@@ -1,0 +1,19 @@
+{
+    "jsc": {
+        "minify": {
+            "compress": true,
+            "mangle": true
+        },
+        "parser": {
+            "syntax": "typescript",
+            "tsx": true,
+            "decorators": true,
+            "dynamicImport": true
+        },
+        "target": "es2017"
+    },
+    "module": {
+        "type": "es6"
+    },
+    "sourceMaps": true
+}

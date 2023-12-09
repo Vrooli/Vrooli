@@ -1,4 +1,4 @@
-import { Comment, CommentFor, ResourceListFor, StandardVersion, Tag } from "@local/shared";
+import { ResourceListFor, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
@@ -10,6 +10,8 @@ import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
 
 export interface CharLimitIndicatorProps {
     chars: number;
+    /** Hides indicator until this number of characters is reached */
+    minCharsToShow?: number;
     maxChars: number;
     size?: number;
 }
@@ -17,17 +19,6 @@ export interface CharLimitIndicatorProps {
 export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
     label: string;
 };
-
-export interface CommentUpsertInputProps {
-    comment: Comment | undefined;
-    isOpen: boolean;
-    language: string;
-    objectId: string;
-    objectType: CommentFor;
-    onCancel: () => unknown;
-    onCompleted: (comment: Comment) => unknown;
-    parent: Comment | null;
-}
 
 export interface CodeInputBaseProps {
     defaultValue?: string;
@@ -93,7 +84,7 @@ export interface CodeInputBaseProps {
 export type CodeInputProps = Omit<CodeInputBaseProps, "defaultValue" | "format" | "variables">
 
 export interface DateInputProps {
-    fullWidth?: boolean;
+    isOptional?: boolean;
     label: string;
     name: string;
     type?: "date" | "datetime-local";
@@ -131,9 +122,10 @@ export interface LinkInputProps {
     label?: string;
     name?: string;
     onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => unknown;
+    tabIndex?: number;
 }
 
-export type RichInputBaseProps = Omit<TextFieldProps, "onChange"> & {
+export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
@@ -155,12 +147,14 @@ export type RichInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     minRows?: number;
     name: string;
     onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
+    onFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
     onChange: (newText: string) => unknown;
     placeholder?: string;
     tabIndex?: number;
     value: string;
     sxs?: {
-        bar?: SxType;
+        topBar?: SxType;
+        bottomBar?: SxType;
         root?: SxType;
         textArea?: Record<string, unknown>;
     };
@@ -173,6 +167,7 @@ export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionBut
     openAssistantDialog: (selectedText: string) => unknown;
     onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
     redo: () => unknown;
+    setHandleAction: (handleAction: (action: RichInputAction, data?: unknown) => unknown) => unknown;
     toggleMarkdown: () => unknown;
     undo: () => unknown;
     sx?: CSSProperties;
@@ -180,10 +175,6 @@ export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionBut
 
 export type RichInputMarkdownProps = RichInputChildProps;
 export type RichInputLexicalProps = RichInputChildProps;
-
-export interface RichInputChildView {
-    handleAction: (action: Exclude<RichInputAction, "Mode">, data?: unknown) => unknown;
-}
 
 export type RichInputAction =
     "Assistant" |
@@ -203,17 +194,15 @@ export type RichInputAction =
     "Mode" |
     "Quote" |
     "Redo" |
+    "SetValue" |
     "Spoiler" |
     "Strikethrough" |
     "Table" |
     "Underline" |
     "Undo";
-export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo">]: boolean };
-export interface RichInputToolbarView {
-    updateActiveStates: (activeStates: RichInputActiveStates) => unknown;
-}
+export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo" | "SetValue">]: boolean };
 
-export type PasswordTextFieldProps = TextFieldProps & {
+export type PasswordTextInputProps = TextInputProps & {
     autoComplete?: string;
     autoFocus?: boolean;
     fullWidth?: boolean;
@@ -242,6 +231,7 @@ export interface ProfilePictureInputProps {
 }
 
 export interface IntegerInputProps extends BoxProps {
+    allowDecimal?: boolean;
     autoFocus?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
@@ -272,7 +262,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     disabled?: boolean;
     fullWidth?: boolean;
     getOptionDescription?: (option: T) => string | null | undefined;
-    getOptionIcon?: (option: T) => SvgComponent;
+    getOptionIcon?: (option: T) => SvgComponent | JSX.Element;
     getOptionLabel: (option: T) => string;
     inputAriaLabel?: string;
     label?: string;
@@ -287,6 +277,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
 }
 
 export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, "onChange"> {
+    color?: string;
     error?: boolean;
     helperText?: string | boolean | null | undefined;
     onBlur?: (event: React.FocusEvent<any>) => unknown;
@@ -313,8 +304,13 @@ export interface TagSelectorProps {
 export interface TagSelectorBaseProps {
     disabled?: boolean;
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => unknown;
+    isOptional?: boolean;
     placeholder?: string;
     tags: (TagShape | Tag)[];
+}
+
+export type TextInputProps = TextFieldProps & {
+    isOptional?: boolean;
 }
 
 export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
@@ -339,6 +335,7 @@ export interface TranslatedRichInputProps {
         tooltip?: string;
     }>;
     disabled?: boolean;
+    isOptional?: boolean;
     language: string;
     maxChars?: number;
     maxRows?: number;
@@ -352,8 +349,9 @@ export interface TranslatedRichInputProps {
     };
 }
 
-export interface TranslatedTextFieldProps {
+export interface TranslatedTextInputProps {
     fullWidth?: boolean;
+    isOptional?: boolean;
     label?: string;
     language: string;
     maxRows?: number;
@@ -361,18 +359,15 @@ export interface TranslatedTextFieldProps {
     multiline?: boolean;
     name: string;
     placeholder?: string;
+    InputProps?: TextInputProps["InputProps"];
 }
 
-export type VersionInputProps = Omit<TextFieldProps, "helperText" | "onBlur" | "onChange" | "value"> & {
+export type VersionInputProps = Omit<TextInputProps, "helperText" | "onBlur" | "onChange" | "value"> & {
     autoFocus?: boolean;
     fullWidth?: boolean;
-    /**
-     * Label for input component, NOT the version label.
-     */
+    /** Label for input component, NOT the version label. */
     label?: string;
     name?: string;
-    /**
-     * Existing versions of the object. Used to determine mimum version number.
-     */
+    /** Existing versions of the object. Used to determine mimum version number. */
     versions: string[];
 }

@@ -3,11 +3,12 @@ import { NextFunction, Request, Response, Router } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
 import multer, { Options as MulterOptions } from "multer";
-import { getUser } from "../../auth";
+import { getUser } from "../../auth/request";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { context, Context } from "../../middleware";
+import { CustomError } from "../../events/error";
+import { Context, context } from "../../middleware";
 import { GQLEndpoint, IWrap, SessionUserToken } from "../../types";
-import { processAndStoreFiles } from "../../utils";
+import { processAndStoreFiles } from "../../utils/fileStorage";
 
 export type EndpointFunction<TInput extends object | undefined, TResult extends object> = (
     parent: undefined,
@@ -69,14 +70,14 @@ export const handleEndpoint = async <TInput extends object | undefined, TResult 
     res: Response,
 ) => {
     try {
-        const data = await endpoint(undefined, (input ? { input } : undefined) as any, context({ req, res }), selection);
+        const data = await Promise.resolve(endpoint(undefined, (input ? { input } : undefined) as any, context({ req, res }), selection));
         res.json({ data, version });
-    } catch (error: any) {
+    } catch (error: unknown) {
         // Assume that error is from CustomError by default
-        const code = error.extensions?.code;
-        let message = error.message ?? error.name ?? "";
+        const code = (error as CustomError).extensions?.code;
+        let message = (error as CustomError).message ?? (error as CustomError).name ?? "";
         // If error is named ValidationError, it's from yup
-        if (error.name === "ValidationError") {
+        if ((error as CustomError).name === "ValidationError") {
             const languages = getUser(req.session)?.languages ?? ["en"];
             const lng = languages.length > 0 ? languages[0] : "en";
             message = i18next.t("error:ValidationFailed", { lng, defaultValue: "Validation failed." });
@@ -142,9 +143,18 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                 // Handle endpoint
                 async (req: Request, res: Response) => {
                     // Find non-file data
-                    const input: Record<string, string> = method === "get" ?
-                        { ...req.params, ...parseInput(req.query) } :
-                        { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
+                    let input: Record<string, string> | any[] = {}; // default to an empty object
+                    // If it's a GET method, combine params and parsed query
+                    if (method === "get") {
+                        input = { ...req.params, ...parseInput(req.query) };
+                    } else {
+                        // For non-GET methods, handle object and array bodies
+                        if (Array.isArray(req.body)) {
+                            input = [...req.body]; // directly spread array into a new array
+                        } else if (typeof req.body === "object") {
+                            input = { ...req.params, ...req.body };
+                        }
+                    }
                     // Get files from request
                     const files = (req.files ?? []) as Express.Multer.File[];
                     let fileNames: { [x: string]: string[] } = {};

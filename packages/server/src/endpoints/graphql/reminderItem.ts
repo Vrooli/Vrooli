@@ -6,6 +6,7 @@ export const typeDef = gql`
         description: String
         dueDate: Date
         index: Int!
+        isComplete: Boolean
         name: String!
         reminderConnect: ID!
     }

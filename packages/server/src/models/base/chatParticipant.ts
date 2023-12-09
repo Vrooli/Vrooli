@@ -1,23 +1,20 @@
 import { ChatParticipantSortBy, chatParticipantValidation, MaxObjects } from "@local/shared";
+import { ModelMap } from ".";
 import { defaultPermissions } from "../../utils";
-import { ChatParticipantFormat } from "../format/chatParticipant";
-import { ModelLogic } from "../types";
-import { ChatModel } from "./chat";
-import { ChatModelLogic, ChatParticipantModelLogic, UserModelLogic } from "./types";
-import { UserModel } from "./user";
+import { ChatParticipantFormat } from "../formats";
+import { ChatModelInfo, ChatModelLogic, ChatParticipantModelLogic, UserModelInfo, UserModelLogic } from "./types";
 
 const __typename = "ChatParticipant" as const;
-const suppFields = [] as const;
-export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof suppFields> = ({
+export const ChatParticipantModel: ChatParticipantModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.chat_participants,
-    display: {
+    display: () => ({
         // Label is the user's label
         label: {
-            select: () => ({ id: true, user: { select: UserModel.display.label.select() } }),
-            get: (select, languages) => UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages),
+            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: ChatParticipantFormat,
     mutate: {
         shape: {
@@ -36,19 +33,19 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
         sortBy: ChatParticipantSortBy,
         searchStringQuery: () => ({
             OR: [
-                { chat: ChatModel.search.searchStringQuery() },
-                { user: UserModel.search.searchStringQuery() },
+                { chat: ModelMap.get<ChatModelLogic>("Chat").search.searchStringQuery() },
+                { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data.chat as ChatModelLogic["PrismaModel"]).organization,
-            User: (data.chat as ChatModelLogic["PrismaModel"]).creator,
+            Organization: (data?.chat as ChatModelInfo["PrismaModel"])?.organization,
+            User: (data?.chat as ChatModelInfo["PrismaModel"])?.creator,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
@@ -60,8 +57,8 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ChatModel.validate.visibility.owner(userId),
+                chat: ModelMap.get<ChatModelLogic>("Chat").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

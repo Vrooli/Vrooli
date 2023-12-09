@@ -1,6 +1,5 @@
 import { FindByIdInput, FindVersionInput } from "@local/shared";
 import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
-import { BottomActionsGrid } from "components/buttons/BottomActionsGrid/BottomActionsGrid";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -15,12 +14,12 @@ import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { removeSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
-import { getDisplay } from "utils/display/listTools";
+import { getDisplay, ListObject } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { CalendarPageTabOption, findObjectTabParams, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
-import { UpsertProps } from "views/objects/types";
+import { CrudProps } from "views/objects/types";
 import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));
@@ -49,23 +48,25 @@ export type FindObjectTabOption = "All" |
     CalendarPageTabOption | `${CalendarPageTabOption}` |
     "ApiVersion" | "NoteVersion" | "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "StandardVersion";
 
+type UpsertView = (props: CrudProps<ListObject>) => JSX.Element;
+
 /**
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
  */
-const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Element } = {
-    Api: ApiUpsert,
-    FocusMode: FocusModeUpsert,
-    Meeting: MeetingUpsert,
-    Note: NoteCrud,
-    Organization: OrganizationUpsert,
-    Project: ProjectUpsert,
-    Question: QuestionUpsert,
-    Routine: RoutineUpsert,
-    RunProject: RunProjectUpsert,
-    RunRoutine: RunRoutineUpsert,
-    SmartContract: SmartContractUpsert,
-    Standard: StandardUpsert,
-    User: BotUpsert,
+const createMap: { [K in CreateViewTypes]: UpsertView } = {
+    Api: ApiUpsert as UpsertView,
+    FocusMode: FocusModeUpsert as UpsertView,
+    Meeting: MeetingUpsert as UpsertView,
+    Note: NoteCrud as UpsertView,
+    Organization: OrganizationUpsert as UpsertView,
+    Project: ProjectUpsert as UpsertView,
+    Question: QuestionUpsert as UpsertView,
+    Routine: RoutineUpsert as UpsertView,
+    RunProject: RunProjectUpsert as UpsertView,
+    RunRoutine: RunRoutineUpsert as UpsertView,
+    SmartContract: SmartContractUpsert as UpsertView,
+    Standard: StandardUpsert as UpsertView,
+    User: BotUpsert as UpsertView,
 };
 
 const searchTitleId = "search-vrooli-for-link-title";
@@ -99,7 +100,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         handleTabChange,
         searchType,
         tabs,
-    } = useTabs<FindObjectTabOption>({ tabParams: filteredTabs, display: "dialog" });
+    } = useTabs<FindObjectTabOption>({ id: "find-object-tabs", tabParams: filteredTabs, display: "dialog" });
 
     // Dialog for creating new object
     const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | null>(null);
@@ -182,24 +183,23 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>({ endpoint: findOneEndpoint });
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
-        console.log("fetching full data", findOneEndpoint, find); //TODO for popular, won't have findOneEndpoint. Need to try and infer from item. Ideally, should find nice way to do this for all items that don't have a findOneEndpoint (e.g. views)
+        const appendVersion = typeof versionId === "string" && !item.__typename.endsWith("Version");
+        const { findOneEndpoint } = searchTypeToParams[`${item.__typename}${appendVersion ? "Version" : ""}` as SearchType]!();
         if (!findOneEndpoint || find !== "Full") return false;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
         if (itemData && itemData.id === item.id && (!versionId || (itemData as any).versionId === versionId)) {
-            console.log("full data was already known!", itemData, item);
             onClose(itemData);
         } else {
-            console.log("fetching full data!", item);
             queryingRef.current = true;
             if (versionId) {
-                getItem({ id: versionId, idRoot: item.id });
+                getItem({ id: versionId }, { endpointOverride: findOneEndpoint });
             } else {
-                getItem({ id: item.id });
+                getItem({ id: item.id }, { endpointOverride: findOneEndpoint });
             }
         }
         // Return false so the list item does not navigate
         return false;
-    }, [find, findOneEndpoint, itemData, onClose, getItem]);
+    }, [find, itemData, onClose, getItem]);
 
     const onVersionSelect = useCallback((version: { id: string }) => {
         if (!selectedObject) return;
@@ -215,7 +215,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     useEffect(() => {
         if (!findOneEndpoint) return;
         if (itemData && find === "Full" && queryingRef.current) {
-            console.log("full data fetched! closing now...", itemData);
             onClose(itemData);
         }
         queryingRef.current = false;
@@ -260,7 +259,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         }
     }, [fetchFullData, find, onClose]);
 
-    const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() => {
+    const CreateView = useMemo<((props: CrudProps<any>) => JSX.Element) | null>(() => {
         if (!createObjectType) return null;
         return (createMap as any)[createObjectType.replace("Version", "")];
     }, [createObjectType]);
@@ -272,12 +271,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     return (
         <>
-            {/* Dialog for creating new object type */}
             {CreateView && <CreateView
+                display="dialog"
                 isCreate={true}
                 isOpen={createObjectType !== null}
-                onCompleted={handleCreated}
                 onCancel={handleCreateClose}
+                onClose={handleCreateClose}
+                onCompleted={handleCreated}
+                onDeleted={handleCreateClose}
                 overrideObject={{ __typename: createObjectType }}
             />}
             {/* Menu for selecting create object type */}
@@ -368,16 +369,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         </Stack>
                     )}
                 </Box>
-                <BottomActionsGrid display="dialog" sx={{ background: "transparent" }}>
-                    <SideActionsButtons display="dialog">
-                        <IconButton aria-label="filter-list" onClick={focusSearch} sx={{ background: palette.secondary.main }}>
-                            <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </IconButton>
-                        <IconButton aria-label="create-new" onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
-                            <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </IconButton>
-                    </SideActionsButtons>
-                </BottomActionsGrid>
+                <SideActionsButtons display="dialog">
+                    <IconButton aria-label="filter-list" onClick={focusSearch} sx={{ background: palette.secondary.main }}>
+                        <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </IconButton>
+                    <IconButton aria-label="create-new" onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
+                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </IconButton>
+                </SideActionsButtons>
             </LargeDialog>
         </>
     );

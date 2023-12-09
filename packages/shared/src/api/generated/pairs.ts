@@ -226,6 +226,18 @@ export const endpointGetChatInvites = {
     tag: "chatInvite",
 } as const;
 
+export const endpointPostChatInvites = {
+    endpoint: "/chatInvites",
+    method: "POST",
+    tag: "chatInvite",
+} as const;
+
+export const endpointPutChatInvites = {
+    endpoint: "/chatInvites",
+    method: "PUT",
+    tag: "chatInvite",
+} as const;
+
 export const endpointPostChatInvite = {
     endpoint: "/chatInvite",
     method: "POST",
@@ -258,6 +270,12 @@ export const endpointPutChatMessage = {
 
 export const endpointGetChatMessages = {
     endpoint: "/chatMessages",
+    method: "GET",
+    tag: "chatMessage",
+} as const;
+
+export const endpointGetChatMessageTree = {
+    endpoint: "/chatMessageTree",
     method: "GET",
     tag: "chatMessage",
 } as const;
@@ -478,6 +496,18 @@ export const endpointGetMeetingInvites = {
     tag: "meetingInvite",
 } as const;
 
+export const endpointPostMeetingInvites = {
+    endpoint: "/meetingInvites",
+    method: "POST",
+    tag: "meetingInvite",
+} as const;
+
+export const endpointPutMeetingInvites = {
+    endpoint: "/meetingInvites",
+    method: "PUT",
+    tag: "meetingInvite",
+} as const;
+
 export const endpointPostMeetingInvite = {
     endpoint: "/meetingInvite",
     method: "POST",
@@ -529,6 +559,18 @@ export const endpointPutMemberInvite = {
 export const endpointGetMemberInvites = {
     endpoint: "/memberInvites",
     method: "GET",
+    tag: "memberInvite",
+} as const;
+
+export const endpointPostMemberInvites = {
+    endpoint: "/memberInvites",
+    method: "POST",
+    tag: "memberInvite",
+} as const;
+
+export const endpointPutMemberInvites = {
+    endpoint: "/memberInvites",
+    method: "PUT",
     tag: "memberInvite",
 } as const;
 

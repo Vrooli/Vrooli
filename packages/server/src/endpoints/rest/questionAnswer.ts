@@ -1,5 +1,5 @@
 import { questionAnswer_accept, questionAnswer_create, questionAnswer_findMany, questionAnswer_findOne, questionAnswer_update } from "../generated";
-import { QuestionAnswerEndpoints } from "../logic";
+import { QuestionAnswerEndpoints } from "../logic/questionAnswer";
 import { setupRoutes } from "./base";
 
 export const QuestionAnswerRest = setupRoutes({

@@ -30,6 +30,7 @@ interface SettingsFormBaseProps {
     onCancel: () => unknown;
 }
 export interface SettingsAuthenticationFormProps extends FormikProps<ProfileEmailUpdateInput>, SettingsFormBaseProps { }
+export interface SettingsDataFormProps extends FormikProps<any>, SettingsFormBaseProps { } //TODO
 export interface SettingsDisplayFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }
 export interface SettingsNotificationFormProps extends FormikProps<NotificationSettingsUpdateInput>, SettingsFormBaseProps { }
 export interface SettingsPrivacyFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }

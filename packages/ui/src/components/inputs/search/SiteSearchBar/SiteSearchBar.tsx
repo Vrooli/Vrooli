@@ -151,7 +151,7 @@ export function SiteSearchBar({
     // Highlighted option (if navigated with keyboard)
     const [highlightedOption, setHighlightedOption] = useState<AutocompleteOption | null>(null);
 
-    const onChangeDebounced = useDebounce(onChange, debounce);
+    const [onChangeDebounced] = useDebounce(onChange, debounce);
     useEffect(() => setInternalValue(value), [value]);
     const handleChange = useCallback((value: string) => {
         // Update state

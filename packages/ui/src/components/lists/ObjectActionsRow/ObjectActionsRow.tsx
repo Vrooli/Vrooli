@@ -4,6 +4,7 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { SessionContext } from "contexts/SessionContext";
 import { EllipsisIcon } from "icons";
 import React, { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getActionsDisplayData, getAvailableActions, ObjectAction } from "utils/actions/objectActions";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -32,6 +33,7 @@ export const ObjectActionsRow = <T extends ListObject>({
 }: ObjectActionsRowProps<T>) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const { actionsDisplayed, actionsExtra } = useMemo(() => {
         const availableActions = getAvailableActions(object, session, exclude);
@@ -65,9 +67,9 @@ export const ObjectActionsRow = <T extends ListObject>({
     const actions = useMemo(() => {
         const displayData = getActionsDisplayData(actionsDisplayed);
         const displayedActions = displayData.map((action, index) => {
-            const { Icon, iconColor, label, value } = action;
+            const { Icon, iconColor, labelKey, value } = action;
             if (!Icon) return null;
-            return <Tooltip title={label} key={index}>
+            return <Tooltip title={labelKey && t(labelKey)} key={index}>
                 <IconButton sx={commonButtonSx(palette)} onClick={() => { actionData.onActionStart(value); }}>
                     <Icon {...commonIconProps(palette)} fill={iconColor === "default" ? palette.secondary.main : iconColor} />
                 </IconButton>
@@ -84,7 +86,7 @@ export const ObjectActionsRow = <T extends ListObject>({
             );
         }
         return displayedActions;
-    }, [actionData, actionsDisplayed, actionsExtra.length, openOverflowMenu, palette]);
+    }, [actionData, actionsDisplayed, actionsExtra.length, openOverflowMenu, palette, t]);
 
     return (
         <Stack

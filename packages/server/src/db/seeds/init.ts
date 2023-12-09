@@ -4,7 +4,7 @@
  */
 import { InputType, uuid, VALYXA_ID } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { hashPassword } from "../../auth";
+import { hashPassword } from "../../auth/email";
 import { logger } from "../../events/logger";
 import { PrismaType } from "../../types";
 
@@ -20,23 +20,6 @@ export async function init(prisma: PrismaType) {
     }
 
     const EN = "en";
-
-    // TODO temporary
-    // Delete CIP-0025 standards
-    await prisma.standard.deleteMany({
-        where: {
-            createdById: "3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2",
-            versions: {
-                some: {
-                    translations: {
-                        some: {
-                            name: "CIP-0025 - NFT Metadata Standard",
-                        },
-                    },
-                },
-            },
-        },
-    });
 
     //==============================================================
     /* #endregion Initialization */
@@ -350,11 +333,13 @@ export async function init(prisma: PrismaType) {
                         enabledAt: new Date(),
                         expiresAt: new Date("2069-04-20"),
                         isActive: true,
+                        credits: 1_000_000,
                     },
                     update: {
                         enabledAt: new Date(),
                         expiresAt: new Date("2069-04-20"),
                         isActive: true,
+                        credits: 1_000_000,
                     },
                 },
             },
@@ -404,6 +389,7 @@ export async function init(prisma: PrismaType) {
                     enabledAt: new Date(),
                     expiresAt: new Date("2069-04-20"),
                     isActive: true,
+                    credits: 1_000_000,
                 },
             },
         },
@@ -538,9 +524,9 @@ export async function init(prisma: PrismaType) {
                                 {
                                     usedFor: "Social",
                                     index: 1,
-                                    link: "https://twitter.com/VrooliOfficial",
+                                    link: "https://x.com/VrooliOfficial",
                                     translations: {
-                                        create: [{ language: EN, name: "Twitter", description: "Follow us on Twitter" }],
+                                        create: [{ language: EN, name: "X", description: "Follow us on X" }],
                                     },
                                 },
                                 {

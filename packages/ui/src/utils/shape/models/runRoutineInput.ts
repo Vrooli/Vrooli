@@ -1,11 +1,11 @@
-import { RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { RoutineVersionInput, RunRoutine, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@local/shared";
+import { CanConnect, ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type RunRoutineInputShape = Pick<RunRoutineInput, "id" | "data"> & {
-    __typename?: "RunRoutineInput";
-    input: { id: string };
-    runRoutine: { id: string };
+    __typename: "RunRoutineInput";
+    input: CanConnect<RoutineVersionInput>;
+    runRoutine: CanConnect<RunRoutine>;
 }
 
 export const shapeRunRoutineInput: ShapeModel<RunRoutineInputShape, RunRoutineInputCreateInput, RunRoutineInputUpdateInput> = {

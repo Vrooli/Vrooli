@@ -1,5 +1,5 @@
 import { reputationHistory_findMany, reputationHistory_findOne } from "../generated";
-import { ReputationHistoryEndpoints } from "../logic";
+import { ReputationHistoryEndpoints } from "../logic/reputationHistory";
 import { setupRoutes } from "./base";
 
 export const ReputationHistoryRest = setupRoutes({

@@ -17,14 +17,13 @@ import { SessionContext } from "contexts/SessionContext";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTabs } from "hooks/useTabs";
-import { EditIcon, EllipsisIcon, OrganizationIcon, SearchIcon } from "icons";
+import { EditIcon, EllipsisIcon, ExportIcon, OrganizationIcon, SearchIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
@@ -32,14 +31,13 @@ import { OrganizationPageTabOption, organizationTabParams } from "utils/search/o
 import { OrganizationViewProps } from "../types";
 
 export const OrganizationView = ({
-    isOpen,
+    display,
     onClose,
 }: OrganizationViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
@@ -90,7 +88,7 @@ export const OrganizationView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<OrganizationPageTabOption>({ tabParams: organizationTabParams, display });
+    } = useTabs<OrganizationPageTabOption>({ id: "organization-tabs", tabParams: organizationTabParams, display });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -199,11 +197,6 @@ export const OrganizationView = ({
                         ) : <Title
                             title={name}
                             variant="header"
-                            options={permissions.canUpdate ? [{
-                                label: t("Edit"),
-                                Icon: EditIcon,
-                                onClick: () => { actionData.onActionStart("Edit"); },
-                            }] : []}
                             sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
                         />
                     }
@@ -215,7 +208,7 @@ export const OrganizationView = ({
                             fontFamily="monospace"
                             onClick={() => {
                                 navigator.clipboard.writeText(`${window.location.origin}${LINKS.Organization}/${handle}`);
-                                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                                PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
                             }}
                             sx={{
                                 color: palette.secondary.dark,
@@ -290,14 +283,17 @@ export const OrganizationView = ({
                     }
                 </Box>
             </Box>
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {/* Toggle search filters */}
                 {currTab.tabType !== OrganizationPageTabOption.Resource ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton> : null}
+                {permissions.canUpdate ? <IconButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }} sx={{ background: palette.secondary.main }}>
+                    <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton> : null}
+                <IconButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }} sx={{ background: palette.secondary.main, width: "52px", height: "52px" }}>
+                    <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
+                </IconButton>
             </SideActionsButtons>
         </>
     );

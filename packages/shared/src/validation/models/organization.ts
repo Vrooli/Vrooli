@@ -5,18 +5,18 @@ import { roleValidation } from "./role";
 import { tagValidation } from "./tag";
 
 export const organizationTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         bio: opt(bio),
         name: req(name),
-    },
-    update: {
+    }),
+    update: () => ({
         bio: opt(bio),
         name: opt(name),
-    },
+    }),
 });
 
 export const organizationValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         bannerImage: opt(imageFile),
         handle: opt(handle),
@@ -29,8 +29,8 @@ export const organizationValidation: YupModel = {
         ["roles", ["Create"], "many", "opt", roleValidation],
         ["memberInvites", ["Create"], "many", "opt", memberInviteValidation],
         ["translations", ["Create"], "many", "opt", organizationTranslationValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         bannerImage: opt(imageFile),
         handle: opt(handle),
@@ -43,5 +43,5 @@ export const organizationValidation: YupModel = {
         ["roles", ["Create", "Update", "Delete"], "many", "opt", roleValidation],
         ["memberInvites", ["Create", "Delete"], "many", "opt", memberInviteValidation],
         ["members", ["Delete"], "many", "opt"],
-    ], [], o),
+    ], [], d),
 };

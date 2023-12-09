@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { ApiVersion, Bookmark, ChatParticipant, handleRegex, isOfType, LINKS, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, View, walletAddressRegex } from "@local/shared";
+import { ApiVersion, Bookmark, ChatParticipant, handleRegex, isOfType, LINKS, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, urlRegexDev, View, walletAddressRegex } from "@local/shared";
 import { SetLocation, stringifySearchParams } from "route";
 import { CalendarEvent, CalendarEventOption, NavigableObject, ShortcutOption } from "types";
 import { ResourceType } from "utils/consts";
@@ -12,9 +12,11 @@ import { uuidToBase36 } from "./urlTools";
 export type ObjectType = "Api" |
     "Bookmark" |
     "Chat" |
+    "ChatInvite" |
     "Comment" |
     "FocusMode" |
     "Meeting" |
+    "MemberInvite" |
     "Note" |
     "Organization" |
     "Project" |
@@ -36,7 +38,6 @@ export type ObjectType = "Api" |
  * @returns Search URL base for object type
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string => {
-    console.log('GETTING OBJECT URL BASE', object)
     // If object is a user, use 'Profile'
     if (isOfType(object, "User")) return LINKS.Profile;
     // If object is a star/vote/some other type that links to a main object, use the "to" property
@@ -162,7 +163,7 @@ export const openObjectReport = (object: NavigableObject, setLocation: SetLocati
  * @returns ResourceType if type found, or null if not
  */
 export const getResourceType = (link: string): ResourceType | null => {
-    if (urlRegex.test(link)) return ResourceType.Url;
+    if (urlRegex.test(link) || urlRegexDev.test(link)) return ResourceType.Url;
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
     if (handleRegex.test(link)) return ResourceType.Handle;
     return null;

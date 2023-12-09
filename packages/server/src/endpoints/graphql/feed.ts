@@ -1,6 +1,6 @@
 import { PopularObjectType, PopularSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsFeed, FeedEndpoints } from "../logic";
+import { EndpointsFeed, FeedEndpoints } from "../logic/feed";
 
 export const typeDef = gql`
     enum PopularSortBy {
@@ -63,17 +63,15 @@ export const typeDef = gql`
         cursor: String!
         node: Popular!
     }
-
     input HomeInput {
-        searchString: String!
-        take: Int
+        activeFocusModeId: ID # Updates active focus mode when provided
     }
 
     type HomeResult {
-        notes: [Note!]!
-        reminders: [Reminder!]!
+        recommended: [Resource!]! # Not real resources (i.e. pulled from a feed instead of queried from database), but mimics the Resource shape
+        reminders: [Reminder!]! # Should only show reminders for the current focus mode which are almost due or overdue
         resources: [Resource!]!
-        schedules: [Schedule!]!
+        schedules: [Schedule!]! # Should only show schedules with upcoming or current events
     }
 
     type Query {

@@ -52,7 +52,7 @@ export const BaseGeneratedForm = ({
     const formik = useFormik({
         initialValues,
         validationSchema,
-        onSubmit: (values) => onSubmit(values),
+        onSubmit: (values) => { onSubmit(values); },
     });
 
     return (

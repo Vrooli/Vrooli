@@ -1,10 +1,13 @@
-import { Api, ApiCreateInput, ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, ApiYou, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, Comment, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, CommentYou, Email, EmailCreateInput, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, MemberSearchInput, MemberSortBy, MemberUpdateInput, Node, NodeCreateInput, NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeUpdateInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, NoteYou, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, Premium, ProfileUpdateInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, ProjectYou, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, QuizQuestionYou, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou, Reaction, ReactionSearchInput, ReactionSortBy, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou, RoutineYou, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunProjectYou, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, RunRoutineYou, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, SmartContractYou, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, StandardYou, StatsApi, StatsApiSearchInput, StatsApiSortBy, StatsOrganization, StatsOrganizationSearchInput, StatsOrganizationSortBy, StatsProject, StatsProjectSearchInput, StatsProjectSortBy, StatsQuiz, StatsQuizSearchInput, StatsQuizSortBy, StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy, StatsStandard, StatsStandardSearchInput, StatsStandardSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Transfer, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, User, UserSearchInput, UserSortBy, UserYou, VersionYou, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
+import { Api, ApiCreateInput, ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, ApiYou, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, Comment, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, CommentYou, Email, EmailCreateInput, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, MemberSearchInput, MemberSortBy, MemberUpdateInput, Node, NodeCreateInput, NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeUpdateInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, NoteYou, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, Premium, ProfileUpdateInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, ProjectYou, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, QuizQuestionYou, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou, ReactInput, Reaction, ReactionSearchInput, ReactionSortBy, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou, RoutineYou, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunProjectYou, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, RunRoutineYou, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, SmartContractYou, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, StandardYou, StatsApi, StatsApiSearchInput, StatsApiSortBy, StatsOrganization, StatsOrganizationSearchInput, StatsOrganizationSortBy, StatsProject, StatsProjectSearchInput, StatsProjectSortBy, StatsQuiz, StatsQuizSearchInput, StatsQuizSortBy, StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy, StatsStandard, StatsStandardSearchInput, StatsStandardSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Transfer, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, User, UserSearchInput, UserSortBy, UserYou, VersionYou, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Resource } from "i18next";
 import { SelectWrap } from "../../builders/types";
+import { SuppFields } from "../suppFields";
+import { ModelLogic } from "../types";
 
 export type ApiPermissions = Pick<ApiYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
-export type ApiModelLogic = {
+export type ApiModelInfo = {
+    __typename: "Api",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: ApiCreateInput,
@@ -19,8 +22,10 @@ export type ApiModelLogic = {
     PrismaSelect: Prisma.apiSelect,
     PrismaWhere: Prisma.apiWhereInput,
 }
+export type ApiModelLogic = ModelLogic<ApiModelInfo, typeof SuppFields.Api>;
 
-export type ApiKeyModelLogic = {
+export type ApiKeyModelInfo = {
+    __typename: "ApiKey",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ApiKeyCreateInput,
@@ -35,9 +40,11 @@ export type ApiKeyModelLogic = {
     PrismaSelect: Prisma.api_keySelect,
     PrismaWhere: Prisma.api_keyWhereInput,
 }
+export type ApiKeyModelLogic = ModelLogic<ApiKeyModelInfo, typeof SuppFields.ApiKey>;
 
 export type ApiVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
-export type ApiVersionModelLogic = {
+export type ApiVersionModelInfo = {
+    __typename: "ApiVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ApiVersionCreateInput,
@@ -52,8 +59,10 @@ export type ApiVersionModelLogic = {
     PrismaSelect: Prisma.api_versionSelect,
     PrismaWhere: Prisma.api_versionWhereInput,
 }
+export type ApiVersionModelLogic = ModelLogic<ApiVersionModelInfo, typeof SuppFields.ApiVersion>;
 
-export type AwardModelLogic = {
+export type AwardModelInfo = {
+    __typename: "Award",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -68,8 +77,10 @@ export type AwardModelLogic = {
     PrismaSelect: Prisma.awardSelect,
     PrismaWhere: Prisma.awardWhereInput,
 }
+export type AwardModelLogic = ModelLogic<AwardModelInfo, typeof SuppFields.Award>;
 
-export type BookmarkModelLogic = {
+export type BookmarkModelInfo = {
+    __typename: "Bookmark",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: BookmarkCreateInput,
@@ -84,8 +95,10 @@ export type BookmarkModelLogic = {
     PrismaSelect: Prisma.bookmarkSelect,
     PrismaWhere: Prisma.bookmarkWhereInput,
 }
+export type BookmarkModelLogic = ModelLogic<BookmarkModelInfo, typeof SuppFields.Bookmark>;
 
-export type BookmarkListModelLogic = {
+export type BookmarkListModelInfo = {
+    __typename: "BookmarkList",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: BookmarkListCreateInput,
@@ -100,9 +113,11 @@ export type BookmarkListModelLogic = {
     PrismaSelect: Prisma.bookmark_listSelect,
     PrismaWhere: Prisma.bookmark_listWhereInput,
 }
+export type BookmarkListModelLogic = ModelLogic<BookmarkListModelInfo, typeof SuppFields.BookmarkList>;
 
 export type ChatPermissions = Pick<ChatYou, "canDelete" | "canInvite" | "canUpdate">;
-export type ChatModelLogic = {
+export type ChatModelInfo = {
+    __typename: "Chat",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ChatCreateInput,
@@ -117,9 +132,11 @@ export type ChatModelLogic = {
     PrismaSelect: Prisma.chatSelect,
     PrismaWhere: Prisma.chatWhereInput,
 }
+export type ChatModelLogic = ModelLogic<ChatModelInfo, typeof SuppFields.Chat>;
 
 export type ChatInvitePermissions = Pick<ChatInviteYou, "canDelete" | "canUpdate">;
-export type ChatInviteModelLogic = {
+export type ChatInviteModelInfo = {
+    __typename: "ChatInvite",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ChatInviteCreateInput,
@@ -134,9 +151,11 @@ export type ChatInviteModelLogic = {
     PrismaSelect: Prisma.chat_inviteSelect,
     PrismaWhere: Prisma.chat_inviteWhereInput,
 }
+export type ChatInviteModelLogic = ModelLogic<ChatInviteModelInfo, typeof SuppFields.ChatInvite>;
 
 export type ChatMessagePermissions = Pick<ChatMessageYou, "canDelete" | "canUpdate" | "canReply" | "canReport" | "canReact">;
-export type ChatMessageModelLogic = {
+export type ChatMessageModelInfo = {
+    __typename: "ChatMessage",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ChatMessageCreateInput,
@@ -151,8 +170,10 @@ export type ChatMessageModelLogic = {
     PrismaSelect: Prisma.chat_messageSelect,
     PrismaWhere: Prisma.chat_messageWhereInput,
 }
+export type ChatMessageModelLogic = ModelLogic<ChatMessageModelInfo, typeof SuppFields.ChatMessage>;
 
-export type ChatParticipantModelLogic = {
+export type ChatParticipantModelInfo = {
+    __typename: "ChatParticipant",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -167,9 +188,11 @@ export type ChatParticipantModelLogic = {
     PrismaSelect: Prisma.chat_participantsSelect,
     PrismaWhere: Prisma.chat_participantsWhereInput,
 }
+export type ChatParticipantModelLogic = ModelLogic<ChatParticipantModelInfo, typeof SuppFields.ChatParticipant>;
 
 export type CommentPermissions = Pick<CommentYou, "canDelete" | "canUpdate" | "canBookmark" | "canReply" | "canReport" | "canReact">;
-export type CommentModelLogic = {
+export type CommentModelInfo = {
+    __typename: "Comment",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: CommentCreateInput,
@@ -184,8 +207,10 @@ export type CommentModelLogic = {
     PrismaSelect: Prisma.commentSelect,
     PrismaWhere: Prisma.commentWhereInput,
 }
+export type CommentModelLogic = ModelLogic<CommentModelInfo, typeof SuppFields.Comment>;
 
-export type EmailModelLogic = {
+export type EmailModelInfo = {
+    __typename: "Email",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: EmailCreateInput,
@@ -200,8 +225,10 @@ export type EmailModelLogic = {
     PrismaSelect: Prisma.emailSelect,
     PrismaWhere: Prisma.emailWhereInput,
 }
+export type EmailModelLogic = ModelLogic<EmailModelInfo, typeof SuppFields.Email>;
 
-export type FocusModeModelLogic = {
+export type FocusModeModelInfo = {
+    __typename: "FocusMode",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: FocusModeCreateInput,
@@ -216,8 +243,10 @@ export type FocusModeModelLogic = {
     PrismaSelect: Prisma.focus_modeSelect,
     PrismaWhere: Prisma.focus_modeWhereInput,
 }
+export type FocusModeModelLogic = ModelLogic<FocusModeModelInfo, typeof SuppFields.FocusMode>;
 
-export type FocusModeFilterModelLogic = {
+export type FocusModeFilterModelInfo = {
+    __typename: "FocusModeFilter",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: FocusModeFilterCreateInput,
@@ -232,9 +261,11 @@ export type FocusModeFilterModelLogic = {
     PrismaSelect: Prisma.focus_mode_filterSelect,
     PrismaWhere: Prisma.focus_mode_filterWhereInput,
 }
+export type FocusModeFilterModelLogic = ModelLogic<FocusModeFilterModelInfo, typeof SuppFields.FocusModeFilter>;
 
 export type IssuePermissions = Pick<IssueYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canReport" | "canRead" | "canReact">;
-export type IssueModelLogic = {
+export type IssueModelInfo = {
+    __typename: "Issue",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: IssueCreateInput,
@@ -249,9 +280,11 @@ export type IssueModelLogic = {
     PrismaSelect: Prisma.issueSelect,
     PrismaWhere: Prisma.issueWhereInput,
 }
+export type IssueModelLogic = ModelLogic<IssueModelInfo, typeof SuppFields.Issue>;
 
 export type LabelPermissions = Pick<LabelYou, "canDelete" | "canUpdate">;
-export type LabelModelLogic = {
+export type LabelModelInfo = {
+    __typename: "Label",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: LabelCreateInput,
@@ -266,9 +299,11 @@ export type LabelModelLogic = {
     PrismaSelect: Prisma.labelSelect,
     PrismaWhere: Prisma.labelWhereInput,
 }
+export type LabelModelLogic = ModelLogic<LabelModelInfo, typeof SuppFields.Label>;
 
 export type MeetingPermissions = Pick<MeetingYou, "canDelete" | "canInvite" | "canUpdate">;
-export type MeetingModelLogic = {
+export type MeetingModelInfo = {
+    __typename: "Meeting",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: MeetingCreateInput,
@@ -283,9 +318,11 @@ export type MeetingModelLogic = {
     PrismaSelect: Prisma.meetingSelect,
     PrismaWhere: Prisma.meetingWhereInput,
 }
+export type MeetingModelLogic = ModelLogic<MeetingModelInfo, typeof SuppFields.Meeting>;
 
 export type MeetingInvitePermissions = Pick<MeetingInviteYou, "canDelete" | "canUpdate">;
-export type MeetingInviteModelLogic = {
+export type MeetingInviteModelInfo = {
+    __typename: "MeetingInvite",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: MeetingInviteCreateInput,
@@ -300,8 +337,10 @@ export type MeetingInviteModelLogic = {
     PrismaSelect: Prisma.meeting_inviteSelect,
     PrismaWhere: Prisma.meeting_inviteWhereInput,
 }
+export type MeetingInviteModelLogic = ModelLogic<MeetingInviteModelInfo, typeof SuppFields.MeetingInvite>;
 
-export type MemberModelLogic = {
+export type MemberModelInfo = {
+    __typename: "Member",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -316,9 +355,11 @@ export type MemberModelLogic = {
     PrismaSelect: Prisma.memberSelect,
     PrismaWhere: Prisma.memberWhereInput,
 }
+export type MemberModelLogic = ModelLogic<MemberModelInfo, typeof SuppFields.Member>;
 
 export type MemberInvitePermissions = Pick<MemberInviteYou, "canDelete" | "canUpdate">;
-export type MemberInviteModelLogic = {
+export type MemberInviteModelInfo = {
+    __typename: "MemberInvite",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: MemberInviteCreateInput,
@@ -333,8 +374,10 @@ export type MemberInviteModelLogic = {
     PrismaSelect: Prisma.member_inviteSelect,
     PrismaWhere: Prisma.member_inviteWhereInput,
 }
+export type MemberInviteModelLogic = ModelLogic<MemberInviteModelInfo, typeof SuppFields.MemberInvite>;
 
-export type NodeModelLogic = {
+export type NodeModelInfo = {
+    __typename: "Node",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeCreateInput,
@@ -349,8 +392,10 @@ export type NodeModelLogic = {
     PrismaSelect: Prisma.nodeSelect,
     PrismaWhere: Prisma.nodeWhereInput,
 }
+export type NodeModelLogic = ModelLogic<NodeModelInfo, typeof SuppFields.Node>;
 
-export type NodeEndModelLogic = {
+export type NodeEndModelInfo = {
+    __typename: "NodeEnd",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeEndCreateInput,
@@ -365,8 +410,10 @@ export type NodeEndModelLogic = {
     PrismaSelect: Prisma.node_endSelect,
     PrismaWhere: Prisma.node_endWhereInput,
 }
+export type NodeEndModelLogic = ModelLogic<NodeEndModelInfo, typeof SuppFields.NodeEnd>;
 
-export type NodeLinkModelLogic = {
+export type NodeLinkModelInfo = {
+    __typename: "NodeLink",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeLinkCreateInput,
@@ -381,8 +428,10 @@ export type NodeLinkModelLogic = {
     PrismaSelect: Prisma.node_linkSelect,
     PrismaWhere: Prisma.node_linkWhereInput,
 }
+export type NodeLinkModelLogic = ModelLogic<NodeLinkModelInfo, typeof SuppFields.NodeLink>;
 
-export type NodeLinkWhenModelLogic = {
+export type NodeLinkWhenModelInfo = {
+    __typename: "NodeLinkWhen",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeLinkWhenCreateInput,
@@ -397,8 +446,10 @@ export type NodeLinkWhenModelLogic = {
     PrismaSelect: Prisma.node_link_whenSelect,
     PrismaWhere: Prisma.node_link_whenWhereInput,
 }
+export type NodeLinkWhenModelLogic = ModelLogic<NodeLinkWhenModelInfo, typeof SuppFields.NodeLinkWhen>;
 
-export type NodeLoopModelLogic = {
+export type NodeLoopModelInfo = {
+    __typename: "NodeLoop",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeLoopCreateInput,
@@ -413,8 +464,10 @@ export type NodeLoopModelLogic = {
     PrismaSelect: Prisma.node_loopSelect,
     PrismaWhere: Prisma.node_loopWhereInput,
 }
+export type NodeLoopModelLogic = ModelLogic<NodeLoopModelInfo, typeof SuppFields.NodeLoop>;
 
-export type NodeLoopWhileModelLogic = {
+export type NodeLoopWhileModelInfo = {
+    __typename: "NodeLoopWhile",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeLoopWhileCreateInput,
@@ -429,8 +482,10 @@ export type NodeLoopWhileModelLogic = {
     PrismaSelect: Prisma.node_loop_whileSelect,
     PrismaWhere: Prisma.node_loop_whileWhereInput,
 }
+export type NodeLoopWhileModelLogic = ModelLogic<NodeLoopWhileModelInfo, typeof SuppFields.NodeLoopWhile>;
 
-export type NodeRoutineListModelLogic = {
+export type NodeRoutineListModelInfo = {
+    __typename: "NodeRoutineList",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeRoutineListCreateInput,
@@ -445,8 +500,10 @@ export type NodeRoutineListModelLogic = {
     PrismaSelect: Prisma.node_routine_listSelect,
     PrismaWhere: Prisma.node_routine_listWhereInput,
 }
+export type NodeRoutineListModelLogic = ModelLogic<NodeRoutineListModelInfo, typeof SuppFields.NodeRoutineList>;
 
-export type NodeRoutineListItemModelLogic = {
+export type NodeRoutineListItemModelInfo = {
+    __typename: "NodeRoutineListItem",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeRoutineListItemCreateInput,
@@ -461,9 +518,11 @@ export type NodeRoutineListItemModelLogic = {
     PrismaSelect: Prisma.node_routine_list_itemSelect,
     PrismaWhere: Prisma.node_routine_list_itemWhereInput,
 }
+export type NodeRoutineListItemModelLogic = ModelLogic<NodeRoutineListItemModelInfo, typeof SuppFields.NodeRoutineListItem>;
 
 export type NotePermissions = Pick<NoteYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
-export type NoteModelLogic = {
+export type NoteModelInfo = {
+    __typename: "Note",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: NoteCreateInput,
@@ -478,9 +537,11 @@ export type NoteModelLogic = {
     PrismaSelect: Prisma.noteSelect,
     PrismaWhere: Prisma.noteWhereInput,
 }
+export type NoteModelLogic = ModelLogic<NoteModelInfo, typeof SuppFields.Note>;
 
 export type NoteVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
-export type NoteVersionModelLogic = {
+export type NoteVersionModelInfo = {
+    __typename: "NoteVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NoteVersionCreateInput,
@@ -495,8 +556,10 @@ export type NoteVersionModelLogic = {
     PrismaSelect: Prisma.note_versionSelect,
     PrismaWhere: Prisma.note_versionWhereInput,
 }
+export type NoteVersionModelLogic = ModelLogic<NoteVersionModelInfo, typeof SuppFields.NoteVersion>;
 
-export type NotificationModelLogic = {
+export type NotificationModelInfo = {
+    __typename: "Notification",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -511,8 +574,10 @@ export type NotificationModelLogic = {
     PrismaSelect: Prisma.notificationSelect,
     PrismaWhere: Prisma.notificationWhereInput,
 }
+export type NotificationModelLogic = ModelLogic<NotificationModelInfo, typeof SuppFields.Notification>;
 
-export type NotificationSubscriptionModelLogic = {
+export type NotificationSubscriptionModelInfo = {
+    __typename: "NotificationSubscription",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NotificationSubscriptionCreateInput,
@@ -527,9 +592,11 @@ export type NotificationSubscriptionModelLogic = {
     PrismaSelect: Prisma.notification_subscriptionSelect,
     PrismaWhere: Prisma.notification_subscriptionWhereInput,
 }
+export type NotificationSubscriptionModelLogic = ModelLogic<NotificationSubscriptionModelInfo, typeof SuppFields.NotificationSubscription>;
 
 export type OrganizationPermissions = Pick<OrganizationYou, "canAddMembers" | "canDelete" | "canUpdate" | "canBookmark" | "canRead">;
-export type OrganizationModelLogic = {
+export type OrganizationModelInfo = {
+    __typename: "Organization",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: OrganizationCreateInput,
@@ -544,8 +611,10 @@ export type OrganizationModelLogic = {
     PrismaSelect: Prisma.organizationSelect,
     PrismaWhere: Prisma.organizationWhereInput,
 }
+export type OrganizationModelLogic = ModelLogic<OrganizationModelInfo, typeof SuppFields.Organization>;
 
-export type PaymentModelLogic = {
+export type PaymentModelInfo = {
+    __typename: "Payment",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -560,8 +629,10 @@ export type PaymentModelLogic = {
     PrismaSelect: Prisma.paymentSelect,
     PrismaWhere: Prisma.paymentWhereInput,
 }
+export type PaymentModelLogic = ModelLogic<PaymentModelInfo, typeof SuppFields.Payment>;
 
-export type PhoneModelLogic = {
+export type PhoneModelInfo = {
+    __typename: "Phone",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: PhoneCreateInput,
@@ -576,8 +647,10 @@ export type PhoneModelLogic = {
     PrismaSelect: Prisma.phoneSelect,
     PrismaWhere: Prisma.phoneWhereInput,
 }
+export type PhoneModelLogic = ModelLogic<PhoneModelInfo, typeof SuppFields.Phone>;
 
-export type PostModelLogic = {
+export type PostModelInfo = {
+    __typename: "Post",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: PostCreateInput,
@@ -592,8 +665,10 @@ export type PostModelLogic = {
     PrismaSelect: Prisma.postSelect,
     PrismaWhere: Prisma.postWhereInput,
 }
+export type PostModelLogic = ModelLogic<PostModelInfo, typeof SuppFields.Post>;
 
-export type PremiumModelLogic = {
+export type PremiumModelInfo = {
+    __typename: "Premium",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -608,9 +683,11 @@ export type PremiumModelLogic = {
     PrismaSelect: Prisma.premiumSelect,
     PrismaWhere: Prisma.premiumWhereInput,
 }
+export type PremiumModelLogic = ModelLogic<PremiumModelInfo, typeof SuppFields.Premium>;
 
 export type ProjectPermissions = Pick<ProjectYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
-export type ProjectModelLogic = {
+export type ProjectModelInfo = {
+    __typename: "Project",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: ProjectCreateInput,
@@ -625,9 +702,11 @@ export type ProjectModelLogic = {
     PrismaSelect: Prisma.projectSelect,
     PrismaWhere: Prisma.projectWhereInput,
 }
+export type ProjectModelLogic = ModelLogic<ProjectModelInfo, typeof SuppFields.Project>;
 
 export type ProjectVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
-export type ProjectVersionModelLogic = {
+export type ProjectVersionModelInfo = {
+    __typename: "ProjectVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ProjectVersionCreateInput,
@@ -642,8 +721,10 @@ export type ProjectVersionModelLogic = {
     PrismaSelect: Prisma.project_versionSelect,
     PrismaWhere: Prisma.project_versionWhereInput,
 }
+export type ProjectVersionModelLogic = ModelLogic<ProjectVersionModelInfo, typeof SuppFields.ProjectVersion>;
 
-export type ProjectVersionDirectoryModelLogic = {
+export type ProjectVersionDirectoryModelInfo = {
+    __typename: "ProjectVersionDirectory",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ProjectVersionDirectoryCreateInput,
@@ -658,9 +739,11 @@ export type ProjectVersionDirectoryModelLogic = {
     PrismaSelect: Prisma.project_version_directorySelect,
     PrismaWhere: Prisma.project_version_directoryWhereInput,
 }
+export type ProjectVersionDirectoryModelLogic = ModelLogic<ProjectVersionDirectoryModelInfo, typeof SuppFields.ProjectVersionDirectory>;
 
 export type PullRequestPermissions = Pick<PullRequestYou, "canComment" | "canDelete" | "canUpdate" | "canReport">;
-export type PullRequestModelLogic = {
+export type PullRequestModelInfo = {
+    __typename: "PullRequest",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: PullRequestCreateInput,
@@ -675,8 +758,10 @@ export type PullRequestModelLogic = {
     PrismaSelect: Prisma.pull_requestSelect,
     PrismaWhere: Prisma.pull_requestWhereInput,
 }
+export type PullRequestModelLogic = ModelLogic<PullRequestModelInfo, typeof SuppFields.PullRequest>;
 
-export type PushDeviceModelLogic = {
+export type PushDeviceModelInfo = {
+    __typename: "PushDevice",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: PushDeviceCreateInput,
@@ -691,9 +776,11 @@ export type PushDeviceModelLogic = {
     PrismaSelect: Prisma.push_deviceSelect,
     PrismaWhere: Prisma.push_deviceWhereInput,
 }
+export type PushDeviceModelLogic = ModelLogic<PushDeviceModelInfo, typeof SuppFields.PushDevice>;
 
 export type QuestionPermissions = Pick<QuestionYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
-export type QuestionModelLogic = {
+export type QuestionModelInfo = {
+    __typename: "Question",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuestionCreateInput,
@@ -708,8 +795,10 @@ export type QuestionModelLogic = {
     PrismaSelect: Prisma.questionSelect,
     PrismaWhere: Prisma.questionWhereInput,
 }
+export type QuestionModelLogic = ModelLogic<QuestionModelInfo, typeof SuppFields.Question>;
 
-export type QuestionAnswerModelLogic = {
+export type QuestionAnswerModelInfo = {
+    __typename: "QuestionAnswer",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuestionAnswerCreateInput,
@@ -724,9 +813,11 @@ export type QuestionAnswerModelLogic = {
     PrismaSelect: Prisma.question_answerSelect,
     PrismaWhere: Prisma.question_answerWhereInput,
 }
+export type QuestionAnswerModelLogic = ModelLogic<QuestionAnswerModelInfo, typeof SuppFields.QuestionAnswer>;
 
 export type QuizPermissions = Pick<QuizYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
-export type QuizModelLogic = {
+export type QuizModelInfo = {
+    __typename: "Quiz",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizCreateInput,
@@ -741,9 +832,11 @@ export type QuizModelLogic = {
     PrismaSelect: Prisma.quizSelect,
     PrismaWhere: Prisma.quizWhereInput,
 }
+export type QuizModelLogic = ModelLogic<QuizModelInfo, typeof SuppFields.Quiz>;
 
 export type QuizAttemptPermissions = Pick<QuizAttemptYou, "canDelete" | "canUpdate">;
-export type QuizAttemptModelLogic = {
+export type QuizAttemptModelInfo = {
+    __typename: "QuizAttempt",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizAttemptCreateInput,
@@ -758,9 +851,11 @@ export type QuizAttemptModelLogic = {
     PrismaSelect: Prisma.quiz_attemptSelect,
     PrismaWhere: Prisma.quiz_attemptWhereInput,
 }
+export type QuizAttemptModelLogic = ModelLogic<QuizAttemptModelInfo, typeof SuppFields.QuizAttempt>;
 
 export type QuizQuestionPermissions = Pick<QuizQuestionYou, "canDelete" | "canUpdate">;
-export type QuizQuestionModelLogic = {
+export type QuizQuestionModelInfo = {
+    __typename: "QuizQuestion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizQuestionCreateInput,
@@ -775,9 +870,11 @@ export type QuizQuestionModelLogic = {
     PrismaSelect: Prisma.quiz_questionSelect,
     PrismaWhere: Prisma.quiz_questionWhereInput,
 }
+export type QuizQuestionModelLogic = ModelLogic<QuizQuestionModelInfo, typeof SuppFields.QuizQuestion>;
 
 type QuizQuestionResponsePermissions = Pick<QuizQuestionResponseYou, "canDelete" | "canUpdate">;
-export type QuizQuestionResponseModelLogic = {
+export type QuizQuestionResponseModelInfo = {
+    __typename: "QuizQuestionResponse",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizQuestionResponseCreateInput,
@@ -792,11 +889,13 @@ export type QuizQuestionResponseModelLogic = {
     PrismaSelect: Prisma.quiz_question_responseSelect,
     PrismaWhere: Prisma.quiz_question_responseWhereInput,
 }
+export type QuizQuestionResponseModelLogic = ModelLogic<QuizQuestionResponseModelInfo, typeof SuppFields.QuizQuestionResponse>;
 
-export type ReactionModelLogic = {
+export type ReactionModelInfo = {
+    __typename: "Reaction",
     IsTransferable: false,
     IsVersioned: false,
-    GqlCreate: undefined,
+    GqlCreate: ReactInput,
     GqlUpdate: undefined,
     GqlModel: Reaction,
     GqlSearch: ReactionSearchInput,
@@ -808,8 +907,10 @@ export type ReactionModelLogic = {
     PrismaSelect: Prisma.reactionSelect,
     PrismaWhere: Prisma.reactionWhereInput,
 }
+export type ReactionModelLogic = ModelLogic<ReactionModelInfo, typeof SuppFields.Reaction>;
 
-export type ReactionSummaryModelLogic = {
+export type ReactionSummaryModelInfo = {
+    __typename: "ReactionSummary",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -824,8 +925,10 @@ export type ReactionSummaryModelLogic = {
     PrismaSelect: Prisma.reaction_summarySelect,
     PrismaWhere: Prisma.reaction_summaryWhereInput,
 }
+export type ReactionSummaryModelLogic = ModelLogic<ReactionSummaryModelInfo, typeof SuppFields.ReactionSummary>;
 
-export type ReminderModelLogic = {
+export type ReminderModelInfo = {
+    __typename: "Reminder",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReminderCreateInput,
@@ -840,8 +943,10 @@ export type ReminderModelLogic = {
     PrismaSelect: Prisma.reminderSelect,
     PrismaWhere: Prisma.reminderWhereInput,
 }
+export type ReminderModelLogic = ModelLogic<ReminderModelInfo, typeof SuppFields.Reminder>;
 
-export type ReminderItemModelLogic = {
+export type ReminderItemModelInfo = {
+    __typename: "ReminderItem",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReminderItemCreateInput,
@@ -856,8 +961,10 @@ export type ReminderItemModelLogic = {
     PrismaSelect: Prisma.reminder_itemSelect,
     PrismaWhere: Prisma.reminder_itemWhereInput,
 }
+export type ReminderItemModelLogic = ModelLogic<ReminderItemModelInfo, typeof SuppFields.ReminderItem>;
 
-export type ReminderListModelLogic = {
+export type ReminderListModelInfo = {
+    __typename: "ReminderList",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReminderListCreateInput,
@@ -872,9 +979,11 @@ export type ReminderListModelLogic = {
     PrismaSelect: Prisma.reminder_listSelect,
     PrismaWhere: Prisma.reminder_listWhereInput,
 }
+export type ReminderListModelLogic = ModelLogic<ReminderListModelInfo, typeof SuppFields.ReminderList>;
 
 export type ReportPermissions = Pick<ReportYou, "canDelete" | "canUpdate" | "canRespond">;
-export type ReportModelLogic = {
+export type ReportModelInfo = {
+    __typename: "Report",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReportCreateInput,
@@ -889,9 +998,11 @@ export type ReportModelLogic = {
     PrismaSelect: Prisma.reportSelect,
     PrismaWhere: Prisma.reportWhereInput,
 }
+export type ReportModelLogic = ModelLogic<ReportModelInfo, typeof SuppFields.Report>;
 
 export type ReportResponsePermissions = Pick<ReportResponseYou, "canDelete" | "canUpdate">;
-export type ReportResponseModelLogic = {
+export type ReportResponseModelInfo = {
+    __typename: "ReportResponse",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReportResponseCreateInput,
@@ -906,8 +1017,10 @@ export type ReportResponseModelLogic = {
     PrismaSelect: Prisma.report_responseSelect,
     PrismaWhere: Prisma.report_responseWhereInput,
 }
+export type ReportResponseModelLogic = ModelLogic<ReportResponseModelInfo, typeof SuppFields.ReportResponse>;
 
-export type ResourceModelLogic = {
+export type ResourceModelInfo = {
+    __typename: "Resource",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ResourceCreateInput,
@@ -922,8 +1035,10 @@ export type ResourceModelLogic = {
     PrismaSelect: Prisma.resourceSelect,
     PrismaWhere: Prisma.resourceWhereInput,
 }
+export type ResourceModelLogic = ModelLogic<ResourceModelInfo, typeof SuppFields.Resource>;
 
-export type ResourceListModelLogic = {
+export type ResourceListModelInfo = {
+    __typename: "ResourceList",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ResourceListCreateInput,
@@ -938,8 +1053,10 @@ export type ResourceListModelLogic = {
     PrismaSelect: Prisma.resource_listSelect,
     PrismaWhere: Prisma.resource_listWhereInput,
 }
+export type ResourceListModelLogic = ModelLogic<ResourceListModelInfo, typeof SuppFields.ResourceList>;
 
-export type RoleModelLogic = {
+export type RoleModelInfo = {
+    __typename: "Role",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RoleCreateInput,
@@ -954,9 +1071,11 @@ export type RoleModelLogic = {
     PrismaSelect: Prisma.roleSelect,
     PrismaWhere: Prisma.roleWhereInput,
 }
+export type RoleModelLogic = ModelLogic<RoleModelInfo, typeof SuppFields.Role>;
 
 type RoutinePermissions = Pick<RoutineYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
-export type RoutineModelLogic = {
+export type RoutineModelInfo = {
+    __typename: "Routine",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: RoutineCreateInput,
@@ -971,9 +1090,11 @@ export type RoutineModelLogic = {
     PrismaSelect: Prisma.routineSelect,
     PrismaWhere: Prisma.routineWhereInput,
 }
+export type RoutineModelLogic = ModelLogic<RoutineModelInfo, typeof SuppFields.Routine>;
 
 export type RoutineVersionPermissions = Pick<RoutineVersionYou, "canComment" | "canCopy" | "canDelete" | "canUpdate" | "canBookmark" | "canReport" | "canRun" | "canRead" | "canReact">;
-export type RoutineVersionModelLogic = {
+export type RoutineVersionModelInfo = {
+    __typename: "RoutineVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RoutineVersionCreateInput,
@@ -988,8 +1109,10 @@ export type RoutineVersionModelLogic = {
     PrismaSelect: Prisma.routine_versionSelect,
     PrismaWhere: Prisma.routine_versionWhereInput,
 }
+export type RoutineVersionModelLogic = ModelLogic<RoutineVersionModelInfo, typeof SuppFields.RoutineVersion>;
 
-export type RoutineVersionInputModelLogic = {
+export type RoutineVersionInputModelInfo = {
+    __typename: "RoutineVersionInput",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RoutineVersionInputCreateInput,
@@ -1004,8 +1127,10 @@ export type RoutineVersionInputModelLogic = {
     PrismaSelect: Prisma.routine_version_inputSelect,
     PrismaWhere: Prisma.routine_version_inputWhereInput,
 }
+export type RoutineVersionInputModelLogic = ModelLogic<RoutineVersionInputModelInfo, typeof SuppFields.RoutineVersionInput>;
 
-export type RoutineVersionOutputModelLogic = {
+export type RoutineVersionOutputModelInfo = {
+    __typename: "RoutineVersionOutput",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RoutineVersionOutputCreateInput,
@@ -1020,9 +1145,11 @@ export type RoutineVersionOutputModelLogic = {
     PrismaSelect: Prisma.routine_version_outputSelect,
     PrismaWhere: Prisma.routine_version_outputWhereInput,
 }
+export type RoutineVersionOutputModelLogic = ModelLogic<RoutineVersionOutputModelInfo, typeof SuppFields.RoutineVersionOutput>;
 
 export type RunProjectPermissions = Pick<RunProjectYou, "canDelete" | "canUpdate" | "canRead">;
-export type RunProjectModelLogic = {
+export type RunProjectModelInfo = {
+    __typename: "RunProject",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunProjectCreateInput,
@@ -1037,8 +1164,10 @@ export type RunProjectModelLogic = {
     PrismaSelect: Prisma.run_projectSelect,
     PrismaWhere: Prisma.run_projectWhereInput,
 }
+export type RunProjectModelLogic = ModelLogic<RunProjectModelInfo, typeof SuppFields.RunProject>;
 
-export type RunProjectStepModelLogic = {
+export type RunProjectStepModelInfo = {
+    __typename: "RunProjectStep",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunProjectStepCreateInput,
@@ -1053,9 +1182,11 @@ export type RunProjectStepModelLogic = {
     PrismaSelect: Prisma.run_project_stepSelect,
     PrismaWhere: Prisma.run_project_stepWhereInput,
 }
+export type RunProjectStepModelLogic = ModelLogic<RunProjectStepModelInfo, typeof SuppFields.RunProjectStep>;
 
 export type RunRoutinePermissions = Pick<RunRoutineYou, "canDelete" | "canUpdate" | "canRead">;
-export type RunRoutineModelLogic = {
+export type RunRoutineModelInfo = {
+    __typename: "RunRoutine",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunRoutineCreateInput,
@@ -1070,8 +1201,10 @@ export type RunRoutineModelLogic = {
     PrismaSelect: Prisma.run_routineSelect,
     PrismaWhere: Prisma.run_routineWhereInput,
 }
+export type RunRoutineModelLogic = ModelLogic<RunRoutineModelInfo, typeof SuppFields.RunRoutine>;
 
-export type RunRoutineInputModelLogic = {
+export type RunRoutineInputModelInfo = {
+    __typename: "RunRoutineInput",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunRoutineInputCreateInput,
@@ -1086,8 +1219,10 @@ export type RunRoutineInputModelLogic = {
     PrismaSelect: Prisma.run_routine_inputSelect,
     PrismaWhere: Prisma.run_routine_inputWhereInput,
 }
+export type RunRoutineInputModelLogic = ModelLogic<RunRoutineInputModelInfo, typeof SuppFields.RunRoutineInput>;
 
-export type RunRoutineStepModelLogic = {
+export type RunRoutineStepModelInfo = {
+    __typename: "RunRoutineStep",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunRoutineStepCreateInput,
@@ -1102,8 +1237,10 @@ export type RunRoutineStepModelLogic = {
     PrismaSelect: Prisma.run_routine_stepSelect,
     PrismaWhere: Prisma.run_routine_stepWhereInput,
 }
+export type RunRoutineStepModelLogic = ModelLogic<RunRoutineStepModelInfo, typeof SuppFields.RunRoutineStep>;
 
-export type ScheduleModelLogic = {
+export type ScheduleModelInfo = {
+    __typename: "Schedule",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ScheduleCreateInput,
@@ -1118,8 +1255,10 @@ export type ScheduleModelLogic = {
     PrismaSelect: Prisma.scheduleSelect,
     PrismaWhere: Prisma.scheduleWhereInput,
 }
+export type ScheduleModelLogic = ModelLogic<ScheduleModelInfo, typeof SuppFields.Schedule>;
 
-export type ScheduleExceptionModelLogic = {
+export type ScheduleExceptionModelInfo = {
+    __typename: "ScheduleException",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ScheduleExceptionCreateInput,
@@ -1134,8 +1273,10 @@ export type ScheduleExceptionModelLogic = {
     PrismaSelect: Prisma.schedule_exceptionSelect,
     PrismaWhere: Prisma.schedule_exceptionWhereInput,
 }
+export type ScheduleExceptionModelLogic = ModelLogic<ScheduleExceptionModelInfo, typeof SuppFields.ScheduleException>;
 
-export type ScheduleRecurrenceModelLogic = {
+export type ScheduleRecurrenceModelInfo = {
+    __typename: "ScheduleRecurrence",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ScheduleRecurrenceCreateInput,
@@ -1150,9 +1291,11 @@ export type ScheduleRecurrenceModelLogic = {
     PrismaSelect: Prisma.schedule_recurrenceSelect,
     PrismaWhere: Prisma.schedule_recurrenceWhereInput,
 }
+export type ScheduleRecurrenceModelLogic = ModelLogic<ScheduleRecurrenceModelInfo, typeof SuppFields.ScheduleRecurrence>;
 
 export type SmartContractPermissions = Pick<SmartContractYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
-export type SmartContractModelLogic = {
+export type SmartContractModelInfo = {
+    __typename: "SmartContract",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: SmartContractCreateInput,
@@ -1167,9 +1310,11 @@ export type SmartContractModelLogic = {
     PrismaSelect: Prisma.smart_contractSelect,
     PrismaWhere: Prisma.smart_contractWhereInput,
 }
+export type SmartContractModelLogic = ModelLogic<SmartContractModelInfo, typeof SuppFields.SmartContract>;
 
 export type SmartContractVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
-export type SmartContractVersionModelLogic = {
+export type SmartContractVersionModelInfo = {
+    __typename: "SmartContractVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: SmartContractVersionCreateInput,
@@ -1184,9 +1329,11 @@ export type SmartContractVersionModelLogic = {
     PrismaSelect: Prisma.smart_contract_versionSelect,
     PrismaWhere: Prisma.smart_contract_versionWhereInput,
 }
+export type SmartContractVersionModelLogic = ModelLogic<SmartContractVersionModelInfo, typeof SuppFields.SmartContractVersion>;
 
 export type StandardPermissions = Pick<StandardYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
-export type StandardModelLogic = {
+export type StandardModelInfo = {
+    __typename: "Standard",
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: StandardCreateInput,
@@ -1201,9 +1348,11 @@ export type StandardModelLogic = {
     PrismaSelect: Prisma.standardSelect,
     PrismaWhere: Prisma.standardWhereInput,
 }
+export type StandardModelLogic = ModelLogic<StandardModelInfo, typeof SuppFields.Standard>;
 
 export type StandardVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
-export type StandardVersionModelLogic = {
+export type StandardVersionModelInfo = {
+    __typename: "StandardVersion",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: StandardVersionCreateInput,
@@ -1218,8 +1367,10 @@ export type StandardVersionModelLogic = {
     PrismaSelect: Prisma.standard_versionSelect,
     PrismaWhere: Prisma.standard_versionWhereInput,
 }
+export type StandardVersionModelLogic = ModelLogic<StandardVersionModelInfo, typeof SuppFields.StandardVersion>;
 
-export type StatsApiModelLogic = {
+export type StatsApiModelInfo = {
+    __typename: "StatsApi",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1234,8 +1385,10 @@ export type StatsApiModelLogic = {
     PrismaSelect: Prisma.stats_apiSelect,
     PrismaWhere: Prisma.stats_apiWhereInput,
 }
+export type StatsApiModelLogic = ModelLogic<StatsApiModelInfo, typeof SuppFields.StatsApi>;
 
-export type StatsOrganizationModelLogic = {
+export type StatsOrganizationModelInfo = {
+    __typename: "StatsOrganization",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1250,8 +1403,10 @@ export type StatsOrganizationModelLogic = {
     PrismaSelect: Prisma.stats_organizationSelect,
     PrismaWhere: Prisma.stats_organizationWhereInput,
 }
+export type StatsOrganizationModelLogic = ModelLogic<StatsOrganizationModelInfo, typeof SuppFields.StatsOrganization>;
 
-export type StatsProjectModelLogic = {
+export type StatsProjectModelInfo = {
+    __typename: "StatsProject",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1266,8 +1421,10 @@ export type StatsProjectModelLogic = {
     PrismaSelect: Prisma.stats_projectSelect,
     PrismaWhere: Prisma.stats_projectWhereInput,
 }
+export type StatsProjectModelLogic = ModelLogic<StatsProjectModelInfo, typeof SuppFields.StatsProject>;
 
-export type StatsQuizModelLogic = {
+export type StatsQuizModelInfo = {
+    __typename: "StatsQuiz",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1282,8 +1439,10 @@ export type StatsQuizModelLogic = {
     PrismaSelect: Prisma.stats_quizSelect,
     PrismaWhere: Prisma.stats_quizWhereInput,
 }
+export type StatsQuizModelLogic = ModelLogic<StatsQuizModelInfo, typeof SuppFields.StatsQuiz>;
 
-export type StatsRoutineModelLogic = {
+export type StatsRoutineModelInfo = {
+    __typename: "StatsRoutine",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1298,8 +1457,10 @@ export type StatsRoutineModelLogic = {
     PrismaSelect: Prisma.stats_routineSelect,
     PrismaWhere: Prisma.stats_routineWhereInput,
 }
+export type StatsRoutineModelLogic = ModelLogic<StatsRoutineModelInfo, typeof SuppFields.StatsRoutine>;
 
-export type StatsSiteModelLogic = {
+export type StatsSiteModelInfo = {
+    __typename: "StatsSite",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1314,8 +1475,10 @@ export type StatsSiteModelLogic = {
     PrismaSelect: Prisma.stats_siteSelect,
     PrismaWhere: Prisma.stats_siteWhereInput,
 }
+export type StatsSiteModelLogic = ModelLogic<StatsSiteModelInfo, typeof SuppFields.StatsSite>;
 
-export type StatsSmartContractModelLogic = {
+export type StatsSmartContractModelInfo = {
+    __typename: "StatsSmartContract",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1330,8 +1493,10 @@ export type StatsSmartContractModelLogic = {
     PrismaSelect: Prisma.stats_smart_contractSelect,
     PrismaWhere: Prisma.stats_smart_contractWhereInput,
 }
+export type StatsSmartContractModelLogic = ModelLogic<StatsSmartContractModelInfo, typeof SuppFields.StatsSmartContract>;
 
-export type StatsStandardModelLogic = {
+export type StatsStandardModelInfo = {
+    __typename: "StatsStandard",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1346,8 +1511,10 @@ export type StatsStandardModelLogic = {
     PrismaSelect: Prisma.stats_standardSelect,
     PrismaWhere: Prisma.stats_standardWhereInput,
 }
+export type StatsStandardModelLogic = ModelLogic<StatsStandardModelInfo, typeof SuppFields.StatsStandard>;
 
-export type StatsUserModelLogic = {
+export type StatsUserModelInfo = {
+    __typename: "StatsUser",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1362,8 +1529,10 @@ export type StatsUserModelLogic = {
     PrismaSelect: Prisma.stats_userSelect,
     PrismaWhere: Prisma.stats_userWhereInput,
 }
+export type StatsUserModelLogic = ModelLogic<StatsUserModelInfo, typeof SuppFields.StatsUser>;
 
-export type TagModelLogic = {
+export type TagModelInfo = {
+    __typename: "Tag",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: TagCreateInput,
@@ -1378,12 +1547,14 @@ export type TagModelLogic = {
     PrismaSelect: Prisma.tagSelect,
     PrismaWhere: Prisma.tagWhereInput,
 }
+export type TagModelLogic = ModelLogic<TagModelInfo, typeof SuppFields.Tag, "tag">;
 
 export type TransferPermissions = Pick<TransferYou, "canDelete" | "canUpdate">;
-export type TransferModelLogic = {
+export type TransferModelInfo = {
+    __typename: "Transfer",
     IsTransferable: false,
     IsVersioned: false,
-    GqlCreate: undefined,
+    GqlCreate: TransferRequestSendInput | TransferRequestReceiveInput,
     GqlUpdate: TransferUpdateInput,
     GqlModel: Transfer,
     GqlSearch: TransferSearchInput,
@@ -1395,9 +1566,11 @@ export type TransferModelLogic = {
     PrismaSelect: Prisma.transferSelect,
     PrismaWhere: Prisma.transferWhereInput,
 }
+export type TransferModelLogic = ModelLogic<TransferModelInfo, typeof SuppFields.Transfer>;
 
 export type UserPermissions = Pick<UserYou, "canDelete" | "canUpdate" | "canReport">
-export type UserModelLogic = {
+export type UserModelInfo = {
+    __typename: "User",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: BotCreateInput, // Can only create bot users
@@ -1412,8 +1585,10 @@ export type UserModelLogic = {
     PrismaSelect: Prisma.userSelect,
     PrismaWhere: Prisma.userWhereInput,
 }
+export type UserModelLogic = ModelLogic<UserModelInfo, typeof SuppFields.User>;
 
-export type ViewModelLogic = {
+export type ViewModelInfo = {
+    __typename: "View",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1428,8 +1603,10 @@ export type ViewModelLogic = {
     PrismaSelect: Prisma.viewSelect,
     PrismaWhere: Prisma.viewWhereInput,
 }
+export type ViewModelLogic = ModelLogic<ViewModelInfo, typeof SuppFields.View>;
 
-export type WalletModelLogic = {
+export type WalletModelInfo = {
+    __typename: "Wallet",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -1444,4 +1621,4 @@ export type WalletModelLogic = {
     PrismaSelect: Prisma.walletSelect,
     PrismaWhere: Prisma.walletWhereInput,
 }
-
+export type WalletModelLogic = ModelLogic<WalletModelInfo, typeof SuppFields.Wallet>;

@@ -1,5 +1,5 @@
 import { NodeRoutineListItem } from "@local/shared";
-import { Box, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useDebounce } from "hooks/useDebounce";
 import usePress from "hooks/usePress";
 import { ActionIcon, AddIcon, CloseIcon, EditIcon, ExpandLessIcon, ExpandMoreIcon, ListBulletIcon, ListNumberIcon, NoActionIcon } from "icons";
@@ -10,7 +10,9 @@ import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
+import { NodeWithRoutineListCrud } from "views/objects/node/NodeWithRoutineListCrud/NodeWithRoutineListCrud";
+import { NodeWithRoutineList } from "views/objects/node/types";
+import { DraggableNode, SubroutineNode, calculateNodeSize } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
 import { routineNodeActionStyle, routineNodeCheckboxOption } from "../styles";
 import { RoutineListNodeProps } from "../types";
@@ -36,6 +38,7 @@ export const RoutineListNode = ({
     canDrag,
     canExpand,
     handleAction,
+    handleDelete,
     handleUpdate,
     isLinked,
     labelVisible,
@@ -51,10 +54,10 @@ export const RoutineListNode = ({
 
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && node.routineList.items?.length === 0);
-    const collapseDebounce = useDebounce(setCollapseOpen, 100);
+    const [collapseDebounce] = useDebounce(setCollapseOpen, 100);
     const toggleCollapse = useCallback((target: EventTarget) => {
         if (isLinked && shouldCollapse(target.id)) {
-            PubSub.get().publishFastUpdate({ duration: 1000 });
+            PubSub.get().publish("fastUpdate", { duration: 1000 });
             collapseDebounce(!collapseOpen);
         }
     }, [collapseDebounce, collapseOpen, isLinked]);
@@ -63,7 +66,7 @@ export const RoutineListNode = ({
     const fastUpdateRef = useRef<boolean>(false);
     const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
-        const fastSub = PubSub.get().subscribeFastUpdate(({ on, duration }) => {
+        const fastSub = PubSub.get().subscribe("fastUpdate", ({ on, duration }) => {
             if (!on) {
                 fastUpdateRef.current = false;
                 if (fastUpdateTimeout.current) clearTimeout(fastUpdateTimeout.current);
@@ -98,10 +101,13 @@ export const RoutineListNode = ({
         });
     }, [handleUpdate, isEditing, node]);
 
-    const onEdit = useCallback(() => {
-        if (!isEditing) return;
-        handleAction(BuildAction.OpenRoutine, node.id);
-    }, [handleAction, isEditing, node.id]);
+    const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
+    const openEditDialog = useCallback(() => {
+        if (isLinked) {
+            setEditDialogOpen(!editDialogOpen);
+        }
+    }, [isLinked, editDialogOpen]);
+    const closeEditDialog = useCallback(() => { setEditDialogOpen(false); }, []);
 
     const handleSubroutineAction = useCallback((
         action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine,
@@ -139,8 +145,8 @@ export const RoutineListNode = ({
     const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 1.5em)`, [scale]);
     const addSize = useMemo(() => `max(min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 4}px, 48px), 24px)`, [scale]);
 
-    const confirmDelete = useCallback((event: any) => {
-        PubSub.get().publishAlertDialog({
+    const confirmDelete = useCallback(() => {
+        PubSub.get().publish("alertDialog", {
             messageKey: "WhatWouldYouLikeToDo",
             buttons: [
                 { labelKey: "Unlink", onClick: handleNodeUnlink },
@@ -188,8 +194,8 @@ export const RoutineListNode = ({
             </Tooltip>
             {isEditing && <Tooltip placement={"top"} title={t("NodeRoutineListInfo")}>
                 <Box
-                    onClick={() => { onEdit(); }}
-                    onTouchStart={() => { onEdit(); }}
+                    onClick={() => { openEditDialog(); }}
+                    onTouchStart={() => { openEditDialog(); }}
                     sx={routineNodeActionStyle(isEditing)}
                 >
                     <IconButton
@@ -209,7 +215,7 @@ export const RoutineListNode = ({
                 </Box>
             </Tooltip>}
         </Collapse>
-    ), [collapseOpen, palette.mode, palette.background.textPrimary, t, isEditing, node.routineList.isOrdered, node.routineList.isOptional, scale, label, onOrderedChange, onOptionalChange, onEdit]);
+    ), [collapseOpen, palette.mode, palette.background.textPrimary, t, isEditing, node.routineList.isOrdered, node.routineList.isOptional, scale, label, onOrderedChange, onOptionalChange, openEditDialog]);
 
     /** 
      * Subroutines, sorted from lowest to highest index
@@ -217,7 +223,7 @@ export const RoutineListNode = ({
     const listItems = useMemo(() => [...(node.routineList.items ?? [])].sort((a, b) => a.index - b.index).map(item => (
         <SubroutineNode
             key={`${item.id}`}
-            data={item}
+            data={item as NodeRoutineListItem}
             handleAction={handleSubroutineAction}
             handleUpdate={handleSubroutineUpdate}
             isEditing={isEditing}
@@ -240,34 +246,8 @@ export const RoutineListNode = ({
         return null;
     }, [isLinked, linksIn.length, linksOut.length, listItems.length]);
 
-
-    const addButton = useMemo(() => isEditing ? (
-        <IconButton
-            onClick={handleSubroutineAdd}
-            onTouchStart={handleSubroutineAdd}
-            sx={{
-                background: "#6daf72",
-                boxShadow: 2,
-                width: addSize,
-                height: addSize,
-                position: "relative",
-                padding: "0",
-                margin: "5px auto",
-                display: "flex",
-                alignItems: "center",
-                color: "white",
-                borderRadius: "100%",
-                "@media print": {
-                    display: "none",
-                },
-            }}
-        >
-            <AddIcon />
-        </IconButton>
-    ) : null, [addSize, handleSubroutineAdd, isEditing]);
-
     // Right click context menu
-    const [contextAnchor, setContextAnchor] = useState<any>(null);
+    const [contextAnchor, setContextAnchor] = useState<any | null>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((target: EventTarget) => {
@@ -284,12 +264,26 @@ export const RoutineListNode = ({
 
     return (
         <>
+            {/* Right-click context menu */}
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
                 availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id); }}
+            />
+            {/* Normal-click menu */}
+            <NodeWithRoutineListCrud
+                display="dialog"
+                onCancel={closeEditDialog}
+                onClose={closeEditDialog}
+                onCompleted={handleUpdate}
+                onDeleted={handleDelete}
+                isCreate={false}
+                isEditing={isEditing}
+                isOpen={editDialogOpen}
+                language={language}
+                overrideObject={node as NodeWithRoutineList}
             />
             <DraggableNode
                 className="handle"
@@ -357,8 +351,8 @@ export const RoutineListNode = ({
                                     ...(!collapseOpen ? multiLineEllipsis(1) : multiLineEllipsis(4)),
                                     textAlign: "center",
                                     width: "100%",
-                                    lineBreak: "anywhere" as any,
-                                    whiteSpace: "pre" as any,
+                                    lineBreak: "anywhere" as const,
+                                    whiteSpace: "pre" as const,
                                     fontSize,
                                     display: scale < -2 ? "none" : "block",
                                     "@media print": {
@@ -389,7 +383,17 @@ export const RoutineListNode = ({
                         }}
                     >
                         {listItems}
-                        {addButton}
+                        {isEditing && <Button
+                            fullWidth
+                            onClick={handleSubroutineAdd}
+                            startIcon={<AddIcon />}
+                            variant="outlined"
+                            sx={{
+                                "@media print": {
+                                    display: "none",
+                                },
+                            }}
+                        >{t("Add")}</Button>}
                     </Collapse>
                 </>
             </DraggableNode>

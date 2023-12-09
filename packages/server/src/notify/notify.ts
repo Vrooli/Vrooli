@@ -1,13 +1,18 @@
 import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, SubscribableObject, Success } from "@local/shared";
 import { Prisma, ReportStatus } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
-import { selectHelper, toPartialGqlInfo } from "../builders";
+import { selectHelper } from "../builders/selectHelper";
+import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-import { CustomError, logger } from "../events";
-import { getLogic } from "../getters";
-import { OrganizationModel, PushDeviceModel, subscribableMapper } from "../models/base";
+import { CustomError } from "../events/error";
+import { logger } from "../events/logger";
+import { subscribableMapper } from "../events/subscriber";
+import { ModelMap } from "../models/base";
+import { PushDeviceModel } from "../models/base/pushDevice";
+import { OrganizationModelLogic } from "../models/base/types";
 import { withRedis } from "../redisConn";
-import { sendMail, sendPush } from "../tasks";
+import { sendMail } from "../tasks/email/queue";
+import { sendPush } from "../tasks/push/queue";
 import { PrismaType, SessionUserToken } from "../types";
 import { batch } from "../utils/batch";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
@@ -212,10 +217,10 @@ const replaceLabels = async (
     const findTranslations = async (objectType: `${GqlModelType}`, objectId: string) => {
         // Ignore if already translated
         if (Object.keys(labelTranslations).length > 0) return;
-        const { delegate, display } = getLogic(["delegate", "display"], objectType, languages, "replaceLabels");
+        const { delegate, display } = ModelMap.getLogic(["delegate", "display"], objectType, true, "replaceLabels 1");
         const labels = await delegate(prisma).findUnique({
             where: { id: objectId },
-            select: display.label.select(),
+            select: display().label.select(),
         });
         labelTranslations = labels ?? {};
     };
@@ -231,9 +236,9 @@ const replaceLabels = async (
                     // Find label translations
                     await findTranslations(match[1] as GqlModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = getLogic(["display"], match[1] as GqlModelType, languages, "replaceLabels");
+                    const { display } = ModelMap.getLogic(["display"], match[1] as GqlModelType, true, "replaceLabels 2");
                     for (let i = 0; i < result.length; i++) {
-                        result[i][key] = (result[i][key] as string).replace(match[0], display.label.get(labelTranslations, result[i].languages));
+                        result[i][key] = (result[i][key] as string).replace(match[0], display().label.get(labelTranslations, result[i].languages));
                     }
                 }
             }
@@ -251,9 +256,9 @@ const replaceLabels = async (
                     // Find label translations
                     await findTranslations(match[1] as GqlModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = getLogic(["display"], match[1] as GqlModelType, languages, "replaceLabels");
+                    const { display } = ModelMap.getLogic(["display"], match[1] as GqlModelType, true, "replaceLabels 3");
                     for (let i = 0; i < result.length; i++) {
-                        result[i][key] = (result[i][key] as string).replace(match[0], display.label.get(labelTranslations, result[i].languages));
+                        result[i][key] = (result[i][key] as string).replace(match[0], display().label.get(labelTranslations, result[i].languages));
                     }
                 }
             }
@@ -315,7 +320,7 @@ const NotifyResult = ({
      */
     toOrganization: async (organizationId, excludeUserId) => {
         // Find every admin of the organization, excluding the user who triggered the notification
-        const adminData = await OrganizationModel.query.findAdminInfo(prisma, organizationId, excludeUserId);
+        const adminData = await ModelMap.get<OrganizationModelLogic>("Organization").query.findAdminInfo(prisma, organizationId, excludeUserId);
         // Shape and translate the notification for each admin
         const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, adminData.map(({ id, languages }) => ({
             languages,
@@ -345,7 +350,7 @@ const NotifyResult = ({
     toSubscribers: async (objectType, objectId, excludeUserId) => {
         await batch<Prisma.notification_subscriptionFindManyArgs>({
             objectType: "NotificationSubscription",
-            processBatch: async (batch, prisma) => {
+            processBatch: async (batch: { subscriberId: string, silent: boolean }[], prisma) => {
                 // Shape and translate the notification for each subscriber
                 const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ subscriberId, silent }) => ({
                     languages,
@@ -371,24 +376,21 @@ const NotifyResult = ({
      * @param excludeUserId The user to exclude from the notification
      */
     toChatParticipants: async (chatId, excludeUserId) => {
-        await batch<Prisma.userFindManyArgs>({
-            objectType: "User",
-            processBatch: async (batch, prisma) => {
+        await batch<Prisma.chat_participantsFindManyArgs>({
+            objectType: "ChatParticipant",
+            processBatch: async (batch: { user: { id: string } }[], prisma) => {
                 // Shape and translate the notification for each participant
-                const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ participantId }) => ({
-                    languages,
-                    userId: participantId,
+                const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ user }) => ({
+                    languages: ["en"], //TODO need to store user languages in db , then can update this
+                    userId: user.id,
                 })));
                 // Send the notification to each participant
                 await push({ bodyKey, category, link, prisma, titleKey, users });
             },
-            select: { id: true },
+            select: { user: { select: { id: true } } },
             trace: "0498",
             where: {
-                AND: [
-                    { chats: { some: { chat: { id: chatId } } } },
-                    { id: { not: excludeUserId ?? undefined } },
-                ],
+                ...(excludeUserId ? { AND: [{ chatId }, { userId: { not: excludeUserId } }] } : { chatId }),
             },
         });
     },

@@ -1,6 +1,7 @@
 import { endpointGetTranslate, Translate, TranslateInput } from "@local/shared";
-import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { IconButton, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useZIndex } from "hooks/useZIndex";
@@ -75,7 +76,7 @@ export const SelectLanguageMenu = ({
         // Get source translation
         const sourceTranslation = languages.find(l => l === source);
         if (!sourceTranslation) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotFindTranslation", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotFindTranslation", severity: "Error" });
             return;
         }
         fetchLazyWrapper<TranslateInput, Translate>({
@@ -86,7 +87,7 @@ export const SelectLanguageMenu = ({
                 if (data) {
                     console.log("TODO");
                 } else {
-                    PubSub.get().publishSnack({ messageKey: "FailedToTranslate", severity: "Error" });
+                    PubSub.get().publish("snack", { messageKey: "FailedToTranslate", severity: "Error" });
                 }
             },
             errorMessage: () => ({ messageKey: "FailedToTranslate" }),
@@ -158,7 +159,7 @@ export const SelectLanguageMenu = ({
     // Popup for selecting language
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
-    const zIndex = useZIndex(open);
+    const zIndex = useZIndex(open, false, 1000);
     const onOpen = useCallback((event: MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
@@ -227,7 +228,7 @@ export const SelectLanguageMenu = ({
                     borderRadius: "0 4px 4px",
                     padding: "8px",
                 }}>
-                    <TextField
+                    <TextInput
                         placeholder={t("LanguageEnter")}
                         autoFocus={true}
                         value={searchString}
@@ -320,7 +321,7 @@ export const SelectLanguageMenu = ({
                     borderRadius: "50px",
                     cursor: "pointer",
                     background: "#4e7d31",
-                    boxShadow: 4,
+                    boxShadow: 2,
                     "&:hover": {
                         filter: "brightness(120%)",
                     },

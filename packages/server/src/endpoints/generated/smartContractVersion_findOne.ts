@@ -19,6 +19,7 @@ export const smartContractVersion_findOne = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -100,6 +101,7 @@ export const smartContractVersion_findOne = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -143,6 +145,7 @@ export const smartContractVersion_findOne = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"

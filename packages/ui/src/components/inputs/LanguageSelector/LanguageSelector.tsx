@@ -28,7 +28,7 @@ export function LanguageSelector() {
                 fullWidth={true}
                 inputAriaLabel="Language"
                 label={t("Language", { count: 1 })}
-                onChange={(newLang) => { newLang && PubSub.get().publishLanguage(newLang); }}
+                onChange={(newLang) => { newLang && PubSub.get().publish("language", newLang); }}
             />
         </Formik>
     );

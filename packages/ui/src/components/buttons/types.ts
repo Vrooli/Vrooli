@@ -2,7 +2,7 @@ import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVe
 import { ButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
-import { NavigableObject, PartialWithType, SvgProps, SxType } from "types";
+import { FormErrors, NavigableObject, PartialWithType, SvgProps, SxType } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
@@ -10,6 +10,7 @@ import { ViewDisplayType } from "views/types";
 export interface AdvancedSearchButtonProps {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
+    controlsUrl: boolean;
     searchType: SearchType | `${SearchType}`;
     setAdvancedSearchParams: (params: object | null) => unknown;
 }
@@ -53,7 +54,7 @@ export interface BottomActionsButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
     display: ViewDisplayType;
-    errors?: { [key: string]: string | string[] | null | undefined };
+    errors?: FormErrors | undefined;
     hideButtons?: boolean;
     /** Hides button text on mobile */
     hideTextOnMobile?: boolean;
@@ -62,7 +63,7 @@ export interface BottomActionsButtonsProps {
     onCancel: () => unknown;
     onSetSubmitting?: (isSubmitting: boolean) => unknown;
     onSubmit?: () => unknown;
-    sideActionButtons?: Omit<SideActionsButtonsProps, "display" | "hasGridActions">;
+    sideActionButtons?: OrArray<JSX.Element | null | undefined>;
 }
 
 export interface HelpButtonProps extends ButtonProps {
@@ -113,6 +114,7 @@ export interface RunButtonProps {
 export interface SearchButtonsProps {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
+    controlsUrl: boolean;
     searchType: SearchType | `${SearchType}`;
     setAdvancedSearchParams: (params: object | null) => unknown;
     setSortBy: (sortBy: string) => unknown;
@@ -130,8 +132,6 @@ export interface ShareButtonProps {
 export interface SideActionsButtonsProps {
     children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
-    /** If true, displays higher up */
-    hasGridActions?: boolean;
     sx?: SxType;
 }
 

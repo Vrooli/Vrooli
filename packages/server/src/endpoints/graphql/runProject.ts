@@ -1,6 +1,6 @@
 import { RunProjectSortBy, RunStatus } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsRunProject, RunProjectEndpoints } from "../logic";
+import { EndpointsRunProject, RunProjectEndpoints } from "../logic/runProject";
 
 export const typeDef = gql`
     enum RunProjectSortBy {
@@ -22,7 +22,7 @@ export const typeDef = gql`
 
     input RunProjectCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         completedComplexity: Int
         contextSwitches: Int
         name: String!

@@ -1,5 +1,5 @@
 import { runRoutineInput_findMany } from "../generated";
-import { RunRoutineInputEndpoints } from "../logic";
+import { RunRoutineInputEndpoints } from "../logic/runRoutineInput";
 import { setupRoutes } from "./base";
 
 export const RunRoutineInputRest = setupRoutes({

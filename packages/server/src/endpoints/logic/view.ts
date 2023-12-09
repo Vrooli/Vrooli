@@ -1,7 +1,7 @@
 import { View, ViewSearchInput, ViewSearchResult } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
-import { readManyHelper } from "../../actions";
-import { assertRequestFrom } from "../../auth";
+import { readManyHelper } from "../../actions/reads";
+import { assertRequestFrom } from "../../auth/request";
 import { Context, rateLimit } from "../../middleware";
 import { FindManyResult, GQLEndpoint, IWrap } from "../../types";
 

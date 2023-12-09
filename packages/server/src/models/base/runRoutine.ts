@@ -1,20 +1,24 @@
 import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
-import { Prisma, RunStatus, run_routine } from "@prisma/client";
-import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
+import { RunStatus, run_routine } from "@prisma/client";
+import { ModelMap } from ".";
+import { addSupplementalFields } from "../../builders/addSupplementalFields";
+import { modelToGql } from "../../builders/modelToGql";
+import { noNull } from "../../builders/noNull";
+import { selectHelper } from "../../builders/selectHelper";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo } from "../../builders/types";
-import { CustomError, Trigger } from "../../events";
+import { CustomError } from "../../events/error";
+import { Trigger } from "../../events/trigger";
 import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { RunRoutineFormat } from "../format/runRoutine";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { RoutineVersionModel } from "./routineVersion";
-import { RunRoutineModelLogic } from "./types";
+import { RunRoutineFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { OrganizationModelLogic, RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types";
 
 const __typename = "RunRoutine" as const;
-const suppFields = ["you"] as const;
-export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields> = ({
+export const RunRoutineModel: RunRoutineModelLogic = ({
     __typename,
     danger: {
         /**
@@ -46,7 +50,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
         },
     },
     delegate: (prisma) => prisma.run_routine,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
@@ -57,7 +61,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
                 return getEmbeddableString({ name }, languages[0]);
             },
         },
-    },
+    }),
     format: RunRoutineFormat,
     mutate: {
         shape: {
@@ -67,18 +71,18 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches: noNull(data.contextSwitches),
                     embeddingNeedsUpdate: true,
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
                     ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
                     ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
                     ...(data.organizationConnect ? {} : { user: { connect: { id: rest.userData.id } } }),
-                    ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "RoutineVersion", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RunProject", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
-                    ...(await shapeHelper({ relation: "inputs", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "inputs", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest })),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -90,37 +94,37 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
                     timeElapsed: noNull(data.timeElapsed),
                     ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
                     ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
-                    ...(await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest })),
                 };
             },
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
+            afterMutations: ({ createInputs, createdIds, updatedIds, updateInputs, prisma, userData }) => {
                 // Handle run start trigger for every run with status InProgress
-                for (const c of created) {
-                    if (c.status === RunStatus.InProgress) {
-                        Trigger(prisma, userData.languages).runRoutineStart(c.id, userData.id, false);
+                for (const { id, status } of createInputs) {
+                    if (status === RunStatus.InProgress) {
+                        Trigger(prisma, userData.languages).runRoutineStart(id, userData.id, false);
                     }
                 }
-            },
-            onUpdated: ({ prisma, updated, updateInput, userData }) => {
-                for (let i = 0; i < updated.length; i++) {
+                for (let i = 0; i < updatedIds.length; i++) {
+                    const { id, status } = updateInputs[i];
+                    if (!status) continue;
                     // Handle run start trigger for every run with status InProgress, 
                     // that previously had a status of Scheduled
-                    if (updated[i].status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineStart(updated[i].id, userData.id, false);
+                    if (status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
+                        Trigger(prisma, userData.languages).runRoutineStart(id, userData.id, false);
                     }
                     // Handle run complete trigger for every run with status Completed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineComplete(updated[i].id, userData.id, false);
+                    if (status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
+                        Trigger(prisma, userData.languages).runRoutineComplete(id, userData.id, false);
                     }
                     // Handle run fail trigger for every run with status Failed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineFail(updated[i].id, userData.id, false);
+                    if (status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
+                        Trigger(prisma, userData.languages).runRoutineFail(id, userData.id, false);
                     }
                 }
             },
@@ -136,7 +140,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
          */
         async complete(prisma: PrismaType, userData: SessionUserToken, input: RunRoutineCompleteInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
-            const partial = toPartialGqlInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
+            const partial = toPartialGqlInfo(info, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true);
             let run: run_routine | null;
             // Check if run is being created or updated
             if (input.exists) {
@@ -229,7 +233,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
          */
         async cancel(prisma: PrismaType, userData: SessionUserToken, input: RunRoutineCancelInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
-            const partial = toPartialGqlInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
+            const partial = toPartialGqlInfo(info, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true);
             // Find in database
             const object = await prisma.run_routine.findFirst({
                 where: {
@@ -274,13 +278,13 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { routineVersion: RoutineVersionModel.search.searchStringQuery() },
+                { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").search.searchStringQuery() },
             ],
         }),
         supplemental: {
             // Add fields needed for notifications when a run is started/completed
             dbFields: ["name"],
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -290,7 +294,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -302,14 +306,14 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunRoutineModelInfo["PrismaSelect"]>([
             ["organization", "Organization"],
             ["user", "User"],
-        ], languages),
+        ], data, ...rest),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },
@@ -317,9 +321,9 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

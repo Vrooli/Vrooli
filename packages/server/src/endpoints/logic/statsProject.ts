@@ -1,6 +1,6 @@
 import { StatsProjectSearchInput, StatsProjectSearchResult } from "@local/shared";
-import { readManyHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { readManyHelper } from "../../actions/reads";
+import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint } from "../../types";
 
 export type EndpointsStatsProject = {

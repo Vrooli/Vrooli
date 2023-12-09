@@ -1,22 +1,21 @@
 import { MaxObjects, reminderItemValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions } from "../../utils";
-import { ReminderItemFormat } from "../format/reminderItem";
-import { ModelLogic } from "../types";
-import { ReminderModel } from "./reminder";
-import { ReminderItemModelLogic, ReminderModelLogic } from "./types";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { ReminderItemFormat } from "../formats";
+import { ReminderItemModelInfo, ReminderItemModelLogic, ReminderModelInfo, ReminderModelLogic } from "./types";
 
 const __typename = "ReminderItem" as const;
-const suppFields = [] as const;
-export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFields> = ({
+export const ReminderItemModel: ReminderItemModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.reminder_item,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
-    },
+    }),
     format: ReminderItemFormat,
     mutate: {
         shape: {
@@ -25,8 +24,9 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
                 index: data.index,
+                isComplete: noNull(data.isComplete),
                 name: data.name,
-                ...(await shapeHelper({ relation: "reminder", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Reminder", parentRelationshipName: "reminderItems", data, ...rest })),
+                ...(await shapeHelper({ relation: "reminder", relTypes: ["Connect"], isOneToOne: true, objectType: "Reminder", parentRelationshipName: "reminderItems", data, ...rest })),
             }),
             update: async ({ data }) => ({
                 description: noNull(data.description),
@@ -39,12 +39,12 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
         yup: reminderItemValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
-        isPublic: (data, languages) => ReminderModel.validate.isPublic(data.reminder as ReminderModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ReminderItemModelInfo["PrismaSelect"]>([["reminder", "Reminder"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderModel.validate.owner(data.reminder as ReminderModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ReminderModelLogic>("Reminder").validate().owner(data?.reminder as ReminderModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -54,8 +54,8 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
             private: {},
             public: {},
             owner: (userId) => ({
-                reminder: ReminderModel.validate.visibility.owner(userId),
+                reminder: ModelMap.get<ReminderModelLogic>("Reminder").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

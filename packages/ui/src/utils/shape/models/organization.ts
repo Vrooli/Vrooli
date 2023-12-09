@@ -1,9 +1,9 @@
 import { Organization, OrganizationCreateInput, OrganizationTranslation, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { MemberInviteShape, shapeMemberInvite } from "./memberInvite";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { RoleShape, shapeRole } from "./role";
-import { shapeTag, TagShape } from "./tag";
+import { TagShape, shapeTag } from "./tag";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type OrganizationTranslationShape = Pick<OrganizationTranslation, "id" | "language" | "bio" | "name"> & {
@@ -18,7 +18,7 @@ export type OrganizationShape = Pick<Organization, "id" | "handle" | "isOpenToNe
     profileImage?: string | File | null;
     resourceList?: Omit<ResourceListShape, "listFor"> | null;
     roles?: RoleShape[] | null;
-    tags?: ({ tag: string } | TagShape)[] | null;
+    tags?: CanConnect<TagShape, "tag">[] | null;
     translations?: OrganizationTranslationShape[] | null;
 }
 
@@ -28,14 +28,17 @@ export const shapeOrganizationTranslation: ShapeModel<OrganizationTranslationSha
 };
 
 export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreateInput, OrganizationUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage"),
-        ...createRel(d, "memberInvites", ["Create"], "many", shapeMemberInvite),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "Organization" } })),
-        ...createRel(d, "roles", ["Create"], "many", shapeRole),
-        ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
-        ...createRel(d, "translations", ["Create"], "many", shapeOrganizationTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage");
+        return {
+            ...prims,
+            ...createRel(d, "memberInvites", ["Create"], "many", shapeMemberInvite),
+            ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: prims.id, __typename: "Organization" } })),
+            ...createRel(d, "roles", ["Create"], "many", shapeRole),
+            ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
+            ...createRel(d, "translations", ["Create"], "many", shapeOrganizationTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage"),
         ...updateRel(o, u, "memberInvites", ["Create", "Delete"], "many", shapeMemberInvite),

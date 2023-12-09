@@ -1,5 +1,5 @@
 import { ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { ApiVersionShape } from "./apiVersion";
 import { NoteVersionShape } from "./noteVersion";
 import { OrganizationShape } from "./organization";
@@ -10,16 +10,16 @@ import { StandardVersionShape } from "./standardVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type ProjectVersionDirectoryShape = Pick<ProjectVersionDirectory, "id" | "isRoot" | "childOrder"> & {
-    __typename?: "ProjectVersionDirectory";
-    childApiVersions?: ({ id: string } | ApiVersionShape)[] | null;
-    childNoteVersions?: ({ id: string } | NoteVersionShape)[] | null;
-    childOrganizations?: ({ id: string } | OrganizationShape)[] | null;
-    childProjectVersions?: ({ id: string } | ProjectVersionShape)[] | null;
-    childRoutineVersions?: ({ id: string } | RoutineVersionShape)[] | null;
-    childSmartContractVersions?: ({ id: string } | SmartContractVersionShape)[] | null;
-    childStandardVersions?: ({ id: string } | StandardVersionShape)[] | null;
-    parentDirectory?: { id: string } | ProjectVersionDirectoryShape | null;
-    projectVersion?: { id: string } | ProjectVersionShape | null;
+    __typename: "ProjectVersionDirectory";
+    childApiVersions?: CanConnect<ApiVersionShape>[] | null;
+    childNoteVersions?: CanConnect<NoteVersionShape>[] | null;
+    childOrganizations?: CanConnect<OrganizationShape>[] | null;
+    childProjectVersions?: CanConnect<ProjectVersionShape>[] | null;
+    childRoutineVersions?: CanConnect<RoutineVersionShape>[] | null;
+    childSmartContractVersions?: CanConnect<SmartContractVersionShape>[] | null;
+    childStandardVersions?: CanConnect<StandardVersionShape>[] | null;
+    parentDirectory?: CanConnect<ProjectVersionDirectoryShape> | null;
+    projectVersion?: CanConnect<ProjectVersionShape> | null;
 }
 
 export const shapeProjectVersionDirectory: ShapeModel<ProjectVersionDirectoryShape, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput> = {

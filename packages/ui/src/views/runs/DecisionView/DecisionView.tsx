@@ -5,7 +5,6 @@ import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
 import { EndStep, RoutineStep } from "types";
 import { RoutineStepType } from "utils/consts";
-import { toDisplay } from "utils/display/pageTools";
 import { DecisionViewProps } from "../types";
 
 type Decision = {
@@ -16,12 +15,10 @@ type Decision = {
 
 export const DecisionView = ({
     data,
-    isOpen,
     handleDecisionSelect,
     routineList,
 }: DecisionViewProps) => {
     const { palette } = useTheme();
-    const display = toDisplay(isOpen);
 
     /**
      * Pair each link with its "to" node

@@ -39,6 +39,7 @@ export const schedule_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           }
@@ -143,6 +144,7 @@ export const schedule_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -160,6 +162,8 @@ export const schedule_findMany = {
           "name": true
         },
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "openToAnyoneWithInvite": true,
         "showOnOrganizationProfile": true,
         "organization": {
@@ -227,6 +231,10 @@ export const schedule_findMany = {
                 "language": true,
                 "description": true
               }
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true
             }
           },
           "id": true,
@@ -331,6 +339,7 @@ export const schedule_findMany = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true
         },
@@ -406,6 +415,7 @@ export const schedule_findMany = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true
         },

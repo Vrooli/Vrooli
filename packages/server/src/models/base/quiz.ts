@@ -1,23 +1,20 @@
 import { MaxObjects, QuizSortBy, quizValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, oneIsPublic, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
-import { QuizFormat } from "../format/quiz";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { ProjectModel } from "./project";
-import { ReactionModel } from "./reaction";
-import { RoutineModel } from "./routine";
-import { QuizModelLogic } from "./types";
+import { QuizFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, ProjectModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic, RoutineModelLogic } from "./types";
 
 const __typename = "Quiz" as const;
-const suppFields = ["you"] as const;
-export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
+export const QuizModel: QuizModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.quiz,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
@@ -32,27 +29,27 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: QuizFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList }) => {
-                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+            pre: async ({ Create, Update }) => {
+                const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 maxAttempts: noNull(data.maxAttempts),
                 randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
                 revealCorrectAnswers: noNull(data.revealCorrectAnswers),
                 timeLimit: noNull(data.timeLimit),
                 pointsToPass: noNull(data.pointsToPass),
                 createdBy: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: "project", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest })),
-                ...(await shapeHelper({ relation: "routine", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest })),
-                ...(await shapeHelper({ relation: "quizQuestions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await shapeHelper({ relation: "project", relTypes: ["Connect"], isOneToOne: true, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest })),
+                ...(await shapeHelper({ relation: "routine", relTypes: ["Connect"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest })),
+                ...(await shapeHelper({ relation: "quizQuestions", relTypes: ["Create"], isOneToOne: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
@@ -62,15 +59,15 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
                 timeLimit: noNull(data.timeLimit),
                 pointsToPass: noNull(data.pointsToPass),
                 createdBy: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: "project", relTypes: ["Connect", "Disconnect"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest })),
-                ...(await shapeHelper({ relation: "routine", relTypes: ["Connect", "Disconnect"], isOneToOne: true, isRequired: false, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest })),
-                ...(await shapeHelper({ relation: "quizQuestions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await shapeHelper({ relation: "project", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest })),
+                ...(await shapeHelper({ relation: "routine", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest })),
+                ...(await shapeHelper({ relation: "quizQuestions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerUserField: "createdBy",
@@ -102,29 +99,29 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.quizSelect>(data, [
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<QuizModelInfo["PrismaSelect"]>([
             ["project", "Project"],
             ["routine", "Routine"],
-        ], languages),
+        ], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.createdBy,
+            User: data?.createdBy,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
@@ -138,18 +135,18 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
             private: {
                 OR: [
                     { isPrivate: true },
-                    { project: ProjectModel.validate.visibility.private },
-                    { routine: RoutineModel.validate.visibility.private },
+                    { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private },
+                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private },
                 ],
             },
             public: {
                 AND: [
                     { isPrivate: false },
-                    { project: ProjectModel.validate.visibility.public },
-                    { routine: RoutineModel.validate.visibility.public },
+                    { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public },
+                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public },
                 ],
             },
             owner: (userId) => ({ createdBy: { id: userId } }),
         },
-    },
+    }),
 });

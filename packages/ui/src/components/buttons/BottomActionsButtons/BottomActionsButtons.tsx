@@ -1,6 +1,3 @@
-/**
- * Prompts user to select which link the new node should be added on
- */
 import { exists } from "@local/shared";
 import { Box, Button, CircularProgress, Grid, useTheme } from "@mui/material";
 import { useErrorPopover } from "hooks/useErrorPopover";
@@ -10,7 +7,6 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
 import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
-import { SideActionsButtons } from "../SideActionsButtons/SideActionsButtons";
 import { BottomActionsButtonsProps } from "../types";
 
 export const BottomActionsButtons = ({
@@ -48,9 +44,27 @@ export const BottomActionsButtons = ({
     return (
         <BottomActionsGrid display={display}>
             <Popover />
-            {/* We display side actions in this component because positioning is easier.
-            We set "display" to "dialog" so that it doesn't set its own bottom margin */}
-            {sideActionButtons ? <SideActionsButtons hasGridActions={!hideButtons} {...sideActionButtons} display="dialog" /> : null}
+            {/* Side action buttons displayed above grid options */}
+            {sideActionButtons ? <Box sx={{
+                position: "absolute",
+                top: "-64px",
+                justifyContent: "flex-end",
+                display: "flex",
+                flexDirection: "row",
+                gap: "16px",
+                alignItems: "end",
+                paddingRight: "calc(32px + env(safe-area-inset-left))",
+                paddingLeft: "calc(32px + env(safe-area-inset-right))",
+                height: "calc(64px)",
+                width: "100%",
+                pointerEvents: "none",
+                "& > *": {
+                    marginBottom: "calc(16px + env(safe-area-inset-bottom))!important",
+                    pointerEvents: "auto",
+                },
+            }}>
+                {sideActionButtons}
+            </Box> : null}
             {/* Create/Save button. On hover or press, displays formik errors if disabled */}
             {!hideButtons ? <Grid item xs={6}>
                 <Box onClick={handleSubmit}>

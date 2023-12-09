@@ -1,8 +1,10 @@
 import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectCompleteInput, RunProjectCreateInput, RunProjectSearchInput, RunProjectUpdateInput, VisibilityType } from "@local/shared";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { assertRequestFrom } from "../../auth";
-import { rateLimit } from "../../middleware";
-import { RunProjectModel } from "../../models/base";
+import { createOneHelper } from "../../actions/creates";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateOneHelper } from "../../actions/updates";
+import { assertRequestFrom } from "../../auth/request";
+import { rateLimit } from "../../middleware/rateLimit";
+import { RunProjectModel } from "../../models/base/runProject";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../../types";
 
 export type EndpointsRunProject = {
@@ -34,11 +36,11 @@ export const RunProjectEndpoints: EndpointsRunProject = {
     Mutation: {
         runProjectCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         runProjectUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
         runProjectDeleteAll: async (_p, _d, { prisma, req }) => {
             const userData = assertRequestFrom(req, { isUser: true });

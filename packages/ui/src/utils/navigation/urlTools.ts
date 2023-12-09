@@ -1,5 +1,5 @@
 import { handleRegex, LINKS, uuidValidate } from "@local/shared";
-import { getLastUrlPart, SetLocation } from "route";
+import { getLastPathnamePart, SetLocation } from "route";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -24,7 +24,7 @@ export const uuidToBase36 = (uuid: string): string => {
         const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
         return base36 === "0" ? "" : base36;
     } catch (error) {
-        PubSub.get().publishSnack({ messageKey: "CouldNotConvertId", severity: "Error", data: { uuid } });
+        PubSub.get().publish("snack", { messageKey: "CouldNotConvertId", severity: "Error", data: { uuid } });
         return "";
     }
 };
@@ -42,10 +42,17 @@ export const base36ToUuid = (base36: string, showError = true): string => {
         const uuid = toBigInt(base36, 36).toString(16).padStart(32, "0").replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, "$1-$2-$3-$4-$5");
         return uuid === "0" ? "" : uuid;
     } catch (error) {
-        if (showError) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error", data: { base36 } });
+        if (showError) PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error", data: { base36 } });
         return "";
     }
 };
+
+export type UrlInfo = {
+    handleRoot?: string,
+    handle?: string,
+    idRoot?: string,
+    id?: string,
+}
 
 /**
  * Finds information in the URL to query for a specific item. 
@@ -60,18 +67,19 @@ export const base36ToUuid = (base36: string, showError = true): string => {
  * NOTE: This function may sometimes be used for deeper navigation within a single item, 
  * such as site.com/reports/id or site.com/comments/id. In this case, the logic is still the same.
  */
-export const parseSingleItemUrl = ({
-    url,
-}: {
-    url?: string,
-}) => {
+export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname?: string }) => {
     // Initialize the return object
-    const returnObject: {
-        handleRoot?: string,
-        handle?: string,
-        idRoot?: string,
-        id?: string,
-    } = {};
+    const returnObject: UrlInfo = {};
+    // Get the pathname from the href if it's not provided
+    if (!pathname && href) {
+        try {
+            pathname = new URL(href).pathname;
+        } catch (error) {
+            console.error("Error parsing URL in parseSingleItemUrl", href, error);
+        }
+    }
+    // If no pathname provided, return empty object
+    if (!pathname) return returnObject;
     // Helper for checking if a string is a handle
     const isHandle = (text: string) => {
         if (text.startsWith("@")) text = text.slice(1);
@@ -79,8 +87,8 @@ export const parseSingleItemUrl = ({
         return handleRegex.test(text) && !Object.values(LINKS).includes("/" + text as LINKS) && ["add", "edit", "update"].every(word => !text.includes(word));
     };
     // Get the last 2 parts of the URL
-    const lastPart = getLastUrlPart({ url });
-    const secondLastPart = getLastUrlPart({ url, offset: 1 });
+    const lastPart = getLastPathnamePart({ pathname });
+    const secondLastPart = getLastPathnamePart({ pathname, offset: 1 });
     // Get the list of versioned object names
     const objectsWithVersions = [
         LINKS.Api,
@@ -130,7 +138,7 @@ export const parseSingleItemUrl = ({
  * Otherwise, navigate to the home page.
  */
 export const tryOnClose = (
-    onClose: (() => void) | null | undefined,
+    onClose: (() => unknown) | null | undefined,
     setLocation: SetLocation,
 ) => {
     if (typeof onClose === "function") {

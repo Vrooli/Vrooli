@@ -169,7 +169,7 @@ export const validateWallet = async (key: string): Promise<WalletComplete | null
         result = (await walletComplete(stakingAddresses[0], signedPayload));
     } catch (error: any) {
         console.error("Caught error completing wallet validation", error);
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "WalletErrorUnknown",
             buttons: [{ labelKey: "Ok" }],
         });

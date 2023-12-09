@@ -12,12 +12,10 @@ export function ThemeSwitch() {
 
     const handleChange = useCallback(() => {
         const newTheme = palette.mode === "light" ? "dark" : "light";
-        PubSub.get().publishTheme(newTheme);
+        PubSub.get().publish("theme", newTheme);
     }, [palette.mode]);
 
     const isDark = useMemo(() => palette.mode === "dark", [palette.mode]);
-    const Icon = useMemo(() => isDark ? DarkModeIcon : LightModeIcon, [isDark]);
-    const trackColor = useMemo(() => isDark ? "#2F3A45" : "#BFC7CF", [isDark]);
 
     return (
         <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
@@ -25,7 +23,7 @@ export function ThemeSwitch() {
                 ...noSelect,
                 marginRight: "auto",
             }}>
-                {t("Theme")}: {palette.mode === "light" ? t("Light") : t("Dark")}
+                {palette.mode === "light" ? t("Light") : t("Dark")}
             </Typography>
             <ToggleSwitch
                 checked={isDark}

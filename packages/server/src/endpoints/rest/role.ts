@@ -1,5 +1,5 @@
 import { role_create, role_findMany, role_findOne, role_update } from "../generated";
-import { RoleEndpoints } from "../logic";
+import { RoleEndpoints } from "../logic/role";
 import { setupRoutes } from "./base";
 
 export const RoleRest = setupRoutes({

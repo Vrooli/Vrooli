@@ -226,13 +226,14 @@ model chat_message {
     created_at        DateTime                   @default(now()) @db.Timestamptz(6)
     updated_at        DateTime                   @default(now()) @db.Timestamptz(6)
     score             Int                        @default(0)
-    isFork            Boolean                    @default(false)
-    forkId            String?                    @db.Uuid
+    sequence          Int                        @default(autoincrement())
+    versionIndex      Int                        @default(0)
+    parentId          String?                    @db.Uuid
     userId            String?                    @db.Uuid
     chatId            String?                    @db.Uuid
     chat              chat?                      @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    fork              chat_message?              @relation("chat_message_fork", fields: [forkId], references: [id], onDelete: Cascade)
-    children          chat_message[]             @relation("chat_message_fork")
+    parent            chat_message?              @relation("chat_message_parent", fields: [parentId], references: [id], onDelete: SetNull)
+    children          chat_message[]             @relation("chat_message_parent")
     user              user?                      @relation("chat_message_user", fields: [userId], references: [id], onDelete: SetNull)
     translations      chat_message_translation[]
     reactions         reaction[]                 @relation("reaction_chat_message")
@@ -1103,6 +1104,7 @@ model payment {
 
 model premium {
     id           String        @id @default(uuid()) @db.Uuid
+    credits      Int           @default(100)
     customPlan   String?       @db.VarChar(2048)
     enabledAt    DateTime?     @db.Timestamptz(6)
     expiresAt    DateTime?     @db.Timestamptz(6)
@@ -2067,6 +2069,7 @@ model schedule_recurrence {
     dayOfMonth     Int?
     month          Int?
     endDate        DateTime?
+    duration       Int?
 }
 
 model smart_contract {
@@ -2527,6 +2530,7 @@ model user {
     confirmationCodeDate           DateTime?                   @db.Timestamptz(6)
     invitedByUserId                String?                     @db.Uuid
     isBot                          Boolean                     @default(false)
+    isBotDepictingPerson           Boolean                     @default(false)
     isPrivate                      Boolean                     @default(false)
     isPrivateApis                  Boolean                     @default(false)
     isPrivateApisCreated           Boolean                     @default(false)

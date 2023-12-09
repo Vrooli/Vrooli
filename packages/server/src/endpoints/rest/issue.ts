@@ -1,5 +1,5 @@
 import { issue_close, issue_create, issue_findMany, issue_findOne, issue_update } from "../generated";
-import { IssueEndpoints } from "../logic";
+import { IssueEndpoints } from "../logic/issue";
 import { setupRoutes } from "./base";
 
 export const IssueRest = setupRoutes({

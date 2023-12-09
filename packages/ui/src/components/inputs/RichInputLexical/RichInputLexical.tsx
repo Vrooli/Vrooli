@@ -27,7 +27,7 @@ import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
-import { RichInputAction, RichInputActiveStates, RichInputChildView, RichInputLexicalProps } from "../types";
+import { RichInputAction, RichInputActiveStates, RichInputLexicalProps } from "../types";
 import "./theme.css";
 
 export const CAN_USE_DOM: boolean =
@@ -312,7 +312,7 @@ export function $createSpoilerNode(): SpoilerNode {
 const SPOILER_COMMAND: LexicalCommand<void> = createCommand("FORMAT_TEXT_COMMAND");
 
 /** Register commands for custom components (i.e. spoiler) */
-const registerCustomCommands = (editor: LexicalEditor): (() => void) => {
+const registerCustomCommands = (editor: LexicalEditor): (() => unknown) => {
     const removeListener = mergeRegister(
         editor.registerCommand<void>(
             SPOILER_COMMAND,
@@ -532,10 +532,12 @@ const RichInputLexicalComponents = ({
     name,
     onActiveStatesChange,
     onBlur,
+    onFocus,
     onChange,
     openAssistantDialog,
     placeholder = "",
     redo,
+    setHandleAction,
     tabIndex,
     toggleMarkdown,
     undo,
@@ -552,15 +554,14 @@ const RichInputLexicalComponents = ({
 
     /** Store current text properties. Logic inspired by https://github.com/facebook/lexical/blob/9e83533d52fe934bd91aaa5baaf156f682577dcf/packages/lexical-playground/src/plugins/ToolbarPlugin/index.tsx#L484 */
     const [activeEditor, setActiveEditor] = useState(editor);
-    const [activeStates, setActiveStates] = useState<RichInputActiveStates>({ ...defaultActiveStates });
+    const [activeStates, setActiveStates] = useState<Omit<RichInputActiveStates, "SetValue">>({ ...defaultActiveStates });
     const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(null);
     const [isLink, setIsLink] = useState(false);
     const [isItalic, setIsItalic] = useState(false);
     const [codeLanguage, setCodeLanguage] = useState<string>("");
     const [isEditable, setIsEditable] = useState(() => editor.isEditable());
     const $updateToolbar = useCallback(() => {
-        const updatedStates: RichInputActiveStates = { ...defaultActiveStates };
-        console.log("updating toolbar", defaultActiveStates);
+        const updatedStates = { ...defaultActiveStates };
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
             const anchorNode = selection.anchor.getNode();
@@ -637,7 +638,7 @@ const RichInputLexicalComponents = ({
             setActiveStates({ ...updatedStates });
             onActiveStatesChange({ ...updatedStates });
         }
-    }, [activeEditor]);
+    }, [activeEditor, onActiveStatesChange]);
     useEffect(() => {
         return editor.registerCommand(
             SELECTION_CHANGE_COMMAND,
@@ -666,7 +667,7 @@ const RichInputLexicalComponents = ({
     }, [onChange]);
 
     // Toolbar actions
-    const toggleHeading = (headingSize: HeadingTagType) => {
+    const toggleHeading = useCallback((headingSize: HeadingTagType) => {
         editor.update(() => {
             const selection = $getSelection();
             if (
@@ -676,48 +677,63 @@ const RichInputLexicalComponents = ({
                 $setBlocksType(selection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createParagraphNode() : $createHeadingNode(headingSize));
             }
         });
-    };
-    const toggleFormat = (formatType: TextFormatType) => {
+    }, [activeStates, editor]);
+    const toggleFormat = useCallback((formatType: TextFormatType) => {
         editor.dispatchCommand(FORMAT_TEXT_COMMAND, formatType);
-    };
-    const toggleSpoiler = () => {
+    }, [editor]);
+    const toggleSpoiler = useCallback(() => {
         editor.dispatchCommand(SPOILER_COMMAND, (void 0));
-    };
-    (RichInputLexical as unknown as RichInputChildView).handleAction = (action, data) => {
-        console.log("in RichInputlExical handleAction", action);
-        const dispatch = editor.dispatchCommand;
-        const actionMap = {
-            "Assistant": () => openAssistantDialog(""),
-            "Bold": () => toggleFormat("bold"),
-            "Code": () => { }, //TODO
-            "Header1": () => toggleHeading("h1"),
-            "Header2": () => toggleHeading("h2"),
-            "Header3": () => toggleHeading("h3"),
-            "Header4": () => toggleHeading("h4"),
-            "Header5": () => toggleHeading("h5"),
-            "Header6": () => toggleHeading("h6"),
-            "Italic": () => toggleFormat("italic"),
-            "Link": () => dispatch(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
-            "ListBullet": () => dispatch(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
-            "ListCheckbox": () => dispatch(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
-            "ListNumber": () => dispatch(INSERT_ORDERED_LIST_COMMAND, (void 0)),
-            "Quote": () => { }, //TODO
-            "Redo": () => {
-                redo();
-                triggerEditorChange();
-            },
-            "Spoiler": toggleSpoiler,
-            "Strikethrough": () => toggleFormat("strikethrough"),
-            "Table": () => { }, //TODO
-            "Underline": () => toggleFormat("underline"),
-            "Undo": () => {
-                undo();
-                triggerEditorChange();
-            },
-        };
-        const actionFunction = actionMap[action];
-        if (actionFunction) actionFunction();
-    };
+    }, [editor]);
+
+
+    useEffect(() => {
+        if (!setHandleAction) return;
+        setHandleAction((action, data) => {
+            console.log("in RichInputlExical handleAction", action);
+            const dispatch = editor.dispatchCommand;
+            const actionMap = {
+                "Assistant": () => openAssistantDialog(""),
+                "Bold": () => toggleFormat("bold"),
+                "Code": () => { }, //TODO
+                "Header1": () => toggleHeading("h1"),
+                "Header2": () => toggleHeading("h2"),
+                "Header3": () => toggleHeading("h3"),
+                "Header4": () => toggleHeading("h4"),
+                "Header5": () => toggleHeading("h5"),
+                "Header6": () => toggleHeading("h6"),
+                "Italic": () => toggleFormat("italic"),
+                "Link": () => dispatch(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
+                "ListBullet": () => dispatch(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
+                "ListCheckbox": () => dispatch(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
+                "ListNumber": () => dispatch(INSERT_ORDERED_LIST_COMMAND, (void 0)),
+                "Quote": () => { }, //TODO
+                "Redo": () => {
+                    redo();
+                    triggerEditorChange();
+                },
+                "SetValue": () => {
+                    if (typeof data !== "string") {
+                        console.error("Invalid data type for SetValue action", data);
+                        return;
+                    }
+                    // set value without triggering onChange
+                    editor.update(() => {
+                        $convertFromMarkdownString(data, ALL_TRANSFORMERS);
+                    }, HISTORY_MERGE_OPTIONS);
+                },
+                "Spoiler": toggleSpoiler,
+                "Strikethrough": () => toggleFormat("strikethrough"),
+                "Table": () => { }, //TODO
+                "Underline": () => toggleFormat("underline"),
+                "Undo": () => {
+                    undo();
+                    triggerEditorChange();
+                },
+            };
+            const actionFunction = actionMap[action];
+            if (actionFunction) actionFunction();
+        });
+    }, [editor, openAssistantDialog, redo, setHandleAction, toggleFormat, toggleHeading, toggleSpoiler, triggerEditorChange, undo]);
 
     return (
         <Box
@@ -728,14 +744,20 @@ const RichInputLexicalComponents = ({
                 padding: "16.5px 14px",
                 minWidth: "-webkit-fill-available",
                 maxWidth: "-webkit-fill-available",
-                borderColor: error ? palette.error.main : palette.divider,
                 borderRadius: "0 0 4px 4px",
                 borderTop: "none",
                 fontFamily: typography.fontFamily,
                 fontSize: typography.fontSize + 2,
                 lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
-                backgroundColor: palette.background.paper,
+                backgroundColor: "transparent",
                 color: palette.text.primary,
+                border: `1px solid ${palette.divider}`,
+                "&:hover": {
+                    border: `1px solid ${palette.background.textPrimary}`,
+                },
+                "&:focus-within": {
+                    border: `2px solid ${palette.primary.main}`,
+                },
                 ...sx,
             }}>
             <RichTextPlugin
@@ -772,7 +794,7 @@ const RichInputLexicalComponents = ({
     );
 };
 
-/** TextField for entering WYSIWYG text */
+/** TextInput for entering WYSIWYG text */
 export const RichInputLexical = ({
     value,
     ...props

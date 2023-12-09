@@ -1,19 +1,19 @@
 import { ApiVersionSortBy, apiVersionValidation, MaxObjects } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
-import { preShapeVersion } from "../../utils/preShapeVersion";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { ApiVersionFormat } from "../format/apiVersion";
-import { ModelLogic } from "../types";
-import { ApiModel } from "./api";
-import { ApiModelLogic, ApiVersionModelLogic } from "./types";
+import { ApiVersionFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { ApiModelInfo, ApiModelLogic, ApiVersionModelInfo, ApiVersionModelLogic } from "./types";
 
 const __typename = "ApiVersion" as const;
-const suppFields = ["you"] as const;
-export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields> = ({
+export const ApiVersionModel: ApiVersionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.api_version,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: ({ callLink, translations }, languages) => {
@@ -41,36 +41,36 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: ApiVersionFormat,
     mutate: {
         shape: {
             pre: async (params) => {
-                const { createList, updateList, deleteList, prisma, userData } = params;
+                const { Create, Update, Delete, prisma, userData } = params;
                 await versionsCheck({
-                    createList,
-                    deleteList,
+                    Create,
+                    Delete,
                     objectType: __typename,
                     prisma,
-                    updateList,
+                    Update,
                     userData,
                 });
-                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
-                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                [...Create, ...Update].forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 callLink: data.callLink,
                 documentationLink: noNull(data.documentationLink),
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
-                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
-                ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 callLink: noNull(data.callLink),
@@ -79,13 +79,15 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                 isComplete: noNull(data.isComplete),
                 versionLabel: noNull(data.versionLabel),
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
-                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
-                ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
-            post: async (params) => {
-                await postShapeVersion({ ...params, objectType: __typename });
+        },
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
         yup: apiVersionValidation,
@@ -118,7 +120,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -128,14 +130,14 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ApiModel.validate.isPublic(data.root as ApiModelLogic["PrismaModel"], languages),
+            oneIsPublic<ApiVersionModelInfo["PrismaSelect"]>([["root", "Api"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ApiModel.validate.owner(data.root as ApiModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate().owner(data?.root as ApiModelInfo["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -161,8 +163,8 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                 ],
             },
             owner: (userId) => ({
-                root: ApiModel.validate.visibility.owner(userId),
+                root: ModelMap.get<ApiModelLogic>("Api").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

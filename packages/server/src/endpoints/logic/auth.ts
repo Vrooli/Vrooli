@@ -1,9 +1,15 @@
-import { AccountStatus, COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, emailSignUpFormValidation, EmailSignUpInput, LogOutInput, password as passwordValidation, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
-import { generateNonce, generateSessionJwt, getUser, hashPassword, logIn, randomString, serializedAddressToBech32, sessionUserTokenToUser, setupPasswordReset, toSession, toSessionUser, updateSessionTimeZone, validateCode, validateVerificationCode, verifySignedMessage } from "../../auth";
-import { Award, CustomError, Trigger } from "../../events";
-import { rateLimit } from "../../middleware";
+import { AccountStatus, COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, EmailSignUpInput, emailSignUpValidation, LINKS, LogOutInput, password as passwordValidation, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
+import { Prisma } from "@prisma/client";
+import { hashPassword, logIn, setupPasswordReset, validateCode, validateVerificationCode } from "../../auth/email";
+import { generateSessionJwt, getUser, updateSessionTimeZone } from "../../auth/request";
+import { sessionUserTokenToUser, toSession, toSessionUser } from "../../auth/session";
+import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from "../../auth/wallet";
+import { Award } from "../../events/awards";
+import { CustomError } from "../../events/error";
+import { Trigger } from "../../events/trigger";
+import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint, RecursivePartial } from "../../types";
-import { hasProfanity } from "../../utils";
+import { hasProfanity } from "../../utils/censor";
 
 export type EndpointsAuth = {
     Mutation: {
@@ -22,6 +28,105 @@ export type EndpointsAuth = {
 
 /** Expiry time for wallet authentication */
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
+
+const BASE_URL = "https://vrooli.com";
+/** Default user data */
+const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Prisma.userUncheckedCreateInput>> = {
+    isPrivateBookmarks: true,
+    isPrivateVotes: true,
+    focusModes: {
+        create: [{
+            name: "Work",
+            description: "This is an auto-generated focus mode. You can edit or delete it.",
+            reminderList: { create: {} },
+            resourceList: {
+                create: {
+                    resources: {
+                        create: [{
+                            link: `${BASE_URL}${LINKS.Calendar}`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Schedule",
+                                    description: "View your schedule and add new events.",
+                                }],
+                            },
+                        }, {
+                            link: `${BASE_URL}${LINKS.MyStuff}?type=Reminder`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Reminders",
+                                }],
+                            },
+                        }, {
+                            link: `${BASE_URL}${LINKS.MyStuff}?type=Note`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Notes",
+                                }],
+                            },
+                        }, {
+                            link: `${BASE_URL}${LINKS.History}?type=RunsActive`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Runs",
+                                    description: "View your active routines and projects, and start new ones.",
+                                }],
+                            },
+                        }],
+                    },
+                },
+            },
+        }, {
+            name: "Study",
+            description: "This is an auto-generated focus mode. You can edit or delete it.",
+            reminderList: { create: {} },
+            resourceList: {
+                create: {
+                    resources: {
+                        create: [{
+                            link: `${BASE_URL}${LINKS.History}?type=Bookmarked`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Bookmarks",
+                                }],
+                            },
+                        }, {
+                            link: `${BASE_URL}${LINKS.Search}?type=Routine`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Find Routines",
+                                    description: "Search for public routines to view, run, schedule, or bookmark.",
+                                }],
+                            },
+                        }, {
+                            link: `${BASE_URL}${LINKS.Search}?type=Project`,
+                            usedFor: ResourceUsedFor.Context,
+                            translations: {
+                                create: [{
+                                    language: "en",
+                                    name: "Find Projects",
+                                    description: "Search for public projects to view, run, schedule, or bookmark.",
+                                }],
+                            },
+                        }],
+                    },
+                },
+            },
+        }],
+    },
+};
 
 /**
  * GraphQL endpoints for all authentication queries and mutations. These include:
@@ -109,7 +214,7 @@ export const AuthEndpoints: EndpointsAuth = {
         emailSignUp: async (_, { input }, { prisma, req, res }) => {
             await rateLimit({ maxUser: 10, req });
             // Validate input format
-            emailSignUpFormValidation.validateSync(input, { abortEarly: false });
+            emailSignUpValidation.validateSync(input, { abortEarly: false });
             // Check for censored words
             if (hasProfanity(input.name))
                 throw new CustomError("0140", "BannedWord", req.session.languages);
@@ -128,19 +233,7 @@ export const AuthEndpoints: EndpointsAuth = {
                             { emailAddress: input.email },
                         ],
                     },
-                    focusModes: {
-                        create: [{
-                            name: "Work",
-                            description: "This is an auto-generated focus mode. You can edit or delete it.",
-                            reminderList: { create: {} },
-                            resourceList: { create: {} },
-                        }, {
-                            name: "Study",
-                            description: "This is an auto-generated focus mode. You can edit or delete it.",
-                            reminderList: { create: {} },
-                            resourceList: { create: {} },
-                        }],
-                    },
+                    ...DEFAULT_USER_DATA,
                 },
             });
             if (!user)
@@ -263,7 +356,10 @@ export const AuthEndpoints: EndpointsAuth = {
                 where: { id: userId },
                 select: { id: true },
             });
-            if (userData) return await toSession(userData, prisma, req);
+            if (userData) {
+                const session = await toSession(userData, prisma, req);
+                return session;
+            }
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Jwt);
             throw new CustomError("0148", "NotVerified", req.session.languages);
@@ -373,19 +469,7 @@ export const AuthEndpoints: EndpointsAuth = {
                         wallets: {
                             connect: { id: walletData.id },
                         },
-                        focusModes: {
-                            create: [{
-                                name: "Work",
-                                description: "This is an auto-generated focus mode. You can edit or delete it.",
-                                reminderList: { create: {} },
-                                resourceList: { create: {} },
-                            }, {
-                                name: "Study",
-                                description: "This is an auto-generated focus mode. You can edit or delete it.",
-                                reminderList: { create: {} },
-                                resourceList: { create: {} },
-                            }],
-                        },
+                        ...DEFAULT_USER_DATA,
                     },
                     select: { id: true },
                 });

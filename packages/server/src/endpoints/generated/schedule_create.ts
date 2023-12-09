@@ -23,6 +23,7 @@ export const schedule_create = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -237,6 +238,7 @@ export const schedule_create = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -277,6 +279,7 @@ export const schedule_create = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -320,6 +323,8 @@ export const schedule_create = {
       "name": true
     },
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "openToAnyoneWithInvite": true,
     "showOnOrganizationProfile": true,
     "organization": {
@@ -391,6 +396,10 @@ export const schedule_create = {
           },
           "__typename": "Role"
         },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Member"
       },
       "id": true,
@@ -461,6 +470,7 @@ export const schedule_create = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true,
               "__typename": "User"
@@ -504,6 +514,7 @@ export const schedule_create = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -668,6 +679,7 @@ export const schedule_create = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -841,6 +853,7 @@ export const schedule_create = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"

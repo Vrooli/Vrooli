@@ -1,4 +1,4 @@
-import { fetchData, Method, ServerResponse } from "api";
+import { displayServerErrors, fetchData, Method, ServerResponse } from "api";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type RequestState<TData> = {
@@ -7,14 +7,23 @@ type RequestState<TData> = {
     errors: ServerResponse["errors"] | undefined;
 };
 
-type UseLazyFetchProps<TInput extends Record<string, any> | undefined, TData> = {
+export type UseLazyFetchProps<TInput extends Record<string, any> | undefined, TData> = {
     endpoint?: string | undefined;
     inputs?: TInput;
     method?: Method;
     options?: RequestInit;
 };
 
-export type MakeLazyRequest<TInput extends Record<string, any> | undefined, TData> = (input?: TInput, endpointOverride?: string) => Promise<ServerResponse<TData>>;
+export type FetchInputOptions = {
+    endpointOverride?: string,
+    displayError?: boolean,
+    onError?: (errors: ServerResponse["errors"]) => unknown,
+}
+
+export type MakeLazyRequest<TInput extends Record<string, any> | undefined, TData> = (
+    input?: TInput,
+    inputOptions?: FetchInputOptions,
+) => Promise<ServerResponse<TData>>;
 
 /**
  * Custom React hook for making HTTP requests.
@@ -49,7 +58,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         fetchParamsRef.current = { endpoint, method, options, inputs };
     }, [endpoint, method, options, inputs]); // This will update the ref each time endpoint, method, options or inputs change
 
-    const makeRequest = useCallback<MakeLazyRequest<TInput, TData>>(async (input?: TInput, endpointOverride?: string) => {
+    const getData = useCallback<MakeLazyRequest<TInput, TData>>(async (input, inputOptions) => {
         // Update the inputs stored in the ref if a new input is provided
         if (input) {
             fetchParamsRef.current.inputs = input;
@@ -57,7 +66,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         // Get fetch params from the ref
         const { endpoint, method, options, inputs } = fetchParamsRef.current;
         // Cancel if no endpoint is provided
-        if (!endpoint && !endpointOverride) {
+        if (!endpoint && !inputOptions?.endpointOverride) {
             const message = "No endpoint provided to useLazyFetch";
             console.error(message);
             return { errors: [{ message }] };
@@ -65,23 +74,36 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         // Update the state to loading
         setState(s => ({ ...s, loading: true }));
         // Make the request
-        console.log("fetching data", endpointOverride || endpoint, inputs);
         const result = await fetchData({
-            endpoint: endpointOverride || endpoint as string,
+            endpoint: inputOptions?.endpointOverride || endpoint as string,
             inputs,
             method,
             options,
         })
             .then(({ data, errors, version }: ServerResponse) => {
                 setState({ loading: false, data, errors });
+                if (Array.isArray(errors) && errors.length > 0) {
+                    if (inputOptions?.onError) {
+                        inputOptions.onError(errors);
+                    }
+                    if (inputOptions?.displayError !== false) {
+                        displayServerErrors(errors);
+                    }
+                }
                 return { data, errors, version };
             })
             .catch(({ errors, version }: ServerResponse) => {
                 setState({ loading: false, data: undefined, errors });
+                if (inputOptions?.onError) {
+                    inputOptions.onError(errors);
+                }
+                if (inputOptions?.displayError !== false) {
+                    displayServerErrors(errors);
+                }
                 return { errors, version };
             });
         return result;
     }, []);
 
-    return [makeRequest, state];
+    return [getData, state];
 }

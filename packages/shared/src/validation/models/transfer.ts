@@ -1,9 +1,9 @@
-import { TransferObjectType } from "@local/shared";
+import { TransferObjectType, YupMutateParams } from "@local/shared";
 import { enumToYup, id, message, opt, req, YupModel, yupObj } from "../utils";
 
 const transferObjectType = enumToYup(TransferObjectType);
 
-export const transferRequestSendValidation = ({ o }: any) => yupObj({
+export const transferRequestSendValidation = (d: YupMutateParams) => yupObj({
     id: req(id),
     message: opt(message),
     objectType: req(transferObjectType),
@@ -11,21 +11,21 @@ export const transferRequestSendValidation = ({ o }: any) => yupObj({
     ["object", ["Connect"], "one", "req"],
     ["toOrganization", ["Connect"], "one", "opt"],
     ["toUser", ["Connect"], "one", "opt"],
-], [["toOrganizationConnect", "toUserConnect"]], o);
+], [["toOrganizationConnect", "toUserConnect"]], d);
 
-export const transferRequestReceiveValidation = ({ o }: any) => yupObj({
+export const transferRequestReceiveValidation = (d: YupMutateParams) => yupObj({
     id: req(id),
     message: opt(message),
     objectType: req(transferObjectType),
 }, [
     ["object", ["Connect"], "one", "req"],
     ["toOrganization", ["Connect"], "one", "opt"],
-], [], o);
+], [], d);
 
 export const transferValidation: YupModel<false, true> = {
     // Cannot create a transfer through normal means. Must use request send/receive
-    update: ({ o }) => yupObj({
+    update: (d) => yupObj({
         id: req(id),
         message: opt(message),
-    }, [], [], o),
+    }, [], [], d),
 };

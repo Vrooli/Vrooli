@@ -1,5 +1,5 @@
 import { gql } from "apollo-server-express";
-import { EmailEndpoints, EndpointsEmail } from "../logic";
+import { EmailEndpoints, EndpointsEmail } from "../logic/email";
 
 export const typeDef = gql`
     input EmailCreateInput {

@@ -3,28 +3,27 @@ import { Box, useTheme } from "@mui/material";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { SessionContext } from "contexts/SessionContext";
 import { useContext } from "react";
-import { Redirect, useLocation } from "route";
+import { Redirect, stringifySearchParams, useLocation } from "route";
 import { PubSub } from "utils/pubsub";
-import { PageProps } from "../../views/wrapper/types";
+import { PageProps } from "views/types";
 
 export const Page = ({
     children,
     excludePageContainer = false,
     mustBeLoggedIn = false,
-    redirect = LINKS.Start,
     sessionChecked,
     sx,
 }: PageProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
-    const [location] = useLocation();
+    const [{ pathname }] = useLocation();
 
     // If this page has restricted access
     if (mustBeLoggedIn) {
         if (session?.isLoggedIn) return children;
-        if (sessionChecked && location !== redirect) {
-            PubSub.get().publishSnack({ messageKey: "PageRestricted", severity: "Error" });
-            return <Redirect to={redirect} />;
+        if (sessionChecked && pathname !== LINKS.Signup) {
+            PubSub.get().publish("snack", { messageKey: "PageRestricted", severity: "Error" });
+            return <Redirect to={`${LINKS.Signup}${stringifySearchParams({ redirect: pathname })}`} />;
         }
         return null;
     }

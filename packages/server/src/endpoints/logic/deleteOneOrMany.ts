@@ -1,6 +1,6 @@
 import { Count, DeleteManyInput, DeleteOneInput, Success } from "@local/shared";
-import { deleteManyHelper, deleteOneHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { deleteManyHelper, deleteOneHelper } from "../../actions/deletes";
+import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint } from "../../types";
 
 export type EndpointsDeleteOneOrMany = {

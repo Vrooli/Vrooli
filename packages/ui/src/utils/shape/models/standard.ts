@@ -1,18 +1,18 @@
 import { Standard, StandardCreateInput, StandardUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
-import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
-import { shapeTag, TagShape } from "./tag";
+import { StandardVersionShape, shapeStandardVersion } from "./standardVersion";
+import { TagShape, shapeTag } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 
 
 export type StandardShape = Pick<Standard, "id" | "isInternal" | "isPrivate" | "permissions"> & {
-    __typename?: "Standard";
-    parent?: { id: string } | null;
+    __typename: "Standard";
+    parent?: CanConnect<StandardVersionShape> | null;
     owner?: OwnerShape | null;
-    labels?: ({ id: string } | LabelShape)[] | null;
-    tags?: ({ tag: string } | TagShape)[] | null;
+    labels?: CanConnect<LabelShape>[] | null;
+    tags?: CanConnect<TagShape, "tag">[] | null;
     versions?: Omit<StandardVersionShape, "root">[] | null;
 }
 

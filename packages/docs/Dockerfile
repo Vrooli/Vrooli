@@ -1,4 +1,4 @@
-FROM squidfunk/mkdocs-material
+FROM squidfunk/mkdocs-material:9.3
 
 # Macros plugin required to use variables in markdown
 RUN pip install mkdocs-macros-plugin

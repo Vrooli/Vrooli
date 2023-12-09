@@ -7,6 +7,7 @@ export const chat_create = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -29,6 +30,7 @@ export const chat_create = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -38,43 +40,6 @@ export const chat_create = {
       "canUpdate": true
     },
     "__typename": "ChatInvite"
-  },
-  "messages": {
-    "translations": {
-      "id": true,
-      "language": true,
-      "text": true
-    },
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "user": {
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "bannerImage": true,
-      "handle": true,
-      "isBot": true,
-      "name": true,
-      "profileImage": true,
-      "__typename": "User"
-    },
-    "score": true,
-    "reactionSummaries": {
-      "emoji": true,
-      "count": true,
-      "__typename": "ReactionSummary"
-    },
-    "reportsCount": true,
-    "you": {
-      "canDelete": true,
-      "canReply": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canReact": true,
-      "reaction": true
-    },
-    "__typename": "ChatMessage"
   },
   "labels": {
     "apisCount": true,
@@ -100,6 +65,7 @@ export const chat_create = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -213,6 +179,10 @@ export const chat_create = {
           "description": true
         },
         "__typename": "Role"
+      },
+      "you": {
+        "canDelete": true,
+        "canUpdate": true
       },
       "__typename": "Member"
     },

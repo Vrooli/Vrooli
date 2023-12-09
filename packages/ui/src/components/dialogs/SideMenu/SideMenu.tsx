@@ -1,4 +1,4 @@
-import { endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, userValidation } from "@local/shared";
+import { endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, noop, ProfileUpdateInput, profileValidation, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
@@ -14,16 +14,16 @@ import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { noSelect } from "styles";
 import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { Cookies } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { getUserActions, NavAction, NAV_ACTION_TAGS } from "utils/navigation/userActions";
-import { noop } from "utils/objects";
+import { getUserActions, NAV_ACTION_TAGS, NavAction } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { shapeProfile } from "utils/shape/models/profile";
@@ -66,10 +66,10 @@ export const SideMenu = () => {
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     // Handle opening and closing
-    const { isOpen, close } = useSideMenu(id, isMobile);
+    const { isOpen, close } = useSideMenu({ id, isMobile });
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
-        PubSub.get().publishSideMenu({ id, isOpen });
+        PubSub.get().publish("sideMenu", { id, isOpen });
     }, [breakpoints, isOpen]);
 
     // Display settings collapse
@@ -89,7 +89,7 @@ export const SideMenu = () => {
             theme: getCurrentUser(session).theme ?? "light",
         },
         enableReinitialize: true,
-        validationSchema: userValidation.update({}),
+        validationSchema: profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" }),
         onSubmit: (values) => {
             // If not logged in, do nothing
             if (!userId) {
@@ -97,9 +97,11 @@ export const SideMenu = () => {
             }
             if (!formik.isValid) return;
             const input = shapeProfile.update({
+                __typename: "User",
                 id: userId,
                 theme: getCurrentUser(session).theme ?? "light",
             }, {
+                __typename: "User",
                 id: userId,
                 theme: values.theme,
             });
@@ -139,7 +141,7 @@ export const SideMenu = () => {
                 inputs: { id: user.id },
                 successMessage: () => ({ messageKey: "LoggedInAs", messageVariables: { name: user.name ?? user.handle ?? "" } }),
                 onSuccess: (data) => {
-                    PubSub.get().publishSession(data);
+                    PubSub.get().publish("session", data);
                     window.location.reload();
                 },
             });
@@ -147,7 +149,7 @@ export const SideMenu = () => {
     }, [handleClose, isMobile, userId, setLocation, switchCurrentAccount]);
 
     const handleAddAccount = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        setLocation(LINKS.Start);
+        setLocation(LINKS.Login);
         if (isMobile) handleClose(event);
     }, [handleClose, isMobile, setLocation]);
 
@@ -159,9 +161,13 @@ export const SideMenu = () => {
             fetch: logOut,
             inputs: { id: user.id },
             successMessage: () => ({ messageKey: "LoggedOutOf", messageVariables: { name: user.name ?? user.handle ?? "" } }),
-            onSuccess: (data) => { PubSub.get().publishSession(data); },
+            onSuccess: (data) => {
+                localStorage.removeItem(Cookies.FormData); // Clear old form data cache
+                PubSub.get().publish("session", data);
+                PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false });
+            },
             // If error, log out anyway
-            onError: () => { PubSub.get().publishSession(guestSession); },
+            onError: () => { PubSub.get().publish("session", guestSession); },
         });
         setLocation(LINKS.Home);
     }, [handleClose, isMobile, session, logOut, setLocation]);
@@ -192,7 +198,10 @@ export const SideMenu = () => {
                     height="75%"
                 />
             </Avatar>
-            <ListItemText primary={account.name ?? account.handle} />
+            <ListItemText
+                primary={account.name ?? account.handle}
+                secondary={`${t("Credit", { count: 2 })}: ${account.credits ?? 0}`}
+            />
         </ListItem>
     ), [accounts, handleUserClick]);
 
@@ -210,8 +219,9 @@ export const SideMenu = () => {
                     background: palette.background.default,
                     overflowY: "auto",
                     borderLeft: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
+                    zIndex,
                 },
-                "& > .MuiDialog-container": {
+                "& > .MuiDrawer-root": {
                     "& > .MuiPaper-root": {
                         zIndex,
                     },
@@ -313,12 +323,13 @@ export const SideMenu = () => {
                             palette={palette}
                         />
                     ))}
-                    <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
                     <NavListItem label={t("Bookmark", { count: 2 })} Icon={BookmarkFilledIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`)} palette={palette} />
-                    <NavListItem label={t("History")} Icon={HistoryIcon} onClick={(event) => handleOpen(event, LINKS.History)} palette={palette} />
+                    <NavListItem label={t("Calendar", { count: 2 })} Icon={MonthIcon} onClick={(event) => handleOpen(event, LINKS.Calendar)} palette={palette} />
+                    <NavListItem label={t("View", { count: 2 })} Icon={HistoryIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Viewed}`)} palette={palette} />
                     <NavListItem label={t("Run", { count: 2 })} Icon={RoutineActiveIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`)} palette={palette} />
                     <NavListItem label={t("Award", { count: 2 })} Icon={AwardIcon} onClick={(event) => handleOpen(event, LINKS.Awards)} palette={palette} />
                     <NavListItem label={t("Premium")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Premium)} palette={palette} />
+                    <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
                 </List>
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* Additional Resources */}

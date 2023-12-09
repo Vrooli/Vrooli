@@ -7,7 +7,7 @@ import { resolveGQLInfo, uppercaseFirstLetter } from "@local/shared";
 import fs from "fs";
 import { DocumentNode, FieldNode, FragmentDefinitionNode, GraphQLResolveInfo, OperationDefinitionNode, parse } from "graphql";
 import { injectTypenames } from "../../../../server/src/builders/injectTypenames";
-import { FormatMap } from "../../../../server/src/models/format";
+import { FormatMap } from "../../../../server/src/models/formats";
 import { endpoints } from "./endpoints";
 
 // Specify whether to generate graphql-tag strings, PartialGraphQLInfo objects, or both. 

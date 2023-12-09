@@ -12,10 +12,13 @@
  * the organization's governance structure.
  */
 import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { CustomError } from "../events/error";
+import { ModelMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
-import { QueryAction } from "../utils/types";
+import { authDataWithInput } from "../utils/authDataWithInput";
+import { AuthDataById } from "../utils/getAuthenticatedData";
+import { getParentInfo } from "../utils/getParentInfo";
+import { InputsById, QueryAction } from "../utils/types";
 
 /**
  * Helper function to check if a count exceeds a number
@@ -123,7 +126,8 @@ const checkObjectLimit = (
  * @parma userId ID of user requesting permissions
  */
 export async function maxObjectsCheck(
-    authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
+    inputsById: InputsById,
+    authDataById: AuthDataById,
     idsByAction: { [key in QueryAction]?: string[] },
     prisma: PrismaType,
     userData: SessionUserToken,
@@ -133,22 +137,23 @@ export async function maxObjectsCheck(
     // Loop through every "Create" action, and increment the count for the object type
     if (idsByAction.Create) {
         for (const id of idsByAction.Create) {
-            // Get auth data
-            const authData = authDataById[id];
+            const typename = inputsById[id].node.__typename;
             // Get validator
-            const { validate } = getLogic(["validate"], authData.__typename, userData.languages, "maxObjectsCheck-create");
+            const validator = ModelMap.get(typename, true, "maxObjectsCheck 2").validate();
+            // Creates shouldn't have authData, so we'll only use the input data. 
+            // We still need to pass this through authDataWithInput to convert relationships to the correct shape
+            const combinedData = authDataWithInput(inputsById[id].input as object, {}, inputsById, authDataById);
             // Find owner and object type
-            const owners = validate.owner(authData, userData.id);
-            // Increment count for owner
-            const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
-            if (!ownerId) throw new CustomError("0310", "InternalError", userData.languages);
+            const owners = validator.owner(combinedData, userData.id);
+            // Increment count for owner. We can assume we're the owner if no owner was provided
+            const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id ?? userData.id;
             // Initialize shape of counts for this owner
-            counts[authData.__typename] = counts[authData.__typename] || {};
-            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 };
+            counts[typename] = counts[typename] || {};
+            counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validate.isPublic(authData, userData.languages);
+            const isPublic = validator.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), userData.languages);
             // Increment count
-            counts[authData.__typename]![ownerId][isPublic ? "public" : "private"]++;
+            counts[typename]![ownerId][isPublic ? "public" : "private"]++;
         }
     }
     // Ignore count for updates, as that doesn't change the total number of objects
@@ -158,9 +163,9 @@ export async function maxObjectsCheck(
             // Get auth data
             const authData = authDataById[id];
             // Get validator
-            const { validate } = getLogic(["validate"], authData.__typename, userData.languages, "maxObjectsCheck-delete");
+            const validator = ModelMap.get(authData.__typename, true, "maxObjectsCheck 2").validate();
             // Find owner and object type
-            const owners = validate.owner(authData, userData.id);
+            const owners = validator.owner(authData, userData.id);
             // Decrement count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
             if (!ownerId) throw new CustomError("0311", "InternalError", userData.languages);
@@ -168,7 +173,7 @@ export async function maxObjectsCheck(
             counts[authData.__typename] = counts[authData.__typename] || {};
             counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validate.isPublic(authData, userData.languages);
+            const isPublic = validator.isPublic(authData, (...rest) => getParentInfo(...rest, inputsById), userData.languages);
             // Decrement count
             counts[authData.__typename]![ownerId][isPublic ? "public" : "private"]--;
         }
@@ -177,17 +182,18 @@ export async function maxObjectsCheck(
     // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
         // Get delegate and validate functions for the object type
-        const { delegate, validate } = getLogic(["delegate", "validate"], objectType as GqlModelType, userData.languages, "maxObjectsCheck-existing");
+        const delegator = ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 3").delegate(prisma);
+        const validator = ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 4").validate();
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner
-            let currCountPrivate = await delegate(prisma).count({ where: { AND: [validate.visibility.owner(ownerId), validate.visibility.private] } });
-            let currCountPublic = await delegate(prisma).count({ where: { AND: [validate.visibility.owner(ownerId), validate.visibility.public] } });
+            let currCountPrivate = await delegator.count({ where: { AND: [validator.visibility.owner(ownerId), validator.visibility.private] } });
+            let currCountPublic = await delegator.count({ where: { AND: [validator.visibility.owner(ownerId), validator.visibility.public] } });
             // Add count obtained from add and deletes to the current counts
             currCountPrivate += counts[objectType]![ownerId].private;
             currCountPublic += counts[objectType]![ownerId].public;
             // Now that we have the total counts for both private and public objects, check if either exceeds the maximum
-            const maxObjects = validate.maxObjects;
+            const maxObjects = validator.maxObjects;
             const ownerType = userData.id === ownerId ? "User" : "Organization";
             const hasPremium = userData.hasPremium;
             checkObjectLimit(currCountPrivate, ownerType, hasPremium, true, maxObjects, userData.languages);

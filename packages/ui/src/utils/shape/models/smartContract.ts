@@ -1,17 +1,17 @@
 import { SmartContract, SmartContractCreateInput, SmartContractUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
-import { shapeSmartContractVersion, SmartContractVersionShape } from "./smartContractVersion";
-import { shapeTag, TagShape } from "./tag";
+import { SmartContractVersionShape, shapeSmartContractVersion } from "./smartContractVersion";
+import { TagShape, shapeTag } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 
 export type SmartContractShape = Pick<SmartContract, "id" | "isPrivate"> & {
-    __typename?: "SmartContract";
-    labels?: ({ id: string } | LabelShape)[];
+    __typename: "SmartContract";
+    labels?: CanConnect<LabelShape>[] | null;
     owner: OwnerShape | null | undefined;
-    parent?: { id: string } | null;
-    tags?: ({ tag: string } | TagShape)[];
+    parent?: CanConnect<SmartContractVersionShape> | null;
+    tags?: CanConnect<TagShape, "tag">[] | null;
     versions?: Omit<SmartContractVersionShape, "root">[] | null;
 }
 

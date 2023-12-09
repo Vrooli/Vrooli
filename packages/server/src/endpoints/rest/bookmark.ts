@@ -1,5 +1,5 @@
 import { bookmark_create, bookmark_findMany, bookmark_findOne, bookmark_update } from "../generated";
-import { BookmarkEndpoints } from "../logic";
+import { BookmarkEndpoints } from "../logic/bookmark";
 import { setupRoutes } from "./base";
 
 export const BookmarkRest = setupRoutes({

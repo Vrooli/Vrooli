@@ -1,5 +1,5 @@
 import { gql } from "apollo-server-express";
-import { EndpointsStatsSmartContract, StatsSmartContractEndpoints } from "../logic";
+import { EndpointsStatsSmartContract, StatsSmartContractEndpoints } from "../logic/statsSmartContract";
 
 export const typeDef = gql`
     enum StatsSmartContractSortBy {

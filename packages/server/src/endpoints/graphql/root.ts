@@ -3,7 +3,7 @@ import { gql } from "apollo-server-express";
 import { GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from "graphql-upload";
 import { UnionResolver } from "../../types";
-import { EndpointsRoot, RootEndpoints } from "../logic";
+import { EndpointsRoot, RootEndpoints } from "../logic/root";
 import { resolveUnion } from "./resolvers";
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
@@ -18,6 +18,7 @@ export const typeDef = gql`
         Chat
         ChatInvite
         ChatMessage
+        ChatMessageSearchTreeResult
         ChatParticipant
         Comment
         Copy

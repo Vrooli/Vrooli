@@ -1,12 +1,12 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { BookmarkListShape, shapeBookmarkList } from "./bookmarkList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type BookmarkShape = Pick<Bookmark, "id"> & {
-    __typename?: "Bookmark";
+    __typename: "Bookmark";
     to: { __typename: Bookmark["to"]["__typename"], id: string };
-    list: { id: string } | BookmarkListShape;
+    list: CanConnect<BookmarkListShape> | null;
 }
 
 export const shapeBookmark: ShapeModel<BookmarkShape, BookmarkCreateInput, BookmarkUpdateInput> = {

@@ -1,12 +1,34 @@
+import { OrArray } from "@local/shared";
 import { ListObject } from "utils/display/listTools";
-import { ObjectViewProps } from "views/types";
+import { ObjectViewPropsDialog, ObjectViewPropsPage, ObjectViewPropsPartial } from "views/types";
 
-export interface UpsertProps<T extends ListObject> extends Omit<ObjectViewProps<T>, "display" | "onClose"> {
+export type CrudPropsBase = {
+    display: "dialog" | "page" | "partial";
     isCreate: boolean;
-    onCancel?: () => unknown;
-    onCompleted?: (data: T) => unknown;
 }
-
-export interface CrudProps<T extends ListObject> extends UpsertProps<T> {
-    onDeleted?: (id: string) => unknown;
+export type CrudPropsPage = CrudPropsBase & ObjectViewPropsPage & {
+    display: "page";
+    onCancel?: never;
+    onClose?: never;
+    onCompleted?: never;
+    onDeleted?: never;
 }
+export type CrudPropsDialog<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsDialog<T> & {
+    display: "dialog";
+    /** Closes the view and clears cached data */
+    onCancel: () => unknown;
+    /** Closes the view without clearing cached data */
+    onClose: () => unknown;
+    /** Closes the view, clears cached data, and returns created/updated data */
+    onCompleted: (data: T) => unknown;
+    /** Closes the view, clears cached data, and returns deleted object (or objects if arrray) */
+    onDeleted: (data: T) => unknown;
+}
+export type CrudPropsPartial<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsPartial<T> & {
+    display: "partial";
+    onCancel?: never;
+    onClose?: never;
+    onCompleted?: never;
+    onDeleted?: never;
+}
+export type CrudProps<T extends OrArray<ListObject>> = CrudPropsPage | CrudPropsDialog<T> | CrudPropsPartial<T>;

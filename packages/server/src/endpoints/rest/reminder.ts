@@ -1,5 +1,5 @@
 import { reminder_create, reminder_findMany, reminder_findOne, reminder_update } from "../generated";
-import { ReminderEndpoints } from "../logic";
+import { ReminderEndpoints } from "../logic/reminder";
 import { setupRoutes } from "./base";
 
 export const ReminderRest = setupRoutes({

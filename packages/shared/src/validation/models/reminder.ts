@@ -4,7 +4,7 @@ import { reminderItemValidation } from "./reminderItem";
 import { reminderListValidation } from "./reminderList";
 
 export const reminderValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         name: req(name),
         description: opt(description),
@@ -13,8 +13,8 @@ export const reminderValidation: YupModel = {
     }, [
         ["reminderList", ["Connect", "Create"], "one", "req", reminderListValidation, ["reminders"]],
         ["reminderItems", ["Create"], "many", "opt", reminderItemValidation],
-    ], [["reminderListConnect", "reminderListCreate"]], o),
-    update: ({ o }) => yupObj({
+    ], [["reminderListConnect", "reminderListCreate"]], d),
+    update: (d) => yupObj({
         id: req(id),
         name: opt(name),
         description: opt(description),
@@ -23,5 +23,5 @@ export const reminderValidation: YupModel = {
     }, [
         ["reminderList", ["Connect", "Create"], "one", "opt", reminderListValidation, ["reminders"]],
         ["reminderItems", ["Create", "Update", "Delete"], "many", "opt", reminderItemValidation],
-    ], [], o),
+    ], [], d),
 };

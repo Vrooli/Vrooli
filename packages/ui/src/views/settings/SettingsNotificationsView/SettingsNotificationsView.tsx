@@ -11,13 +11,11 @@ import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTop
 import { Title } from "components/text/Title/Title";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
 import { useFetch } from "hooks/useFetch";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { EmailIcon, PhoneIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { pagePaddingBottom } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "../types";
 
 const SettingsNotificationForm = ({
@@ -33,7 +31,6 @@ const SettingsNotificationForm = ({
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
             >
@@ -111,16 +108,12 @@ const SettingsNotificationForm = ({
 };
 
 export const SettingsNotificationsView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsNotificationsViewProps) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
-    const { data, refetch, loading: isLoading, errors } = useFetch<undefined, NotificationSettings>({
-        ...endpointGetNotificationSettings,
-    });
-    useDisplayServerError(errors);
+    const { data, refetch, loading: isLoading } = useFetch<undefined, NotificationSettings>(endpointGetNotificationSettings);
     const [updateFetch, { loading: isUpdating }] = useLazyFetch<NotificationSettingsUpdateInput, NotificationSettings>(endpointPutNotificationSettings);
 
     return (

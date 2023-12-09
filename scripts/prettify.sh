@@ -56,3 +56,15 @@ warning() {
 prompt() {
     echo "${ORANGE}${1}${RESET}"
 }
+
+# One-line confirmation prompt
+prompt_confirm() {
+    local message="$1"
+    prompt "$message"
+    read -n1 -r confirm
+    echo
+    case "$confirm" in
+    [Yy]*) return 0 ;; # User confirmed
+    *) return 1 ;;     # User did not confirm
+    esac
+}

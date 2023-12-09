@@ -1,7 +1,8 @@
 import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputTranslation, RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput, RoutineVersionOutputUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { hasObjectChanged } from "../general";
-import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
+import { RoutineVersionShape } from "./routineVersion";
+import { StandardVersionShape, shapeStandardVersion } from "./standardVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type RoutineVersionOutputTranslationShape = Pick<RoutineVersionOutputTranslation, "id" | "language" | "description" | "helpText"> & {
@@ -9,8 +10,8 @@ export type RoutineVersionOutputTranslationShape = Pick<RoutineVersionOutputTran
 }
 
 export type RoutineVersionOutputShape = Pick<RoutineVersionOutput, "id" | "index" | "name"> & {
-    __typename?: "RoutineVersionOutput";
-    routineVersion: { id: string };
+    __typename: "RoutineVersionOutput";
+    routineVersion: CanConnect<RoutineVersionShape>;
     standardVersion?: StandardVersionShape | null;
     translations?: RoutineVersionOutputTranslationShape[] | null;
 }

@@ -17,11 +17,12 @@ COPY --chown=node:node packages/shared/dist packages/shared/dist
 # Install local packages
 RUN yarn install --production
 
-# Install modclean and clean node_modules
-RUN yarn global add modclean
+# Install modclean and clean node_modules.
+# Also install prisma for database migrations.
+RUN yarn global add modclean prisma@4.14.0
 RUN modclean --run
 
-# Stage 1: Copy files from stage 0, copy RSA keys, and set port
+# Stage 1: Copy required files
 FROM node:16-alpine as stage1
 
 # Set working directory
@@ -35,9 +36,8 @@ COPY --from=stage0 --chown=node:node ${PROJECT_DIR} ./
 # Copy required script files
 COPY --chown=node:node scripts/* scripts/
 
-# Copy RSA public and private key files
-COPY --chown=node:node jwt_pub.pem ./
-COPY --chown=node:node jwt_priv.pem ./
+# Copy global yarn packages from stage 0
+COPY --from=stage0 /usr/local/share/.config/yarn/global /usr/local/share/.config/yarn/global
 
 # Set port
 EXPOSE ${VIRTUAL_PORT}

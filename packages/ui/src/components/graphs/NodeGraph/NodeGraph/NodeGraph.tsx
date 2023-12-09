@@ -155,7 +155,7 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             return;
         }
         // Next, check if the node was dropped into "Unlinked" container. 
@@ -187,7 +187,7 @@ export const NodeGraph = ({
             columnIndex = closestColumnIndex;
         } else {
             // No closest column found (or some error in the logic).
-            PubSub.get().publishSnack({ messageKey: "CannotDropNodeHere", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CannotDropNodeHere", severity: "Error" });
             return;
         }
         // Get the drop row
@@ -256,16 +256,16 @@ export const NodeGraph = ({
         window.addEventListener("touchend", onTouchEnd); // Stops dragging and pinching
         // window.addEventListener('wheel', onMouseWheel); // Detects mouse scroll for zoom
         // Add PubSub subscribers
-        const dragStartSub = PubSub.get().subscribeNodeDrag((data) => {
+        const dragStartSub = PubSub.get().subscribe("nodeDrag", (data) => {
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);
             setDragId(data.nodeId);
         });
-        const dragDropSub = PubSub.get().subscribeNodeDrop((data) => {
+        const dragDropSub = PubSub.get().subscribe("nodeDrop", (data) => {
             clearScroll();
             handleDragStop(data.nodeId, data.position);
         });
-        const fastUpdateSub = PubSub.get().subscribeFastUpdate((data) => {
-            setFastUpdate(data.on);
+        const fastUpdateSub = PubSub.get().subscribe("fastUpdate", (data) => {
+            setFastUpdate(data.on ?? false);
             fastUpdateTimeout.current = setTimeout(() => { setFastUpdate(false); }, data.duration);
         });
         return () => {

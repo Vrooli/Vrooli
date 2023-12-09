@@ -1,7 +1,7 @@
 import { BookmarkFor, BookmarkSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { UnionResolver } from "../../types";
-import { BookmarkEndpoints, EndpointsBookmark } from "../logic";
+import { BookmarkEndpoints, EndpointsBookmark } from "../logic/bookmark";
 import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
@@ -58,6 +58,8 @@ export const typeDef = gql`
         excludeLinkedToTag: Boolean
         ids: [ID!]
         issueId: ID
+        limitTo: [BookmarkFor!]
+        listLabel: String
         listId: ID
         noteId: ID
         organizationId: ID

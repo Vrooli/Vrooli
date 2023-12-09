@@ -1,5 +1,5 @@
 import { deleteOneOrMany_deleteMany, deleteOneOrMany_deleteOne } from "../generated";
-import { DeleteOneOrManyEndpoints } from "../logic";
+import { DeleteOneOrManyEndpoints } from "../logic/deleteOneOrMany";
 import { setupRoutes } from "./base";
 
 export const DeleteOneOrManyRest = setupRoutes({

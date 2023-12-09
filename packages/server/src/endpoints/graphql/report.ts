@@ -1,10 +1,11 @@
 import { ReportFor, ReportSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsReport, ReportEndpoints } from "../logic";
+import { EndpointsReport, ReportEndpoints } from "../logic/report";
 
 export const typeDef = gql`
     enum ReportFor {
         ApiVersion
+        ChatMessage
         Comment
         Issue
         NoteVersion
@@ -69,6 +70,7 @@ export const typeDef = gql`
         take: Int
         fromId: ID
         apiVersionId: ID
+        chatMessageId: ID
         commentId: ID
         issueId: ID
         noteVersionId: ID

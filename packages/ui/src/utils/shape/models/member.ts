@@ -3,7 +3,7 @@ import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
 export type MemberShape = Pick<Member, "id"> & {
-    __typename?: "Member";
+    __typename: "Member";
 }
 
 export const shapeMember: ShapeModel<MemberShape, null, MemberUpdateInput> = {

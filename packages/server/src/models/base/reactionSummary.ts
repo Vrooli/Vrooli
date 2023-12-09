@@ -1,23 +1,21 @@
 import { defaultPermissions } from "../../utils";
-import { ReactionSummaryFormat } from "../format/reactionSummary";
-import { ModelLogic } from "../types";
+import { ReactionSummaryFormat } from "../formats";
 import { ReactionSummaryModelLogic } from "./types";
 
 const __typename = "ReactionSummary" as const;
-const suppFields = [] as const;
-export const ReactionSummaryModel: ModelLogic<ReactionSummaryModelLogic, typeof suppFields> = ({
+export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_api,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, emoji: true, count: true }),
             get: (select) => `${select.emoji} (${select.count})`,
         },
-    },
+    }),
     format: ReactionSummaryFormat,
     search: undefined,
     // Never queried directly, so should be fine without validation
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({}),
@@ -33,5 +31,5 @@ export const ReactionSummaryModel: ModelLogic<ReactionSummaryModelLogic, typeof 
             public: {},
             owner: () => ({}),
         },
-    },
+    }),
 });

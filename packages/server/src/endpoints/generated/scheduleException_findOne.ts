@@ -24,6 +24,7 @@ export const scheduleException_findOne = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -238,6 +239,7 @@ export const scheduleException_findOne = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -278,6 +280,7 @@ export const scheduleException_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -321,6 +324,8 @@ export const scheduleException_findOne = {
         "name": true
       },
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "openToAnyoneWithInvite": true,
       "showOnOrganizationProfile": true,
       "organization": {
@@ -392,6 +397,10 @@ export const scheduleException_findOne = {
             },
             "__typename": "Role"
           },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
+          },
           "__typename": "Member"
         },
         "id": true,
@@ -462,6 +471,7 @@ export const scheduleException_findOne = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true,
                 "__typename": "User"
@@ -505,6 +515,7 @@ export const scheduleException_findOne = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true,
               "__typename": "User"
@@ -669,6 +680,7 @@ export const scheduleException_findOne = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -842,6 +854,7 @@ export const scheduleException_findOne = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"

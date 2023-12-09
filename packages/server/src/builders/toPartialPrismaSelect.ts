@@ -1,10 +1,10 @@
-import { ObjectMap } from "../models/base";
+import { ModelMap } from "../models/base";
 import { addCountFields } from "./addCountFields";
 import { addJoinTables } from "./addJoinTables";
-import { deconstructUnions } from "./deconstructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeSupplementalFields } from "./removeSupplementalFields";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
+import { deconstructUnions } from "./unions";
 
 /**
  * Converts shapes 2 and 3 of a GraphQL to Prisma conversion to shape 3. 
@@ -30,7 +30,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     }
     // Handle base case}
     const type = partial.__typename;
-    const format = typeof type === "string" ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    const format = ModelMap.get(type, false)?.format;
     if (type && format) {
         result = removeSupplementalFields(type, result);
         result = deconstructUnions(result, format.gqlRelMap);

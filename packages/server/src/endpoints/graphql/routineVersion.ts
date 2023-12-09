@@ -1,6 +1,6 @@
 import { RoutineVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsRoutineVersion, RoutineVersionEndpoints } from "../logic";
+import { EndpointsRoutineVersion, RoutineVersionEndpoints } from "../logic/routineVersion";
 
 export const typeDef = gql`
     enum RoutineVersionSortBy {
@@ -29,7 +29,7 @@ export const typeDef = gql`
         apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         versionLabel: String!
         versionNotes: String
         smartContractCallData: String

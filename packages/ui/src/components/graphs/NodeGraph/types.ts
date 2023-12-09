@@ -1,19 +1,18 @@
-import { Node, NodeEnd, NodeLink, RoutineVersion } from "@local/shared";
-import { NodeWithRoutineListShape } from "forms/types";
+import { Node, NodeLink, RoutineVersion } from "@local/shared";
 import { BuildAction } from "utils/consts";
 
 export interface NodeContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
     availableActions: BuildAction[];
-    handleClose: () => void;
-    handleSelect: (option: BuildAction) => void;
+    handleClose: () => unknown;
+    handleSelect: (option: BuildAction) => unknown;
 }
 
 export interface AddAfterLinkDialogProps {
     isOpen: boolean;
-    handleClose: () => void;
-    handleSelect: (selected: NodeLink) => void;
+    handleClose: () => unknown;
+    handleSelect: (selected: NodeLink) => unknown;
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
@@ -21,8 +20,8 @@ export interface AddAfterLinkDialogProps {
 
 export interface AddBeforeLinkDialogProps {
     isOpen: boolean;
-    handleClose: () => void;
-    handleSelect: (selected: NodeLink) => void;
+    handleClose: () => unknown;
+    handleSelect: (selected: NodeLink) => unknown;
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
@@ -31,30 +30,22 @@ export interface AddBeforeLinkDialogProps {
 export interface GraphActionsProps {
     canRedo: boolean;
     canUndo: boolean;
-    handleCleanUpGraph: () => void;
-    handleNodeDelete: (nodeId: string) => void;
-    handleOpenLinkDialog: () => void;
-    handleRedo: () => void;
-    handleUndo: () => void;
+    handleCleanUpGraph: () => unknown;
+    handleNodeDelete: (nodeId: string) => unknown;
+    handleOpenLinkDialog: () => unknown;
+    handleRedo: () => unknown;
+    handleUndo: () => unknown;
     isEditing: boolean;
     language: string;
     nodesOffGraph: Node[];
 }
 
 export interface MoveNodeMenuProps {
-    handleClose: (newPosition?: { columnIndex: number, rowIndex: number }) => void;
+    handleClose: (newPosition?: { columnIndex: number, rowIndex: number }) => unknown;
     isOpen: boolean;
     language: string; // Language to display/edit
     node?: Node | null; // Node to be moved
     routineVersion: RoutineVersion;
-}
-
-export interface NodeEndDialogProps {
-    handleClose: (updatedNode?: Node & { end: NodeEnd }) => void;
-    isEditing: boolean;
-    isOpen: boolean;
-    node: Node & { end: NodeEnd };
-    language: string;
 }
 
 export interface NodeGraphProps {
@@ -64,21 +55,21 @@ export interface NodeGraphProps {
     labelVisible?: boolean;
     language: string; // Language to display/edit
     links: NodeLink[];
-    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
-    handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
+    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => unknown;
+    handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => unknown;
     /** Inserts a new routine list node along an edge */
-    handleNodeInsert: (link: NodeLink) => void;
+    handleNodeInsert: (link: NodeLink) => unknown;
     /** Inserts new branch */
-    handleBranchInsert: (link: NodeLink) => void;
+    handleBranchInsert: (link: NodeLink) => unknown;
     /** Updates a node's data */
-    handleNodeUpdate: (node: Node) => void;
+    handleNodeUpdate: (node: Node) => unknown;
     /** Create a link between two nodes */
-    handleLinkCreate: (link: NodeLink) => void;
+    handleLinkCreate: (link: NodeLink) => unknown;
     /** Updates a link between two nodes */
-    handleLinkUpdate: (link: NodeLink, data: any) => void;
+    handleLinkUpdate: (link: NodeLink, data: any) => unknown;
     /** Delete a link between two nodes */
-    handleLinkDelete: (link: NodeLink) => void;
-    handleScaleChange: (delta: number) => void;
+    handleLinkDelete: (link: NodeLink) => unknown;
+    handleScaleChange: (delta: number) => unknown;
     /** Dictionary of row and column pairs for every node ID on graph */
     nodesById: { [x: string]: Node };
     scale: number;
@@ -96,15 +87,7 @@ export interface NodeColumnProps {
     columnsLength: number;
     columnIndex: number;
     nodes: Node[];
-    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
-    handleNodeUpdate: (updatedNode: Node) => void;
-    language: string;
-}
-
-export interface NodeRoutineListDialogProps {
-    handleClose: (updatedNode?: NodeWithRoutineListShape) => void;
-    isEditing: boolean;
-    isOpen: boolean;
-    node: NodeWithRoutineListShape | null;
+    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => unknown;
+    handleNodeUpdate: (updatedNode: Node) => unknown;
     language: string;
 }

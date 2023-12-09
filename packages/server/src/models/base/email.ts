@@ -1,39 +1,38 @@
 import { emailValidation, MaxObjects } from "@local/shared";
-import { CustomError, Trigger } from "../../events";
+import { CustomError } from "../../events/error";
+import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
-import { EmailFormat } from "../format/email";
-import { ModelLogic } from "../types";
+import { EmailFormat } from "../formats";
 import { EmailModelLogic } from "./types";
 
 const __typename = "Email" as const;
-const suppFields = [] as const;
-export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
+export const EmailModel: EmailModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.email,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, emailAddress: true }),
             get: (select) => select.emailAddress,
         },
-    },
+    }),
     format: EmailFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, deleteList, prisma, userData }) => {
+            pre: async ({ Create, Delete, prisma, userData }) => {
                 // Prevent creating emails if at least one is already in use
-                if (createList.length) {
+                if (Create.length) {
                     const existingEmails = await prisma.email.findMany({
-                        where: { emailAddress: { in: createList.map(x => x.emailAddress) } },
+                        where: { emailAddress: { in: Create.map(x => x.input.emailAddress) } },
                     });
                     if (existingEmails.length > 0) throw new CustomError("0044", "EmailInUse", userData.languages);
                 }
                 // Prevent deleting emails if it will leave you with less than one verified authentication method
-                if (deleteList.length) {
+                if (Delete.length) {
                     const allEmails = await prisma.email.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
-                    const remainingVerifiedEmailsCount = allEmails.filter(x => !deleteList.includes(x.id) && x.verified).length;
+                    const remainingVerifiedEmailsCount = allEmails.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
                     const verifiedWalletsCount = await prisma.wallet.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
@@ -48,14 +47,14 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
-                for (const object of created) {
+            afterMutations: async ({ createdIds, prisma, userData }) => {
+                for (const objectId of createdIds) {
                     await Trigger(prisma, userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A
                         owner: { id: userData.id, __typename: "User" },
-                        object,
+                        objectId,
                         objectType: __typename,
                     });
                 }
@@ -64,7 +63,7 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
         yup: emailValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -73,7 +72,7 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         isDeleted: () => false,
         isPublic: () => false,
@@ -83,5 +82,5 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
             public: {},
             owner: (userId) => ({ user: { id: userId } }),
         },
-    },
+    }),
 });

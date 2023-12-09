@@ -19,13 +19,13 @@ export interface DirectoryCardProps {
     canUpdate: boolean;
     data: DirectoryItem;
     index: number;
-    onContextMenu: (target: EventTarget, index: number) => void;
-    onDelete: (index: number) => void;
+    onContextMenu: (target: EventTarget, index: number) => unknown;
+    onDelete: (index: number) => unknown;
 }
 
 export interface DirectoryListHorizontalProps {
     canUpdate?: boolean;
-    handleUpdate?: (updatedDirectory: ProjectVersionDirectory) => void;
+    handleUpdate?: (updatedDirectory: ProjectVersionDirectory) => unknown;
     directory: ProjectVersionDirectory | null;
     loading?: boolean;
     mutate?: boolean;
@@ -33,7 +33,7 @@ export interface DirectoryListHorizontalProps {
 
 export interface DirectoryListVerticalProps {
     canUpdate?: boolean;
-    handleUpdate?: (updatedDirectory: ProjectVersionDirectory) => void;
+    handleUpdate?: (updatedDirectory: ProjectVersionDirectory) => unknown;
     directory: ProjectVersionDirectory | null | undefined;
     loading: boolean;
     mutate: boolean;
@@ -42,9 +42,9 @@ export interface DirectoryListVerticalProps {
 export interface DirectoryListItemProps {
     canUpdate: boolean;
     data: DirectoryItem;
-    handleContextMenu: (target: EventTarget, index: number) => void;
-    handleEdit: (index: number) => void;
-    handleDelete: (index: number) => void;
+    handleContextMenu: (target: EventTarget, index: number) => unknown;
+    handleEdit: (index: number) => unknown;
+    handleDelete: (index: number) => unknown;
     index: number;
     loading: boolean;
 }
@@ -54,7 +54,7 @@ export interface DirectoryListItemContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
     index: number | null;
-    onClose: () => void;
-    onDelete: (index: number) => void;
+    onClose: () => unknown;
+    onDelete: (index: number) => unknown;
     data: DirectoryItem | null;
 }

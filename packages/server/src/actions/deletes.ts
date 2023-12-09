@@ -1,6 +1,5 @@
 import { Count, Success } from "@local/shared";
 import { assertRequestFrom } from "../auth/request";
-import { CustomError } from "../events";
 import { cudHelper } from "./cuds";
 import { DeleteManyHelperProps, DeleteOneHelperProps } from "./types";
 
@@ -16,8 +15,18 @@ export async function deleteOneHelper({
 }: DeleteOneHelperProps): Promise<Success> {
     const userData = assertRequestFrom(req, { isUser: true });
     // Delete object. cudHelper will check permissions and handle triggers
-    const { deleted } = await cudHelper({ deleteMany: [input.id], objectType, partialInfo: {}, prisma, userData });
-    return { __typename: "Success" as const, success: Boolean(deleted?.count && deleted.count > 0) };
+    const deleted = (await cudHelper({
+        // deleteMany: [input.id],
+        inputData: [{
+            actionType: "Delete",
+            input: input.id,
+            objectType,
+        }],
+        partialInfo: {},
+        prisma,
+        userData,
+    }))[0];
+    return { __typename: "Success" as const, success: deleted === true };
 }
 
 
@@ -33,8 +42,16 @@ export async function deleteManyHelper({
 }: DeleteManyHelperProps): Promise<Count> {
     const userData = assertRequestFrom(req, { isUser: true });
     // Delete objects. cudHelper will check permissions and handle triggers
-    const { deleted } = await cudHelper({ deleteMany: input.ids, objectType, partialInfo: {}, prisma, userData });
-    if (!deleted)
-        throw new CustomError("0037", "InternalError", userData.languages);
-    return deleted;
+    const deleted = await cudHelper({
+        // deleteMany: input.ids,
+        inputData: input.ids.map(id => ({
+            actionType: "Delete",
+            input: id,
+            objectType,
+        })),
+        partialInfo: {},
+        prisma,
+        userData,
+    });
+    return { __typename: "Count" as const, count: deleted.filter(d => d === true).length };
 }

@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  workflow_run:
+    workflows: ["CodeQL Analysis", "Jest Tests"]
+    types:
+      - completed
+
+jobs:
+  ci-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out the branch that triggered the original workflow
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      # Your custom steps go here
+      - run: git branch
+      - run: env
+      # Additional steps can be added as per your CI requirements

@@ -1,6 +1,6 @@
 import { Translate, TranslateInput } from "@local/shared";
 import fetch from "node-fetch";
-import { CustomError } from "../../events";
+import { CustomError } from "../../events/error";
 import { GQLEndpoint } from "../../types";
 
 export type EndpointsTranslate = {

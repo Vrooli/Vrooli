@@ -1,15 +1,13 @@
-import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, CommonKey, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
-import { BaseObjectFormProps } from "forms/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
-import { DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
+import { DirectoryStep, RoutineListStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObject } from "utils/display/listTools";
-import { CommentShape } from "utils/shape/models/comment";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { ViewDisplayType } from "views/types";
@@ -18,8 +16,10 @@ import { FindObjectTabOption } from "./FindObjectDialog/FindObjectDialog";
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SideMenuProps { }
 
-export interface CommentDialogProps extends Omit<BaseObjectFormProps<CommentShape>, "display"> {
-    parent: Comment | null;
+export interface BulkDeleteDialogProps {
+    handleClose: (selectedForDelete: ListObject[]) => unknown;
+    isOpen: boolean;
+    selectedData: ListObject[];
 }
 
 export interface CookieSettingsDialogProps {
@@ -139,20 +139,20 @@ export enum ObjectDialogAction {
 }
 
 export interface ReorderInputDialogProps {
-    handleClose: (toIndex?: number) => void;
+    handleClose: (toIndex?: number) => unknown;
     isInput: boolean;
     listLength: number;
     startIndex: number;
 }
 
 export interface ShareObjectDialogProps extends DialogProps {
-    object: NavigableObject | null | undefined;
+    object: ListObject | null | undefined;
     open: boolean;
     onClose: () => unknown;
 }
 
 export interface TranscriptDialogProps {
-    handleClose: () => void;
+    handleClose: () => unknown;
     isListening: boolean;
     showHint: boolean;
     transcript: string;
@@ -171,8 +171,8 @@ export interface ObjectActionMenuProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (newLink?: NodeLinkShape) => void;
-    handleDelete: (link: NodeLinkShape) => void;
+    handleClose: (newLink?: NodeLinkShape) => unknown;
+    handleDelete: (link: NodeLinkShape) => unknown;
     isAdd: boolean;
     isOpen: boolean;
     language: string; // Language to display/edit
@@ -180,6 +180,11 @@ export interface LinkDialogProps {
     nodeFrom?: NodeShape | null; // Initial "from" node
     nodeTo?: NodeShape | null; // Initial "to" node
     routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
+}
+
+export interface SubroutineCreateDialogProps {
+    isOpen: boolean;
+    onClose: () => unknown;
 }
 
 export interface SubroutineInfoDialogProps {
@@ -254,7 +259,7 @@ export interface LargeDialogProps {
     children: ReactNode;
     id: string;
     isOpen: boolean;
-    onClose: () => unknown;
+    onClose: (_event: unknown, reason: "backdropClick" | "escapeKeyDown") => unknown;
     titleId?: string;
     sxs?: { paper?: SxType; }
 }

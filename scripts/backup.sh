@@ -7,6 +7,15 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Read arguments
 while getopts "c:hi:l:v:" opt; do
     case $opt in
+    h)
+        echo "Usage: $0 [-c COUNT] [-h HELP] [-i INTERVAL] [-l LOOP] [-v VERSION]"
+        echo "  -c --count: The number of most recent backup files to keep"
+        echo "  -h --help: Show this help message"
+        echo "  -i --interval: The interval in seconds for fetching the logs, if running on a loop"
+        echo "  -l --loop: Whether to run this script on a loop, or to exit after one run"
+        echo "  -v --version: Version number of site on server (e.g. \"1.0.0\"). Used to locate the database directory"
+        exit 0
+        ;;
     c)
         BACKUP_COUNT=$OPTARG
         ;;
@@ -18,15 +27,6 @@ while getopts "c:hi:l:v:" opt; do
         ;;
     v)
         VERSION=$OPTARG
-        ;;
-    h)
-        echo "Usage: $0 [-c COUNT] [-h HELP] [-i INTERVAL] [-l LOOP] [-v VERSION]"
-        echo "  -c --count: The number of most recent backup files to keep"
-        echo "  -h --help: Show this help message"
-        echo "  -i --interval: The interval in seconds for fetching the logs, if running on a loop"
-        echo "  -l --loop: Whether to run this script on a loop, or to exit after one run"
-        echo "  -v --version: Version number of site on server (e.g. \"1.0.0\"). Used to locate the database directory"
-        exit 0
         ;;
     \?)
         echo "Invalid option: -$OPTARG" >&2

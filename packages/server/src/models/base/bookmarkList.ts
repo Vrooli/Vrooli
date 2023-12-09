@@ -1,21 +1,20 @@
 import { BookmarkListSortBy, bookmarkListValidation, MaxObjects } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
-import { BookmarkListFormat } from "../format/bookmarkList";
-import { ModelLogic } from "../types";
+import { BookmarkListFormat } from "../formats";
 import { BookmarkListModelLogic } from "./types";
 
 const __typename = "BookmarkList" as const;
-const suppFields = [] as const;
-export const BookmarkListModel: ModelLogic<BookmarkListModelLogic, typeof suppFields> = ({
+export const BookmarkListModel: BookmarkListModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.bookmark_list,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, label: true }),
             get: (select) => select.label,
         },
-    },
+    }),
     format: BookmarkListFormat,
     mutate: {
         shape: {
@@ -24,11 +23,11 @@ export const BookmarkListModel: ModelLogic<BookmarkListModelLogic, typeof suppFi
                 index: -1, //TODO
                 label: data.label,
                 user: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create"], isOneToOne: false, isRequired: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
+                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create"], isOneToOne: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 label: noNull(data.label),
-                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
+                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create", "Update", "Delete"], isOneToOne: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
             }),
         },
         yup: bookmarkListValidation,
@@ -44,13 +43,13 @@ export const BookmarkListModel: ModelLogic<BookmarkListModelLogic, typeof suppFi
             label: "label",
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
@@ -64,5 +63,5 @@ export const BookmarkListModel: ModelLogic<BookmarkListModelLogic, typeof suppFi
                 user: { id: userId },
             }),
         },
-    },
+    }),
 });

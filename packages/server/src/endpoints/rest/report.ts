@@ -1,5 +1,5 @@
 import { report_create, report_findMany, report_findOne, report_update } from "../generated";
-import { ReportEndpoints } from "../logic";
+import { ReportEndpoints } from "../logic/report";
 import { setupRoutes } from "./base";
 
 export const ReportRest = setupRoutes({

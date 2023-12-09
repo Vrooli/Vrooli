@@ -9,11 +9,6 @@
 # 4. Runs setup.sh
 # 5. Moves build created by build.sh to the correct location.
 # 6. Restarts docker containers
-#
-# Arguments (all optional):
-# -v: Version number to use (e.g. "1.0.0")
-# -n: Nginx proxy location (e.g. "/root/NginxSSLReverseProxy")
-# -h: Show this help message
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
@@ -57,49 +52,6 @@ if [ -z "$VERSION" ]; then
         VERSION=$ENTERED_VERSION
     else
         VERSION=$CURRENT_VERSION
-    fi
-fi
-
-# Check if nginx-proxy and nginx-proxy-le are running
-if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
-    error "Proxy containers are not running!"
-    if [ -z "$NGINX_LOCATION" ]; then
-        while true; do
-            prompt "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
-            read -r NGINX_LOCATION
-            if [ -z "$NGINX_LOCATION" ]; then
-                NGINX_LOCATION="/root/NginxSSLReverseProxy"
-            fi
-
-            if [ -d "${NGINX_LOCATION}" ]; then
-                break
-            else
-                error "Not found at that location."
-                prompt "Do you want to try again? Say no to clone and set up proxy containers (yes/no):"
-                read -r TRY_AGAIN
-                if [[ "$TRY_AGAIN" =~ ^(no|n)$ ]]; then
-                    info "Proceeding with cloning..."
-                    break
-                fi
-            fi
-        done
-    fi
-
-    # Check if the NginxSSLReverseProxy directory exists
-    if [ ! -d "${NGINX_LOCATION}" ]; then
-        info "NginxSSLReverseProxy not installed. Cloning and setting up..."
-        git clone --depth 1 --branch main https://github.com/MattHalloran/NginxSSLReverseProxy.git "${NGINX_LOCATION}"
-        chmod +x "${NGINX_LOCATION}/scripts/*"
-        "${NGINX_LOCATION}/scripts/fullSetup.sh"
-    fi
-
-    # Check if ${NGINX_LOCATION}/docker-compose.yml or ${NGINX_LOCATION}/docker-compose.yaml exists
-    if [ -f "${NGINX_LOCATION}/docker-compose.yml" ] || [ -f "${NGINX_LOCATION}/docker-compose.yaml" ]; then
-        info "Starting proxy containers..."
-        cd "${NGINX_LOCATION}" && docker-compose up -d
-    else
-        error "Could not find docker-compose.yml file in ${NGINX_LOCATION}"
-        exit 1
     fi
 fi
 
@@ -160,7 +112,7 @@ fi
 
 # Running setup.sh
 info "Running setup.sh..."
-"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p -e y
+"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p -e n
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
@@ -182,6 +134,28 @@ fi
 # Stop docker containers
 info "Stopping docker containers..."
 docker-compose --env-file ${BUILD_ZIP}/.env-prod down
+
+info "Getting production secrets..."
+readarray -t secrets <"${HERE}/secrets_list.txt"
+TMP_FILE=$(mktemp) && { "${HERE}/getSecrets.sh" production ${TMP_FILE} "${secrets[@]}" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."
+rm "$TMP_FILE"
+export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
+# Not sure why, but these need to be exported for the server to read them.
+# This is not the case for the other secrets.
+export JWT_PRIV
+export JWT_PUB
+# Determine how CORS should be set up
+export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
+if [ $? -ne 0 ]; then
+    echo $SERVER_LOCATION
+    error "Failed to determine server location"
+    exit 1
+fi
+
+# If server is not local, set up reverse proxy
+if [[ "$SERVER_LOCATION" != "local" ]]; then
+    . "${HERE}/proxySetup.sh" -n "${NGINX_LOCATION}"
+fi
 
 # Restart docker containers.
 info "Restarting docker containers..."

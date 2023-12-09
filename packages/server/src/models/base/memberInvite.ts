@@ -1,26 +1,24 @@
 import { MaxObjects, MemberInviteSortBy, memberInviteValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { MemberInviteFormat } from "../format/memberInvite";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { MemberInviteModelLogic, UserModelLogic } from "./types";
-import { UserModel } from "./user";
+import { MemberInviteFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { MemberInviteModelInfo, MemberInviteModelLogic, OrganizationModelLogic, UserModelInfo, UserModelLogic } from "./types";
 
 const __typename = "MemberInvite" as const;
-const suppFields = ["you"] as const;
-export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFields> = ({
+export const MemberInviteModel: MemberInviteModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.member_invite,
-    display: {
+    display: () => ({
         // Label is the member label
         label: {
-            select: () => ({ id: true, user: { select: UserModel.display.label.select() } }),
-            get: (select, languages) => UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages),
+            select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: MemberInviteFormat,
     mutate: {
         shape: {
@@ -29,8 +27,8 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
                 message: noNull(data.message),
                 willBeAdmin: noNull(data.willBeAdmin),
                 willHavePermissions: noNull(data.willHavePermissions),
-                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Organization", parentRelationshipName: "memberInvites", data, ...rest })),
-                ...(await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "User", parentRelationshipName: "membershipsInvited", data, ...rest })),
+                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "memberInvites", data, ...rest })),
+                ...(await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "membershipsInvited", data, ...rest })),
             }),
             update: async ({ data }) => ({
                 message: noNull(data.message),
@@ -54,12 +52,12 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
         searchStringQuery: () => ({
             OR: [
                 "messageWrapped",
-                { organization: OrganizationModel.search.searchStringQuery() },
-                { user: UserModel.search.searchStringQuery() },
+                { organization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
+                { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -69,7 +67,7 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -82,19 +80,17 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.member_inviteSelect>(data, [
-            ["organization", "Organization"],
-        ], languages),
+        isPublic: (...rest) => oneIsPublic<MemberInviteModelInfo["PrismaSelect"]>([["organization", "Organization"]], ...rest),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                organization: OrganizationModel.query.hasRoleQuery(userId),
+                organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId),
             }),
         },
-    },
+    }),
 });

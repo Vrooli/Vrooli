@@ -1,20 +1,19 @@
-import { TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
+import { GqlModelType, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
-import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel, UserModel } from ".";
-import { noNull, permissionsSelectHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { CustomError } from "../../events";
-import { getLogic } from "../../getters";
+import { CustomError } from "../../events/error";
 import { Notify } from "../../notify";
 import { PrismaType, SessionUserToken } from "../../types";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
-import { TransferFormat } from "../format/transfer";
-import { ModelLogic } from "../types";
-import { ApiModelLogic, NoteModelLogic, ProjectModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TransferModelLogic } from "./types";
+import { TransferFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { OrganizationModelLogic, TransferModelLogic, UserModelLogic } from "./types";
 
 const __typename = "Transfer" as const;
-const suppFields = [] as const;
 
 /**
  * Maps a transferable object type to its field name in the database
@@ -52,7 +51,7 @@ export const transfer = (prisma: PrismaType) => ({
         // Grab all create organization IDs
         const orgIds = owners.filter(o => o.__typename === "Organization").map(o => o.id);
         // Check if user is an admin of each organization
-        const isAdmins: boolean[] = await OrganizationModel.query.hasRole(prisma, userData.id, orgIds);
+        const isAdmins: boolean[] = await ModelMap.get<OrganizationModelLogic>("Organization").query.hasRole(prisma, userData.id, orgIds);
         // Create return list
         const requiresTransferRequest: boolean[] = owners.map((o, i) => {
             // If owner is a user, transfer is required if user is not the same as the session user
@@ -73,12 +72,12 @@ export const transfer = (prisma: PrismaType) => ({
     ): Promise<string> => {
         // Find the object and its owner
         const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
-        const { delegate, validate } = getLogic(["delegate", "validate"], object.__typename, userData.languages, "Transfer.request-object");
+        const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], object.__typename);
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
-            select: validate.permissionsSelect,
+            select: validate().permissionsSelect,
         });
-        const owner = permissionData && validate.owner(permissionData, userData.id);
+        const owner = permissionData && validate().owner(permissionData, userData.id);
         // Check if user is allowed to transfer this object
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
             throw new CustomError("0286", "NotAuthorizedToTransfer", userData.languages);
@@ -142,12 +141,12 @@ export const transfer = (prisma: PrismaType) => ({
             throw new CustomError("0295", "TransferAlreadyRejected", userData.languages);
         // Make sure user is the owner of the transfer request
         if (transfer.fromOrganizationId) {
-            const { validate } = getLogic(["validate"], "Organization", userData.languages, "Transfer.cancel");
+            const { validate } = ModelMap.getLogic(["validate"], "Organization");
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.fromOrganizationId },
-                select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
+                select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData, userData.id), userData.id))
+            if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
                 throw new CustomError("0300", "TransferRejectNotAuthorized", userData.languages);
         } else if (transfer.fromUserId !== userData.id) {
             throw new CustomError("0301", "TransferRejectNotAuthorized", userData.languages);
@@ -176,12 +175,12 @@ export const transfer = (prisma: PrismaType) => ({
             throw new CustomError("0289", "TransferAlreadyRejected", userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const { validate } = getLogic(["validate"], "Organization", userData.languages, "Transfer.accept");
+            const { validate } = ModelMap.getLogic(["validate"], "Organization");
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
-                select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
+                select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData, userData.id), userData.id))
+            if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
                 throw new CustomError("0302", "TransferAcceptNotAuthorized", userData.languages);
         } else if (transfer.toUserId !== userData.id) {
             throw new CustomError("0303", "TransferAcceptNotAuthorized", userData.languages);
@@ -230,12 +229,12 @@ export const transfer = (prisma: PrismaType) => ({
             throw new CustomError("0292", "TransferAlreadyRejected", userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const { validate } = getLogic(["validate"], "Organization", userData.languages, "Transfer.reject");
+            const { validate } = ModelMap.getLogic(["validate"], "Organization");
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
-                select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
+                select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData, userData.id), userData.id))
+            if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
                 throw new CustomError("0312", "TransferRejectNotAuthorized", userData.languages);
         } else if (transfer.toUserId !== userData.id) {
             throw new CustomError("0313", "TransferRejectNotAuthorized", userData.languages);
@@ -260,31 +259,24 @@ export const transfer = (prisma: PrismaType) => ({
     },
 });
 
-export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = ({
+export const TransferModel: TransferModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.transfer,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
-                api: { select: ApiModel.display.label.select() },
-                note: { select: NoteModel.display.label.select() },
-                project: { select: ProjectModel.display.label.select() },
-                routine: { select: RoutineModel.display.label.select() },
-                smartContract: { select: SmartContractModel.display.label.select() },
-                standard: { select: StandardModel.display.label.select() },
+                ...Object.fromEntries(Object.entries(TransferableFieldMap).map(([key, value]) =>
+                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
-                if (select.api) return ApiModel.display.label.get(select.api as ApiModelLogic["PrismaModel"], languages);
-                if (select.note) return NoteModel.display.label.get(select.note as NoteModelLogic["PrismaModel"], languages);
-                if (select.project) return ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages);
-                if (select.routine) return RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages);
-                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages);
-                if (select.standard) return StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages);
+                for (const [key, value] of Object.entries(TransferableFieldMap)) {
+                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                }
                 return i18next.t("common:Transfer", { lng: languages[0] });
             },
         },
-    },
+    }),
     format: TransferFormat,
     mutate: {
         shape: {
@@ -313,20 +305,15 @@ export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = 
         },
         searchStringQuery: () => ({
             OR: [
-                { fromUser: UserModel.search.searchStringQuery() },
-                { fromOrganization: OrganizationModel.search.searchStringQuery() },
-                { toUser: UserModel.search.searchStringQuery() },
-                { toOrganization: OrganizationModel.search.searchStringQuery() },
-                { api: ApiModel.search.searchStringQuery() },
-                { note: NoteModel.search.searchStringQuery() },
-                { project: ProjectModel.search.searchStringQuery() },
-                { routine: RoutineModel.search.searchStringQuery() },
-                { smartContract: SmartContractModel.search.searchStringQuery() },
-                { standard: StandardModel.search.searchStringQuery() },
+                { fromUser: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
+                { fromOrganization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
+                { toUser: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
+                { toOrganization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
+                ...Object.entries(TransferableFieldMap).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -337,5 +324,5 @@ export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = 
         },
     },
     transfer,
-    validate: {} as any,
+    validate: () => ({}) as any,
 });

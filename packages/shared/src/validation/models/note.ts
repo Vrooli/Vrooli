@@ -4,25 +4,25 @@ import { noteVersionValidation } from "./noteVersion";
 import { tagValidation } from "./tag";
 
 export const noteValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
     }, [
-        ["user", ["Connect"], "one", "opt"],
-        ["organization", ["Connect"], "one", "opt"],
+        ["ownedByUser", ["Connect"], "one", "opt"],
+        ["ownedByOrganization", ["Connect"], "one", "opt"],
         ["parent", ["Connect"], "one", "opt"],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
         ["versions", ["Create"], "many", "opt", noteVersionValidation, ["root"]],
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
+    update: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
     }, [
-        ["user", ["Connect"], "one", "opt"],
-        ["organization", ["Connect"], "one", "opt"],
+        ["ownedByUser", ["Connect"], "one", "opt"],
+        ["ownedByOrganization", ["Connect"], "one", "opt"],
         ["tags", ["Connect", "Create", "Disconnect"], "one", "opt", tagValidation],
         ["versions", ["Create", "Update", "Delete"], "many", "opt", noteVersionValidation, ["root"]],
         ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
-    ], [], o),
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
 };

@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, exists, GqlModelType, Success, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, GqlModelType, Success, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
@@ -31,7 +31,7 @@ export const useBookmarker = ({
     // we usually only know that an object has a bookmark - not the bookmarks themselves
     const [getData] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointGetBookmarks);
 
-    const hasBookmarkingSupport = exists(BookmarkFor[objectType]);
+    const hasBookmarkingSupport = objectType in BookmarkFor;
 
     // Handle dialog for updating a bookmark's lists
     const [isBookmarkDialogOpen, setIsBookmarkDialogOpen] = useState<boolean>(false);
@@ -39,11 +39,22 @@ export const useBookmarker = ({
 
     const handleAdd = useCallback(() => {
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: "NotFound", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "NotFound", severity: "Error" });
             return;
         }
-        const bookmarkListId = bookmarkLists && bookmarkLists.length ? bookmarkLists[0].id : undefined;
+        let bookmarkListId: string | undefined;
+        if (bookmarkLists && bookmarkLists.length) {
+            // Try to find "Favorites" bookmark list first
+            const favorites = bookmarkLists.find(list => list.label === "Favorites");
+            if (favorites) {
+                bookmarkListId = favorites.id;
+            } else {
+                // Otherwise, just use the first bookmark list
+                bookmarkListId = bookmarkLists[0].id;
+            }
+        }
         console.log("adding bookmark", bookmarkListId, shapeBookmark.create({
+            __typename: "Bookmark",
             id: uuid(),
             to: {
                 __typename: BookmarkFor[objectType],
@@ -60,6 +71,7 @@ export const useBookmarker = ({
         fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
             fetch: addBookmark,
             inputs: shapeBookmark.create({
+                __typename: "Bookmark",
                 id: uuid(),
                 to: {
                     __typename: BookmarkFor[objectType],
@@ -92,7 +104,7 @@ export const useBookmarker = ({
 
         // If no bookmarks are found, display an error.
         if (!bookmarks || bookmarks.length === 0) {
-            PubSub.get().publishSnack({ message: "Could not find bookmark", severity: "Error" });
+            PubSub.get().publish("snack", { message: "Could not find bookmark", severity: "Error" });
             isRemoveProcessingRef.current = false;
             return;
         }
@@ -119,11 +131,11 @@ export const useBookmarker = ({
     const handleBookmark = useCallback((isAdding: boolean) => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (!hasBookmarkingSupport) {
-            PubSub.get().publishSnack({ messageKey: "BookmarkNotSupported", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "BookmarkNotSupported", severity: "Error" });
             return;
         }
         if (isAdding) {

@@ -1,32 +1,54 @@
 import { assertRequestFrom } from "../auth/request";
-import { addSupplementalFields, toPartialGqlInfo } from "../builders";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
+import { addSupplementalFields } from "../builders/addSupplementalFields";
+import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
+import { CustomError } from "../events/error";
+import { ModelMap } from "../models/base";
 import { RecursivePartial } from "../types";
 import { cudHelper } from "./cuds";
-import { CreateHelperProps } from "./types";
+import { CreateManyHelperProps, CreateOneHelperProps } from "./types";
+
+/**
+ * Helper function for creating multiple objects of the same type in a single line.
+ * Throws error if not successful.
+ * @returns GraphQL response object
+ */
+export async function createManyHelper<GraphQLModel>({
+    info,
+    input,
+    objectType,
+    prisma,
+    req,
+}: CreateManyHelperProps): Promise<RecursivePartial<GraphQLModel>[]> {
+    const userData = assertRequestFrom(req, { isUser: true });
+    const format = ModelMap.get(objectType).format;
+    // Partially convert info type
+    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
+    // Create objects. cudHelper will check permissions
+    const created = await cudHelper({
+        inputData: input.map(d => ({
+            actionType: "Create",
+            input: d,
+            objectType,
+        })),
+        partialInfo,
+        prisma,
+        userData,
+    });
+    // Make sure none of the items in the array are booleans
+    if (created.some(d => typeof d === "boolean")) {
+        throw new CustomError("0028", "ErrorUnknown", userData.languages);
+    }
+    return await addSupplementalFields(prisma, userData, created as Record<string, any>[], partialInfo) as RecursivePartial<GraphQLModel>[];
+}
 
 /**
  * Helper function for creating one object in a single line.
  * Throws error if not successful.
  * @returns GraphQL response object
  */
-export async function createHelper<GraphQLModel>({
-    info,
+export async function createOneHelper<GraphQLModel>({
     input,
-    objectType,
-    prisma,
-    req,
-}: CreateHelperProps): Promise<RecursivePartial<GraphQLModel>> {
-    const userData = assertRequestFrom(req, { isUser: true });
-    const { format } = getLogic(["format"], objectType, req.session.languages, "createHelper");
-    // Partially convert info type
-    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
-    // Create objects. cudHelper will check permissions
-    const cudResult = await cudHelper({ createMany: [input], objectType, partialInfo, prisma, userData });
-    const { created } = cudResult;
-    if (created && created.length > 0) {
-        return (await addSupplementalFields(prisma, userData, created, partialInfo))[0] as any;
-    }
-    throw new CustomError("0028", "ErrorUnknown", userData.languages);
+    ...rest
+}: CreateOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
+    return (await createManyHelper<GraphQLModel>({ input: [input], ...rest }))[0];
 }

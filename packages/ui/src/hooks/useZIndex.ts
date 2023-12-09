@@ -8,14 +8,15 @@ export const useZIndex = <
 >(
     visible?: boolean,
     hasTransition?: HasTransition,
+    offset = 0, // When using this for dialogs, for example, might want to offset by 1000 to make sure it's above sidebars
 ): UseZIndexReturn<HasTransition> => {
     const context = useContext(ZIndexContext);
-    const [zIndex, setZIndex] = useState<number>(DEFAULT_Z_INDEX);
+    const [zIndex, setZIndex] = useState<number>(DEFAULT_Z_INDEX + offset);
     const hasCalledGetZIndex = useRef(false);
 
     // If the component is visible and hasn't already been assigned a zIndex, get a new zIndex
     if ((visible === undefined || visible) && !hasCalledGetZIndex.current) {
-        setZIndex(context?.getZIndex() ?? DEFAULT_Z_INDEX);
+        setZIndex((context?.getZIndex() ?? DEFAULT_Z_INDEX) + offset);
         hasCalledGetZIndex.current = true;
     }
 
@@ -29,7 +30,7 @@ export const useZIndex = <
 
     const handleTransitionExit = () => {
         if (!visible && context) {
-            setZIndex(DEFAULT_Z_INDEX);
+            setZIndex(DEFAULT_Z_INDEX + offset);
             if (hasCalledGetZIndex.current) context?.releaseZIndex();
             hasCalledGetZIndex.current = false;
         }

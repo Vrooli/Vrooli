@@ -46,7 +46,7 @@ export const routineVersionHasSubroutines = (routineVersion: Partial<RoutineVers
     // If routineVersion has nodes or links, we know it has subroutines
     if (routineVersion.nodes && routineVersion.nodes.length > 0) return true;
     if (routineVersion.nodeLinks && routineVersion.nodeLinks.length > 0) return true;
-    if ((routineVersion as any).nodesCount && (routineVersion as any).nodesCount > 0) return true;
+    if (routineVersion.nodesCount && routineVersion.nodesCount > 0) return true;
     return false;
 };
 
@@ -201,9 +201,11 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
         }
     }
     // Check 4
-    const unsuccessfulEndNodes = nodesOnGraph.filter(node => node.nodeType === NodeType.End && node.end && node.end?.wasSuccessful !== true);
-    if (unsuccessfulEndNodes.length > 0) {
+    const allEndNodes = nodesOnGraph.filter(node => node.nodeType === NodeType.End);
+    const unsuccessfulEndNodes = allEndNodes.filter(node => node?.end?.wasSuccessful !== true);
+    if (unsuccessfulEndNodes.length >= allEndNodes.length) {
         statuses.push([Status.Invalid, "No successful end node(s) found"]);
+        console.log("no successful end nodes found", allEndNodes, unsuccessfulEndNodes);
     }
     // Performs checks which make the routine incomplete, but not invalid
     // 1. There are unpositioned nodes
@@ -248,57 +250,70 @@ export const getProjectVersionStatus = (projectVersion?: Partial<ProjectVersion>
  */
 export const initializeRoutineGraph = (language: string, routineVersionId: string): { nodes: NodeShape[], nodeLinks: NodeLinkShape[] } => {
     const startNode: NodeShape = {
+        __typename: "Node" as const,
         id: uuid(),
         nodeType: NodeType.Start,
         columnIndex: 0,
         rowIndex: 0,
-        routineVersion: { id: routineVersionId },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
         translations: [],
     };
     const routineListNodeId = uuid();
     const routineListNode: NodeShape = {
+        __typename: "Node",
         id: routineListNodeId,
         nodeType: NodeType.RoutineList,
         columnIndex: 1,
         rowIndex: 0,
         routineList: {
+            __typename: "NodeRoutineList",
             id: uuid(),
             isOptional: false,
             isOrdered: false,
             items: [],
-            node: { id: routineListNodeId },
+            node: { __typename: "Node", id: routineListNodeId },
         },
-        routineVersion: { id: routineVersionId },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
         translations: [{
+            __typename: "NodeTranslation",
             id: uuid(),
             language,
             name: "Subroutine 1",
         }] as Node["translations"],
     };
+    const endNodeId = uuid();
     const endNode: NodeShape = {
         __typename: "Node",
-        id: uuid(),
+        id: endNodeId,
         nodeType: NodeType.End,
         columnIndex: 2,
         rowIndex: 0,
-        routineVersion: { id: routineVersionId },
+        end: {
+            __typename: "NodeEnd",
+            id: uuid(),
+            wasSuccessful: true,
+            node: { __typename: "Node", id: endNodeId },
+        },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
         translations: [],
     };
     const link1: NodeLinkShape = {
+        __typename: "NodeLink",
         id: uuid(),
         from: startNode,
         to: routineListNode,
         whens: [],
         operation: null,
-        routineVersion: { id: routineVersionId },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
     };
     const link2: NodeLinkShape = {
+        __typename: "NodeLink",
         id: uuid(),
         from: routineListNode,
         to: endNode,
         whens: [],
         operation: null,
-        routineVersion: { id: routineVersionId },
+        routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
     };
     return {
         nodes: [startNode, routineListNode, endNode],

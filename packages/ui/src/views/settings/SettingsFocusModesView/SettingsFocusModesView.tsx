@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, SessionUser, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, noop, SessionUser, Success } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -6,26 +6,24 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon, DeleteIcon, EditIcon } from "icons";
+import { AddIcon, DeleteIcon, EditIcon, FocusModeIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { multiLineEllipsis, pagePaddingBottom } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { FocusModeUpsert } from "views/objects/focusMode";
 import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsFocusModesViewProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const [focusModes, setFocusModes] = useState<FocusMode[]>([]);
     useEffect(() => {
@@ -45,11 +43,11 @@ export const SettingsFocusModesView = ({
     const handleDelete = useCallback((focusMode: FocusMode) => {
         // Don't delete if there is only one focus mode left
         if (focusModes.length === 1) {
-            PubSub.get().publishSnack({ messageKey: "MustHaveFocusMode", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "MustHaveFocusMode", severity: "Error" });
             return;
         }
         // Confirmation dialog
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "DeleteConfirm",
             buttons: [
                 {
@@ -109,10 +107,10 @@ export const SettingsFocusModesView = ({
             // If you don't have premium, open premium page
             if (!hasPremium) {
                 setLocation(LINKS.Premium);
-                PubSub.get().publishSnack({ message: "Upgrade to increase limit", severity: "Info" });
+                PubSub.get().publish("snack", { message: "Upgrade to increase limit", severity: "Info" });
             }
             // Otherwise, show error message
-            else PubSub.get().publishSnack({ message: "Max reached", severity: "Error" });
+            else PubSub.get().publish("snack", { message: "Max reached", severity: "Error" });
             return;
         }
         setIsDialogOpen(true);
@@ -146,19 +144,25 @@ export const SettingsFocusModesView = ({
                 focusModes: updatedFocusModes,
             } as SessionUser,
         ];
-        PubSub.get().publishSession({ users } as any);
+        PubSub.get().publish("session", {
+            __typename: "Session" as const,
+            users,
+            isLoggedIn: true,
+        });
         // Close dialog
         setIsDialogOpen(false);
     }, [focusModes, session]);
 
     return (
         <>
-            {/* Dialog to create/update focus modes */}
             <FocusModeUpsert
+                display="dialog"
                 isCreate={editingFocusMode === null}
                 isOpen={isDialogOpen}
                 onCancel={handleCloseDialog}
+                onClose={handleCloseDialog}
                 onCompleted={handleCompleted}
+                onDeleted={noop}
                 overrideObject={editingFocusMode ?? { __typename: "FocusMode" }}
             />
             <SettingsTopBar
@@ -170,6 +174,7 @@ export const SettingsFocusModesView = ({
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
+                        <FocusModeIcon fill={palette.background.textPrimary} style={{ width: "40px", height: "40px", marginRight: 8 }} />
                         <Typography component="h2" variant="h4">{t("FocusMode", { count: 2 })}</Typography>
                         <Tooltip title={canAdd ? "Add new" : "Max focus modes reached. Upgrade to premium to add more, or edit/delete an existing focus mode."} placement="top">
                             <IconButton

@@ -66,6 +66,7 @@ export const member_findMany = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "bookmarks": true,
@@ -118,6 +119,10 @@ export const member_findMany = {
           "language": true,
           "description": true
         }
+      },
+      "you": {
+        "canDelete": true,
+        "canUpdate": true
       }
     }
   },

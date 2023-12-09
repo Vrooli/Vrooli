@@ -3,13 +3,12 @@
 import { Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { updateArray } from "utils/shape/general";
-import { ResourceUpsert } from "views/objects/resource";
+import { resourceInitialValues, ResourceUpsert } from "views/objects/resource";
 import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceListVerticalProps } from "../types";
@@ -90,22 +89,38 @@ export const ResourceListVertical = ({
             });
         }
     }, [closeDialog, handleUpdate, list]);
+    const onDeleted = useCallback((resource: Resource) => {
+        closeDialog();
+        if (!list || !handleUpdate) return;
+        handleUpdate({
+            ...list,
+            resources: list.resources.filter(r => r.id !== resource.id) as any,
+        });
+    }, [closeDialog, handleUpdate, list]);
 
     const dialog = useMemo(() => {
         return <ResourceUpsert
+            display="dialog"
             isCreate={editingIndex < 0}
             isOpen={isDialogOpen}
             isMutate={mutate}
             onCancel={closeDialog}
+            onClose={closeDialog}
             onCompleted={onCompleted}
-            overrideObject={editingIndex >= 0 && list?.resources ?
-                { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
+            onDeleted={onDeleted}
+            overrideObject={(editingIndex >= 0 && list?.resources ?
+                { ...list.resources[editingIndex as number], index: editingIndex } :
                 resourceInitialValues(undefined, {
                     index: 0,
-                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
-                }) as NewResourceShape}
+                    list: {
+                        __connect: true,
+                        ...(list?.id && list.id !== DUMMY_ID ? list : { listFor: parent }),
+                        id: list?.id ?? DUMMY_ID,
+                        __typename: "ResourceList",
+                    },
+                }) as Resource)}
         />;
-    }, [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id]);
+    }, [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, onDeleted, parent]);
 
     return (
         <>

@@ -1,8 +1,13 @@
 import { BotCreateInput, BotUpdateInput, FindByIdOrHandleInput, ImportCalendarInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, ProfileUpdateInput, Session, Success, User, UserDeleteInput, UserSearchInput } from "@local/shared";
-import { createHelper, cudHelper, deleteOneHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { assertRequestFrom, hashPassword, logIn, setupPasswordReset } from "../../auth";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
+import { createOneHelper } from "../../actions/creates";
+import { cudHelper } from "../../actions/cuds";
+import { deleteOneHelper } from "../../actions/deletes";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { updateOneHelper } from "../../actions/updates";
+import { hashPassword, logIn, setupPasswordReset } from "../../auth/email";
+import { assertRequestFrom } from "../../auth/request";
+import { CustomError } from "../../events/error";
+import { rateLimit } from "../../middleware/rateLimit";
 import { FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../../types";
 import { parseICalFile } from "../../utils";
 import { AuthEndpoints } from "./auth";
@@ -45,23 +50,23 @@ export const UserEndpoints: EndpointsUser = {
     Mutation: {
         botCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, prisma, req });
         },
         botUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, prisma, req });
         },
         profileUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ maxUser: 250, req });
             // Add user id to input, since IDs are required for validation checks
             const { id } = assertRequestFrom(req, { isUser: true });
-            return updateHelper({ info, input: { ...input, id }, objectType, prisma, req });
+            return updateOneHelper({ info, input: { ...input, id }, objectType, prisma, req });
         },
         profileEmailUpdate: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 100, req });
             // Validate input
-            profileEmailUpdateValidation.update({}).validateSync(input, { abortEarly: false });
+            profileEmailUpdateValidation.update({ env: process.env.NODE_ENV as "development" | "production" }).validateSync(input, { abortEarly: false });
             // Find user
             const user = await prisma.user.findUnique({ where: { id: userData.id } });
             if (!user)
@@ -84,8 +89,7 @@ export const UserEndpoints: EndpointsUser = {
             // Create new emails
             if (input.emailsCreate) {
                 await cudHelper({
-                    createMany: input.emailsCreate,
-                    objectType: "Email",
+                    inputData: input.emailsCreate.map(email => ({ actionType: "Create", input: email, objectType: "Email" })),
                     partialInfo: { __typename: "Email", id: true, emailAddress: true },
                     prisma,
                     userData,

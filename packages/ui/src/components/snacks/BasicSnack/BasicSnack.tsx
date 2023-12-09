@@ -1,6 +1,6 @@
 import { Box, Button, IconButton, Palette, Typography, useTheme } from "@mui/material";
 import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SvgComponent } from "types";
 import { BasicSnackProps } from "../types";
 
@@ -11,30 +11,20 @@ export enum SnackSeverity {
     Warning = "Warning",
 }
 
-const severityStyle = (severity: SnackSeverity | `${SnackSeverity}` | undefined, palette: Palette) => {
-    let backgroundColor: string = palette.primary.light;
-    let color: string = palette.primary.contrastText;
+const iconColor = (severity: SnackSeverity | `${SnackSeverity}` | undefined, palette: Palette) => {
     switch (severity) {
         case "Error":
-            backgroundColor = palette.error.dark;
-            color = palette.error.contrastText;
-            break;
+            return palette.error.dark;
         case "Info":
-            backgroundColor = palette.info.main;
-            color = palette.info.contrastText;
-            break;
+            return palette.info.main;
         case "Success":
-            backgroundColor = palette.success.main;
-            color = palette.success.contrastText;
-            break;
+            return palette.success.main;
+        case "Warning":
+            return palette.warning.main;
         default:
-            backgroundColor = palette.warning.main;
-            color = palette.warning.contrastText;
-            break;
+            return palette.primary.light;
     }
-    return { backgroundColor, color };
 };
-
 /**
  * Basic snack item in the snack stack. 
  * Look changes based on severity. 
@@ -53,10 +43,11 @@ export const BasicSnack = ({
     const { palette } = useTheme();
 
     const [open, setOpen] = useState<boolean>(true);
+
     // Timout to close the snack, if not persistent
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    // Timeout starts immediately
-    useEffect(() => {
+    const startAutoHideTimeout = useCallback(() => {
+        // Certain snack types require manual closing
         if (autoHideDuration === "persist") return;
         timeoutRef.current = setTimeout(() => {
             // First set to close
@@ -66,12 +57,26 @@ export const BasicSnack = ({
                 handleClose();
             }, 400);
         }, autoHideDuration ?? 5000);
+    }, [autoHideDuration, handleClose]);
+    // Start close timeout automatically
+    useEffect(() => {
+        startAutoHideTimeout();
         return () => {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
         };
-    }, [autoHideDuration, handleClose]);
+    }, [autoHideDuration, handleClose, startAutoHideTimeout]);
+    // Clear timeout when interacting with the snack
+    const handleMouseEnter = () => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+    };
+    // Restart timeout when done interacting with the snack
+    const handleMouseLeave = () => {
+        startAutoHideTimeout();
+    };
 
     useEffect(() => {
         // Log snack errors if in development
@@ -95,31 +100,54 @@ export const BasicSnack = ({
     }, [severity]);
 
     return (
-        <Box sx={{
-            display: "flex",
-            pointerEvents: "auto",
-            justifyContent: "space-between",
-            alignItems: "center",
-            maxWidth: { xs: "100%", sm: "600px" },
-            // Scrolls out of view when closed
-            transform: open ? "translateX(0)" : "translateX(-150%)",
-            transition: "transform 0.4s ease-in-out",
-            padding: "8px 16px",
-            borderRadius: 2,
-            boxShadow: 8,
-            ...severityStyle(severity, palette),
-        }}>
+        <Box
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            sx={{
+                display: "flex",
+                pointerEvents: "auto",
+                justifyContent: "space-between",
+                alignItems: "center",
+                maxWidth: { xs: "100%", sm: "600px" },
+                // Scrolls out of view when closed
+                transform: open ? "translateX(0)" : "translateX(-150%)",
+                transition: "transform 0.4s ease-in-out",
+                padding: 1,
+                borderRadius: 2,
+                boxShadow: 8,
+                background: palette.background.paper,
+                color: palette.background.textPrimary,
+            }}>
             {/* Icon */}
-            <Icon fill="white" />
+            <Icon fill={iconColor(severity, palette)} />
             {/* Message */}
-            <Typography variant="body1" sx={{ color: "white", marginLeft: "4px" }}>
-                {message}
-            </Typography>
+            <Box sx={{
+                flex: 1, // take up available space
+                marginLeft: "4px",
+                maxHeight: "25vh",
+                overflowY: "auto",
+            }}>
+                <Typography
+                    variant="body1"
+                    sx={{
+                        marginLeft: "4px",
+                        overflowWrap: "break-word",
+                        wordWrap: "anywhere",
+                    }}>
+                    {message}
+                </Typography>
+            </Box>
             {/* Button */}
             {buttonText && buttonClicked && (
                 <Button
                     variant="text"
-                    sx={{ color: "white", marginLeft: "16px", padding: "4px", border: "1px solid white", borderRadius: "8px" }}
+                    sx={{
+                        color: palette.secondary.main,
+                        marginLeft: "16px",
+                        padding: "4px",
+                        border: `1px solid ${palette.secondary.main}`,
+                        borderRadius: "8px",
+                    }}
                     onClick={buttonClicked}
                 >
                     {buttonText}
@@ -127,7 +155,7 @@ export const BasicSnack = ({
             )}
             {/* Close icon */}
             <IconButton onClick={handleClose}>
-                <CloseIcon fill={palette.error.contrastText} />
+                <CloseIcon fill={palette.background.textPrimary} />
             </IconButton>
         </Box>
     );

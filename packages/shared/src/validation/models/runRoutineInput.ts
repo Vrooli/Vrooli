@@ -1,18 +1,18 @@
 import * as yup from "yup";
-import { blankToUndefined, id, maxStrErr, req, YupModel, yupObj } from "../utils";
+import { id, maxStrErr, req, YupModel, yupObj } from "../utils";
 
-const data = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
+const data = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 
 export const runRoutineInputValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         data: req(data),
     }, [
         ["input", ["Connect"], "one", "req"],
         ["runRoutine", ["Connect"], "one", "req"],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         data: req(data),
-    }, [], [], o),
+    }, [], [], d),
 };

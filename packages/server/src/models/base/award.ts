@@ -1,16 +1,15 @@
 import { AwardKey, awardNames, AwardSortBy, MaxObjects } from "@local/shared";
 import i18next from "i18next";
 import { defaultPermissions } from "../../utils";
-import { AwardFormat } from "../format/award";
-import { ModelLogic } from "../types";
+import { AwardFormat } from "../formats";
+import { SuppFields } from "../suppFields";
 import { AwardModelLogic } from "./types";
 
 const __typename = "Award" as const;
-const suppFields = ["title", "description"] as const;
-export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
+export const AwardModel: AwardModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.award,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, category: true, progress: true }),
             get: (select, languages) => {
@@ -21,7 +20,7 @@ export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
                 return i18next.t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) });
             },
         },
-    },
+    }),
     format: AwardFormat,
     search: {
         defaultSort: AwardSortBy.DateUpdatedDesc,
@@ -36,7 +35,7 @@ export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
         customQueryData: (_, user) => ({ user: { id: user!.id } }),
         supplemental: {
             dbFields: ["category", "progress"],
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, objects, prisma, userData }) => {
                 // Find name and description of highest tier achieved
                 const titles: (string | null)[] = [];
@@ -55,13 +54,13 @@ export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionsSelect: () => ({
             id: true,
@@ -75,5 +74,5 @@ export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
                 user: { id: userId },
             }),
         },
-    },
+    }),
 });

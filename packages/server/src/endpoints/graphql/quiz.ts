@@ -1,6 +1,6 @@
 import { QuizSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsQuiz, QuizEndpoints } from "../logic";
+import { EndpointsQuiz, QuizEndpoints } from "../logic/quiz";
 
 export const typeDef = gql`
     enum QuizSortBy {
@@ -20,7 +20,7 @@ export const typeDef = gql`
 
     input QuizCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         maxAttempts: Int
         randomizeQuestionOrder: Boolean
         revealCorrectAnswers: Boolean

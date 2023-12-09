@@ -1,16 +1,19 @@
-import { BookmarkFor, endpointGetTags, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
-import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
+import { BookmarkFor, DUMMY_ID, endpointGetTags, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
+import { Autocomplete, Chip, InputAdornment, ListItemText, MenuItem, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useFetch } from "hooks/useFetch";
+import { TagIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
 import { TagShape } from "utils/shape/models/tag";
+import { TextInput } from "../TextInput/TextInput";
 import { TagSelectorBaseProps } from "../types";
 
 export const TagSelectorBase = ({
     disabled,
     handleTagsUpdate,
+    isOptional = true,
     tags,
     placeholder,
 }: TagSelectorBaseProps) => {
@@ -45,21 +48,21 @@ export const TagSelectorBase = ({
         tagLabel = tagLabel.replace(/[,;]/g, "");
         // Check if tag is valid length
         if (tagLabel.length < 2) {
-            PubSub.get().publishSnack({ messageKey: "TagTooShort", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "TagTooShort", severity: "Error" });
             return;
         }
         if (tagLabel.length > 30) {
-            PubSub.get().publishSnack({ messageKey: "TagTooLong", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "TagTooLong", severity: "Error" });
             return;
         }
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tagLabel);
         if (isSelected) {
-            PubSub.get().publishSnack({ messageKey: "TagAlreadySelected", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "TagAlreadySelected", severity: "Error" });
             return;
         }
         // Add tag
-        handleTagAdd({ tag: tagLabel });
+        handleTagAdd({ __typename: "Tag", id: DUMMY_ID, tag: tagLabel });
         // Clear input
         clearText();
     }, [clearText, handleTagAdd, inputValue, tags]);
@@ -150,14 +153,14 @@ export const TagSelectorBase = ({
             onClose={clearText}
             value={tags}
             // Filter out what has already been selected
-            filterOptions={(options, params) => options.filter(o => !tags.some(t => t.tag === o.tag))}
+            filterOptions={(options, params) => options.filter(o => !tags.some(t => t.tag === (o as TagShape | Tag).tag))}
             renderTags={(value, getTagProps) =>
-                value.map((option: TagShape | Tag, index) => (
+                value.map((option, index) => (
                     <Chip
                         variant="filled"
-                        label={option.tag}
+                        label={(option as TagShape | Tag).tag}
                         {...getTagProps({ index })}
-                        onDelete={() => onChipDelete(option)}
+                        onDelete={() => onChipDelete(option as TagShape | Tag)}
                         sx={{
                             backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
                             color: "white",
@@ -165,27 +168,36 @@ export const TagSelectorBase = ({
                     />
                 ),
                 )}
-            renderOption={(props, option: TagShape | Tag) => (
+            renderOption={(props, option) => (
                 <MenuItem
                     {...props}
                     onClick={() => onInputSelect(option as Tag)} //TODO
                 >
-                    <ListItemText>{option.tag}</ListItemText>
+                    <ListItemText>{(option as TagShape | Tag).tag}</ListItemText>
                     <BookmarkButton
                         objectId={(option as Tag).id ?? ""}
                         bookmarkFor={BookmarkFor.Tag}
                         isBookmarked={(option as Tag).you.isBookmarked}
                         bookmarks={(option as Tag).bookmarks}
-                        onChange={(isBookmarked) => { handleIsBookmarked(option.tag, isBookmarked); }}
+                        onChange={(isBookmarked) => { handleIsBookmarked((option as TagShape | Tag).tag, isBookmarked); }}
                     />
                 </MenuItem>
             )}
             renderInput={(params) => (
-                <TextField
+                <TextInput
                     value={inputValue}
                     onChange={onChange}
+                    isOptional={isOptional}
+                    label={t("Tag", { count: 2 })}
                     placeholder={placeholder ?? t("TagSelectorPlaceholder")}
-                    InputProps={params.InputProps}
+                    InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <TagIcon />
+                            </InputAdornment>
+                        ),
+                    }}
                     inputProps={params.inputProps}
                     onKeyDown={onKeyDown}
                     fullWidth

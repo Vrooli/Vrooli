@@ -1,5 +1,5 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageTranslation, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput, ChatMessageUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { ChatMessage, ChatMessageCreateInput, ChatMessageParent, ChatMessageTranslation, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput, ChatMessageUpdateInput, ChatMessageYou, ReactionSummary, User } from "@local/shared";
+import { CanConnect, ShapeModel } from "types";
 import { ChatShape } from "./chat";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
@@ -8,12 +8,17 @@ export type ChatMessageTranslationShape = Pick<ChatMessageTranslation, "id" | "l
 }
 
 export type ChatMessageShape = Pick<ChatMessage, "id"> & {
-    __typename?: "ChatMessage";
-    chat?: { id: string } | ChatShape;
-    isFork: boolean;
-    fork?: { id: string } | ChatMessageShape;
-    translations?: ChatMessageTranslationShape[] | null;
-    user?: { id: string };
+    __typename: "ChatMessage";
+    created_at: string; // Only used by the UI
+    updated_at: string; // Only used by the UI
+    chat?: CanConnect<ChatShape> | null;
+    isUnsent?: boolean; // Only used by the UI
+    versionOfId?: string;
+    parent?: CanConnect<ChatMessageParent> | null;
+    reactionSummaries: ReactionSummary[]; // Only used by the UI
+    translations: ChatMessageTranslationShape[];
+    user?: CanConnect<User> | null;
+    you?: ChatMessageYou; // Only used by the UI
 }
 
 export const shapeChatMessageTranslation: ShapeModel<ChatMessageTranslationShape, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput> = {
@@ -23,9 +28,8 @@ export const shapeChatMessageTranslation: ShapeModel<ChatMessageTranslationShape
 
 export const shapeChatMessage: ShapeModel<ChatMessageShape, ChatMessageCreateInput, ChatMessageUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "isFork"),
+        ...createPrims(d, "id", "versionOfId"),
         ...createRel(d, "chat", ["Connect"], "one"),
-        ...createRel(d, "fork", ["Connect"], "one"),
         ...createRel(d, "translations", ["Create"], "many", shapeChatMessageTranslation),
         ...createRel(d, "user", ["Connect"], "one"),
     }),

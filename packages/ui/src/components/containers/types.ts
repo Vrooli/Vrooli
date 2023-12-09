@@ -1,6 +1,5 @@
 import { CommentFor, CommonKey } from "@local/shared";
-import { TextFieldProps } from "@mui/material";
-import { RichInputProps, TranslatedRichInputProps, TranslatedTextFieldProps } from "components/inputs/types";
+import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "components/inputs/types";
 import { ReactNode } from "react";
 import { SvgComponent, SvgProps, SxType } from "types";
 
@@ -74,7 +73,7 @@ export interface TextCollapseProps {
     text?: string | null;
 }
 
-export type EditTextComponent = "Markdown" | "TranslatedMarkdown" | "TranslatedTextField" | "TextField";
+export type EditTextComponent = "Markdown" | "TranslatedMarkdown" | "TranslatedTextInput" | "TextInput";
 
 interface BaseEditableTextProps<T extends EditTextComponent> {
     component: T;
@@ -94,8 +93,8 @@ interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends Bas
 export type PropsByComponentType = {
     Markdown: Omit<RichInputProps, "name" | "zIndex">;
     TranslatedMarkdown: Omit<TranslatedRichInputProps, "name" | "zIndex">;
-    TranslatedTextField: Omit<TranslatedTextFieldProps, "name">;
-    TextField: Omit<TextFieldProps, "error" | "helpText" | "name" | "onBlur" | "onChange" | "value">;
+    TranslatedTextInput: Omit<TranslatedTextInputProps, "name">;
+    TextInput: Omit<TextInputProps, "error" | "helpText" | "name" | "onBlur" | "onChange" | "value">;
 };
 
 export type EditableTextProps<T extends EditTextComponent> = BaseEditableTextProps<T> & {

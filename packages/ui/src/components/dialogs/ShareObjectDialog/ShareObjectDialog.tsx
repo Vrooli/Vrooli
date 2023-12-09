@@ -1,14 +1,13 @@
 /**
  * Dialog for sharing an object
  */
-import { Box, IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
+import { Box, List, ListItem, ListItemIcon, ListItemText, Stack, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import usePress from "hooks/usePress";
-import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from "icons";
-import { useMemo } from "react";
+import { DownloadIcon, EmailIcon, LinkIcon, ObjectIcon, QrCodeIcon, ShareIcon } from "icons";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
-import { getDeviceInfo } from "utils/display/device";
+import { getDisplay } from "utils/display/listTools";
 import { getObjectUrl, ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
@@ -24,13 +23,54 @@ const postTitle: { [key in ObjectType]?: string } = {
     "User": "Check out this user on Vrooli",
 };
 
-const buttonProps = (palette: Palette) => ({
-    background: palette.secondary.main,
-    height: "48px",
-    width: "48px",
-});
+const sanitizeFilename = (filename) => {
+    const invalidChars = /[<>:"/\\|?*]/g;
+    const controlChars = /[\x00-\x1f\x80-\x9f]/g;
+    const reservedWords = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i;
 
-const openLink = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
+    // Replace invalid characters with underscore
+    let sanitized = filename.replace(invalidChars, "_");
+
+    // Remove control characters
+    sanitized = sanitized.replace(controlChars, "");
+
+    // Avoid using reserved words
+    if (reservedWords.test(sanitized)) {
+        sanitized = "_" + sanitized;
+    }
+
+    return sanitized;
+};
+
+const canBrowserShare = (data: ShareData) => {
+    if (!navigator.share || !navigator.canShare) {
+        return false;
+    }
+    return navigator.canShare(data);
+};
+
+const omitFields = (obj: unknown, ...fieldsToOmit: string[]): unknown => {
+    // Base case: if it's not an object, return it as is
+    if (obj === null || typeof obj !== "object") {
+        return obj;
+    }
+    // If it's an array, map over it and recursively omit
+    if (Array.isArray(obj)) {
+        return obj.map(item => omitFields(item, ...fieldsToOmit));
+    }
+    // If it's an object, construct a new object without the specified fields
+    const result: { [key: string]: any } = {};
+    for (const key in obj) {
+        if (!fieldsToOmit.includes(key)) {
+            result[key] = omitFields(obj[key], ...fieldsToOmit);
+        }
+    }
+    return result;
+};
+// When sharing, we'll remove any fields specific to you, or related to ownership
+const omittedFields = ["you", "createdBy", "createdById"];
+
+const prepareObjectForShare = (object: any): any => omitFields(object, ...omittedFields);
 
 const titleId = "share-object-dialog-title";
 
@@ -45,41 +85,84 @@ export const ShareObjectDialog = ({
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : "Check out this object on Vrooli", [object]);
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split("?")[0].split("#")[0], [object]);
 
-    const emailUrl = useMemo(() => `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`, [title, url]);
-    const twitterUrl = useMemo(() => `https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`, [url]);
-    const linkedInUrl = useMemo(() => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`, [title, url]);
-
     const copyLink = () => {
-        console.log("copying link", url);
         navigator.clipboard.writeText(`${window.location.origin}${url}`);
-        PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+        PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     };
 
-    /**
-    * When QR code is long-pressed in standalone mode (i.e. app is downloaded), open copy/save photo dialog
-    */
-    const handleQRCodeLongPress = () => {
-        const { isStandalone } = getDeviceInfo();
-        if (!isStandalone) return;
-        // Find image using parent element's ID
-        const qrCode = document.getElementById("qr-code-box")?.firstChild as HTMLImageElement;
-        if (!qrCode) return;
-        // Create file
-        const file = new File([qrCode.src], "qr-code.png", { type: "image/png" });
-        // Open save dialog
-        const url = URL.createObjectURL(file);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "qr-code.png";
-        a.click();
-        URL.revokeObjectURL(url);
+    const copyObject = () => {
+        navigator.clipboard.writeText(JSON.stringify(prepareObjectForShare(object), null, 2));
+        PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     };
 
-    const pressEvents = usePress({
-        onLongPress: handleQRCodeLongPress,
-        onClick: handleQRCodeLongPress,
-        onRightClick: handleQRCodeLongPress,
-    });
+    const shareLink = async () => {
+        navigator.share({ title, url });
+    };
+
+    const shareObject = async () => {
+        if (!object) return;
+        try {
+            const jsonString = JSON.stringify(prepareObjectForShare(object), null, 2);  // Pretty-printed
+            // Create txt file (JSON is not currently supported in Chromium, despite canBrowserShare saying it is. See https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share#shareable_file_types)
+            const file = new File([jsonString], `${sanitizeFilename(getDisplay(object).title)}-json.txt`, { type: "text/plain" });
+            const shareData = {
+                title: `${getDisplay(object).title} - Vrooli`,
+                files: [file],
+            };
+            if (canBrowserShare(shareData)) {
+                console.log("sharing txt");
+                let success = false;
+                await navigator.share(shareData).then(() => {
+                    success = true;
+                }).catch((err) => {
+                    console.error(`The file could not be shared: ${err}`);
+                });
+                if (success) {
+                    return;
+                }
+            }
+            console.error("Could not share file");
+        } catch (err) {
+            console.error(`The file could not be shared: ${err}`);
+        }
+    };
+
+    const [isQrCodeVisible, setIsQrCodeVisible] = useState(false);
+    const toggleQrCode = () => setIsQrCodeVisible(!isQrCodeVisible);
+    const downloadQrCode = async () => {
+        const qrCode = document.getElementById("qr-code-box")?.firstChild as SVGSVGElement;
+        if (!qrCode || !object) return;
+
+        // Convert SVG to Data URL
+        const svgData = new XMLSerializer().serializeToString(qrCode);
+        const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const svgUrl = URL.createObjectURL(svgBlob);
+
+        // Load SVG into image
+        const img = new Image();
+        img.onload = function () {
+            // Create canvas
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx?.drawImage(img, 0, 0);
+
+            // Get PNG data URL
+            const pngDataUrl = canvas.toDataURL("image/png");
+
+            // Download PNG
+            const a = document.createElement("a");
+            a.href = pngDataUrl;
+            a.download = `${sanitizeFilename(getDisplay(object).title)}-qr-code.png`;
+            a.click();
+
+            // Cleanup
+            URL.revokeObjectURL(svgUrl);
+        };
+
+        img.src = svgUrl;
+    };
 
 
     return (
@@ -88,6 +171,7 @@ export const ShareObjectDialog = ({
             isOpen={open}
             onClose={onClose}
             titleId={titleId}
+            sxs={{ paper: { width: "min(500px, 100vw - 64px)" } }}
         >
             <TopBar
                 display="dialog"
@@ -95,18 +179,73 @@ export const ShareObjectDialog = ({
                 title={t("Share")}
                 titleId={titleId}
             />
-            <Stack direction="column" spacing={2} p={2} sx={{ justifyContent: "center", alignItems: "center" }}>
+            <List>
+                <ListItem
+                    button
+                    onClick={() => { }}
+                >
+                    <ListItemIcon>
+                        <EmailIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={"Message..."} />
+                </ListItem>
+                <ListItem
+                    button
+                    onClick={copyLink}
+                >
+                    <ListItemIcon>
+                        <LinkIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={"Copy link"} />
+                </ListItem>
+                <ListItem
+                    button
+                    onClick={shareLink}
+                >
+                    <ListItemIcon>
+                        <ShareIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={"Share link"} />
+                </ListItem>
+                <ListItem
+                    button
+                    onClick={copyObject}
+                >
+                    <ListItemIcon>
+                        <ObjectIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={"Copy object"} />
+                </ListItem>
+                <ListItem
+                    button
+                    onClick={shareObject}
+                >
+                    <ListItemIcon>
+                        <DownloadIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={"Share object"} />
+                </ListItem>
+                <ListItem
+                    button
+                    onClick={toggleQrCode}
+                >
+                    <ListItemIcon>
+                        <QrCodeIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={"QR code"} />
+                </ListItem>
+            </List>
+            {isQrCodeVisible && <Stack
+                direction="column"
+                sx={{ justifyContent: "center", alignItems: "center" }}>
                 <Box
                     id="qr-code-box"
-                    {...pressEvents}
                     sx={{
-                        width: "210px",
-                        height: "210px",
+                        display: "flex",
+                        width: "min(250px, 100%)",
                         background: "white",
                         borderRadius: 1,
                         padding: 0.5,
-                        marginLeft: "auto",
-                        marginRight: "auto",
                     }}>
                     <QRCode
                         size={200}
@@ -114,52 +253,18 @@ export const ShareObjectDialog = ({
                         value={`${window.location.origin}${url}`}
                     />
                 </Box>
-                <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
-                    <Tooltip title={t("CopyLink")}>
-                        <IconButton
-                            onClick={copyLink}
-                            sx={buttonProps(palette)}
-                        >
-                            <CopyIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title={t("ShareByEmail")}>
-                        <IconButton
-                            href={emailUrl}
-                            onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
-                            sx={buttonProps(palette)}
-                        >
-                            <EmailIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title={t("TweetIt")}>
-                        <IconButton
-                            href={twitterUrl}
-                            onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
-                            sx={buttonProps(palette)}
-                        >
-                            <TwitterIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title={t("LinkedInPost")}>
-                        <IconButton
-                            href={linkedInUrl}
-                            onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
-                            sx={buttonProps(palette)}
-                        >
-                            <LinkedInIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
-                    </Tooltip>
-                    {navigator.share && <Tooltip title={t("Other")}>
-                        <IconButton
-                            onClick={() => { navigator.share({ title, url }); }}
-                            sx={buttonProps(palette)}
-                        >
-                            <EllipsisIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
-                    </Tooltip>}
-                </Stack>
-            </Stack>
+                <List>
+                    <ListItem
+                        button
+                        onClick={downloadQrCode}
+                    >
+                        <ListItemIcon>
+                            <DownloadIcon fill={palette.background.textPrimary} />
+                        </ListItemIcon>
+                        <ListItemText primary={"Download QR code"} />
+                    </ListItem>
+                </List>
+            </Stack>}
         </LargeDialog>
     );
 };

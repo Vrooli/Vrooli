@@ -25,29 +25,33 @@ const viewKeywords = ["View", "ViewPage", "GoTo", "Navigate"] as const;
 
 export const shortcuts: PreSearchItem[] = [
     {
-        label: "CreateApi",
-        keywords: createKeywords,
-        value: `${LINKS.Api}/add`,
+        label: "History",
+        keywords: viewKeywords,
+        value: `${LINKS.History}`,
     },
     {
-        label: "CreateNote",
-        keywords: createKeywords,
-        value: `${LINKS.Note}/add`,
+        label: "Inbox",
+        keywords: viewKeywords,
+        value: `${LINKS.Inbox}`,
     },
     {
-        label: "CreateOrganization",
-        keywords: createKeywords,
-        value: `${LINKS.Organization}/add`,
+        label: "MyStuff",
+        value: LINKS.MyStuff,
     },
     {
-        label: "CreateProject",
-        keywords: createKeywords,
-        value: `${LINKS.Project}/add`,
+        label: "Profile",
+        keywords: viewKeywords,
+        value: `${LINKS.Profile}`,
     },
     {
-        label: "CreateQuestion",
+        label: "Settings",
+        keywords: viewKeywords,
+        value: `${LINKS.Settings}`,
+    },
+    {
+        label: "Create",
         keywords: createKeywords,
-        value: `${LINKS.Question}/add`,
+        value: LINKS.Create,
     },
     {
         label: "CreateReminder",
@@ -55,14 +59,39 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Reminder}/add`,
     },
     {
+        label: "CreateNote",
+        keywords: createKeywords,
+        value: `${LINKS.Note}/add`,
+    },
+    {
         label: "CreateRoutine",
         keywords: createKeywords,
         value: `${LINKS.Routine}/add`,
     },
     {
-        label: "CreateSmartContract",
+        label: "CreateProject",
         keywords: createKeywords,
-        value: `${LINKS.SmartContract}/add`,
+        value: `${LINKS.Project}/add`,
+    },
+    {
+        label: "CreateOrganization",
+        keywords: createKeywords,
+        value: `${LINKS.Organization}/add`,
+    },
+    {
+        label: "CreateBot",
+        keywords: createKeywords,
+        value: `${LINKS.User}/add`,
+    },
+    {
+        label: "CreateChat",
+        keywords: createKeywords,
+        value: `${LINKS.Chat}/add`,
+    },
+    {
+        label: "CreateQuestion",
+        keywords: createKeywords,
+        value: `${LINKS.Question}/add`,
     },
     {
         label: "CreateStandard",
@@ -70,39 +99,24 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Standard}/add`,
     },
     {
-        label: "ViewHistory",
-        keywords: viewKeywords,
-        value: `${LINKS.History}`,
+        label: "CreateSmartContract",
+        keywords: createKeywords,
+        value: `${LINKS.SmartContract}/add`,
     },
     {
-        label: "ViewNotifications",
-        keywords: viewKeywords,
-        value: `${LINKS.Inbox}`,
+        label: "CreateApi",
+        keywords: createKeywords,
+        value: `${LINKS.Api}/add`,
     },
     {
-        label: "ViewProfile",
-        keywords: viewKeywords,
-        value: `${LINKS.Profile}`,
-    },
-    {
-        label: "ViewSettings",
-        keywords: viewKeywords,
-        value: `${LINKS.Settings}`,
-    },
-    {
-        label: "SearchApi",
+        label: "Search",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Api}`,
+        value: LINKS.Search,
     },
     {
-        label: "SearchNote",
+        label: "SearchRoutine",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Note}`,
-    },
-    {
-        label: "SearchOrganization",
-        keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Organization}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Routine}`,
     },
     {
         label: "SearchProject",
@@ -115,14 +129,19 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Search}?type=${SearchPageTabOption.Question}`,
     },
     {
-        label: "SearchRoutine",
+        label: "SearchNote",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Routine}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Note}`,
     },
     {
-        label: "SearchSmartContract",
+        label: "SearchOrganization",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.SmartContract}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Organization}`,
+    },
+    {
+        label: "SearchUser",
+        keywords: searchKeywords,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.User}`,
     },
     {
         label: "SearchStandard",
@@ -130,9 +149,14 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Search}?type=${SearchPageTabOption.Standard}`,
     },
     {
-        label: "SearchUser",
+        label: "SearchApi",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.User}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Api}`,
+    },
+    {
+        label: "SearchSmartContract",
+        keywords: searchKeywords,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.SmartContract}`,
     },
     {
         label: "SearchRun",
@@ -219,12 +243,12 @@ export const performAction = async (option: ActionOption, session: Session | nul
                 fetchWrapper<ProfileUpdateInput, User>({
                     ...endpointPutProfile,
                     inputs: { theme: "dark" },
-                    onSuccess: () => { PubSub.get().publishTheme("dark"); },
-                    onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
+                    onSuccess: () => { PubSub.get().publish("theme", "dark"); },
+                    onError: (error) => { PubSub.get().publish("snack", { message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
                 });
             }
             // Otherwise, just publish theme change.
-            else PubSub.get().publishTheme("dark");
+            else PubSub.get().publish("theme", "dark");
             break;
         case "activate-light-mode":
             // If logged in, update user profile and publish theme change.
@@ -232,18 +256,18 @@ export const performAction = async (option: ActionOption, session: Session | nul
                 fetchWrapper<ProfileUpdateInput, User>({
                     ...endpointPutProfile,
                     inputs: { theme: "light" },
-                    onSuccess: () => { PubSub.get().publishTheme("light"); },
-                    onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
+                    onSuccess: () => { PubSub.get().publish("theme", "light"); },
+                    onError: (error) => { PubSub.get().publish("snack", { message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
                 });
             }
             // Otherwise, just publish theme change.
-            else PubSub.get().publishTheme("light");
+            else PubSub.get().publish("theme", "light");
             break;
         case "tutorial":
             if (session?.isLoggedIn) {
-                PubSub.get().publishTutorial();
+                PubSub.get().publish("tutorial");
             } else {
-                PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
+                PubSub.get().publish("snack", { messageKey: "MustBeLoggedIn", severity: "Error" });
             }
             break;
     }

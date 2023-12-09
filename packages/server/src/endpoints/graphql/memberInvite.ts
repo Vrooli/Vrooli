@@ -1,6 +1,6 @@
 import { MemberInviteSortBy, MemberInviteStatus } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsMemberInvite, MemberInviteEndpoints } from "../logic";
+import { EndpointsMemberInvite, MemberInviteEndpoints } from "../logic/memberInvite";
 
 export const typeDef = gql`
     enum MemberInviteSortBy {
@@ -82,7 +82,9 @@ export const typeDef = gql`
 
     extend type Mutation {
         memberInviteCreate(input: MemberInviteCreateInput!): MemberInvite!
+        memberInvitesCreate(input: [MemberInviteCreateInput!]!): [MemberInvite!]!
         memberInviteUpdate(input: MemberInviteUpdateInput!): MemberInvite!
+        memberInvitesUpdate(input: [MemberInviteUpdateInput!]!): [MemberInvite!]!
         memberInviteAccept(input: FindByIdInput!): MemberInvite!
         memberInviteDecline(input: FindByIdInput!): MemberInvite!
     }

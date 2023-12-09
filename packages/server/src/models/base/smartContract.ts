@@ -1,25 +1,22 @@
 import { MaxObjects, SmartContractSortBy, smartContractValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
-import { SmartContractFormat } from "../format/smartContract";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { OrganizationModel } from "./organization";
-import { ReactionModel } from "./reaction";
-import { SmartContractVersionModel } from "./smartContractVersion";
-import { SmartContractModelLogic } from "./types";
-import { ViewModel } from "./view";
+import { SmartContractFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, SmartContractModelInfo, SmartContractModelLogic, SmartContractVersionModelLogic, ViewModelLogic } from "./types";
 
 const __typename = "SmartContract" as const;
-const suppFields = ["you", "translatedName"] as const;
-export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof suppFields> = ({
+export const SmartContractModel: SmartContractModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.smart_contract,
-    display: rootObjectDisplay(SmartContractVersionModel),
+    display: () => rootObjectDisplay(ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion")),
     format: SmartContractFormat,
     mutate: {
         shape: {
@@ -29,13 +26,13 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                isPrivate: noNull(data.isPrivate),
+                isPrivate: data.isPrivate,
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
                 ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "smartContracts", isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "SmartContractVersion", parentRelationshipName: "forks", data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "SmartContractVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "SmartContractVersion", parentRelationshipName: "forks", data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "SmartContractVersion", parentRelationshipName: "root", data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "SmartContract", relation: "tags", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "SmartContract", relation: "labels", data, ...rest })),
             }),
@@ -44,14 +41,14 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
                 permissions: noNull(data.permissions),
                 ...rest.preMap[__typename].versionMap[data.id],
                 ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "smartContracts", isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "SmartContractVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "SmartContractVersion", parentRelationshipName: "root", data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "SmartContract", relation: "tags", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "SmartContract", relation: "labels", data, ...rest })),
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonRoot({ ...params, objectType: __typename });
+            afterMutations: async (params) => {
+                await afterMutationsRoot({ ...params, objectType: __typename });
             },
         },
         yup: smartContractValidation,
@@ -89,35 +86,35 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                     "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "smartContract.translatedName"),
                 };
             },
         },
     },
-    validate: {
+    validate: () => ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
+        isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<Prisma.smart_contractSelect>(data, [
+            oneIsPublic<SmartContractModelInfo["PrismaSelect"]>([
                 ["ownedByOrganization", "Organization"],
                 ["ownedByUser", "User"],
-            ], languages),
+            ], data, ...rest),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+            Organization: data?.ownedByOrganization,
+            User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
@@ -137,9 +134,9 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

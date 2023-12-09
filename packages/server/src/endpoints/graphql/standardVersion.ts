@@ -1,6 +1,6 @@
 import { StandardVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsStandardVersion, StandardVersionEndpoints } from "../logic";
+import { EndpointsStandardVersion, StandardVersionEndpoints } from "../logic/standardVersion";
 
 export const typeDef = gql`
     enum StandardVersionSortBy {
@@ -24,7 +24,7 @@ export const typeDef = gql`
         id: ID!
         default: String
         isComplete: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         isFile: Boolean
         props: String!
         standardType: String!
@@ -33,7 +33,7 @@ export const typeDef = gql`
         yup: String
         directoryListingsConnect: [ID!]
         resourceListCreate: ResourceListCreateInput
-        rootConnect: ID!
+        rootConnect: ID
         rootCreate: StandardCreateInput
         translationsCreate: [StandardVersionTranslationCreateInput!]
     }

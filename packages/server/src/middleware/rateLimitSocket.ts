@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { getUser } from "../auth";
+import { getUser } from "../auth/request";
 import { initializeRedis } from "../redisConn";
 import { checkRateLimit } from "./rateLimit";
 

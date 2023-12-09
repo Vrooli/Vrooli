@@ -1,7 +1,7 @@
 import { QuestionForType, QuestionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { UnionResolver } from "../../types";
-import { EndpointsQuestion, QuestionEndpoints } from "../logic";
+import { EndpointsQuestion, QuestionEndpoints } from "../logic/question";
 import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
@@ -34,7 +34,7 @@ export const typeDef = gql`
 
     input QuestionCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         referencing: String
         forObjectType: QuestionForType
         forObjectConnect: ID

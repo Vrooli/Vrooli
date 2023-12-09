@@ -2,7 +2,8 @@
  * Input for entering (and viewing format of) Checkbox data that 
  * must match a certain schema.
  */
-import { Button, Checkbox, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Button, Checkbox, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
 import { CheckboxProps } from "forms/types";
 import { AddIcon, DeleteIcon } from "icons";
@@ -16,7 +17,7 @@ import { CheckboxStandardInputProps } from "../types";
 export const emptyCheckboxOption = (index: number) => ({ label: `Enter option ${index + 1}` });
 
 /**
- * Checkbox option with delete icon, TextField for label, and Checkbox for default value.
+ * Checkbox option with delete icon, TextInput for label, and Checkbox for default value.
  */
 const CheckboxOption = ({
     index,
@@ -30,8 +31,8 @@ const CheckboxOption = ({
     isEditing: boolean;
     label: string,
     value: any,
-    onChange: (index: number, label: string, defaultValue: boolean) => void,
-    onDelete: () => void,
+    onChange: (index: number, label: string, defaultValue: boolean) => unknown,
+    onDelete: () => unknown,
 }) => {
     const { palette } = useTheme();
 
@@ -59,7 +60,7 @@ const CheckboxOption = ({
                 />
             </Tooltip>
             {isEditing ? (
-                <TextField
+                <TextInput
                     label="Label"
                     value={label}
                     fullWidth

@@ -18,6 +18,7 @@ export const quiz_findMany = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true
       },

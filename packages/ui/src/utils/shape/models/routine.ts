@@ -1,18 +1,18 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
 import { RoutineVersionShape, shapeRoutineVersion } from "./routineVersion";
-import { shapeTag, TagShape } from "./tag";
+import { TagShape, shapeTag } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 
 
 export type RoutineShape = Pick<Routine, "id" | "isInternal" | "isPrivate" | "permissions"> & {
-    __typename?: "Routine";
-    labels?: ({ id: string } | LabelShape)[];
+    __typename: "Routine";
+    labels?: CanConnect<LabelShape>[] | null;
     owner: OwnerShape | null | undefined;
-    parent?: { id: string } | null;
-    tags?: ({ tag: string } | TagShape)[];
+    parent?: CanConnect<RoutineVersionShape> | null;
+    tags?: CanConnect<TagShape, "tag">[] | null;
     versions?: Omit<RoutineVersionShape, "root">[] | null;
 }
 

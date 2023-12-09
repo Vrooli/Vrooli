@@ -1,7 +1,9 @@
-import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
-import { CustomError } from "../events";
-import { ObjectMap } from "../models/base";
+import { GqlModelType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
+import { CustomError } from "../events/error";
+import { ModelMap } from "../models/base";
+import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
+import { IdsCreateToConnect } from "../utils/types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
 import { RelationshipType, RelConnect, RelCreate, RelDelete, RelDisconnect, RelUpdate } from "./types";
 
@@ -29,28 +31,20 @@ type ShapeHelperOptionalInput<
 
 export type ShapeHelperInput<
     IsOneToOne extends boolean,
-    IsRequired extends boolean,
     RelFields extends string,
-    FieldName extends string,
-> = IsRequired extends true ?
-    // If required, ensure that at least connect or create is present
+    FieldName extends string
+> =
     "Connect" extends RelFields ?
     "Create" extends RelFields ? ((
-        ({ [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> }) &
-        ({ [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined })
-    ) | (
         ({ [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> | null | undefined }) &
-        ({ [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> })
+        ({ [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined })
     ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName>) : (
-        { [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> }
+        { [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> | null | undefined }
     ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName> :
     "Create" extends RelFields ? (
-        { [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> }
+        { [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined }
     ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName> :
-    ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName> : (
-        ({ [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> | null | undefined }) &
-        ({ [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined })
-    ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName>
+    ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName>
 
 type ShapeHelperOptionalOutput<
     IsOneToOne extends boolean,
@@ -68,35 +62,17 @@ type WrapInField<T, FieldName extends string> = {
 
 export type ShapeHelperOutput<
     IsOneToOne extends boolean,
-    IsRequired extends boolean,
     RelFields extends string,
     FieldName extends string,
     PrimaryKey extends string,
-> = WrapInField<(IsRequired extends true ?
-    // If required, ensure that at least connect or create is present
-    "Connect" extends RelFields ?
-    "Create" extends RelFields ? ({
-        connect: MaybeArray<RelConnect<PrimaryKey>, IsOneToOne>,
-        create?: MaybeArray<RelCreate<any>, IsOneToOne> | undefined,
-    } | {
-        connect?: MaybeArray<RelConnect<PrimaryKey>, IsOneToOne> | undefined,
-        create: MaybeArray<RelCreate<any>, IsOneToOne>,
-    } & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>) : ({
-        connect: MaybeArray<RelConnect<PrimaryKey>, IsOneToOne>,
-    } & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>) :
-    "Create" extends RelFields ? ({
-        create: MaybeArray<RelCreate<any>, IsOneToOne>,
-    } & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>) :
-    ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey> : ({
-        connect?: "Connect" extends RelFields ? MaybeArray<RelConnect<PrimaryKey>, IsOneToOne> | undefined : never,
-        create?: "Create" extends RelFields ? MaybeArray<RelCreate<any>, IsOneToOne> | undefined : never,
-    } & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>)
-), FieldName>
+> = WrapInField<({
+    connect?: "Connect" extends RelFields ? MaybeArray<RelConnect<PrimaryKey>, IsOneToOne> | undefined : never,
+    create?: "Create" extends RelFields ? MaybeArray<RelCreate<any>, IsOneToOne> | undefined : never,
+} & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>), FieldName>
 
 export type ShapeHelperProps<
-    Input extends ShapeHelperInput<IsOneToOne, IsRequired, Types[number], RelField>,
+    Input extends ShapeHelperInput<IsOneToOne, Types[number], RelField>,
     IsOneToOne extends boolean,
-    IsRequired extends boolean,
     Types extends readonly RelationshipType[],
     RelField extends string,
     PrimaryKey extends string,
@@ -104,13 +80,13 @@ export type ShapeHelperProps<
 > = {
     /** The data to convert */
     data: Input,
+    /** Ids which should result in a connect instead of a create */
+    idsCreateToConnect: IdsCreateToConnect,
     /**
      * True if relationship is one-to-one. This makes 
      * the results a single object instead of an array
      */
     isOneToOne: IsOneToOne,
-    /** True if relationship must be provided */
-    isRequired: IsRequired,
     /**
     * If relationship is a join table, data required to create the join table record
     * 
@@ -133,12 +109,14 @@ export type ShapeHelperProps<
     /**
      * A map of pre-shape data for all objects in the mutation, keyed by object type. 
      */
-    preMap: { [x in `${GqlModelType}`]?: any },
+    preMap: PreMap,
     /** The name of the primaryKey key field. Defaults to "id" */
     primaryKey?: PrimaryKey,
     /** The Prisma client */
     prisma: PrismaType,
+    /** The name of the relationship field */
     relation: RelField,
+    /** The allowed operations on the relations (e.g. create, connect) */
     relTypes: Types,
     /**
      * If true, relationship is set to "isDelete" 
@@ -153,25 +131,19 @@ export type ShapeHelperProps<
 }
 /**
  * Creates the relationship operations for a mutater shape create or update function
- * @param data The GraphQL update data object
- * @param relTypes The allowed operations on the relations (e.g. create, connect)
- * @param relation The name of the relationship field
- * @param isRequired Whether the connection is required
- * @param isOneToOne Whether the connection is a single object or an array
  * @returns An object with the connections
  */
 export const shapeHelper = async<
     IsOneToOne extends boolean,
-    IsRequired extends boolean,
     Types extends readonly RelationshipType[],
     RelField extends string,
     PrimaryKey extends string,
     SoftDelete extends boolean,
-    Input extends ShapeHelperInput<IsOneToOne, IsRequired, Types[number], RelField>,
+    Input extends ShapeHelperInput<IsOneToOne, Types[number], RelField>,
 >({
     data,
+    idsCreateToConnect,
     isOneToOne,
-    isRequired,
     joinData,
     objectType,
     parentRelationshipName,
@@ -182,14 +154,10 @@ export const shapeHelper = async<
     relTypes,
     softDelete = false as SoftDelete,
     userData,
-}: ShapeHelperProps<Input, IsOneToOne, IsRequired, Types, RelField, PrimaryKey, SoftDelete>):
-    Promise<ShapeHelperOutput<IsOneToOne, IsRequired, Types[number], RelField, PrimaryKey>> => {
+}: ShapeHelperProps<Input, IsOneToOne, Types, RelField, PrimaryKey, SoftDelete>):
+    Promise<ShapeHelperOutput<IsOneToOne, Types[number], RelField, PrimaryKey>> => {
     // Initialize result
     let result: { [x: string]: any } = {};
-    // If both connect and create do not exist, and it's required, throw an error
-    if (!data[`${relation}Connect` as string] && !data[`${relation}Create` as string] && isRequired) {
-        throw new CustomError("0368", "InvalidArgs", ["en"], { relation, data });
-    }
     // Loop through relation types, and convert all to a Prisma-shaped array
     for (const t of relTypes) {
         // If not in data, skip
@@ -203,13 +171,40 @@ export const shapeHelper = async<
             currShaped;
     }
     // Now we can further shape the result
+    // Creates which show up in idsCreateToConnect should be converted to connects
+    if (Array.isArray(result.create) && result.create.length > 0 && Object.keys(idsCreateToConnect).length > 0) {
+        const connected = result.create.map((e: { [x: string]: any }) => {
+            const id = idsCreateToConnect[e[primaryKey]] ?? idsCreateToConnect[e.id];
+            const isUuid = typeof id === "string" && uuidValidate(id);
+            return id ? { [isUuid ? "id" : primaryKey]: id } : null;
+        }).filter((e) => e);
+        if (connected.length) {
+            result.connect = Array.isArray(result.connect) ? [...result.connect, ...connected] : connected;
+            result.create = result.create.filter((e: { [x: string]: any }) => !idsCreateToConnect[e[primaryKey]] && !idsCreateToConnect[e.id]);
+        }
+    }
     // Connects, diconnects, and deletes must be shaped in the form of { id: '123' } (i.e. no other fields)
-    if (Array.isArray(result.connect) && result.connect.length > 0) result.connect = result.connect.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
-    else result.connect = undefined;
-    if (Array.isArray(result.disconnect) && result.disconnect.length > 0) result.disconnect = result.disconnect.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
-    else result.disconnect = undefined;
-    if (Array.isArray(result.delete) && result.delete.length > 0) result.delete = result.delete.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
-    else result.delete = undefined;
+    if (Array.isArray(result.connect) && result.connect.length > 0) {
+        // Fallback to "id" if primaryKey is not found
+        result.connect = result.connect.map((e: { [x: string]: any }) => {
+            if (e[primaryKey]) return { [primaryKey]: e[primaryKey] };
+            return { id: e.id };
+        });
+    } else result.connect = undefined;
+    if (Array.isArray(result.disconnect) && result.disconnect.length > 0) {
+        // Fallback to "id" if primaryKey is not found
+        result.disconnect = result.disconnect.map((e: { [x: string]: any }) => {
+            if (e[primaryKey]) return { [primaryKey]: e[primaryKey] };
+            return { id: e.id };
+        });
+    } else result.disconnect = undefined;
+    if (Array.isArray(result.delete) && result.delete.length > 0) {
+        // Fallback to "id" if primaryKey is not found
+        result.delete = result.delete.map((e: { [x: string]: any }) => {
+            if (e[primaryKey]) return { [primaryKey]: e[primaryKey] };
+            return { id: e.id };
+        });
+    } else result.delete = undefined;
     // Updates must be shaped in the form of { where: { id: '123' }, data: {...}}
     if (Array.isArray(result.update) && result.update.length > 0) {
         result.update = result.update.map((e: any) => ({ where: { id: e.id }, data: e }));
@@ -222,11 +217,11 @@ export const shapeHelper = async<
         delete result.delete;
     }
     // Perform nested shapes for create and update
-    const mutate = ObjectMap[objectType]?.mutate;
+    const mutate = ModelMap.get(objectType, false)?.mutate;
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
-            const created = await (mutate.shape as any).create({ data: create, preMap, prisma, userData });
+            const created = await mutate.shape.create({ data: create, idsCreateToConnect, preMap, prisma, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = created;
             shaped.push(rest);
@@ -236,7 +231,7 @@ export const shapeHelper = async<
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await (mutate.shape as any).update({ data: update.data, preMap, prisma, userData, where: update.where });
+            const updated = await mutate.shape.update({ data: update.data, idsCreateToConnect, preMap, prisma, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = updated;
             shaped.push({ where: update.where, data: rest });
@@ -302,18 +297,9 @@ export const shapeHelper = async<
     // If one-to-one, perform some final checks and remove arrays
     if (isOneToOne) {
         // Perform the following checks:
-        // 1. If required:
-        //    1.a If adding, must have connect or create
-        //    a.b If updating and has a disconnect or delete, must have connect or create
-        // 3. Does not have both a connect and create
-        // 4. Does not have both a disconnect and delete
+        // 1. Does not have both a connect and create
+        // 2. Does not have both a disconnect and delete
         const isAdd = ("create" in result || "connect" in result) && !("delete" in result || "disconnect" in result || "update" in result);
-        if (isRequired) {
-            if (isAdd && !result.connect && !result.create)
-                throw new CustomError("0340", "InvalidArgs", userData.languages, { relation });
-            if (!isAdd && (result.disconnect || result.delete) && !result.connect && !result.create)
-                throw new CustomError("0341", "InvalidArgs", userData.languages, { relation });
-        }
         if (result.connect && result.create)
             throw new CustomError("0342", "InvalidArgs", userData.languages, { relation });
         if (result.disconnect && result.delete)

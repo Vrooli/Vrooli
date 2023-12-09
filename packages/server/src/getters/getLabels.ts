@@ -1,6 +1,7 @@
 import { GqlModelType } from "@local/shared";
-import { CustomError, logger } from "../events";
-import { ObjectMap } from "../models/base";
+import { CustomError } from "../events/error";
+import { logger } from "../events/logger";
+import { ModelMap } from "../models/base";
 import { PrismaType } from "../types";
 
 /**
@@ -20,10 +21,7 @@ export async function getLabels(
     languages: string[],
     errorTrace: string,
 ): Promise<string[]> {
-    const model = ObjectMap[objectType];
-    if (!model) {
-        throw new CustomError("0347", "InvalidArgs", languages, { errorTrace, objectType });
-    }
+    const model = ModelMap.get(objectType, true, errorTrace);
     if (objects.length <= 0) return [];
     const objectsWithLanguages = typeof objects[0] === "string" ? objects.map(id => ({ id, languages })) : objects;
     // Query for labels data
@@ -32,7 +30,7 @@ export async function getLabels(
     let labelsData: any[];
     try {
         where = { id: { in: objectsWithLanguages.map(x => x.id) } };
-        select = typeof model.display.label.select === "function" ? model.display.label.select() : model.display.label.select;
+        select = typeof model.display().label.select === "function" ? model.display().label.select() : model.display().label.select;
         labelsData = await model.delegate(prisma).findMany({
             where,
             select,
@@ -47,7 +45,7 @@ export async function getLabels(
     const labels = objectsWithLanguages.map(object => {
         const data = labelsData.find(x => x.id === object.id);
         if (!data) return "";
-        return model.display.label.get(data, object.languages);
+        return model.display().label.get(data, object.languages);
     });
     return labels;
 }

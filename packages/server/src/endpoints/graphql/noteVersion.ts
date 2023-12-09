@@ -1,6 +1,6 @@
 import { NoteVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsNoteVersion, NoteVersionEndpoints } from "../logic";
+import { EndpointsNoteVersion, NoteVersionEndpoints } from "../logic/noteVersion";
 
 export const typeDef = gql`
     enum NoteVersionSortBy {
@@ -20,7 +20,7 @@ export const typeDef = gql`
 
     input NoteVersionCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]

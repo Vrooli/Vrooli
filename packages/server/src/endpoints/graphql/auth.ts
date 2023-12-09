@@ -1,6 +1,6 @@
 import pkg from "@prisma/client";
 import { gql } from "apollo-server-express";
-import { AuthEndpoints, EndpointsAuth } from "../logic";
+import { AuthEndpoints, EndpointsAuth } from "../logic/auth";
 
 const { AccountStatus } = pkg;
 
@@ -69,6 +69,7 @@ export const typeDef = gql`
         activeFocusMode: ActiveFocusMode
         apisCount: Int!
         bookmarkLists: [BookmarkList!]! # Will not include the bookmarks themselves, just info about the lists
+        credits: Int!
         focusModes: [FocusMode!]!
         handle: String
         hasPremium: Boolean!

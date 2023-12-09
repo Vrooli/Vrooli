@@ -1,6 +1,6 @@
 import { MeetingSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsMeeting, MeetingEndpoints } from "../logic";
+import { EndpointsMeeting, MeetingEndpoints } from "../logic/meeting";
 
 export const typeDef = gql`
     enum MeetingSortBy {
@@ -42,6 +42,8 @@ export const typeDef = gql`
     }
     type Meeting {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         openToAnyoneWithInvite: Boolean!
         showOnOrganizationProfile: Boolean!
         organization: Organization!

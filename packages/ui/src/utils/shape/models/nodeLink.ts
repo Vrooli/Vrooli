@@ -1,13 +1,15 @@
 import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { NodeShape } from "./node";
 import { NodeLinkWhenShape, shapeNodeLinkWhen } from "./nodeLinkWhen";
+import { RoutineVersionShape } from "./routineVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type NodeLinkShape = Pick<NodeLink, "id" | "operation"> & {
-    __typename?: "NodeLink";
-    from: { id: string };
-    to: { id: string };
-    routineVersion: { id: string };
+    __typename: "NodeLink";
+    from: CanConnect<NodeShape>;
+    to: CanConnect<NodeShape>;
+    routineVersion: CanConnect<RoutineVersionShape>;
     whens?: NodeLinkWhenShape[];
 }
 

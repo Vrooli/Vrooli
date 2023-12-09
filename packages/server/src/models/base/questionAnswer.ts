@@ -1,32 +1,31 @@
 import { MaxObjects, QuestionAnswerSortBy, questionAnswerValidation } from "@local/shared";
-import { shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
-import { QuestionAnswerFormat } from "../format/questionAnswer";
-import { ModelLogic } from "../types";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { bestTranslation, defaultPermissions } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
+import { QuestionAnswerFormat } from "../formats";
 import { QuestionAnswerModelLogic } from "./types";
 
 const __typename = "QuestionAnswer" as const;
-const suppFields = [] as const;
-export const QuestionAnswerModel: ModelLogic<QuestionAnswerModelLogic, typeof suppFields> = ({
+export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.question_answer,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
         },
-    },
+    }),
     format: QuestionAnswerFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 createdBy: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: "question", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Question", parentRelationshipName: "answers", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "question", relTypes: ["Connect"], isOneToOne: true, objectType: "Question", parentRelationshipName: "answers", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         yup: questionAnswerValidation,
@@ -48,13 +47,13 @@ export const QuestionAnswerModel: ModelLogic<QuestionAnswerModelLogic, typeof su
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.createdBy,
+            User: data?.createdBy,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
@@ -68,5 +67,5 @@ export const QuestionAnswerModel: ModelLogic<QuestionAnswerModelLogic, typeof su
                 createdBy: { id: userId },
             }),
         },
-    },
+    }),
 });

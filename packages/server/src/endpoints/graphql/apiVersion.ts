@@ -1,6 +1,6 @@
 import { ApiVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { ApiVersionEndpoints, EndpointsApiVersion } from "../logic";
+import { ApiVersionEndpoints, EndpointsApiVersion } from "../logic/apiVersion";
 
 export const typeDef = gql`
     enum ApiVersionSortBy {
@@ -24,7 +24,7 @@ export const typeDef = gql`
         id: ID!
         callLink: String!
         documentationLink: String
-        isPrivate: Boolean
+        isPrivate: Boolean!
         isComplete: Boolean
         versionLabel: String!
         versionNotes: String

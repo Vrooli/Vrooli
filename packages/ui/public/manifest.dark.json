@@ -40,7 +40,7 @@
     ],
     "background_color": "#242930",
     "theme_color": "#242930",
-    "display": "window-controls-overlay",
+    "display": "standalone",
     "display_override": [
         "window-controls-overlay",
         "standalone",

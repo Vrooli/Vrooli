@@ -1,13 +1,13 @@
 import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { NodeShape } from "./node";
 import { ProjectVersionDirectoryShape } from "./projectVersionDirectory";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type RunProjectStepShape = Pick<RunProjectStep, "id" | "contextSwitches" | "name" | "order" | "status" | "step" | "timeElapsed"> & {
-    __typename?: "RunProjectStep";
-    directory?: { id: string } | ProjectVersionDirectoryShape | null;
-    node?: { id: string } | NodeShape | null;
+    __typename: "RunProjectStep";
+    directory?: CanConnect<ProjectVersionDirectoryShape> | null;
+    node?: CanConnect<NodeShape> | null;
 }
 
 export const shapeRunProjectStep: ShapeModel<RunProjectStepShape, RunProjectStepCreateInput, RunProjectStepUpdateInput> = {

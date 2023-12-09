@@ -8,8 +8,8 @@ export type ResourceListTranslationShape = Pick<ResourceListTranslation, "id" | 
 }
 
 export type ResourceListShape = Pick<ResourceList, "id"> & {
-    __typename?: "ResourceList";
-    listFor: { __typename: ResourceListFor, id: string };
+    __typename: "ResourceList";
+    listFor: Pick<ResourceList["listFor"], "id" | "__typename">;
     resources?: ResourceShape[] | null;
     translations?: ResourceListTranslationShape[] | null;
 }
@@ -20,13 +20,23 @@ export const shapeResourceListTranslation: ShapeModel<ResourceListTranslationSha
 };
 
 export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreateInput, ResourceListUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id"),
-        listForConnect: d.listFor.id,
-        listFor: d.listFor.__typename,
-        ...createRel(d, "resources", ["Create"], "many", shapeResource, (r) => ({ list: { id: d.id }, ...r })),
-        ...createRel(d, "translations", ["Create"], "many", shapeResourceListTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id");
+        let listForConnect: string | undefined;
+        let listForType: ResourceListFor | undefined;
+        console.log("in shapeResourceListCreate", d, "listFor" in d);
+        if ("listFor" in d) {
+            listForConnect = d.listFor.id;
+            listForType = d.listFor.__typename as ResourceListFor;
+        }
+        return {
+            ...prims,
+            listForConnect: listForConnect as string,
+            listForType: listForType as ResourceListFor,
+            ...createRel(d, "resources", ["Create"], "many", shapeResource, (r) => ({ list: { id: prims.id }, ...r })),
+            ...createRel(d, "translations", ["Create"], "many", shapeResourceListTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id"),
         ...updateRel(o, u, "resources", ["Create", "Update", "Delete"], "many", shapeResource, (r, i) => ({ list: { id: i.id }, ...r })),

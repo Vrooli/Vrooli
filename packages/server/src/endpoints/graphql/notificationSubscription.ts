@@ -1,6 +1,6 @@
 import { NotificationSubscriptionSortBy, SubscribableObject } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsNotificationSubscription, NotificationSubscriptionEndpoints } from "../logic";
+import { EndpointsNotificationSubscription, NotificationSubscriptionEndpoints } from "../logic/notificationSubscription";
 
 export const typeDef = gql`
     enum NotificationSubscriptionSortBy {

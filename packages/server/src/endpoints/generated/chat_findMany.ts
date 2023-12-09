@@ -39,6 +39,7 @@ export const chat_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           }
@@ -123,6 +124,10 @@ export const chat_findMany = {
               "language": true,
               "description": true
             }
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
           }
         },
         "id": true,
@@ -168,6 +173,7 @@ export const chat_findMany = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true
         },

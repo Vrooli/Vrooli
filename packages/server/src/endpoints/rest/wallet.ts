@@ -1,5 +1,5 @@
 import { wallet_update } from "../generated";
-import { WalletEndpoints } from "../logic";
+import { WalletEndpoints } from "../logic/wallet";
 import { setupRoutes } from "./base";
 
 export const WalletRest = setupRoutes({

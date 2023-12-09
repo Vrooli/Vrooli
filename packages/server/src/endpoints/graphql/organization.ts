@@ -1,6 +1,6 @@
 import { OrganizationSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsOrganization, OrganizationEndpoints } from "../logic";
+import { EndpointsOrganization, OrganizationEndpoints } from "../logic/organization";
 
 export const typeDef = gql`
     enum OrganizationSortBy {
@@ -17,7 +17,7 @@ export const typeDef = gql`
         bannerImage: Upload
         handle: String
         isOpenToNewMembers: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         permissions: String
         profileImage: Upload
         memberInvitesCreate: [MemberInviteCreateInput!]

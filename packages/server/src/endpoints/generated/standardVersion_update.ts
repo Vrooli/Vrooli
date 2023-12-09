@@ -19,6 +19,7 @@ export const standardVersion_update = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -50,8 +51,10 @@ export const standardVersion_update = {
         "language": true,
         "description": true,
         "name": true
-      }
-    }
+      },
+      "__typename": "Resource"
+    },
+    "__typename": "ResourceList"
   },
   "root": {
     "parent": {
@@ -100,6 +103,7 @@ export const standardVersion_update = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -143,6 +147,7 @@ export const standardVersion_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"

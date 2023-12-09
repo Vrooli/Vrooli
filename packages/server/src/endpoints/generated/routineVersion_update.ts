@@ -20,6 +20,7 @@ export const routineVersion_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -80,6 +81,7 @@ export const routineVersion_update = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -123,6 +125,7 @@ export const routineVersion_update = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -333,11 +336,13 @@ export const routineVersion_update = {
   "nodeLinks": {
     "id": true,
     "from": {
-      "id": true
+      "id": true,
+      "__typename": "Node"
     },
     "operation": true,
     "to": {
-      "id": true
+      "id": true,
+      "__typename": "Node"
     },
     "whens": {
       "id": true,
@@ -347,8 +352,10 @@ export const routineVersion_update = {
         "language": true,
         "description": true,
         "name": true
-      }
-    }
+      },
+      "__typename": "NodeLinkWhen"
+    },
+    "__typename": "NodeLink"
   },
   "outputs": {
     "id": true,
@@ -417,6 +424,7 @@ export const routineVersion_update = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -508,6 +516,7 @@ export const routineVersion_update = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -551,6 +560,7 @@ export const routineVersion_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -636,6 +646,7 @@ export const routineVersion_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -717,6 +728,7 @@ export const routineVersion_update = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -760,6 +772,7 @@ export const routineVersion_update = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"

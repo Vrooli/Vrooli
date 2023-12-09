@@ -1,6 +1,7 @@
 import { Question, QuestionCreateInput, QuestionForType, QuestionTranslation, QuestionTranslationCreateInput, QuestionTranslationUpdateInput, QuestionUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
-import { shapeTag, TagShape } from "./tag";
+import { CanConnect, ShapeModel } from "types";
+import { QuestionAnswerShape } from "./questionAnswer";
+import { TagShape, shapeTag } from "./tag";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type QuestionTranslationShape = Pick<QuestionTranslation, "id" | "language" | "description" | "name"> & {
@@ -9,10 +10,10 @@ export type QuestionTranslationShape = Pick<QuestionTranslation, "id" | "languag
 
 export type QuestionShape = Pick<Question, "id" | "isPrivate"> & {
     __typename: "Question";
-    acceptedAnswer?: { id: string } | null;
+    acceptedAnswer?: CanConnect<QuestionAnswerShape> | null;
     forObject?: { __typename: QuestionForType | `${QuestionForType}`, id: string } | null;
     referencing?: string;
-    tags?: ({ tag: string } | TagShape)[];
+    tags?: CanConnect<TagShape, "tag">[] | null;
     translations?: QuestionTranslationShape[] | null;
 }
 

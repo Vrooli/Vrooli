@@ -4,7 +4,6 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { useTranslation } from "react-i18next";
 import { getDisplay, ListObject } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { StatsObjectViewProps } from "../types";
 
 const titleId = "stats-object-dialog-title";
@@ -14,13 +13,13 @@ const titleId = "stats-object-dialog-title";
  * Displays votes, views, date created, and reports
  */
 export const StatsObjectView = <T extends ListObject>({
+    display,
     handleObjectUpdate,
     isOpen,
     object,
     onClose,
 }: StatsObjectViewProps<T>) => {
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     return (
         <MaybeLargeDialog

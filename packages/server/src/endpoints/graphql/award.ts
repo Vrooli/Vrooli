@@ -1,6 +1,6 @@
 import { AwardCategory, AwardSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { AwardEndpoints, EndpointsAward } from "../logic";
+import { AwardEndpoints, EndpointsAward } from "../logic/award";
 
 export const typeDef = gql`
     enum AwardSortBy {

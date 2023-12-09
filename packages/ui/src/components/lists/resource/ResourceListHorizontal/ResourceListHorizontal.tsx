@@ -5,12 +5,11 @@ import { Box, IconButton, Stack, styled, Tooltip, Typography, useTheme } from "@
 import { fetchLazyWrapper } from "api";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { SessionContext } from "contexts/SessionContext";
-import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
 import { useDebounce } from "hooks/useDebounce";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
 import { DeleteIcon, EditIcon, LinkIcon } from "icons";
-import { forwardRef, useCallback, useContext, useMemo, useState } from "react";
+import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -22,7 +21,7 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { updateArray } from "utils/shape/general";
-import { ResourceUpsert } from "views/objects/resource";
+import { resourceInitialValues, ResourceUpsert } from "views/objects/resource";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceCardProps, ResourceListHorizontalProps } from "../types";
 
@@ -36,8 +35,8 @@ const ResourceBox = styled(Box)(({ theme }) => ({
     margin: "auto",
     padding: theme.spacing(1),
     cursor: "pointer",
-    width: "120px",
-    minWidth: "120px",
+    width: "194px",
+    minWidth: "194px",
     minHeight: "120px",
     height: "120px",
     position: "relative",
@@ -48,11 +47,11 @@ const ResourceBox = styled(Box)(({ theme }) => ({
 })) as any;// TODO: Fix any - https://github.com/mui/material-ui/issues/38274
 
 const ResourceCard = forwardRef<any, ResourceCardProps>(({
-    canUpdate,
     data,
     dragProps,
     dragHandleProps,
     index,
+    isEditing,
     onContextMenu,
     onEdit,
     onDelete,
@@ -72,7 +71,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link);
-    }, [data]);
+    }, [data.link, data.usedFor]);
 
     const href = useMemo(() => getResourceUrl(data.link), [data]);
     const handleClick = useCallback((target: EventTarget) => {
@@ -88,14 +87,14 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
             // If no resource type or link, show error
             const resourceType = getResourceType(data.link);
             if (!resourceType || !href) {
-                PubSub.get().publishSnack({ messageKey: "CannotOpenLink", severity: "Error" });
+                PubSub.get().publish("snack", { messageKey: "CannotOpenLink", severity: "Error" });
                 return;
             }
             // Open link
             else openLink(setLocation, href);
         }
     }, [data.link, href, index, onDelete, onEdit, setLocation]);
-    const handleClickDebounce = useDebounce(handleClick, 100);
+    const [handleClickDebounce] = useDebounce(handleClick, 100);
     const handleContextMenu = useCallback((target: EventTarget) => {
         onContextMenu(target, index);
     }, [onContextMenu, index]);
@@ -104,6 +103,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
         onLongPress: handleContextMenu,
         onClick: handleClickDebounce,
         onRightClick: handleContextMenu,
+        pressDelay: isEditing ? 1500 : 300,
     });
 
     return (
@@ -118,7 +118,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
                 onClick={(e) => e.preventDefault()}
             >
                 {/* Edit and delete icons, only visible on hover */}
-                {canUpdate && (
+                {isEditing && (
                     <>
                         <Tooltip title={t("Edit")}>
                             <IconButton
@@ -149,7 +149,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
                         textOverflow: "ellipsis",
                     }}
                 >
-                    <Icon sx={{ fill: "white" }} />
+                    {typeof Icon === "function" ? <Icon fill={palette.primary.contrastText} /> : Icon}
                     <Typography
                         gutterBottom
                         variant="body2"
@@ -196,12 +196,18 @@ export const ResourceListHorizontal = ({
     parent,
     title,
 }: ResourceListHorizontalProps) => {
+    console.log("qwaf resource list render", list);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
+    const [isEditing, setIsEditing] = useState(false);
+    useEffect(() => {
+        if (!canUpdate) setIsEditing(false);
+    }, [canUpdate]);
+
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
-        if (!canUpdate || !destination || source.index === destination.index) return;
+        if (!isEditing || !destination || source.index === destination.index) return;
         // Handle the reordering of the resources in the list
         if (handleUpdate && list) {
             handleUpdate({
@@ -209,7 +215,7 @@ export const ResourceListHorizontal = ({
                 resources: updateArray(list.resources, source.index, list.resources[destination.index]) as any[],
             });
         }
-    }, [canUpdate, handleUpdate, list]);
+    }, [isEditing, handleUpdate, list]);
 
     const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const onDelete = useCallback((index: number) => {
@@ -278,22 +284,38 @@ export const ResourceListHorizontal = ({
             });
         }
     }, [closeDialog, handleUpdate, list]);
+    const onDeleted = useCallback((resource: Resource) => {
+        closeDialog();
+        if (!list || !handleUpdate) return;
+        handleUpdate({
+            ...list,
+            resources: list.resources.filter(r => r.id !== resource.id) as any,
+        });
+    }, [closeDialog, handleUpdate, list]);
 
     const dialog = useMemo(() => (
         list ? <ResourceUpsert
+            display="dialog"
             isCreate={editingIndex < 0}
             isOpen={isDialogOpen}
             isMutate={mutate}
             onCancel={closeDialog}
+            onClose={closeDialog}
             onCompleted={onCompleted}
-            overrideObject={editingIndex >= 0 && list?.resources ?
-                { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
+            onDeleted={onDeleted}
+            overrideObject={(editingIndex >= 0 && list?.resources ?
+                { ...list.resources[editingIndex as number], index: editingIndex } :
                 resourceInitialValues(undefined, {
                     index: 0,
-                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
-                }) as NewResourceShape}
+                    list: {
+                        __connect: true,
+                        ...(list?.id && list.id !== DUMMY_ID ? list : { listFor: parent }),
+                        id: list?.id ?? DUMMY_ID,
+                        __typename: "ResourceList",
+                    },
+                }) as Resource)}
         /> : null
-    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id]);
+    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, onDeleted, parent]);
 
     return (
         <>
@@ -326,7 +348,14 @@ export const ResourceListHorizontal = ({
                 }}
                 resource={selectedResource}
             />
-            {title && <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>}
+            {title && <Box display="flex" flexDirection="row" alignItems="center">
+                <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
+                {true && <Tooltip title={t("Edit")}>
+                    <IconButton onClick={() => { setIsEditing(e => !e); }}>
+                        <EditIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} />
+                    </IconButton>
+                </Tooltip>}
+            </Box>}
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="resource-list" direction="horizontal">
                     {(provided) => (
@@ -336,14 +365,14 @@ export const ResourceListHorizontal = ({
                             {...provided.droppableProps}
                             justifyContent="flex-start"
                             alignItems="center"
-                            p={1}
                             sx={{
                                 display: "flex",
                                 gap: 2,
                                 width: "100%",
-                                maxWidth: "700px",
                                 marginLeft: "auto",
                                 marginRight: "auto",
+                                paddingTop: title ? 0 : 1,
+                                paddingBottom: 1,
                                 overflowX: "auto",
                             }}>
                             {/* Resources */}
@@ -352,17 +381,17 @@ export const ResourceListHorizontal = ({
                                     key={`resource-card-${index}`}
                                     draggableId={`resource-card-${index}`}
                                     index={index}
-                                    isDragDisabled={!canUpdate}
+                                    isDragDisabled={!isEditing}
                                 >
                                     {(provided) => (
                                         <ResourceCard
                                             ref={provided.innerRef}
                                             dragProps={provided.draggableProps}
                                             dragHandleProps={provided.dragHandleProps}
-                                            canUpdate={canUpdate}
                                             key={`resource-card-${index}`}
                                             index={index}
-                                            data={c}
+                                            isEditing={isEditing}
+                                            data={{ ...c, list }}
                                             onContextMenu={openContext}
                                             onEdit={openUpdateDialog}
                                             onDelete={onDelete}

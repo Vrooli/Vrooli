@@ -1,20 +1,19 @@
-import { ChatSortBy, chatValidation, MaxObjects, User, uuid, uuidValidate } from "@local/shared";
+import { ChatSortBy, chatValidation, MaxObjects, User, uuidValidate } from "@local/shared";
 import { ChatInviteStatus } from "@prisma/client";
-import i18next from "i18next";
-import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, translationShapeHelper } from "../../utils";
-import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
-import { ChatFormat } from "../format/chat";
-import { ModelLogic } from "../types";
+import { ChatFormat } from "../formats";
+import { SuppFields } from "../suppFields";
 import { ChatModelLogic } from "./types";
 
 const __typename = "Chat" as const;
-const suppFields = ["you"] as const;
-export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
+export const ChatModel: ChatModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.chat,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: ({ translations }, languages) => bestTranslation(translations, languages)?.name ?? "",
@@ -29,67 +28,113 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                 }, languages[0]);
             },
         },
-    },
+    }),
     format: ChatFormat,
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, prisma, userData }) => {
+            pre: async ({ Create, Update, prisma, userData, inputsById }) => {
                 // Find invited users. Any that are bots are automatically accepted.
-                const invitedUsers = createList.reduce((acc, c) => [...acc, ...(c.invitesCreate?.map((i) => i.userConnect) ?? []) as string[]], [] as string[]);
+                const invitedUsers = Create.reduce((acc, createObject) => {
+                    const invites = createObject.input.invitesCreate ?? [];
+                    invites.forEach(invite => {
+                        if (typeof invite === "string") {
+                            // If invite is a string, find the corresponding object in `inputsById` and extract `userConnect`
+                            const inviteObject: { input?: { userConnect?: string } } = inputsById[invite] as object;
+                            if (inviteObject && inviteObject.input && inviteObject.input.userConnect) {
+                                acc.push(inviteObject.input.userConnect);
+                            }
+                        } else if (invite && typeof invite === "object" && invite.userConnect) {
+                            // If invite is an object, use `userConnect` directly
+                            acc.push(invite.userConnect);
+                        }
+                    });
+                    return acc;
+                }, [] as string[]);
                 // Find all bots
-                const bots = await prisma.user.findMany({ where: { id: { in: invitedUsers }, isBot: true } });
+                const bots = await prisma.user.findMany({
+                    where: {
+                        id: { in: invitedUsers },
+                        isBot: true,
+                        OR: [
+                            { isPrivate: false }, // Public bots
+                            { invitedByUser: { id: userData.id } }, // Private bots you created
+                        ],
+                    },
+                });
                 // Find translations that need text embeddings
-                const embeddingMaps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                const embeddingMaps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...embeddingMaps, bots };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
-                creator: { connect: { id: rest.userData.id } },
-                // Create invite for non-bots and not yourself
-                invites: {
-                    create: data.invitesCreate?.filter((u) => !rest.preMap[__typename].bots.includes(u.userConnect) && u.userConnect !== rest.userData.id).map((u) => ({
-                        id: u.id,
-                        user: { connect: { id: u.userConnect } },
-                        status: rest.preMap[__typename].bots.some((b: User) => b.id === u.userConnect) ? ChatInviteStatus.Accepted : ChatInviteStatus.Pending,
-                        message: noNull(u.message),
-                    })),
-                },
-                // Handle participants
-                participants: {
-                    // Automatically accept bots, and add yourself
-                    create: [
-                        ...(rest.preMap[__typename].bots.map((u: User) => ({
-                            user: { connect: { id: u.id } },
-                        }))),
-                        {
-                            user: { connect: { id: rest.userData.id } },
-                        },
-                    ],
-                },
-                // If only chatting with a bot, add start message TODO needs persona of bot
-                ...(data.invitesCreate?.length === 1 && rest.preMap[__typename].bots.some((b) => b.id === data.invitesCreate![0].userConnect) ? {
-                    messages: {
-                        create: [{
-                            id: uuid(),
-                            isFork: false,
-                            translations: {
-                                create: [{
-                                    id: uuid(),
-                                    language: rest.userData.languages[0],
-                                    text: i18next.t(`tasks:${data.task ?? "start"}`, { lng: rest.userData.languages[0], defaultValue: "Hello👋, I'm Valyxa! How can I assist you?" }) as string,
-                                }],
-                            },
-                            user: { connect: { id: data.invitesCreate[0].userConnect } },
-                        }],
+            create: async ({ data, ...rest }) => {
+                // Due to the way Prisma handles connections, we must be careful with how messages are inserted. 
+                // When a message has a "parentConnect" relation pointing to a new message (i.e. is also in the "create" array), 
+                // we must convert it to a "parentCreate", and remove the parent message from the array. Otherwise, Prisma will 
+                // throw an error about not being able to find the parent message.
+                let messages = await shapeHelper({ relation: "messages", relTypes: ["Create"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest });
+                if (Object.prototype.hasOwnProperty.call(messages, "messages") && Array.isArray(messages.messages.create)) {
+                    let newMessages: unknown[] = [];
+                    const parentIdsToRemove: string[] = [];
+                    for (const message of messages.messages.create) {
+                        if (!Object.prototype.hasOwnProperty.call(message, "parent") || !Object.prototype.hasOwnProperty.call(message.parent, "connect")) {
+                            newMessages.push(message);
+                            continue;
+                        }
+                        // Check if the parent message is in the create array
+                        const parentMessage = messages.messages.create.find((m) => m.id === message.parent.connect.id);
+                        // If it is, convert the parentConnect to a parentCreate
+                        if (parentMessage) {
+                            newMessages.push({
+                                ...message,
+                                parent: {
+                                    create: {
+                                        ...parentMessage,
+                                        chat: { connect: { id: data.id } },
+                                    },
+                                },
+                            });
+                            parentIdsToRemove.push(parentMessage.id);
+                            continue;
+                        }
+                        // Otherwise, leave it as a parentConnect
+                        newMessages.push(message);
+                    }
+                    // Remove the parent messages from the create array
+                    newMessages = newMessages.filter((m) => !parentIdsToRemove.includes((m as { id: string }).id));
+                    // Replace the old messages with the new ones
+                    messages = { ...messages, messages: { ...messages.messages, create: newMessages } };
+                }
+                return {
+                    id: data.id,
+                    openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
+                    creator: { connect: { id: rest.userData.id } },
+                    // Create invite for non-bots and not yourself
+                    invites: {
+                        create: data.invitesCreate?.filter((u) => !rest.preMap[__typename].bots.includes(u.userConnect) && u.userConnect !== rest.userData.id).map((u) => ({
+                            id: u.id,
+                            user: { connect: { id: u.userConnect } },
+                            status: rest.preMap[__typename].bots.some((b: User) => b.id === u.userConnect) ? ChatInviteStatus.Accepted : ChatInviteStatus.Pending,
+                            message: noNull(u.message),
+                        })),
                     },
-                } : {}),
-                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
-                // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", relation: "labels", data, ...rest })),
-                ...(await shapeHelper({ relation: "messages", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
+                    // Handle participants
+                    participants: {
+                        // Automatically accept bots, and add yourself
+                        create: [
+                            ...(rest.preMap[__typename].bots.map((u: User) => ({
+                                user: { connect: { id: u.id } },
+                            }))),
+                            {
+                                user: { connect: { id: rest.userData.id } },
+                            },
+                        ],
+                    },
+                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
+                    // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false,   objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
+                    ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", relation: "labels", data, ...rest })),
+                    ...messages,
+                    ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                };
+            },
             update: async ({ data, ...rest }) => ({
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 // Handle invites
@@ -118,14 +163,14 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                     ],
                     delete: data.participantsDelete?.map((id) => ({ id })),
                 },
-                // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
+                // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false,   objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Delete", "Disconnect"], parentType: "Chat", relation: "labels", data, ...rest })),
-                ...(await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                ...(await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         trigger: {
-            onCreated: async ({ created, prisma, userData }) => {
+            afterMutations: async ({ createdIds, prisma, userData }) => {
                 //TODO If starting a chat with a bot (not Valyxa, since we create an initial message in the 
                 // UI for speed), allow the bot to send a message to the chat
             },
@@ -146,31 +191,30 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
         searchStringQuery: () => ({
             OR: [
                 "labelsWrapped",
-                "tagsWrapped",
                 "transNameWrapped",
                 "transDescriptionWrapped",
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        // hasUnread: await ChatModel.query.getHasUnread(prisma, userData?.id, ids, __typename),
+                        // hasUnread: await ModelMap.get<ChatModelLogic>("Chat").query.getHasUnread(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.creator,
+            Organization: data?.organization,
+            User: data?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isInvited = uuidValidate(userId) && data.invites?.some((i) => i.userId === userId && i.status === ChatInviteStatus.Pending);
@@ -211,5 +255,5 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                 creator: { id: userId },
             }),
         },
-    },
+    }),
 });

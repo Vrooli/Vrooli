@@ -1,6 +1,6 @@
 import { MemberSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsMember, MemberEndpoints } from "../logic";
+import { EndpointsMember, MemberEndpoints } from "../logic/member";
 
 export const typeDef = gql`
     enum MemberSortBy {
@@ -24,6 +24,12 @@ export const typeDef = gql`
         organization: Organization!
         roles: [Role!]!
         user: User!
+        you: MemberYou!
+    }
+
+    type MemberYou {
+        canDelete: Boolean!
+        canUpdate: Boolean!
     }
 
     input MemberSearchInput {

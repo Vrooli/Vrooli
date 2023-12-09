@@ -1,6 +1,6 @@
 import { StandardSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsStandard, StandardEndpoints } from "../logic";
+import { EndpointsStandard, StandardEndpoints } from "../logic/standard";
 
 export const typeDef = gql`
     enum StandardSortBy {
@@ -29,7 +29,7 @@ export const typeDef = gql`
     input StandardCreateInput {
         id: ID!
         isInternal: Boolean
-        isPrivate: Boolean
+        isPrivate: Boolean!
         permissions: String
         parentConnect: ID
         ownedByUserConnect: ID

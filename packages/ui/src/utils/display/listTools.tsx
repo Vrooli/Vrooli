@@ -1,5 +1,5 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatParticipant, CommentFor, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
-import { Palette } from "@mui/material";
+import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, exists, GqlModelType, isOfType, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
+import { Chip, Palette } from "@mui/material";
 import { BotIcon } from "icons";
 import { AutocompleteOption } from "types";
 import { valueFromDot } from "utils/shape/general";
@@ -122,28 +122,51 @@ export const getYou = (
     // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
     const objectPermissions = { ...defaultYou };
     if (!object) return objectPermissions;
-    // If a bookmark, reaction, or view, use the "to" object
-    if (isOfType(object, "Bookmark", "Reaction", "View")) return getYou((object as Partial<Bookmark | Reaction | View>).to);
-    // If a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getYou((object as Partial<RunRoutine>).routineVersion);
-    // If a run project, use the project version
-    if (isOfType(object, "RunProject")) return getYou((object as Partial<RunProject>).projectVersion);
-    // Otherwise, get the permissions from the object
-    // Loop through all permission fields
-    for (const key in objectPermissions) {
+    // Helper function to get permissions
+    const getPermission = (key: keyof YouInflated): boolean => {
         // Check if the field is in the object
         const field = valueFromDot(object, `you.${key}`);
-        if (field === true || field === false || typeof field === "boolean") objectPermissions[key] = field;
+        if (field === true || field === false || typeof field === "boolean") return field;
         // If not, check if the field is in the root.you object
-        else {
-            const field = valueFromDot(object, `root.you.${key}`);
-            if (field === true || field === false || typeof field === "boolean") objectPermissions[key] = field;
-        }
+        const rootField = valueFromDot(object, `root.you.${key}`);
+        if (rootField === true || rootField === false || typeof rootField === "boolean") return rootField;
+        return false; // Default to false if no field found
+    };
+    // Some permissions are based on a relation (e.g. bookmarking a View's "to" relation), 
+    // while others are always based on the current object (e.g. deleting a member instead of the user it's associated with).
+    // Keep this in mind when looking at the code below.
+    if (isOfType(object, "Bookmark", "Reaction", "View")) return {
+        ...getYou((object as Partial<Bookmark | Reaction | View>).to),
+        canDelete: getPermission("canDelete"),
+    };
+    if (isOfType(object, "RunRoutine")) return {
+        ...getYou((object as Partial<RunRoutine>).routineVersion),
+        canDelete: getPermission("canDelete"),
+    };
+    if (isOfType(object, "RunProject")) return {
+        ...getYou((object as Partial<RunProject>).projectVersion),
+        canDelete: getPermission("canDelete"),
+    };
+    if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return {
+        ...getYou((object as Partial<Member | MemberInvite | ChatParticipant | ChatInvite>).user),
+        canCopy: getPermission("canCopy"),
+        canDelete: getPermission("canDelete"),
+        canUpdate: getPermission("canUpdate"),
+    };
+    // Loop through all permission fields
+    for (const key in objectPermissions) {
+        objectPermissions[key] = getPermission(key as keyof YouInflated);
     }
     // Now remove permissions is the action is not allowed on the object type (e.g. can't react to a user).
-    if (objectPermissions.canReact && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(ReactionFor[type]))) objectPermissions.canReact = false;
-    if (objectPermissions.canBookmark && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(BookmarkFor[type]))) objectPermissions.canBookmark = false;
-    if (objectPermissions.canComment && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(CommentFor[type]))) objectPermissions.canComment = false;
+    const filterInvalidAction = (action: keyof YouInflated, enumType: Record<string, unknown>) => {
+        if (objectPermissions[action] && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(enumType[type]))) objectPermissions[action as any] = false;
+    };
+    filterInvalidAction("canBookmark", BookmarkFor);
+    filterInvalidAction("canComment", CommentFor);
+    filterInvalidAction("canCopy", CopyType);
+    filterInvalidAction("canDelete", DeleteType);
+    filterInvalidAction("canReact", ReactionFor);
+    filterInvalidAction("canReport", ReportFor);
     return objectPermissions;
 };
 
@@ -316,23 +339,25 @@ export const getDisplay = (
             adornments,
         };
     }
-    // If a chat, use the chat's title/subtitle, or default to descriptive text with participant or participant count
-    if (isOfType(object, "Chat")) {
-        const { participants, participantsCount, updated_at } = object as Partial<Chat>;
+    // If a chat or meeting, use it's title/subtitle, or default to descriptive text with participant or participant count
+    if (isOfType(object, "Chat", "Meeting")) {
+        const participants = (object as Partial<Meeting>).attendees ?? (object as Partial<Chat>).participants ?? [];
+        const participantsCount = (object as Partial<Meeting>).attendeesCount ?? (object as Partial<Chat>).participantsCount;
+        const updated_at = (object as Partial<Chat | Meeting>).updated_at;
         const { name, description } = getTranslation(object as Partial<Chat>, langs, true);
         const isGroup = Number.isInteger(participantsCount) && (participantsCount as number) > 2;
-        const firstParticipant = Array.isArray(participants) && participants.length > 0 ? participants[0] : null;
-        const title = firstString(name, isGroup ?
+        const firstUser = (participants as unknown as Meeting["attendees"])[0] ?? (participants as unknown as Chat["participants"])[0]?.user;
+        const title = firstString(name, isGroup ? //TODO internationalize this and support meeting
             `Group chat (${participantsCount})` :
-            firstParticipant ?
-                `Chat with ${getDisplay(firstParticipant).title}` :
+            firstUser ?
+                `Chat with ${getDisplay(firstUser).title}` :
                 "Chat",
         );
         const subtitle = firstString(description, displayDate(updated_at));
         return { title, subtitle, adornments };
     }
     // If a member or chat participant, use the user's display
-    if (isOfType(object, "Member", "ChatParticipant")) return getDisplay({ __typename: "User", ...(object as Partial<ChatParticipant | Member>).user } as ListObject);
+    if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return getDisplay({ __typename: "User", ...(object as Partial<ChatParticipant | ChatInvite | Member | MemberInvite>).user } as ListObject);
     // For all other objects, fields may differ. 
     const { title, subtitle } = tryVersioned(object, langs);
     // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
@@ -353,8 +378,19 @@ export const getDisplay = (
                 width="100%"
                 height="100%"
                 style={{ padding: "1px" }}
-            />
+            />,
         );
+        // If the bot is depicting a real person, add a chip indicating that
+        if ((object as Partial<User>).isBotDepictingPerson) {
+            adornments.push(<Chip key="parody" label="Parody" sx={{ backgroundColor: palette?.mode === "light" ? "#521f81" : "#a979d5", color: "white", display: "inline" }} />);
+        }
+    }
+    // If a Routine and there are nodes and edges, add icon indicating that it's a multi-step routine
+    if (isOfType(object, "RoutineVersion") && (object as Partial<RoutineVersion>).nodesCount && (object as Partial<RoutineVersion>).nodeLinksCount) {
+        adornments.push(<Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />);
+    }
+    if (isOfType(object, "Routine") && (object as Partial<Routine>).versions?.some(v => v.nodesCount && v.nodeLinksCount)) {
+        adornments.push(<Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />);
     }
     // Return result
     return { title, subtitle, adornments };
@@ -371,7 +407,7 @@ export const getBookmarkFor = (
 ): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } => {
     if (!object || !object.id) return { bookmarkFor: null, starForId: null };
     // If object does not support bookmarking, return null
-    if (isOfType(object, "BookmarkList", "Member")) return { bookmarkFor: null, starForId: null }; //TODO add more types
+    if (isOfType(object, "BookmarkList", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return { bookmarkFor: null, starForId: null }; //TODO add more types
     // If a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getBookmarkFor((object as Partial<Bookmark | Reaction | View>).to);
     // If a run routine, use the routine version
@@ -411,8 +447,8 @@ export function listToAutocomplete(
         to: isOfType(o, "Bookmark", "Reaction", "View") ?
             (o as Partial<Bookmark | Reaction | View>).to :
             undefined,
-        user: isOfType(o, "Member") ?
-            (o as Partial<Member>).user :
+        user: isOfType(o, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ?
+            (o as Partial<Member | MemberInvite | ChatParticipant | ChatInvite>).user :
             undefined,
         versions: isOfType(o, "Api", "Note", "Project", "Routine", "SmartContract", "Standard") ?
             (o as Partial<Api | Note | Project | Routine | SmartContract | Standard>).versions :

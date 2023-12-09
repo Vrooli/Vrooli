@@ -1,6 +1,7 @@
-import { GqlModelType, InputMaybe, TimeFrame, VisibilityType } from "@local/shared";
+import { GqlModelType, InputMaybe, lowercaseFirstLetter, TimeFrame, VisibilityType } from "@local/shared";
 import { PeriodType } from "@prisma/client";
-import { timeFrameToPrisma, visibilityBuilder } from "../builders";
+import { timeFrameToPrisma } from "../builders/timeFrameToPrisma";
+import { visibilityBuilder } from "../builders/visibilityBuilder";
 import { SessionUserToken } from "../types";
 
 type Maybe<T> = InputMaybe<T> | undefined
@@ -76,6 +77,7 @@ export const SearchMap = {
     }),
     cardLast4: (cardLast4: Maybe<string>) => ({ cardLast4 }),
     chatId: (id: Maybe<string>) => oneToOneId(id, "chat"),
+    chatMessageId: (id: Maybe<string>) => oneToOneId(id, "chatMessage"),
     commentId: (id: Maybe<string>) => oneToOneId(id, "comment"),
     commentsId: (id: Maybe<string>) => oneToManyId(id, "comments"),
     completedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("completedAt", time),
@@ -96,6 +98,7 @@ export const SearchMap = {
     hasCompleteVersion: (hasCompleteVersion: Maybe<boolean>) => ({ hasCompleteVersion }),
     ids: (ids: Maybe<string[]>) => ({ id: { in: ids } }),
     isBot: (isBot: Maybe<boolean>) => ({ isBot }),
+    isBotDepictingPerson: (isBotDepictingPerson: Maybe<boolean>) => ({ isBotDepictingPerson }),
     isComplete: (isComplete: Maybe<boolean>) => ({ isComplete }),
     isCompleteWithRoot: (isComplete: Maybe<boolean>) => ({
         AND: [
@@ -161,6 +164,13 @@ export const SearchMap = {
     labelsIds: (ids: Maybe<string[]>) => ({ labels: { some: { label: { id: { in: ids } } } } }),
     languageIn: (languages: Maybe<string[]>) => ({ language: { in: languages } }),
     lastViewedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("lastViewedAt", time),
+    /**
+     * Example: limitTo(["Routine", "Standard"]) => ({ OR: [{ routineId: { NOT: null } }, { standardId: { NOT: null } }] })
+     */
+    limitTo: (limitTo: Maybe<string[]>) => limitTo ? ({
+        OR: limitTo.map((t) => ({ [`${lowercaseFirstLetter(t)}Id`]: { not: null } })),
+    }) : {},
+    listLabel: (label: Maybe<string>) => ({ list: { label } }),
     listId: (id: Maybe<string>) => oneToOneId(id, "list"),
     maxAmount: (amount: Maybe<number>) => ({ amount: { lte: amount } }),
     maxBookmarks: (bookmarks: Maybe<number>) => ({ bookmarks: { lte: bookmarks } }),
@@ -189,6 +199,7 @@ export const SearchMap = {
     minViews: (views: Maybe<number>) => ({ views: { gte: views } }),
     minViewsRoot: (views: Maybe<number>) => ({ root: { views: { gte: views } } }),
     nodeType: (nodeType: Maybe<string>) => nodeType ? ({ nodeType: { contains: nodeType.trim(), mode: "insensitive" } }) : {},
+    notInChatId: (id: Maybe<string>) => id ? ({ NOT: { chats: { some: { id } } } }) : {}, // TODO should probably validate that you can read the participants in this chat, so that you can't figure out who's in a chat by finding out everyone who's not
     noteId: (id: Maybe<string>) => oneToOneId(id, "note"),
     notesId: (id: Maybe<string>) => oneToManyId(id, "notes"),
     noteVersionId: (id: Maybe<string>) => oneToOneId(id, "noteVersion"),

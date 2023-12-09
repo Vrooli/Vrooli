@@ -16,7 +16,7 @@ type TutorialStep = {
     text: string;
     page?: LINKS;
     element?: string;
-    action?: () => void;
+    action?: () => unknown;
 }
 
 type TutorialSection = {
@@ -80,19 +80,19 @@ const sections: TutorialSection[] = [
             {
                 text: "The side menu has many useful features. Open it by pressing on your profile picture.",
                 element: "side-menu-profile-icon",
-                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: false }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false }); },
             },
             {
                 text: "The first section lists all logged-in accounts.\n\nPress on an account to switch to it, or press on your current account to open your profile.",
-                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: true }); },
             },
             {
                 text: "The second section allows you to control your display settings. This includes:\n\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed?**: Move various elements, such as the side menu, to the left side of the screen.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
-                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: true }); },
             },
             {
                 text: "The third section displays a list of pages not listed in the main navigation bar.",
-                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: true }); },
             },
         ],
     },
@@ -102,7 +102,7 @@ const sections: TutorialSection[] = [
             {
                 text: "This page allows you to search public objects on Vrooli.",
                 page: LINKS.Search,
-                action: () => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: false }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false }); },
             },
             {
                 text: "Use these tabs to switch between different types of objects.\n\nThe first, default tab is for **routines**. These allow you to complete and automate various tasks.\n\nLet's look at some routines now.",
@@ -192,7 +192,7 @@ export const TutorialDialog = ({
     onClose,
 }: TutorialDialogProps) => {
     const { palette } = useTheme();
-    const [location, setLocation] = useLocation();
+    const [{ pathname }, setLocation] = useLocation();
     const session = useContext(SessionContext);
     const user = useMemo(() => getCurrentUser(session), [session]);
 
@@ -246,20 +246,20 @@ export const TutorialDialog = ({
         // ensure the current section and next step exists
         if (currentSection && currentSection.steps[place.step + 1]) {
             const nextPage = currentSection.steps[place.step + 1].page;
-            if (nextPage && nextPage !== location) {
+            if (nextPage && nextPage !== pathname) {
                 setLocation(nextPage);
             }
             setPlace({ section: place.section, step: place.step + 1 });
         } else if (nextSection && nextSection.steps[0]) {
             const nextPage = nextSection.steps[0].page;
-            if (nextPage && nextPage !== location) {
+            if (nextPage && nextPage !== pathname) {
                 setLocation(nextPage);
             }
             setPlace({ section: place.section + 1, step: 0 });
         } else {
             onClose();
         }
-    }, [location, onClose, place, setLocation]);
+    }, [pathname, onClose, place, setLocation]);
 
     /** Move to the previous step */
     const handlePrev = useCallback(() => {
@@ -269,7 +269,7 @@ export const TutorialDialog = ({
         // ensure the current section and previous step exists
         if (currentSection && currentSection.steps[place.step - 1]) {
             const prevPage = currentSection.steps[place.step - 1].page;
-            if (prevPage && prevPage !== location) {
+            if (prevPage && prevPage !== pathname) {
                 setLocation(prevPage);
             }
             setPlace({ section: place.section, step: place.step - 1 });
@@ -277,13 +277,13 @@ export const TutorialDialog = ({
             const prevStepIndex = previousSection.steps.length - 1;
             if (previousSection.steps[prevStepIndex]) {
                 const prevPage = previousSection.steps[prevStepIndex].page;
-                if (prevPage && prevPage !== location) {
+                if (prevPage && prevPage !== pathname) {
                     setLocation(prevPage);
                 }
                 setPlace({ section: place.section - 1, step: prevStepIndex });
             }
         }
-    }, [location, place, setLocation]);
+    }, [pathname, place, setLocation]);
 
     const getCurrentElement = useCallback(() => {
         const currentSection = sections[place.section];
@@ -297,14 +297,14 @@ export const TutorialDialog = ({
     const content = useMemo(() => {
         const currentSection = sections[place.section];
         if (!currentSection || !currentSection.steps[place.step]) {
-            PubSub.get().publishSnack({ message: "Failed to load tutorial step", severity: "Error" });
+            PubSub.get().publish("snack", { message: "Failed to load tutorial step", severity: "Error" });
             return null;
         }
         const currentStep = currentSection.steps[place.step];
 
         // Guide user to correct page if they're on the wrong one
         const correctPage = currentStep.page;
-        if (correctPage && correctPage !== location) {
+        if (correctPage && correctPage !== pathname) {
             return (
                 <>
                     <DialogTitle
@@ -372,31 +372,30 @@ export const TutorialDialog = ({
                 />
             </>
         );
-    }, [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, location, onClose, place, setLocation]);
+    }, [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, pathname, onClose, place, setLocation]);
 
     // If the user navigates to the page for the next step, automatically advance. 
     // This is temporarily disabled after the previous/next buttons are pressed.
     useEffect(() => {
         const currentSection = sections[place.section];
         if (!currentSection || !currentSection.steps[place.step]) {
-            PubSub.get().publishSnack({ message: "Failed to load tutorial", severity: "Error" });
+            PubSub.get().publish("snack", { message: "Failed to load tutorial", severity: "Error" });
             return;
         }
         const currentStep = currentSection.steps[place.step];
         // Find current step's page
         const currPage = currentStep.page;
         // If already on the correct page, return
-        if (currPage && currPage === location) return;
+        if (currPage && currPage === pathname) return;
 
         // Find next step's page
         const nextPage = nextStep?.page;
 
         // If next step has a page and it's the current page, advance
-        if (currPage && nextPage && nextPage === location) {
-            console.log("handling next", currPage, nextPage);
+        if (currPage && nextPage && nextPage === pathname) {
             handleNext();
         }
-    }, [handleNext, location, nextStep?.page, place, setLocation]);
+    }, [handleNext, pathname, nextStep?.page, place, setLocation]);
 
 
     // If there's an anchor, use a popper

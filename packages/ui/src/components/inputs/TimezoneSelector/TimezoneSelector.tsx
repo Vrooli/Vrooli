@@ -1,9 +1,10 @@
-import { IconButton, ListItem, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { IconButton, ListItem, Popover, Stack, Typography, useTheme } from "@mui/material";
 import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
 import { useField } from "formik";
 import { ArrowDropDownIcon, ArrowDropUpIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
+import { TextInput } from "../TextInput/TextInput";
 import { TimezoneSelectorProps } from "../types";
 
 const formatOffset = (offset) => {
@@ -95,7 +96,7 @@ export const TimezoneSelector = ({
                     onClose={onClose}
                 />
                 <Stack direction="column" spacing={2} p={2}>
-                    <TextField
+                    <TextInput
                         placeholder="Enter timezone..."
                         autoFocus={true}
                         value={searchString}
@@ -119,7 +120,7 @@ export const TimezoneSelector = ({
                                     onClick={() => {
                                         helpers.setValue(timezone);
                                         onChange?.(timezone);
-                                        setSearchString("");
+                                        onClose();
                                     }}
                                 >
                                     <Stack direction="row" justifyContent="space-between" alignItems="center" width="100%">
@@ -132,11 +133,16 @@ export const TimezoneSelector = ({
                     </FixedSizeList>
                 </Stack>
             </Popover>
-            {/* Text field that looks like a selector */}
-            <TextField
+            {/* Text input that looks like a selector */}
+            <TextInput
+                fullWidth={false}
+                sx={{
+                    "& .MuiInputBase-root": {
+                        width: "max-content",
+                    },
+                }}
                 {...props}
                 value={field.value}
-                variant="outlined"
                 onClick={onOpen}
                 InputProps={{
                     endAdornment: (

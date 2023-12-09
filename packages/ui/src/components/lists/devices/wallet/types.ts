@@ -1,15 +1,15 @@
 import { Wallet } from "@local/shared";
 
 export interface WalletListProps {
-    handleUpdate: (wallets: Wallet[]) => void;
+    handleUpdate: (wallets: Wallet[]) => unknown;
     numVerifiedEmails: number;
     list: Wallet[];
 }
 
 export interface WalletListItemProps {
-    handleDelete: (wallet: Wallet) => void;
-    handleUpdate: (index: number, wallet: Wallet) => void;
-    handleVerify: (wallet: Wallet) => void;
+    handleDelete: (wallet: Wallet) => unknown;
+    handleUpdate: (index: number, wallet: Wallet) => unknown;
+    handleVerify: (wallet: Wallet) => unknown;
     index: number;
     data: Wallet;
 }

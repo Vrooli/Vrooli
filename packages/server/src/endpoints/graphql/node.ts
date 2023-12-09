@@ -1,6 +1,6 @@
 import pkg from "@prisma/client";
 import { gql } from "apollo-server-express";
-import { EndpointsNode, NodeEndpoints } from "../logic";
+import { EndpointsNode, NodeEndpoints } from "../logic/node";
 
 const { NodeType } = pkg;
 
@@ -31,7 +31,9 @@ export const typeDef = gql`
         loopDelete: Boolean
         loopCreate: NodeLoopCreateInput
         loopUpdate: NodeLoopUpdateInput
+        endCreate: NodeEndCreateInput
         endUpdate: NodeEndUpdateInput
+        routineListCreate: NodeRoutineListCreateInput
         routineListUpdate: NodeRoutineListUpdateInput
         routineVersionConnect: ID
         translationsDelete: [ID!]

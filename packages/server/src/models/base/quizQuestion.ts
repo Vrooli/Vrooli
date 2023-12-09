@@ -1,23 +1,24 @@
 import { MaxObjects, QuizQuestionSortBy, quizQuestionValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
-import { QuizQuestionFormat } from "../format/quizQuestion";
-import { ModelLogic } from "../types";
-import { QuizModel } from "./quiz";
-import { QuizModelLogic, QuizQuestionModelLogic } from "./types";
+import { QuizQuestionFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { QuizModelInfo, QuizModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic } from "./types";
 
 const __typename = "QuizQuestion" as const;
-const suppFields = ["you"] as const;
-export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFields> = ({
+export const QuizQuestionModel: QuizQuestionModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.quiz_question,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, questionText: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.questionText ?? "",
         },
-    },
+    }),
     format: QuizQuestionFormat,
     mutate: {
         shape: {
@@ -25,15 +26,15 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
                 id: data.id,
                 order: noNull(data.order),
                 points: noNull(data.points),
-                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest })),
-                ...(await shapeHelper({ relation: "quiz", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Quiz", parentRelationshipName: "quizQuestions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest })),
+                ...(await shapeHelper({ relation: "quiz", relTypes: ["Connect"], isOneToOne: true, objectType: "Quiz", parentRelationshipName: "quizQuestions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 order: noNull(data.order),
                 points: noNull(data.points),
-                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create", "Update"], isOneToOne: true, isRequired: false, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create", "Update"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         yup: quizQuestionValidation,
@@ -56,7 +57,7 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -66,12 +67,12 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
             },
         },
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
-        isPublic: (data, languages) => QuizModel.validate.isPublic(data.quiz as QuizModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<QuizQuestionModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => QuizModel.validate.owner(data.quiz as QuizModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -81,8 +82,8 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
             private: {},
             public: {},
             owner: (userId) => ({
-                quiz: QuizModel.validate.visibility.owner(userId),
+                quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId),
             }),
         },
-    },
+    }),
 });

@@ -1,22 +1,24 @@
-import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, InputAdornment, Stack, Tooltip, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
-import { SearchIcon } from "icons";
+import { LinkIcon, SearchIcon } from "icons";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
+import { TextInput } from "../TextInput/TextInput";
 import { LinkInputProps } from "../types";
 
 export const LinkInput = ({
     label,
     name = "link",
     onObjectData,
+    tabIndex,
 }: LinkInputProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const textFieldRef = useRef<HTMLDivElement | null>(null);
+    const textInputRef = useRef<HTMLDivElement | null>(null);
     const [field, , helpers] = useField<string>(name);
 
     // Search dialog to find objects to link to
@@ -34,7 +36,7 @@ export const LinkInput = ({
     // If there is a link for this website and we have display 
     // data stored for it, display it below the link
     const { title, subtitle } = useMemo(() => {
-        if (!field.value) return {};
+        if (!field.value || typeof field.value !== "string") return {};
         // Check if the link is for this website
         if (field.value.startsWith(window.location.origin)) {
             // Check local storage for display data
@@ -77,8 +79,17 @@ export const LinkInput = ({
                         fullWidth
                         name={name}
                         label={label ?? t("Link")}
-                        as={TextField}
-                        ref={textFieldRef}
+                        as={TextInput}
+                        ref={textInputRef}
+                        placeholder={"https://example.com"}
+                        tabIndex={tabIndex}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <LinkIcon />
+                                </InputAdornment>
+                            ),
+                        }}
                         sx={{
                             "& .MuiInputBase-root": {
                                 borderRadius: "5px 0 0 5px",
@@ -91,7 +102,7 @@ export const LinkInput = ({
                         sx={{
                             background: palette.secondary.main,
                             borderRadius: "0 5px 5px 0",
-                            height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
+                            height: `${textInputRef.current?.clientHeight ?? 56}px)`,
                             color: palette.secondary.contrastText,
                         }}>
                         <SearchIcon />

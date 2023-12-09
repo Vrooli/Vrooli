@@ -1,26 +1,23 @@
 import { StatsQuizSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import i18next from "i18next";
+import { ModelMap } from ".";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsQuizFormat } from "../format/statsQuiz";
-import { ModelLogic } from "../types";
-import { QuizModel } from "./quiz";
-import { QuizModelLogic, StatsQuizModelLogic } from "./types";
+import { StatsQuizFormat } from "../formats";
+import { QuizModelInfo, QuizModelLogic, StatsQuizModelInfo, StatsQuizModelLogic } from "./types";
 
 const __typename = "StatsQuiz" as const;
-const suppFields = [] as const;
-export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> = ({
+export const StatsQuizModel: StatsQuizModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.stats_quiz,
-    display: {
+    display: () => ({
         label: {
-            select: () => ({ id: true, quiz: { select: QuizModel.display.label.select() } }),
+            select: () => ({ id: true, quiz: { select: ModelMap.get<QuizModelLogic>("Quiz").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: QuizModel.display.label.get(select.quiz as QuizModelLogic["PrismaModel"], languages),
+                objectName: ModelMap.get<QuizModelLogic>("Quiz").display().label.get(select.quiz as QuizModelInfo["PrismaModel"], languages),
             }),
         },
-    },
+    }),
     format: StatsQuizFormat,
     search: {
         defaultSort: StatsQuizSortBy.PeriodStartAsc,
@@ -29,9 +26,9 @@ export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> 
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ quiz: QuizModel.search.searchStringQuery() }),
+        searchStringQuery: () => ({ quiz: ModelMap.get<QuizModelLogic>("Quiz").search.searchStringQuery() }),
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: 0,
         permissionsSelect: () => ({
@@ -39,15 +36,13 @@ export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> 
             quiz: "Quiz",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => QuizModel.validate.owner(data.quiz as QuizModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.stats_quizSelect>(data, [
-            ["quiz", "Quiz"],
-        ], languages),
+        isPublic: (...rest) => oneIsPublic<StatsQuizModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
         visibility: {
-            private: { quiz: QuizModel.validate.visibility.private },
-            public: { quiz: QuizModel.validate.visibility.public },
-            owner: (userId) => ({ quiz: QuizModel.validate.visibility.owner(userId) }),
+            private: { quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.private },
+            public: { quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.public },
+            owner: (userId) => ({ quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

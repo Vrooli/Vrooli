@@ -1,6 +1,6 @@
 import { FindByIdInput, ReputationHistory, ReputationHistorySearchInput } from "@local/shared";
-import { readManyHelper, readOneHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
+import { readManyHelper, readOneHelper } from "../../actions/reads";
+import { rateLimit } from "../../middleware/rateLimit";
 import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
 
 export type EndpointsReputationHistory = {

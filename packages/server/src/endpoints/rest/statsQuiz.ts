@@ -1,5 +1,5 @@
 import { statsQuiz_findMany } from "../generated";
-import { StatsQuizEndpoints } from "../logic";
+import { StatsQuizEndpoints } from "../logic/statsQuiz";
 import { setupRoutes } from "./base";
 
 export const StatsQuizRest = setupRoutes({

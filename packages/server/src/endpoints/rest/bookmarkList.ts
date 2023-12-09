@@ -1,5 +1,5 @@
 import { bookmarkList_create, bookmarkList_findMany, bookmarkList_findOne, bookmarkList_update } from "../generated";
-import { BookmarkListEndpoints } from "../logic";
+import { BookmarkListEndpoints } from "../logic/bookmarkList";
 import { setupRoutes } from "./base";
 
 export const BookmarkListRest = setupRoutes({

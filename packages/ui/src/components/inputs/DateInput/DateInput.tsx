@@ -1,7 +1,8 @@
-import { IconButton, InputAdornment, TextField, useTheme } from "@mui/material";
+import { IconButton, InputAdornment, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { CloseIcon } from "icons";
 import { useCallback } from "react";
+import { TextInput } from "../TextInput/TextInput";
 import { DateInputProps } from "../types";
 
 function formatForDateTimeLocal(dateStr, type) {
@@ -38,7 +39,7 @@ function formatForDateTimeLocal(dateStr, type) {
 }
 
 export const DateInput = ({
-    fullWidth = true,
+    isOptional,
     label,
     name,
     type = "datetime-local",
@@ -52,8 +53,8 @@ export const DateInput = ({
     }, [helpers]);
 
     return (
-        <TextField
-            fullWidth={fullWidth}
+        <TextInput
+            isOptional={isOptional}
             label={label}
             type={type}
             InputProps={{
@@ -66,15 +67,11 @@ export const DateInput = ({
                     </InputAdornment>
                 ),
             }}
-            InputLabelProps={{
-                shrink: true,
-            }}
+            InputLabelProps={{ shrink: true }}
             {...field}
             value={formatForDateTimeLocal(field.value, type)}
-            variant="outlined"
             sx={{
-                background: palette.background.paper,
-                borderRadius: 1,
+                display: "block",
                 "& ::-webkit-calendar-picker-indicator": {
                     filter: palette.mode === "dark" ? "invert(1)" : "invert(0)",
                 },

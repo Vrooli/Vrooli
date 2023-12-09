@@ -1,5 +1,5 @@
 import { comment_create, comment_findMany, comment_findOne, comment_update } from "../generated";
-import { CommentEndpoints } from "../logic";
+import { CommentEndpoints } from "../logic/comment";
 import { setupRoutes } from "./base";
 
 export const CommentRest = setupRoutes({

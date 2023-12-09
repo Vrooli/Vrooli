@@ -7,30 +7,32 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useDisplayServerError } from "hooks/useDisplayServerError";
+import { useBulkObjectActions } from "hooks/useBulkObjectActions";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, CompleteIcon } from "icons";
+import { ActionIcon, AddIcon, CancelIcon, CompleteIcon, DeleteIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { ArgsType } from "types";
+import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { ListObject } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
+import { getObjectUrlBase } from "utils/navigation/openObject";
 import { InboxPageTabOption, inboxTabParams } from "utils/search/objectToSearch";
 import { InboxViewProps } from "../types";
 
-type InboxType = "Chat" | "Notification";
 type InboxObject = Chat | Notification;
 
 export const InboxView = ({
+    display,
     isOpen,
     onClose,
 }: InboxViewProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
-    const display = toDisplay(isOpen);
+    const [, setLocation] = useLocation();
 
     const {
         currTab,
@@ -38,7 +40,7 @@ export const InboxView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<InboxPageTabOption>({ tabParams: inboxTabParams, display });
+    } = useTabs<InboxPageTabOption>({ id: "inbox-tabs", tabParams: inboxTabParams, display });
 
     const {
         allData,
@@ -51,11 +53,38 @@ export const InboxView = ({
         searchType,
         where: where(),
     });
-    console.log("alldata", allData);
 
+    const [isSelecting, setIsSelecting] = useState(false);
+    const [selectedData, setSelectedData] = useState<InboxObject[]>([]);
+    const handleToggleSelecting = useCallback(() => {
+        if (isSelecting) { setSelectedData([]); }
+        setIsSelecting(is => !is);
+    }, [isSelecting]);
+    const handleToggleSelect = useCallback((item: ListObject) => {
+        setSelectedData(items => {
+            const newItems = [...items];
+            const index = newItems.findIndex(i => i.id === item.id);
+            if (index === -1) {
+                newItems.push(item as InboxObject);
+            } else {
+                newItems.splice(index, 1);
+            }
+            return newItems;
+        });
+    }, []);
+    const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<InboxObject>({
+        allData,
+        selectedData,
+        objectType: searchType as InboxObject["__typename"],
+        setAllData,
+        setSelectedData: (data) => {
+            setSelectedData(data);
+            setIsSelecting(false);
+        },
+        setLocation,
+    });
 
-    const [markAllAsReadMutation, { errors: markAllErrors }] = useLazyFetch<undefined, Success>(endpointPutNotificationsMarkAllAsRead);
-    useDisplayServerError(markAllErrors);
+    const [markAllAsReadMutation] = useLazyFetch<undefined, Success>(endpointPutNotificationsMarkAllAsRead);
 
     const onMarkAllAsRead = useCallback(() => {
         // TODO handle chats
@@ -68,13 +97,9 @@ export const InboxView = ({
         });
     }, [markAllAsReadMutation, setAllData]);
 
-    const [isCreateChatOpen, setIsCreateChatOpen] = useState(false);
-    const openCreateChat = useCallback(() => { setIsCreateChatOpen(true); }, []);
-    const closeCreateChat = useCallback(() => { setIsCreateChatOpen(false); }, []);
-    const onChatCreated = useCallback((chat: Chat) => {
-        closeCreateChat();
-        //TODO
-    }, [closeCreateChat]);
+    const openCreateChat = useCallback(() => {
+        setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`);
+    }, [setLocation]);
 
     const [onActionButtonPress, ActionButtonIcon, actionTooltip] = useMemo(() => {
         if (currTab.tabType === InboxPageTabOption.Notification) {
@@ -84,7 +109,6 @@ export const InboxView = ({
     }, [currTab.tabType, onMarkAllAsRead, openCreateChat]);
 
     const onAction = useCallback((action: keyof ObjectListActions<InboxObject>, ...data: unknown[]) => {
-        console.log("inboxview onaction", action, data);
         switch (action) {
             case "Deleted":
                 removeItem(...(data as ArgsType<ObjectListActions<InboxObject>["Deleted"]>));
@@ -110,9 +134,11 @@ export const InboxView = ({
         return () => window.removeEventListener("scroll", handleScroll);
     }, [handleScroll]);
 
+    const actionIconProps = useMemo(() => ({ fill: palette.secondary.contrastText, width: "36px", height: "36px" }), [palette.secondary.contrastText]);
 
     return (
         <>
+            {BulkDeleteDialogComponent}
             <TopBar
                 display={display}
                 hideTitleOnDesktop={true}
@@ -131,26 +157,35 @@ export const InboxView = ({
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={allData.length === 0 && !loading}
-                sx={{ paddingBottom: pagePaddingBottom }}
+                sx={{ marginBottom: pagePaddingBottom }}
             >
                 <ObjectList
                     dummyItems={new Array(5).fill(searchType)}
+                    handleToggleSelect={handleToggleSelect}
+                    isSelecting={isSelecting}
                     items={allData as ListObject[]}
                     keyPrefix={`${searchType}-list-item`}
                     loading={loading}
                     onAction={onAction}
+                    selectedItems={selectedData}
                 />
             </ListContainer>
-            {/* New Chat button */}
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
-                <Tooltip title={t(actionTooltip)}>
-                    <IconButton aria-label={t("CreateChat")} onClick={onActionButtonPress} sx={{ background: palette.secondary.main }}>
-                        <ActionButtonIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+            <SideActionsButtons display={display}>
+                {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
+                    <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }} sx={{ background: palette.secondary.main }}>
+                        <DeleteIcon {...actionIconProps} />
+                    </IconButton>
+                </Tooltip> : null}
+                <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
+                    <IconButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+                        {isSelecting ? <CancelIcon {...actionIconProps} /> : <ActionIcon {...actionIconProps} />}
                     </IconButton>
                 </Tooltip>
+                {!isSelecting ? <Tooltip title={t(actionTooltip)}>
+                    <IconButton aria-label={t(actionTooltip)} onClick={onActionButtonPress} sx={{ background: palette.secondary.main }}>
+                        <ActionButtonIcon {...actionIconProps} />
+                    </IconButton>
+                </Tooltip> : null}
             </SideActionsButtons>
         </>
     );

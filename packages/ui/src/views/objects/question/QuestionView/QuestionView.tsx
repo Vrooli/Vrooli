@@ -11,7 +11,6 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon } from "icons";
@@ -20,21 +19,20 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { TagShape } from "utils/shape/models/tag";
+import { questionInitialValues } from "../QuestionUpsert/QuestionUpsert";
 import { QuestionViewProps } from "../types";
 
 export const QuestionView = ({
-    isOpen,
+    display,
     onClose,
 }: QuestionViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question>({
         ...endpointGetQuestion,
@@ -130,10 +128,7 @@ export const QuestionView = ({
                     {comments}
                 </Stack>}
             </Formik>
-            <SideActionsButtons
-                display={display}
-                sx={{ position: "fixed" }}
-            >
+            <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
                     <IconButton aria-label={t("UpdateQuestion")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>

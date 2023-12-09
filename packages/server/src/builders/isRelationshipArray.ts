@@ -1,4 +1,4 @@
-import { isRelationshipObject } from ".";
+import { isRelationshipObject } from "./isRelationshipObject";
 
 /**
  * Determines if an object is an array of relationship objects, and not a relationship object.

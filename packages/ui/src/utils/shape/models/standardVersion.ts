@@ -1,8 +1,8 @@
 import { StandardVersion, StandardVersionCreateInput, StandardVersionTranslation, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, StandardVersionUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
-import { shapeProjectVersionDirectory } from "./projectVersionDirectory";
+import { CanConnect, ShapeModel } from "types";
+import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
-import { shapeStandard, StandardShape } from "./standard";
+import { StandardShape, shapeStandard } from "./standard";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, "id" | "language" | "description" | "jsonVariable" | "name"> & {
@@ -11,9 +11,9 @@ export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, "
 
 export type StandardVersionShape = Pick<StandardVersion, "id" | "isComplete" | "isPrivate" | "isFile" | "default" | "props" | "yup" | "standardType" | "versionLabel" | "versionNotes"> & {
     __typename: "StandardVersion";
-    directoryListings?: { id: string }[] | null;
+    directoryListings?: CanConnect<ProjectVersionDirectoryShape>[] | null;
     root: StandardShape;
-    resourceList?: { id: string } | ResourceListShape | null;
+    resourceList?: ResourceListShape | null;
     translations?: StandardVersionTranslationShape[] | null;
 }
 
@@ -23,13 +23,16 @@ export const shapeStandardVersionTranslation: ShapeModel<StandardVersionTranslat
 };
 
 export const shapeStandardVersion: ShapeModel<StandardVersionShape, StandardVersionCreateInput, StandardVersionUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "isComplete", "isPrivate", "isFile", "default", "props", "yup", "standardType", "versionLabel", "versionNotes"),
-        ...createRel(d, "directoryListings", ["Create"], "many", shapeProjectVersionDirectory),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeStandard, (r) => ({ ...r, isPrivate: d.isPrivate })),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "StandardVersion" } })),
-        ...createRel(d, "translations", ["Create"], "many", shapeStandardVersionTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "isComplete", "isPrivate", "isFile", "default", "props", "yup", "standardType", "versionLabel", "versionNotes");
+        return {
+            ...prims,
+            ...createRel(d, "directoryListings", ["Create"], "many", shapeProjectVersionDirectory),
+            ...createRel(d, "root", ["Connect", "Create"], "one", shapeStandard, (r) => ({ ...r, isPrivate: prims.isPrivate })),
+            ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: prims.id, __typename: "StandardVersion" } })),
+            ...createRel(d, "translations", ["Create"], "many", shapeStandardVersionTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isComplete", "isPrivate", "isFile", "default", "props", "yup", "standardType", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "directoryListings", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),

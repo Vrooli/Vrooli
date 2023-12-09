@@ -1,11 +1,14 @@
 import { RoutineVersion, RoutineVersionCreateInput, RoutineVersionTranslation, RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput, RoutineVersionUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { ApiVersionShape } from "./apiVersion";
 import { NodeShape, shapeNode } from "./node";
 import { NodeLinkShape, shapeNodeLink } from "./nodeLink";
+import { ProjectVersionDirectoryShape } from "./projectVersionDirectory";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { RoutineShape, shapeRoutine } from "./routine";
 import { RoutineVersionInputShape, shapeRoutineVersionInput } from "./routineVersionInput";
 import { RoutineVersionOutputShape, shapeRoutineVersionOutput } from "./routineVersionOutput";
+import { SmartContractVersionShape } from "./smartContractVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, "id" | "language" | "description" | "instructions" | "name"> & {
@@ -14,16 +17,16 @@ export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, "id
 
 export type RoutineVersionShape = Pick<RoutineVersion, "id" | "isAutomatable" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes" | "smartContractCallData"> & {
     __typename: "RoutineVersion";
-    apiVersion?: { id: string } | null;
-    directoryListings?: { id: string }[] | null;
+    apiVersion?: CanConnect<ApiVersionShape> | null;
+    directoryListings?: CanConnect<ProjectVersionDirectoryShape>[] | null;
     inputs?: RoutineVersionInputShape[] | null;
     nodes?: NodeShape[] | null;
     nodeLinks?: NodeLinkShape[] | null;
     outputs?: RoutineVersionOutputShape[] | null;
-    resourceList?: Omit<ResourceListShape, "listFor"> | null;
-    root?: { id: string } | RoutineShape | null;
-    smartContractVersion?: { id: string } | null;
-    suggestedNextByRoutineVersion?: { id: string }[] | null;
+    resourceList?: ResourceListShape | null;
+    root?: CanConnect<RoutineShape> | null;
+    smartContractVersion?: CanConnect<SmartContractVersionShape> | null;
+    suggestedNextByRoutineVersion?: CanConnect<RoutineVersionShape>[] | null;
     translations?: RoutineVersionTranslationShape[] | null;
 }
 
@@ -33,20 +36,23 @@ export const shapeRoutineVersionTranslation: ShapeModel<RoutineVersionTranslatio
 };
 
 export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersionCreateInput, RoutineVersionUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes", "smartContractCallData"),
-        ...createRel(d, "apiVersion", ["Connect"], "one"),
-        ...createRel(d, "directoryListings", ["Connect"], "many"),
-        ...createRel(d, "inputs", ["Create"], "many", shapeRoutineVersionInput, (i) => ({ ...i, routineVersion: { id: d.id } })),
-        ...createRel(d, "nodes", ["Create"], "many", shapeNode, (n) => ({ ...n, routineVersion: { id: d.id } })),
-        ...createRel(d, "nodeLinks", ["Create"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: d.id } })),
-        ...createRel(d, "outputs", ["Create"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: d.id } })),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "RoutineVersion" } })),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine, (r) => ({ ...r, isPrivate: d.isPrivate })),
-        ...createRel(d, "smartContractVersion", ["Connect"], "one"),
-        ...createRel(d, "suggestedNextByRoutineVersion", ["Connect"], "many"),
-        ...createRel(d, "translations", ["Create"], "many", shapeRoutineVersionTranslation),
-    }),
+    create: (d) => {
+        const prims = createPrims(d, "id", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes", "smartContractCallData");
+        return {
+            ...prims,
+            ...createRel(d, "apiVersion", ["Connect"], "one"),
+            ...createRel(d, "directoryListings", ["Connect"], "many"),
+            ...createRel(d, "inputs", ["Create"], "many", shapeRoutineVersionInput, (i) => ({ ...i, routineVersion: { id: prims.id } })),
+            ...createRel(d, "nodes", ["Create"], "many", shapeNode, (n) => ({ ...n, routineVersion: { id: prims.id } })),
+            ...createRel(d, "nodeLinks", ["Create"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: prims.id } })),
+            ...createRel(d, "outputs", ["Create"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: prims.id } })),
+            ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: prims.id, __typename: "RoutineVersion" } })),
+            ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine, (r) => ({ ...r, isPrivate: d.isPrivate })),
+            ...createRel(d, "smartContractVersion", ["Connect"], "one"),
+            ...createRel(d, "suggestedNextByRoutineVersion", ["Connect"], "many"),
+            ...createRel(d, "translations", ["Create"], "many", shapeRoutineVersionTranslation),
+        };
+    },
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes", "smartContractCallData"),
         ...updateRel(o, u, "apiVersion", ["Connect", "Disconnect"], "one"),

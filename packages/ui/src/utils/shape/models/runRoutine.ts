@@ -1,5 +1,5 @@
 import { RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
 import { OrganizationShape } from "./organization";
 import { RoutineVersionShape } from "./routineVersion";
 import { RunProjectShape } from "./runProject";
@@ -13,9 +13,9 @@ export type RunRoutineShape = Pick<RunRoutine, "id" | "isPrivate" | "completedCo
     steps?: RunRoutineStepShape[] | null;
     inputs?: RunRoutineInputShape[] | null;
     schedule?: ScheduleShape | null;
-    routineVersion?: { id: string } | RoutineVersionShape | null;
-    runProject?: { id: string } | RunProjectShape | null;
-    organization?: { id: string } | OrganizationShape | null;
+    routineVersion?: CanConnect<RoutineVersionShape> | null;
+    runProject?: CanConnect<RunProjectShape> | null;
+    organization?: CanConnect<OrganizationShape> | null;
 }
 
 export const shapeRunRoutine: ShapeModel<RunRoutineShape, RunRoutineCreateInput, RunRoutineUpdateInput> = {

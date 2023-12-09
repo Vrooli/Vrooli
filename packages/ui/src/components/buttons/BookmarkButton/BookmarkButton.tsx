@@ -36,14 +36,13 @@ export const BookmarkButton = ({
     const closeSelect = useCallback(() => { setIsSelectOpen(false); }, []);
 
     const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
-        console.log("action complete", action, data);
         switch (action) {
             // When a bookmark is created, we assign a list automatically. 
             // So we must show a snackbar to inform the user that the bookmark was created, 
             // with an option to change the list.
             case ObjectActionComplete.Bookmark: {
                 const listName = (data as Bookmark).list.label;
-                PubSub.get().publishSnack({
+                PubSub.get().publish("snack", {
                     message: `Added to list "${listName}"`,
                     buttonKey: "Change",
                     buttonClicked: () => {
@@ -69,7 +68,6 @@ export const BookmarkButton = ({
     });
 
     const handleClick = useCallback((event: any) => {
-        console.log("bookmark button click", objectId, internalIsBookmarked, userId, bookmarkFor);
         if (!userId) return;
         const isBookmarked = !internalIsBookmarked;
         setInternalIsBookmarked(isBookmarked);
@@ -80,7 +78,7 @@ export const BookmarkButton = ({
         if (!uuidValidate(objectId)) return;
         // Call handleBookmark
         handleBookmark(isBookmarked);
-    }, [objectId, internalIsBookmarked, userId, bookmarkFor, handleBookmark]);
+    }, [objectId, internalIsBookmarked, userId, handleBookmark]);
 
     const Icon = internalIsBookmarked ? BookmarkFilledIcon : BookmarkOutlineIcon;
     const fill = useMemo<string>(() => {

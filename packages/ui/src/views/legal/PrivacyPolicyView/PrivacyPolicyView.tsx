@@ -7,7 +7,6 @@ import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { toDisplay } from "utils/display/pageTools";
 import { policyTabParams } from "utils/search/objectToSearch";
 import { convertToDot, valueFromDot } from "utils/shape/general";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
@@ -26,7 +25,7 @@ const BUSINESS_DATA = {
     SOCIALS: {
         Discord: "https://discord.gg/VyrDFzbmmF",
         GitHub: "https://github.com/MattHalloran/Vrooli",
-        Twitter: "https://twitter.com/VrooliOfficial",
+        X: "https://x.com/VrooliOfficial",
     },
     APP_URL: "https://vrooli.com",
 };
@@ -37,12 +36,11 @@ export enum PolicyTabOption {
 }
 
 export const PrivacyPolicyView = ({
-    isOpen,
+    display,
     onClose,
 }: PrivacyPolicyViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const privacy = useMarkdown(privacyMarkdown, (markdown) => {
         const business_fields = Object.keys(convertToDot(BUSINESS_DATA));
@@ -50,27 +48,29 @@ export const PrivacyPolicyView = ({
         return markdown;
     });
 
-    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ tabParams: policyTabParams, defaultTab: 0, display: "dialog" });
+    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
     const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabOption, false>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
 
-    return <>
-        <TopBar
-            display={display}
-            onClose={onClose}
-            title={t("Privacy")}
-            below={<PageTabs
-                ariaLabel="privacy policy and terms tabs"
-                currTab={currTab}
-                fullWidth
-                onChange={handleTabChange}
-                tabs={tabs}
-            />}
-        />
-        <Box m={2}>
-            <MarkdownDisplay content={privacy} />
-        </Box>
-    </>;
+    return (
+        <>
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t("Privacy")}
+                below={<PageTabs
+                    ariaLabel="privacy policy and terms tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
+            <Box m={2}>
+                <MarkdownDisplay content={privacy} />
+            </Box>
+        </>
+    );
 };

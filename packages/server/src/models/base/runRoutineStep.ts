@@ -1,9 +1,8 @@
 import { MaxObjects, runRoutineStepValidation } from "@local/shared";
-import { defaultPermissions } from "../../utils";
-import { RunRoutineStepFormat } from "../format/runRoutineStep";
-import { ModelLogic } from "../types";
-import { RunRoutineModel } from "./runRoutine";
-import { RunRoutineModelLogic, RunRoutineStepModelLogic } from "./types";
+import { ModelMap } from ".";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { RunRoutineStepFormat } from "../formats";
+import { RunRoutineModelInfo, RunRoutineModelLogic, RunRoutineStepModelInfo, RunRoutineStepModelLogic } from "./types";
 
 // const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) => {
 //     return {
@@ -14,16 +13,15 @@ import { RunRoutineModelLogic, RunRoutineStepModelLogic } from "./types";
 // }
 
 const __typename = "RunRoutineStep" as const;
-const suppFields = [] as const;
-export const RunRoutineStepModel: ModelLogic<RunRoutineStepModelLogic, typeof suppFields> = ({
+export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.run_routine_step,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
-    },
+    }),
     format: RunRoutineStepFormat,
     mutate: {
         shape: {
@@ -48,7 +46,7 @@ export const RunRoutineStepModel: ModelLogic<RunRoutineStepModelLogic, typeof su
         yup: runRoutineStepValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -57,13 +55,13 @@ export const RunRoutineStepModel: ModelLogic<RunRoutineStepModelLogic, typeof su
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["name"],
-        owner: (data, userId) => RunRoutineModel.validate.owner(data.runRoutine as RunRoutineModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as RunRoutineModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<RunRoutineStepModelInfo["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
             private: { runRoutine: { isPrivate: true } },
             public: { runRoutine: { isPrivate: false } },
-            owner: (userId) => ({ runRoutine: RunRoutineModel.validate.visibility.owner(userId) }),
+            owner: (userId) => ({ runRoutine: ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

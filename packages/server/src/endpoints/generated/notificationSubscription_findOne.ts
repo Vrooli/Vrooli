@@ -54,6 +54,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -97,6 +98,7 @@ export const notificationSubscription_findOne = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -178,6 +180,7 @@ export const notificationSubscription_findOne = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -311,6 +314,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -374,6 +378,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -424,6 +429,7 @@ export const notificationSubscription_findOne = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true,
               "__typename": "User"
@@ -583,6 +589,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -663,6 +670,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -707,6 +715,8 @@ export const notificationSubscription_findOne = {
         "name": true
       },
       "id": true,
+      "created_at": true,
+      "updated_at": true,
       "openToAnyoneWithInvite": true,
       "showOnOrganizationProfile": true,
       "organization": {
@@ -777,6 +787,10 @@ export const notificationSubscription_findOne = {
               "description": true
             },
             "__typename": "Role"
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
           },
           "__typename": "Member"
         },
@@ -877,6 +891,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -920,6 +935,7 @@ export const notificationSubscription_findOne = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -1078,6 +1094,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -1121,6 +1138,7 @@ export const notificationSubscription_findOne = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -1204,6 +1222,7 @@ export const notificationSubscription_findOne = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -1233,6 +1252,7 @@ export const notificationSubscription_findOne = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -1339,6 +1359,7 @@ export const notificationSubscription_findOne = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -1440,6 +1461,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -1483,6 +1505,7 @@ export const notificationSubscription_findOne = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -1602,6 +1625,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -1645,6 +1669,7 @@ export const notificationSubscription_findOne = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -1765,6 +1790,7 @@ export const notificationSubscription_findOne = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -1808,6 +1834,7 @@ export const notificationSubscription_findOne = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"

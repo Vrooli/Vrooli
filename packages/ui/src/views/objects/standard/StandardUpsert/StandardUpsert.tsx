@@ -1,95 +1,254 @@
-import { endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@local/shared";
-import { fetchLazyWrapper } from "api";
+import { DUMMY_ID, endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, noopSubmit, orDefault, Session, StandardVersion, StandardVersionCreateInput, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
+import { useSubmitHelper } from "api";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { VersionInput } from "components/inputs/VersionInput/VersionInput";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { StandardForm, standardInitialValues, transformStandardValues, validateStandardValues } from "forms/StandardForm/StandardForm";
-import { useFormDialog } from "hooks/useFormDialog";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
+import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
-import { useContext } from "react";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { toDisplay } from "utils/display/pageTools";
-import { PubSub } from "utils/pubsub";
-import { StandardVersionShape } from "utils/shape/models/standardVersion";
-import { StandardUpsertProps } from "../types";
+import { FormContainer, FormSection } from "styles";
+import { getCurrentUser } from "utils/authentication/session";
+import { InputTypeOptions } from "utils/consts";
+import { getYou } from "utils/display/listTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
+import { shapeStandardVersion, StandardVersionShape } from "utils/shape/models/standardVersion";
+import { validateFormValues } from "utils/validateFormValues";
+import { StandardFormProps, StandardUpsertProps } from "../types";
 
-export const StandardUpsert = ({
+export const standardInitialValues = (
+    session: Session | undefined,
+    existing?: Partial<StandardVersion> | null | undefined,
+): StandardVersionShape => ({
+    __typename: "StandardVersion" as const,
+    id: DUMMY_ID,
+    directoryListings: [],
+    isComplete: false,
+    isPrivate: false,
+    isFile: false,
+    standardType: InputTypeOptions[0].value,
+    props: JSON.stringify({}),
+    default: JSON.stringify({}),
+    yup: JSON.stringify({}),
+    resourceList: {
+        __typename: "ResourceList" as const,
+        id: DUMMY_ID,
+        listFor: {
+            __typename: "StandardVersion" as const,
+            id: DUMMY_ID,
+        },
+    },
+    versionLabel: "1.0.0",
+    ...existing,
+    root: {
+        __typename: "Standard" as const,
+        id: DUMMY_ID,
+        isInternal: false,
+        isPrivate: false,
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
+        parent: null,
+        permissions: JSON.stringify({}),
+        tags: [],
+        ...existing?.root,
+    },
+    translations: orDefault(existing?.translations, [{
+        __typename: "StandardVersionTranslation" as const,
+        id: DUMMY_ID,
+        language: getUserLanguages(session)[0],
+        description: "",
+        jsonVariable: null, //TODO
+        name: "",
+    }]),
+});
+
+const transformStandardVersionValues = (values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) =>
+    isCreate ? shapeStandardVersion.create(values) : shapeStandardVersion.update(existing, values);
+
+const StandardForm = ({
+    disabled,
+    dirty,
+    display,
+    existing,
+    handleUpdate,
     isCreate,
     isOpen,
+    isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
-    overrideObject,
-}: StandardUpsertProps) => {
-    const { t } = useTranslation();
+    onDeleted,
+    values,
+    versions,
+    ...props
+}: StandardFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
+    const { t } = useTranslation();
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<StandardVersion, StandardVersionShape>({
-        ...endpointGetStandardVersion,
-        objectType: "StandardVersion",
-        overrideObject,
-        transform: (existing) => standardInitialValues(session, existing),
+    // Handle translations
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        setLanguage,
+        translationErrors,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
+        fields: ["description"],
+        validationSchema: standardVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
+    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<StandardVersion>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "StandardVersion",
+        ...props,
+    });
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput>({
-        display,
+    } = useUpsertFetch<StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostStandardVersion,
         endpointUpdate: endpointPutStandardVersion,
-        isCreate,
-        onCancel,
-        onCompleted,
     });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "StandardVersion" });
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const onSubmit = useSubmitHelper<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformStandardVersionValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     return (
         <MaybeLargeDialog
             display={display}
             id="standard-upsert-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 title={t(isCreate ? "CreateStandard" : "UpdateStandard")}
             />
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>({
-                        fetch,
-                        inputs: transformStandardValues(values, existing, isCreate),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateStandardValues(values, existing, isCreate)}
+            <BaseForm
+                display={display}
+                isLoading={isLoading}
+                maxWidth={700}
             >
-                {(formik) => <StandardForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    onClose={handleClose}
-                    ref={formRef}
-                    versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
-                    {...formik}
-                />}
-            </Formik>
+                <FormContainer>
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={"Standard"}
+                    />
+                    <FormSection>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                        />
+                        <TranslatedTextInput
+                            fullWidth
+                            label={t("Name")}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedRichInput
+                            language={language}
+                            name="description"
+                            maxChars={2048}
+                            minRows={4}
+                            maxRows={8}
+                            placeholder={t("Description")}
+                        />
+                    </FormSection>
+                    <StandardInput fieldName="preview" />
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        parent={{ __typename: "StandardVersion", id: values.id }}
+                    />
+                    <TagSelector name="root.tags" />
+                    <VersionInput
+                        fullWidth
+                        versions={versions}
+                    />
+                </FormContainer>
+            </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                hideButtons={disabled}
+                isCreate={isCreate}
+                loading={isLoading}
+                onCancel={handleCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={onSubmit}
+            />
         </MaybeLargeDialog>
+    );
+};
+
+export const StandardUpsert = ({
+    isCreate,
+    isOpen,
+    overrideObject,
+    ...props
+}: StandardUpsertProps) => {
+    const session = useContext(SessionContext);
+
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<StandardVersion, StandardVersionShape>({
+        ...endpointGetStandardVersion,
+        isCreate,
+        objectType: "StandardVersion",
+        overrideObject,
+        transform: (existing) => standardInitialValues(session, existing),
+    });
+    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
+
+    return (
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformStandardVersionValues, standardVersionValidation)}
+        >
+            {(formik) => <StandardForm
+                disabled={!(isCreate || canUpdate)}
+                existing={existing}
+                handleUpdate={setExisting}
+                isCreate={isCreate}
+                isReadLoading={isReadLoading}
+                isOpen={isOpen}
+                versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
+                {...props}
+                {...formik}
+            />}
+        </Formik>
     );
 };

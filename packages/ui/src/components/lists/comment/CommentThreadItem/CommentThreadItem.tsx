@@ -5,7 +5,6 @@ import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton
 import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
-import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { OwnerLabel } from "components/text/OwnerLabel/OwnerLabel";
 import { SessionContext } from "contexts/SessionContext";
@@ -18,6 +17,7 @@ import { displayDate } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
+import { CommentUpsert } from "views/objects/comment";
 import { CommentThreadItemProps } from "../types";
 
 export function CommentThreadItem({
@@ -49,7 +49,7 @@ export function CommentThreadItem({
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "DeleteConfirm",
             buttons: [
                 {
@@ -81,6 +81,15 @@ export function CommentThreadItem({
         setCommentToUpdate(undefined);
         setIsUpsertCommentOpen(false);
     }, []);
+    const handleCommentCreated = useCallback((comment: Comment) => {
+        handleUpsertCommentClose();
+        handleCommentUpsert(comment);
+    }, [handleCommentUpsert, handleUpsertCommentClose]);
+    const handleCommentDeleted = useCallback(() => {
+        handleUpsertCommentClose();
+        if (!commentToUpdate) return;
+        handleCommentRemove(commentToUpdate);
+    }, [commentToUpdate, handleCommentRemove, handleUpsertCommentClose]);
 
     return (
         <>
@@ -188,14 +197,18 @@ export function CommentThreadItem({
                     </Stack>}
                     {/* Add/Update comment */}
                     {
-                        objectId && objectType && <CommentUpsertInput
-                            comment={commentToUpdate}
+                        objectId && objectType && <CommentUpsert
+                            display="dialog"
+                            overrideObject={commentToUpdate}
+                            isCreate={!commentToUpdate}
                             isOpen={isUpsertCommentOpen}
                             language={language}
                             objectId={objectId}
                             objectType={objectType}
                             onCancel={handleUpsertCommentClose}
-                            onCompleted={handleCommentUpsert}
+                            onClose={handleUpsertCommentClose}
+                            onCompleted={handleCommentCreated}
+                            onDeleted={handleCommentDeleted}
                             parent={(object as any) ?? null}
                         />
                     }

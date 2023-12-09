@@ -72,7 +72,7 @@ export const DirectoryListHorizontal = ({
         if (!directory) return;
         // Dont add duplicates
         if (list.some(r => r.id === item.id)) {
-            PubSub.get().publishSnack({ message: "Item already added", severity: "Warning" });
+            PubSub.get().publish("snack", { message: "Item already added", severity: "Warning" });
             return;
         }
         if (handleUpdate) {

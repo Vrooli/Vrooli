@@ -19,7 +19,7 @@ export function useTranslatedFields({
 }: {
     defaultLanguage: string,
     fields: readonly string[],
-    validationSchema: yup.ObjectSchema<any>
+    validationSchema?: yup.ObjectSchema<any>
 }) {
     // Language state
     const [language, setLanguage] = useState<string>(defaultLanguage);
@@ -29,11 +29,11 @@ export function useTranslatedFields({
     const translationErrors = useMemo(() => getFormikErrorsWithTranslations(field, meta, validationSchema) as any, [field, meta, validationSchema]);
 
     // Find languages with translations
-    const languages = useMemo(() => field.value.map((t: any) => t.language), [field.value]);
+    const languages = useMemo(() => field.value?.map((t: { language: string }) => t.language) ?? [], [field.value]);
 
     // Set language to first language if it's empty
     useEffect(() => {
-        if (languages.length === 0 && field.value.length > 0) {
+        if (languages.length === 0 && field.value?.length > 0) {
             setLanguage(field.value[0].language);
         }
     }, [field.value, languages.length, setLanguage]);

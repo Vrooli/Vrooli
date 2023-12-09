@@ -1,6 +1,6 @@
-import { CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType } from "@local/shared";
+import { BookmarkFor, ChatInviteStatus, CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType } from "@local/shared";
 import { Palette } from "@mui/material";
-import { ApiIcon, CommentIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
+import { AddIcon, ApiIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { YouInflated } from "utils/display/listTools";
 import { PolicyTabOption } from "views/legal";
 import { apiSearchParams } from "./schemas/api";
@@ -174,6 +174,12 @@ export enum OrganizationPageTabOption {
     Member = "Member",
 }
 
+export enum ParticipantManagePageTabOption {
+    ChatParticipant = "ChatParticipant",
+    ChatInvite = "ChatInvite",
+    Add = "Add",
+}
+
 export enum SearchPageTabOption {
     All = "All",
     Api = "Api",
@@ -208,8 +214,11 @@ export enum InboxPageTabOption {
 
 export enum ChatPageTabOption {
     Chat = "Chat",
-    Routine = "Routine",
-    Prompt = "Prompt",
+    Favorite = "Favorite",
+    RoutinePublic = "RoutinePublic",
+    RoutineMy = "RoutineMy",
+    PromptPublic = "PromptPublic",
+    PromptMy = "PromptMy",
 }
 
 export const searchViewTabParams = [{
@@ -302,26 +311,41 @@ export const calendarTabParams = [{
 }];
 
 export const chatTabParams = [{
-    Icon: CommentIcon,
     color: (palette: Palette) => palette.primary.contrastText,
     titleKey: "Chat" as CommonKey,
     searchType: SearchType.Chat,
     tabType: ChatPageTabOption.Chat,
     where: () => ({}),
 }, {
-    Icon: RoutineIcon,
     color: (palette: Palette) => palette.primary.contrastText,
-    titleKey: "Routine" as CommonKey,
+    titleKey: "Favorite" as CommonKey,
+    searchType: SearchType.Bookmark,
+    tabType: ChatPageTabOption.Favorite,
+    where: () => ({ label: "Favorites", limitTo: [BookmarkFor.Routine, BookmarkFor.Standard] }), // Routines to run them, and standards for prompts
+}, {
+    color: (palette: Palette) => palette.primary.contrastText,
+    titleKey: "RoutinePublic" as CommonKey,
     searchType: SearchType.Routine,
-    tabType: ChatPageTabOption.Routine,
+    tabType: ChatPageTabOption.RoutinePublic,
     where: () => ({}),
 }, {
-    Icon: StandardIcon,
     color: (palette: Palette) => palette.primary.contrastText,
-    titleKey: "Prompt" as CommonKey,
+    titleKey: "RoutineMy" as CommonKey,
+    searchType: SearchType.Routine,
+    tabType: ChatPageTabOption.RoutineMy,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    color: (palette: Palette) => palette.primary.contrastText,
+    titleKey: "PromptPublic" as CommonKey,
     searchType: SearchType.Standard,
-    tabType: ChatPageTabOption.Prompt,
+    tabType: ChatPageTabOption.PromptPublic,
     where: () => ({}),
+}, {
+    color: (palette: Palette) => palette.primary.contrastText,
+    titleKey: "PromptMy" as CommonKey,
+    searchType: SearchType.Standard,
+    tabType: ChatPageTabOption.PromptMy,
+    where: () => ({ visibility: VisibilityType.Own }),
 }];
 
 export const historyTabParams = [{
@@ -523,6 +547,24 @@ export const userTabParams = [{
     searchType: SearchType.Organization,
     tabType: UserPageTabOption.Organization,
     where: ({ userId }: UserTabWhereParams) => ({ memberUserIds: [userId], visibility: VisibilityType.All }),
+}];
+
+export const participantTabParams = [{
+    titleKey: "Participant" as CommonKey,
+    searchType: SearchType.ChatParticipant,
+    tabType: ParticipantManagePageTabOption.ChatParticipant,
+    where: (chatId: string) => ({ chatId }),
+}, {
+    titleKey: "Invite" as CommonKey,
+    searchType: SearchType.ChatInvite,
+    tabType: ParticipantManagePageTabOption.ChatInvite,
+    where: (chatId: string) => ({ chatId, statuses: [ChatInviteStatus.Pending, ChatInviteStatus.Declined] }),
+}, {
+    Icon: AddIcon,
+    titleKey: "SearchUser" as CommonKey,
+    searchType: SearchType.User,
+    tabType: ParticipantManagePageTabOption.Add,
+    where: (chatId: string) => ({ notInChatId: chatId }),
 }];
 
 export const policyTabParams = [

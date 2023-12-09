@@ -1,8 +1,8 @@
 import { GqlModelType } from "@local/shared";
-import { getLogic } from ".";
-import { isRelationshipObject } from "../builders";
+import { isRelationshipObject } from "../builders/isRelationshipObject";
+import { ModelMap } from "../models/base";
 import { SearchStringQuery, SearchStringQueryParams } from "../models/types";
-import { SearchStringMap } from "../utils";
+import { SearchStringMap } from "../utils/searchStringMap";
 
 /**
  * @param queryParams Data required to replace keys
@@ -65,7 +65,7 @@ export function getSearchStringQuery<Where extends { [x: string]: any }>({
 }): Where {
     if (searchString.length === 0) return {} as Where;
     // Get searcher
-    const { search } = getLogic(["search"], objectType, languages ?? ["en"], "getSearchStringQuery", true);
+    const { search } = ModelMap.getLogic(["search"], objectType);
     const insensitive = ({ contains: searchString.trim(), mode: "insensitive" as const });
     return getSearchStringQueryHelper({ insensitive, languages, searchString }, search.searchStringQuery());
 }

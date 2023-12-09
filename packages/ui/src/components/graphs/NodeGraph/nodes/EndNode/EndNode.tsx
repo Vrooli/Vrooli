@@ -1,11 +1,12 @@
-import { Node, NodeEnd } from "@local/shared";
 import { Box, Tooltip, Typography } from "@mui/material";
 import usePress from "hooks/usePress";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
-import { calculateNodeSize, DraggableNode, NodeContextMenu, NodeEndDialog, NodeWidth } from "../..";
+import { NodeWithEndCrud } from "views/objects/node";
+import { NodeWithEnd } from "views/objects/node/types";
+import { DraggableNode, NodeContextMenu, NodeWidth, calculateNodeSize } from "../..";
 import { nodeLabel } from "../styles";
 import { EndNodeProps } from "../types";
 
@@ -17,6 +18,7 @@ const DRAG_THRESHOLD = 10;
 export const EndNode = ({
     canDrag = true,
     handleAction,
+    handleDelete,
     handleUpdate,
     isEditing,
     isLinked = true,
@@ -58,15 +60,12 @@ export const EndNode = ({
 
     // Normal click edit menu (title, wasSuccessful, etc.)
     const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
-    const openEditDialog = useCallback((event: any) => {
+    const openEditDialog = useCallback(() => {
         if (isLinked) {
             setEditDialogOpen(!editDialogOpen);
         }
     }, [isLinked, editDialogOpen]);
-    const handleEditDialogClose = useCallback((updatedNode?: Node & { end: NodeEnd }) => {
-        if (updatedNode) handleUpdate(updatedNode);
-        setEditDialogOpen(false);
-    }, [handleUpdate]);
+    const closeEditDialog = useCallback(() => { setEditDialogOpen(false); }, []);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -95,12 +94,17 @@ export const EndNode = ({
                 handleSelect={(option) => { handleAction(option, node.id); }}
             />
             {/* Normal-click menu */}
-            <NodeEndDialog
-                handleClose={handleEditDialogClose}
+            <NodeWithEndCrud
+                display="dialog"
+                onCancel={closeEditDialog}
+                onClose={closeEditDialog}
+                onCompleted={handleUpdate}
+                onDeleted={handleDelete as ((data: NodeWithEnd) => unknown)}
+                isCreate={false}
                 isEditing={isEditing}
                 isOpen={editDialogOpen}
                 language={language}
-                node={node}
+                overrideObject={node as NodeWithEnd}
             />
             <DraggableNode
                 className="handle"

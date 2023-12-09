@@ -1,14 +1,16 @@
 import { calculateVersionsFromString, meetsMinVersion } from "@local/shared";
-import { IconButton, Stack, TextField, Tooltip, useTheme } from "@mui/material";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "icons";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { getMinimumVersion } from "utils/shape/general";
+import { TextInput } from "../TextInput/TextInput";
 import { VersionInputProps } from "../types";
 
 export const VersionInput = ({
     autoFocus = false,
     fullWidth = true,
+    isOptional = true,
     label = "Version",
     name = "versionLabel",
     versions,
@@ -70,11 +72,12 @@ export const VersionInput = ({
 
     return (
         <Stack direction="row" spacing={0}>
-            <TextField
+            <TextInput
+                {...props}
                 autoFocus={autoFocus}
-                fullWidth
                 id="versionLabel"
                 name="versionLabel"
+                isOptional={isOptional}
                 label={label}
                 value={internalValue}
                 onBlur={handleBlur}

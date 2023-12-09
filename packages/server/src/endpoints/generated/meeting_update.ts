@@ -6,6 +6,7 @@ export const meeting_update = {
     "bannerImage": true,
     "handle": true,
     "isBot": true,
+    "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
     "__typename": "User"
@@ -46,6 +47,7 @@ export const meeting_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -106,6 +108,7 @@ export const meeting_update = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -334,6 +337,7 @@ export const meeting_update = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true,
                 "__typename": "User"
@@ -377,6 +381,7 @@ export const meeting_update = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true,
               "__typename": "User"
@@ -541,6 +546,7 @@ export const meeting_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -714,6 +720,7 @@ export const meeting_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -758,6 +765,8 @@ export const meeting_update = {
     "name": true
   },
   "id": true,
+  "created_at": true,
+  "updated_at": true,
   "openToAnyoneWithInvite": true,
   "showOnOrganizationProfile": true,
   "organization": {
@@ -828,6 +837,10 @@ export const meeting_update = {
           "description": true
         },
         "__typename": "Role"
+      },
+      "you": {
+        "canDelete": true,
+        "canUpdate": true
       },
       "__typename": "Member"
     },

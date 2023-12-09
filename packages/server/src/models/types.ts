@@ -1,13 +1,14 @@
-import { Count, DotNotation, GqlModelType, ObjectLimit } from "@local/shared";
+import { DotNotation, GqlModelType, ObjectLimit } from "@local/shared";
 import { ObjectSchema } from "yup";
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
-import { PrismaType, PromiseOrValue, RecursivePartial, SessionUserToken } from "../types";
+import { PrismaType, PromiseOrValue, SessionUserToken } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
-import { QueryAction } from "../utils/types";
+import { IdsCreateToConnect, InputNode, InputsById, QueryAction } from "../utils/types";
 
 /** Types and flags for an object's business layer */
 export type ModelLogicType = {
+    __typename: `${GqlModelType}`;
     /** GraphQL input for creating the object */
     GqlCreate: Record<string, any> | undefined,
     /** GraphQL input for updating the object */
@@ -38,13 +39,14 @@ export type ModelLogicType = {
 
 /**
 * Basic structure of an object's business layer. 
-* Properties are often accessed using `getLogic()`.
+* Often accessed using `ModelMap`.
 */
 export type ModelLogic<
     Model extends ModelLogicType,
-    SuppFields extends readonly DotNotation<Model["GqlModel"]>[]
+    SuppFields extends readonly DotNotation<Model["GqlModel"]>[],
+    IdField extends keyof Model["GqlModel"] = "id",
 > = {
-    __typename: `${GqlModelType}`;
+    __typename: Model["__typename"];
     /** The prisma delegate for this object (e.g. prisma.user) */
     delegate: (prisma: PrismaType) => PrismaDelegate;
     /** Functions for representing the object in different formats */
@@ -59,7 +61,7 @@ export type ModelLogic<
      * NOTE: If using this for more than tags, you might want to update the logic in `cudHelper` 
      * to avoid id collisions between different object types.
      * */
-    idField?: keyof Model["GqlModel"];
+    idField?: IdField;
     /** Functions and data for searching the object */
     search: Model["GqlSearch"] extends undefined ? undefined :
     Model["GqlSort"] extends undefined ? undefined :
@@ -92,23 +94,24 @@ export type ModelLogic<
 } & { [x: string]: any };
 
 /**
- * An object which can maps GraphQL fields to GqlModelTypes. Normal fields 
+ * An object which maps GraphQL fields to GqlModelTypes. Normal fields 
  * are a single GqlModelType, while unions are handled with an object. 
  * A union object maps Prisma relation fields to GqlModelTypes.
  */
 export type GqlRelMap<
+    Typename extends `${GqlModelType}`,
     GqlModel extends ModelLogicType["GqlModel"],
     PrismaModel extends ModelLogicType["PrismaModel"],
 > = {
     [K in keyof GqlModel]?: `${GqlModelType}` | ({ [K2 in keyof PrismaModel]?: `${GqlModelType}` })
-} & { __typename: `${GqlModelType}` };
+} & { __typename: Typename };
 
 /**
  * Allows Prisma select fields to map to GqlModelTypes
  */
-export type PrismaRelMap<T> = {
+export type PrismaRelMap<Typename extends `${GqlModelType}`, T> = {
     [K in keyof T]?: `${GqlModelType}`
-} & { __typename: `${GqlModelType}` };
+} & { __typename: Typename };
 
 /**
  * Helper functions for adding and removing supplemental fields. These are fields 
@@ -150,21 +153,24 @@ type StringArrayMap<T extends readonly string[]> = {
  */
 export interface Formatter<
     Model extends {
+        __typename: `${GqlModelType}`,
+        GqlCreate: ModelLogicType["GqlCreate"],
         GqlModel: ModelLogicType["GqlModel"],
-        PrismaModel?: ModelLogicType["PrismaModel"],
+        PrismaModel: ModelLogicType["PrismaModel"],
     }
 > {
     /**
      * Maps GraphQL types to GqlModelType, with special handling for unions
      */
-    // gqlRelMap: GqlRelMap<Model["GqlModel"], Model["PrismaModel"]>;
     gqlRelMap: Model extends { PrismaModel: infer P }
     ? P extends undefined
-    ? GqlRelMap<Model["GqlModel"], any>
-    : GqlRelMap<Model["GqlModel"], NonNullable<P>>
-    : GqlRelMap<Model["GqlModel"], any>;
+    ? GqlRelMap<Model["__typename"], Model["GqlModel"], Model["PrismaModel"]>
+    : GqlRelMap<Model["__typename"], Model["GqlModel"], NonNullable<P>>
+    : GqlRelMap<Model["__typename"], Model["GqlModel"], Model["PrismaModel"]>;
+    /** Defines additional information for parsing union types, used for things like building mutation input trees */
+    unionFields?: { [key in keyof Model["GqlModel"]]?: Record<string, never> | { connectField: keyof Model["GqlCreate"], typeField: keyof Model["GqlCreate"] } };
     /** Maps Prisma types to GqlModelType */
-    prismaRelMap: PrismaRelMap<Model["PrismaModel"]>;
+    prismaRelMap: PrismaRelMap<Model["__typename"], Model["PrismaModel"]>;
     /**
      * Map used to add/remove join tables from the query. 
      * Each key is a GraphQL field, and each value is the join table's relation name
@@ -207,7 +213,7 @@ export type SearchStringQuery<Where extends { [x: string]: any }> = {
     (keyof typeof SearchStringMap | SearchStringQuery<Where[x]>) :
     //Else
     SearchStringQuery<Where[x]> : never
-}
+} | (keyof typeof SearchStringMap);
 
 /**
  * Describes shape of component that can be sorted in a specific order
@@ -295,7 +301,7 @@ export type Validator<
         IsTransferable: Exclude<ModelLogicType["IsTransferable"], undefined>,
         IsVersioned: Exclude<ModelLogicType["IsVersioned"], undefined>,
     }
-> = {
+> = () => ({
     /**
      * The maximum number of objects that can be created by a single user/organization.
      * This depends on if the owner is a user or organization, if the owner 
@@ -337,13 +343,17 @@ export type Validator<
      */
     isDeleted: (data: Model["PrismaModel"], languages: string[]) => boolean;
     /**
-     * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false
+     * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false. 
+     * @param data The data used to determine if the object is public
+     * @param getParentInfo Used to get the data of the parent object. When using data from the 
+     * database, this is not needed. When using data from a create mutation, it can be useful.
+     * @param languages Languages to display error messages in
      */
-    isPublic: (data: Model["PrismaModel"], languages: string[]) => boolean;
+    isPublic: (data: Model["PrismaModel"], getParentInfo: ((id: string, typename: `${GqlModelType}`) => any | undefined), languages: string[]) => boolean;
     /**
      * Permissions data for the object's owner
      */
-    owner: (data: Model["PrismaModel"], userId: string) => {
+    owner: (data: Model["PrismaModel"] | undefined, userId: string) => {
         Organization?: ({ id: string } & { [x: string]: any }) | null;
         User?: ({ id: string } & { [x: string]: any }) | null;
     }
@@ -376,7 +386,7 @@ export type Validator<
             /** Determines if there is a completed version of the object */
             hasCompleteVersion: (data: Model["PrismaModel"]) => boolean;
         } : object
-    )
+    ))
 
 /**
  * Describes shape of component that can be duplicated
@@ -407,7 +417,7 @@ export type Duplicator<
  * 
  * This means you can reference pre function results by using `preMap[__typename]`.
  **/
-type PreMap = { [key in GqlModelType]?: any };
+export type PreMap = { [key in GqlModelType]?: any };
 
 /**
  * Describes shape of component that can be mutated
@@ -429,104 +439,79 @@ export type Mutater<Model extends {
          * data that can change depending on what else is being mutated. This is useful for 
          * things like routine complexity, where the calculation depends on the complexity of subroutines.
          */
-        pre?: ({ createList, updateList, deleteList, prisma, userData }: {
-            createList: Model["GqlCreate"][],
-            updateList: (Model["GqlUpdate"] & { id: string })[],
-            deleteList: string[],
+        pre?: ({ Create, Update, Delete, prisma, userData }: {
+            Create: { node: InputNode, input: Model["GqlCreate"] }[],
+            Update: { node: InputNode, input: (Model["GqlUpdate"] & { id: string }) }[],
+            Delete: { node: InputNode, input: string }[],
             prisma: PrismaType,
             userData: SessionUserToken,
+            inputsById: InputsById,
         }) => PromiseOrValue<object>,
         /**
-         * Performs additional shaping after the main mutation has been performed, 
-         * AND after all triggers functions have been called. This is useful 
-         * for things like updating a version label, where all versions tied to that root object 
-         * might need their version indexes updated. Since these versions don't appear in the 
-         * create/update/delete lists, they can't be updated in the pre function.
+         * Determines which creates should instead be connects. This is useful for
+         * things like tags, where you don't want to create a new tag if one with 
+         * the same name already exists.
+         * 
+         * @returns An array of ids to connect to, in the same order as the input array. 
+         * If the id is null, then a new object should be created.
+         * 
+         * NOTE: We don't have to worry about it for tags, but you should keep in mind 
+         * object permissions when using this function
          */
-        post?: ({ created, deletedIds, updated, preMap, prisma, userData }: {
-            created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            deletedIds: string[],
-            updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            preMap: PreMap,
+        findConnects?: ({ Create, prisma }: {
+            Create: { node: InputNode, input: Model["GqlCreate"] }[],
             prisma: PrismaType,
-            userData: SessionUserToken,
-        }) => PromiseOrValue<void>,
+        }) => PromiseOrValue<(string | null)[]>,
         /** Shapes data for create mutations */
         create?: Model["GqlCreate"] extends Record<string, any> ?
-        Model["PrismaCreate"] extends Record<string, any> ? ({ data, preMap, prisma, userData }: {
+        Model["PrismaCreate"] extends Record<string, any> ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
             data: Model["GqlCreate"],
+            idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap;
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<Model["PrismaCreate"]> : never : never,
         /** Shapes data for update mutations */
         update?: Model["GqlUpdate"] extends Record<string, any> ?
-        Model["PrismaUpdate"] extends Record<string, any> ? ({ data, preMap, prisma, userData, where }: {
+        Model["PrismaUpdate"] extends Record<string, any> ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
             data: Model["GqlUpdate"],
+            idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
-            where: { id: string },
         }) => PromiseOrValue<Model["PrismaUpdate"]> : never : never
     }
     /**
      * Triggers after (or before if specified) a mutation is performed on the object. Useful for sending notifications,
      * tracking awards, and updating reputation.
-     * 
-     * NOTE: This is only called for top-level objects, not relationships. If you need to update 
-     * data like indexes, hasCompleteVersion, etc., or initiate triggers, you should do it in the shape.pre or shape.post functions
      */
     trigger?: {
         /**
-         * A trigger that includes create, update, and delete mutations. This is sometimes useful 
-         * over handling each mutation individually, especially if you need to do something
-         * that benefits from having all the data at once.
-         */
-        onCommon?: ({ createAuthData, created, deleted, prisma, updateAuthData, updated, updateInput, userData }: {
-            createAuthData: { [id: string]: { [x: string]: any } },
-            created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            deleted: Count,
-            deletedIds: string[],
-            updateAuthData: { [id: string]: { [x: string]: any } },
-            updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            updateInput: Model["GqlUpdate"][],
-            preMap: PreMap,
-            prisma: PrismaType,
-            userData: SessionUserToken,
-        }) => PromiseOrValue<void>,
-        /** A trigger for create mutations */
-        onCreated?: Model["GqlCreate"] extends Record<string, any> ? ({ created, prisma, userData }: {
-            authData: { [id: string]: { [x: string]: any } },
-            created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            preMap: PreMap,
-            prisma: PrismaType,
-            userData: SessionUserToken,
-        }) => PromiseOrValue<void> : never,
-        /** A trigger for update mutations */
-        onUpdated?: Model["GqlUpdate"] extends Record<string, any> ? ({ updated, updateInput, prisma, userData }: {
-            authData: { [id: string]: { [x: string]: any } },
-            updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            updateInput: Model["GqlUpdate"][],
-            preMap: PreMap,
-            prisma: PrismaType,
-            userData: SessionUserToken,
-        }) => PromiseOrValue<void> : never,
-        /**
          * Triggered before an object is deleted. This is useful if you need to find data about 
-         * the deleting objects' relationships, which may be cascaded on delete
+         * the deleting objects' relationships, which may be cascaded on delete. 
+         * 
+         * NOTE: This is only called for top-level objects, not relationships. Handle accordingly.
          */
-        beforeDeleted?: ({ deletingIds, prisma, userData }: {
+        beforeDeleted?: ({ beforeDeletedData, deletingIds, prisma, userData }: {
+            /** Result is added to this object */
+            beforeDeletedData: { [key in `${GqlModelType}`]?: object },
             deletingIds: string[],
             prisma: PrismaType,
             userData: SessionUserToken,
-        }) => PromiseOrValue<any>,
+        }) => PromiseOrValue<void>,
         /**
-         * A trigger for delete mutations
+         * A trigger that includes create, update, and delete mutations. This can be used to 
+         * send notifications, track awards, update reputation, etc. Try not to mutate objects here, 
+         * unless you have to (e.g. adding a new version inbetween others will trigger index updates 
+         * on versions not specified in the mutation)
          */
-        onDeleted?: ({ beforeDeletedData, deleted, deletedIds, prisma, userData }: {
-            beforeDeletedData: object,
-            deleted: Count,
+        afterMutations?: ({ createdIds, deletedIds, prisma, updatedIds, updateInputs, userData }: {
+            beforeDeletedData: { [key in `${GqlModelType}`]?: object },
+            createdIds: string[],
+            createInputs: Model["GqlCreate"][],
             deletedIds: string[],
+            updatedIds: string[],
+            updateInputs: Model["GqlUpdate"][],
             preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
@@ -547,7 +532,7 @@ export type Displayer<
         PrismaSelect: ModelLogicType["PrismaSelect"],
         PrismaModel: ModelLogicType["PrismaModel"],
     }
-> = {
+> = () => ({
     /** Display the object for push notifications, etc. */
     label: {
         /** Prisma selection for the label */
@@ -562,7 +547,7 @@ export type Displayer<
         /** Converts the selection to a string */
         get: (select: Model["PrismaModel"], languages: string[]) => string,
     }
-}
+})
 
 /**
  * Mapper for associating a model's many-to-many relationship names with

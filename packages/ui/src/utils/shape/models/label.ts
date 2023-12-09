@@ -1,5 +1,6 @@
 import { Label, LabelCreateInput, LabelTranslation, LabelTranslationCreateInput, LabelTranslationUpdateInput, LabelUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { OrganizationShape } from "./organization";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type LabelTranslationShape = Pick<LabelTranslation, "id" | "language" | "description"> & {
@@ -7,8 +8,8 @@ export type LabelTranslationShape = Pick<LabelTranslation, "id" | "language" | "
 }
 
 export type LabelShape = Pick<Label, "id" | "label" | "color"> & {
-    __typename?: "Label";
-    organization?: { id: string } | null; // If no organization specified, assumes current user
+    __typename: "Label";
+    organization?: CanConnect<OrganizationShape> | null; // If no organization specified, assumes current user
     translations: LabelTranslationShape[];
     // Connects and disconnects of labels to other objects are handled separately, or in parent shape
 }

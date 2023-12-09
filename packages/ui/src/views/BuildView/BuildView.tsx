@@ -1,4 +1,4 @@
-import { exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
+import { DUMMY_ID, exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { BuildEditButtons } from "components/buttons/BuildEditButtons/BuildEditButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -10,19 +10,19 @@ import { LinkDialog } from "components/dialogs/LinkDialog/LinkDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SubroutineInfoDialog } from "components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog";
 import { SubroutineInfoDialogProps } from "components/dialogs/types";
-import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeRoutineListDialog } from "components/graphs/NodeGraph";
+import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from "components/graphs/NodeGraph";
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { NodeWithRoutineListShape } from "forms/types";
+import { SessionContext } from "contexts/SessionContext";
 import { useHotkeys } from "hooks/useHotkeys";
-import { usePromptBeforeUnload } from "hooks/usePromptBeforeUnload";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useStableObject } from "hooks/useStableObject";
 import { CloseIcon } from "icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
 import { BuildAction, Status } from "utils/consts";
-import { toDisplay } from "utils/display/pageTools";
+import { getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
@@ -31,6 +31,7 @@ import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
+import { NodeWithRoutineListShape } from "views/objects/node/types";
 import { BuildViewProps } from "../types";
 
 /**
@@ -41,16 +42,18 @@ import { BuildViewProps } from "../types";
  * @returns The new link object
  */
 const generateNewLink = (fromId: string, toId: string, routineVersionId: string): NodeLinkShape => ({
+    __typename: "NodeLink",
     id: uuid(),
-    from: { id: fromId },
-    to: { id: toId },
-    routineVersion: { id: routineVersionId },
+    from: { __typename: "Node", id: fromId },
+    to: { __typename: "Node", id: toId },
+    routineVersion: { __typename: "RoutineVersion", id: routineVersionId },
 });
 
 // RoutineVersion with fields required for the build view
 type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
 
 export const BuildView = ({
+    display,
     handleCancel,
     handleSubmit,
     isEditing,
@@ -60,10 +63,10 @@ export const BuildView = ({
     routineVersion,
     translationData,
 }: BuildViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
     const id: string = useMemo(() => routineVersion?.id ?? "", [routineVersion]);
 
     const stableRoutineVersion = useStableObject(routineVersion);
@@ -72,7 +75,7 @@ export const BuildView = ({
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ["Calculating..."] });
     const [scale, setScale] = useState<number>(-1);
     const handleScaleChange = useCallback((delta: number) => {
-        PubSub.get().publishFastUpdate({ duration: 1000 });
+        PubSub.get().publish("fastUpdate", { duration: 1000 });
         // Limit to -3 to 0.5. These are determined by finding where the nodes stop shrinking/growing
         setScale(s => Math.min(Math.max(s + delta, -3), 0.5));
     }, []);
@@ -83,7 +86,7 @@ export const BuildView = ({
     const clearChangeStack = useCallback(() => {
         setChangeStack(stableRoutineVersion ? [stableRoutineVersion] : []);
         setChangeStackIndex(stableRoutineVersion ? 0 : -1);
-        PubSub.get().publishFastUpdate({ duration: 1000 });
+        PubSub.get().publish("fastUpdate", { duration: 1000 });
         setChangedRoutineVersion(stableRoutineVersion);
     }, [stableRoutineVersion]);
     useEffect(() => {
@@ -95,7 +98,7 @@ export const BuildView = ({
     const undo = useCallback(() => {
         if (changeStackIndex > 0) {
             setChangeStackIndex(changeStackIndex - 1);
-            PubSub.get().publishFastUpdate({ duration: 1000 });
+            PubSub.get().publish("fastUpdate", { duration: 1000 });
             setChangedRoutineVersion(changeStack[changeStackIndex - 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -106,7 +109,7 @@ export const BuildView = ({
     const redo = useCallback(() => {
         if (changeStackIndex < changeStack.length - 1) {
             setChangeStackIndex(changeStackIndex + 1);
-            PubSub.get().publishFastUpdate({ duration: 1000 });
+            PubSub.get().publish("fastUpdate", { duration: 1000 });
             setChangedRoutineVersion(changeStack[changeStackIndex + 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -120,7 +123,7 @@ export const BuildView = ({
         newChangeStack.push(changedRoutine);
         setChangeStack(newChangeStack);
         setChangeStackIndex(newChangeStack.length - 1);
-        PubSub.get().publishFastUpdate({ duration: 1000 });
+        PubSub.get().publish("fastUpdate", { duration: 1000 });
         setChangedRoutineVersion(changedRoutine);
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutineVersion]);
 
@@ -129,7 +132,8 @@ export const BuildView = ({
         { keys: ["z"], ctrlKey: true, callback: undo },
     ]);
 
-    usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
+    const isCacheOn = useRef(true);
+    useSaveToCache({ disabled: !isEditing, isCacheOn, isCreate: changedRoutineVersion.id === DUMMY_ID, values: changedRoutineVersion, objectId: changedRoutineVersion.id, objectType: "Routine" });
 
     /** Updates a node's data */
     const handleNodeUpdate = useCallback((node: Node) => {
@@ -225,18 +229,6 @@ export const BuildView = ({
         setOpenedSubroutine(null);
     }, []);
 
-    // Routine list info dialog
-    const [openedRoutineList, setOpenedRoutineList] = useState<NodeWithRoutineListShape | null>(null);
-    const handleRoutineListOpen = useCallback((nodeId: string) => {
-        const node = nodesById[nodeId];
-        if (node && node.routineList) setOpenedRoutineList(node as NodeWithRoutineListShape);
-    }, [nodesById]);
-    const closeRoutineListDialog = useCallback((updatedNode?: NodeWithRoutineListShape) => {
-        console.log("close routine list dialog", updatedNode);
-        if (updatedNode) handleNodeUpdate(updatedNode as Node);
-        setOpenedRoutineList(null);
-    }, [handleNodeUpdate]);
-
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const [linkDialogFrom, setLinkDialogFrom] = useState<Node | null>(null);
     const [linkDialogTo, setLinkDialogTo] = useState<Node | null>(null);
@@ -272,6 +264,7 @@ export const BuildView = ({
     const revertChanges = useCallback(() => {
         // Helper function to revert changes
         const revert = () => {
+            isCacheOn.current = false;
             // If updating routineVersion, revert to original routineVersion
             if (id) {
                 clearChangeStack();
@@ -282,7 +275,7 @@ export const BuildView = ({
         };
         // Confirm if changes have been made
         if (changeStack.length > 1) {
-            PubSub.get().publishAlertDialog({
+            PubSub.get().publish("alertDialog", {
                 messageKey: "UnsavedChangesBeforeCancel",
                 buttons: [
                     { labelKey: "Yes", onClick: () => { revert(); } },
@@ -366,19 +359,22 @@ export const BuildView = ({
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNodeId = uuid();
         const newNode: Omit<NodeShape, "routineVersion"> = {
+            __typename: "Node" as const,
             id: newNodeId,
             nodeType: NodeType.RoutineList,
             rowIndex,
             columnIndex,
             routineList: {
+                __typename: "NodeRoutineList" as const,
                 id: uuid(),
                 isOrdered: false,
                 isOptional: false,
                 items: [],
-                node: { id: newNodeId },
+                node: { __typename: "Node" as const, id: newNodeId },
             },
             // Generate unique placeholder name
             translations: [{
+                __typename: "NodeTranslation" as const,
                 id: uuid(),
                 language: translationData.language,
                 name: `Node ${(changedRoutineVersion.nodes?.length ?? 0) - 1}`,
@@ -397,20 +393,28 @@ export const BuildView = ({
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNodeId = uuid();
         const newNode: Omit<NodeShape, "routineVersion"> = {
+            __typename: "Node" as const,
             id: newNodeId,
             nodeType: NodeType.End,
             rowIndex,
             columnIndex,
             end: {
+                __typename: "NodeEnd" as const,
                 id: uuid(),
-                node: { id: newNodeId },
+                node: { __typename: "Node", id: newNodeId },
                 suggestedNextRoutineVersions: [],
                 wasSuccessful: true,
             },
-            translations: [],
+            translations: [{
+                __typename: "NodeTranslation" as const,
+                id: DUMMY_ID,
+                language: getUserLanguages(session)[0],
+                name: "End",
+                description: "",
+            }],
         };
         return newNode;
-    }, [closestOpenPosition]);
+    }, [closestOpenPosition, session]);
 
     /**
      * Creates a link between two nodes which already exist in the linked routineVersion. 
@@ -488,7 +492,7 @@ export const BuildView = ({
         }
         // If one or the other is null, then there must be an error
         if (columnIndex === null || rowIndex === null) {
-            PubSub.get().publishSnack({ messageKey: "InvalidDropLocation", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "InvalidDropLocation", severity: "Error" });
             return;
         }
         // Otherwise, is a drop
@@ -598,7 +602,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its row and column
         const toNode = changedRoutineVersion.nodes.find(n => n.id === link.to.id);
         if (!toNode) {
-            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             return;
         }
         const { columnIndex, rowIndex } = toNode;
@@ -633,7 +637,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its column
         const toNode = changedRoutineVersion.nodes.find(n => n.id === link.to.id);
         if (!toNode) {
-            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             return;
         }
         // Find the largest row index in the column. New node will be placed in the next row
@@ -840,7 +844,7 @@ export const BuildView = ({
     const handleSubroutineViewFull = useCallback(() => {
         if (!openedSubroutine) return;
         if (!isEqual(routineVersion, changedRoutineVersion)) {
-            PubSub.get().publishSnack({ messageKey: "SaveChangesBeforeLeaving", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "SaveChangesBeforeLeaving", severity: "Error" });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines
@@ -867,9 +871,6 @@ export const BuildView = ({
             case BuildAction.DeleteSubroutine:
                 handleSubroutineDelete(nodeId, subroutineId ?? "");
                 break;
-            case BuildAction.OpenRoutine:
-                handleRoutineListOpen(nodeId);
-                break;
             case BuildAction.EditSubroutine:
                 handleSubroutineOpen(nodeId, subroutineId ?? "");
                 break;
@@ -892,7 +893,7 @@ export const BuildView = ({
                 if (node) setMoveNode(node);
                 break;
         }
-    }, [changedRoutineVersion.nodes, handleNodeDelete, handleSubroutineDelete, handleRoutineListOpen, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
+    }, [changedRoutineVersion.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
 
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
@@ -940,21 +941,23 @@ export const BuildView = ({
                     const rowIndex = (columnIndex >= 0 && columnIndex < columns.length) ? columns[columnIndex].length : 0;
                     const newLink: NodeLink = generateNewLink(node.id, newEndNodeId, changedRoutineVersion.id) as NodeLink;
                     const newEndNode: Omit<NodeShape, "routineVersion"> = {
+                        __typename: "Node" as const,
                         id: newEndNodeId,
                         nodeType: NodeType.End,
                         rowIndex,
                         columnIndex,
                         end: {
+                            __typename: "NodeEnd",
                             id: uuid(),
-                            node: { id: newEndNodeId },
+                            node: { __typename: "Node", id: newEndNodeId },
                             suggestedNextRoutineVersions: [],
                             wasSuccessful: false,
                         },
                         translations: [],
                     };
                     // Add link and end node to resultRoutine
-                    resultRoutine.nodeLinks.push(newLink as any);
-                    resultRoutine.nodes.push(newEndNode as any);
+                    resultRoutine.nodeLinks.push(newLink);
+                    resultRoutine.nodes.push(newEndNode);
                 }
             }
         }
@@ -1010,6 +1013,12 @@ export const BuildView = ({
                     nodeId={addSubroutineNode}
                     routineVersionId={routineVersion?.id}
                 />}
+                {/* Add new subroutine menu */}
+                {/* TODO need to combine new dialog with search. So you select type, search routines of that type, then create if none found */}
+                {/* <SubroutineCreateDialog
+                    isOpen={true}
+                    onClose={() => { }}
+                /> */}
                 {/* Popup for "Add after" dialog */}
                 {addAfterLinkNode && <AddAfterLinkDialog
                     handleSelect={handleNodeInsert}
@@ -1059,14 +1068,6 @@ export const BuildView = ({
                     handleViewFull={handleSubroutineViewFull}
                     open={Boolean(openedSubroutine)}
                     onClose={closeSubroutineDialog}
-                />
-                {/* Displays routine information when you click on a routine list*/}
-                <NodeRoutineListDialog
-                    handleClose={closeRoutineListDialog}
-                    isEditing={isEditing}
-                    isOpen={Boolean(openedRoutineList)}
-                    language={translationData.language}
-                    node={openedRoutineList}
                 />
                 {/* Navbar */}
                 <Stack
@@ -1152,7 +1153,7 @@ export const BuildView = ({
                     canCancelMutate={!loading}
                     canSubmitMutate={!loading && !isEqual(routineVersion, changedRoutineVersion)}
                     errors={{
-                        "graph": status.status !== Status.Valid ? status.messages : null,
+                        "graph": status.status === Status.Invalid ? status.messages : null,
                         "unchanged": isEqual(routineVersion, changedRoutineVersion) ? "No changes made" : null,
                     }}
                     handleCancel={revertChanges}

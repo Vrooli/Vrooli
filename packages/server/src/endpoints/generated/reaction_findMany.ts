@@ -77,6 +77,7 @@ export const reaction_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -117,6 +118,7 @@ export const reaction_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -163,6 +165,12 @@ export const reaction_findMany = {
           "id": true,
           "created_at": true,
           "updated_at": true,
+          "sequence": true,
+          "versionIndex": true,
+          "parent": {
+            "id": true,
+            "created_at": true
+          },
           "user": {
             "id": true,
             "created_at": true,
@@ -170,6 +178,7 @@ export const reaction_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },
@@ -228,6 +237,7 @@ export const reaction_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -351,6 +361,7 @@ export const reaction_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -445,6 +456,7 @@ export const reaction_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -485,6 +497,7 @@ export const reaction_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -622,6 +635,7 @@ export const reaction_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -662,6 +676,7 @@ export const reaction_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -716,6 +731,7 @@ export const reaction_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },
@@ -811,6 +827,7 @@ export const reaction_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },
@@ -836,6 +853,7 @@ export const reaction_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },
@@ -940,6 +958,7 @@ export const reaction_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -980,6 +999,7 @@ export const reaction_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -1094,6 +1114,7 @@ export const reaction_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -1134,6 +1155,7 @@ export const reaction_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -1249,6 +1271,7 @@ export const reaction_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -1289,6 +1312,7 @@ export const reaction_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }

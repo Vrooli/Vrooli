@@ -45,6 +45,10 @@ export const member_update = {
           },
           "__typename": "Role"
         },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Member"
       },
       "id": true,
@@ -126,6 +130,7 @@ export const member_update = {
     "bannerImage": true,
     "handle": true,
     "isBot": true,
+    "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
     "bookmarks": true,
@@ -181,6 +186,10 @@ export const member_update = {
       "description": true
     },
     "__typename": "Role"
+  },
+  "you": {
+    "canDelete": true,
+    "canUpdate": true
   },
   "__typename": "Member"
 } as const;

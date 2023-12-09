@@ -1,67 +1,18 @@
-import { Chat, InputType, NoteVersion, Reminder } from "@local/shared";
-import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
+import { InputType, Node, OrArray } from "@local/shared";
+import { SubroutineInfoDialogProps } from "components/dialogs/types";
+import { CodeInputProps as CP, DropzoneProps as DP, LanguageInputProps as LP, IntegerInputProps as QP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
-import { Dispatch, ReactNode, SetStateAction } from "react";
-import { AssistantTask } from "types";
-import { Forms } from "utils/consts";
+import { Dispatch, SetStateAction } from "react";
 import { ListObject } from "utils/display/listTools";
-import { ApiVersionShape } from "utils/shape/models/apiVersion";
-import { BookmarkListShape } from "utils/shape/models/bookmarkList";
-import { BotShape } from "utils/shape/models/bot";
-import { ChatShape } from "utils/shape/models/chat";
-import { CommentShape } from "utils/shape/models/comment";
-import { FocusModeShape } from "utils/shape/models/focusMode";
-import { MeetingShape } from "utils/shape/models/meeting";
-import { NodeShape } from "utils/shape/models/node";
-import { NodeEndShape } from "utils/shape/models/nodeEnd";
-import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
-import { NoteVersionShape } from "utils/shape/models/noteVersion";
-import { OrganizationShape } from "utils/shape/models/organization";
-import { ProfileShape } from "utils/shape/models/profile";
-import { ProjectVersionShape } from "utils/shape/models/projectVersion";
-import { QuestionShape } from "utils/shape/models/question";
-import { ReminderShape } from "utils/shape/models/reminder";
-import { ReportShape } from "utils/shape/models/report";
-import { ResourceShape } from "utils/shape/models/resource";
-import { RoutineVersionShape } from "utils/shape/models/routineVersion";
-import { RunProjectShape } from "utils/shape/models/runProject";
-import { RunRoutineShape } from "utils/shape/models/runRoutine";
-import { ScheduleShape } from "utils/shape/models/schedule";
-import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
-import { StandardVersionShape } from "utils/shape/models/standardVersion";
 import { TagShape } from "utils/shape/models/tag";
+import { NodeWithEndCrudProps, NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
 import { CrudProps } from "views/objects/types";
-import { ViewDisplayType } from "views/types";
 
 //==============================================================
 /* #region Specific Form Props */
 //==============================================================
-export interface BaseFormProps {
-    children: ReactNode;
-    dirty?: boolean;
-    display: ViewDisplayType;
-    enableReinitialize?: boolean;
-    isLoading?: boolean;
-    maxWidth?: number;
-    onClose?: () => unknown;
-    promptBeforeUnload?: boolean;
-    ref?: any;
-    style?: { [x: string]: string | number | null };
-    validationSchema?: any;
-}
-
-export interface BaseObjectFormProps<T> extends FormikProps<T> {
-    display: ViewDisplayType;
-    isCreate: boolean;
-    isLoading: boolean;
-    isOpen: boolean;
-    onCancel: () => unknown;
-    onClose: () => unknown;
-    ref: React.RefObject<any>;
-}
-
-export interface ImprovedFormProps<Model extends ListObject, ModelShape> extends Omit<CrudProps<Model>, "isLoading">, FormikProps<ModelShape> {
+export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {
     disabled: boolean;
     existing: ModelShape;
     handleUpdate: Dispatch<SetStateAction<ModelShape>>;
@@ -70,89 +21,28 @@ export interface ImprovedFormProps<Model extends ListObject, ModelShape> extends
 
 export interface BaseGeneratedFormProps {
     schema: FormSchema;
-    onSubmit: (values: any) => void;
+    onSubmit: (values: any) => unknown;
 }
 
-export interface FormProps {
-    onFormChange?: (form: Forms) => unknown;
-}
-
-export interface ForgotPasswordFormProps extends FormProps {
-    onClose?: () => unknown;
-}
-
-export interface LogInFormProps extends FormProps {
-    onClose?: () => unknown;
-}
-
-export interface ResetPasswordFormProps extends FormProps {
-    onClose?: () => unknown;
-}
-
-export interface SignUpFormProps extends FormProps {
-    onClose?: () => unknown;
-}
-
-export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
-    versions: string[];
-}
-export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
-export type BotFormProps = BaseObjectFormProps<BotShape>
-export type ChatFormProps = ImprovedFormProps<Chat, ChatShape> & {
-    context?: string | null | undefined;
-    task?: AssistantTask;
-}
-export type CommentFormProps = BaseObjectFormProps<CommentShape>
-export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
-export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };
-export interface NodeEndFormProps extends BaseObjectFormProps<NodeWithEndShape> {
+export type NodeEndFormProps = Omit<FormProps<Node, NodeWithEndShape>, "onCancel" | "onClose" | "onCompleted"> & Pick<NodeWithEndCrudProps, "onCancel" | "onClose" | "onCompleted"> & {
     isEditing: boolean;
 }
-export interface NodeRoutineListFormProps extends BaseObjectFormProps<NodeWithRoutineListShape> {
+export type NodeRoutineListFormProps = FormProps<Node, NodeWithRoutineListShape> & {
     isEditing: boolean;
 }
-export type FocusModeFormProps = BaseObjectFormProps<FocusModeShape>
-export type MeetingFormProps = BaseObjectFormProps<MeetingShape>
-export type NoteFormProps = ImprovedFormProps<NoteVersion, NoteVersionShape>
-export type OrganizationFormProps = BaseObjectFormProps<OrganizationShape>
-export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShape> {
-    versions: string[];
-}
-export type QuestionFormProps = BaseObjectFormProps<QuestionShape>
-export interface ReminderFormProps extends ImprovedFormProps<Reminder, ReminderShape> {
-    index?: number;
-    reminderListId?: string;
-}
-export type ReportFormProps = BaseObjectFormProps<ReportShape>
-export type ResourceFormProps = BaseObjectFormProps<ResourceShape>
-export interface RoutineFormProps extends BaseObjectFormProps<RoutineVersionShape> {
-    isSubroutine: boolean;
-    versions: string[];
-}
-export type RunProjectFormProps = BaseObjectFormProps<RunProjectShape>
-export type RunRoutineFormProps = BaseObjectFormProps<RunRoutineShape>
-export type ScheduleFormProps = BaseObjectFormProps<ScheduleShape> & {
-    canSetScheduleFor: boolean;
-}
-export interface SmartContractFormProps extends BaseObjectFormProps<SmartContractVersionShape> {
-    versions: string[];
-}
-export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutineListItemShape>, "display" | "isLoading"> {
+
+export type SubroutineFormProps = Omit<FormProps<Node, NodeRoutineListItemShape>, "disabled" | "display" | "existing" | "isLoading" | "isOpen" | "onCancel" | "isReadLoading" | "onClose" | "onCompleted"> & Required<Pick<SubroutineInfoDialogProps, "handleUpdate" | "handleReorder" | "handleViewFull" | "onClose">> & {
     /**
      * True if the routine version itself can be updated. Otherwise, 
      * only node-level properties can be updated (e.g. index)
      */
     canUpdateRoutineVersion: boolean;
-    handleViewFull: () => void;
     isEditing: boolean;
+    isOpen: boolean;
     /** Number of subroutines in parent routine list */
     numSubroutines: number;
     versions: string[];
 }
-export interface StandardFormProps extends BaseObjectFormProps<StandardVersionShape> {
-    versions: string[];
-}
-export type UserFormProps = BaseObjectFormProps<ProfileShape>
 
 //==============================================================
 /* #endregion Specific Form Props */
@@ -256,7 +146,7 @@ export interface TextProps {
     defaultValue?: string;
     /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
     autoComplete?: string;
-    /** If true, displays RichInput instead of TextField */
+    /** If true, displays RichInput instead of TextInput */
     isMarkdown?: boolean;
     /** Maximum number of characters for the text field. Defaults to 1000 */
     maxChars?: number;
@@ -428,7 +318,7 @@ export interface FieldDataTagSelector extends FieldDataBase {
 }
 
 /**
- * Field data type and props for TextField input components
+ * Field data type and props for text input components
  */
 export interface FieldDataText extends FieldDataBase {
     /**

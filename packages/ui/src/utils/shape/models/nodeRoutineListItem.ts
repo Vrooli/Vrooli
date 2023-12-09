@@ -1,5 +1,6 @@
 import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemTranslation, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput, NodeRoutineListItemUpdateInput } from "@local/shared";
-import { ShapeModel } from "types";
+import { CanConnect, ShapeModel } from "types";
+import { NodeRoutineListShape } from "./nodeRoutineList";
 import { RoutineVersionShape, shapeRoutineVersion } from "./routineVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
@@ -8,8 +9,8 @@ export type NodeRoutineListItemTranslationShape = Pick<NodeRoutineListItemTransl
 }
 
 export type NodeRoutineListItemShape = Pick<NodeRoutineListItem, "id" | "index" | "isOptional"> & {
-    __typename?: "NodeRoutineListItem";
-    list: { id: string };
+    __typename: "NodeRoutineListItem";
+    list: CanConnect<NodeRoutineListShape>;
     routineVersion: RoutineVersionShape;
     translations: NodeRoutineListItemTranslationShape[];
 }

@@ -1,34 +1,38 @@
 import * as yup from "yup";
-import { bio, blankToUndefined, bool, handle, id, maxStrErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { bio, bool, handle, id, imageFile, maxStrErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 
-const botSettings = yup.string().transform(blankToUndefined).max(4096, maxStrErr);
+export const botSettings = yup.string().trim().removeEmptyString().max(4096, maxStrErr);
 
 export const botTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         bio: opt(bio),
-    },
-    update: {
+    }),
+    update: () => ({
         bio: opt(bio),
-    },
+    }),
 });
 
 export const botValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
+        bannerImage: opt(imageFile),
         botSettings: req(botSettings),
         handle: opt(handle),
+        isBotDepictingPerson: req(bool),
         isPrivate: opt(bool),
         name: req(name),
+        profileImage: opt(imageFile),
     }, [
         ["translations", ["Create"], "many", "opt", botTranslationValidation],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         botSettings: opt(botSettings),
         handle: opt(handle),
+        isBotDepictingPerson: opt(bool),
         isPrivate: opt(bool),
         name: opt(name),
     }, [
         ["translations", ["Create", "Update", "Delete"], "many", "opt", botTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

@@ -1,10 +1,9 @@
-import { useTheme } from "@mui/material";
-import { CSSProperties, FC, useCallback, useEffect, useRef } from "react";
-import { getDisplay, ListObject } from "utils/display/listTools";
+import { FC, useCallback, useEffect, useRef } from "react";
+import { ListObject, getDisplay } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
-import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
-import { RichInputChildView, RichInputMarkdownProps } from "../types";
+import { TextInput } from "../TextInput/TextInput";
+import { RichInputMarkdownProps } from "../types";
 
 enum Headers {
     H1 = "h1",
@@ -103,7 +102,7 @@ const getSelection = (id: string) => {
     };
 };
 
-/** TextField for entering markdown text */
+/** TextInput for entering markdown text */
 export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     autoFocus = false,
     disabled = false,
@@ -114,17 +113,18 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     minRows = 4,
     name,
     onBlur,
+    onFocus,
     onChange,
     openAssistantDialog,
     placeholder = "",
     redo,
+    setHandleAction,
     tabIndex,
     toggleMarkdown,
     undo,
     value,
     sx,
 }: RichInputMarkdownProps) => {
-    const { palette, typography } = useTheme();
 
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -267,30 +267,43 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
         tagData.setAnchorEl(null);
     }, [id, onChange, tagData]);
 
-    (RichInputMarkdown as unknown as RichInputChildView).handleAction = (action, data) => {
-        const actionMap = {
-            "Assistant": () => openAssistantDialog(getSelection(id).selected),
-            "Bold": bold,
-            "Code": () => { }, //TODO
-            "Header1": () => insertHeader(Headers.H1),
-            "Header2": () => insertHeader(Headers.H2),
-            "Header3": () => insertHeader(Headers.H3),
-            "Italic": italic,
-            "Link": insertLink,
-            "ListBullet": insertBulletList,
-            "ListCheckbox": insertCheckboxList,
-            "ListNumber": insertNumberList,
-            "Quote": () => { }, //TODO
-            "Redo": redo,
-            "Spoiler": spoiler,
-            "Strikethrough": strikethrough,
-            "Table": () => insertTable(data as { rows: number, cols: number }),
-            "Underline": underline,
-            "Undo": undo,
-        };
-        const actionFunction = actionMap[action];
-        if (actionFunction) actionFunction();
-    };
+    useEffect(() => {
+        if (!setHandleAction) return;
+        setHandleAction((action, data) => {
+            const actionMap = {
+                "Assistant": () => openAssistantDialog(getSelection(id).selected),
+                "Bold": bold,
+                "Code": () => { }, //TODO
+                "Header1": () => insertHeader(Headers.H1),
+                "Header2": () => insertHeader(Headers.H2),
+                "Header3": () => insertHeader(Headers.H3),
+                "Italic": italic,
+                "Link": insertLink,
+                "ListBullet": insertBulletList,
+                "ListCheckbox": insertCheckboxList,
+                "ListNumber": insertNumberList,
+                "Quote": () => { }, //TODO
+                "Redo": redo,
+                "SetValue": () => {
+                    if (typeof data !== "string") {
+                        console.error("Invalid data for SetValue action", data);
+                        return;
+                    }
+                    // Set value without triggering onChange
+                    const { inputElement } = getSelection(id);
+                    if (!inputElement) return;
+                    inputElement.value = data;
+                },
+                "Spoiler": spoiler,
+                "Strikethrough": strikethrough,
+                "Table": () => insertTable(data as { rows: number, cols: number }),
+                "Underline": underline,
+                "Undo": undo,
+            };
+            const actionFunction = actionMap[action];
+            if (actionFunction) actionFunction();
+        });
+    }, [bold, id, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, insertTable, italic, openAssistantDialog, redo, setHandleAction, spoiler, strikethrough, underline, undo]);
 
     // Listen for text input changes
     useEffect(() => {
@@ -329,7 +342,6 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                     return;
                 }
             }
-            console.log("tag info:", tagData.anchorEl, typeof getTaggableItems, e.key);
             // Handle tag dropdown. Triggered by "@" key press
             if (!tagData.anchorEl && typeof getTaggableItems === "function" && e.key === "@") {
                 console.log("opening dropdown for tags");
@@ -441,34 +453,38 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     return (
         <>
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
-            <textarea
+            <TextInput
                 id={id}
-                ref={textAreaRef}
+                ref={textAreaRef as any}
                 autoFocus={autoFocus}
                 disabled={disabled}
+                multiline
                 name={name}
                 placeholder={placeholder}
                 rows={minRows}
                 value={value}
                 onBlur={onBlur}
+                onFocus={onFocus}
                 onChange={(e) => { onChange(e.target.value); }}
                 tabIndex={tabIndex}
                 spellCheck
-                style={{
-                    padding: "16.5px 14px",
+                sx={{
                     minWidth: "-webkit-fill-available",
                     maxWidth: "-webkit-fill-available",
                     outline: "none",
                     resize: "none",
-                    borderColor: error ? palette.error.main : palette.divider,
-                    borderRadius: "0 0 4px 4px",
-                    fontFamily: typography.fontFamily,
-                    fontSize: typography.fontSize + 2,
-                    lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
-                    backgroundColor: palette.background.paper,
-                    color: palette.text.primary,
+                    "& .MuiOutlinedInput-notchedOutline": {
+                        borderRadius: "0 0 4px 4px",
+                        borderTop: "none",
+                    },
+                    "& .MuiInputBase-root": {
+                        minHeight: sx?.minHeight ?? "unset",
+                        "& > textarea": {
+                            marginBottom: "auto",
+                        },
+                    },
                     ...sx,
-                } as CSSProperties}
+                }}
             />
         </>
     );

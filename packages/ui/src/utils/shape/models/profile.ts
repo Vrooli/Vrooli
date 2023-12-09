@@ -8,7 +8,7 @@ export type ProfileTranslationShape = Pick<UserTranslation, "id" | "language" | 
 }
 
 export type ProfileShape = Partial<Pick<User, "handle" | "isPrivate" | "isPrivateApis" | "isPrivateApisCreated" | "isPrivateMemberships" | "isPrivateOrganizationsCreated" | "isPrivateProjects" | "isPrivateProjectsCreated" | "isPrivatePullRequests" | "isPrivateQuestionsAnswered" | "isPrivateQuestionsAsked" | "isPrivateQuizzesCreated" | "isPrivateRoles" | "isPrivateRoutines" | "isPrivateRoutinesCreated" | "isPrivateStandards" | "isPrivateStandardsCreated" | "isPrivateBookmarks" | "isPrivateVotes" | "name" | "theme">> & {
-    __typename?: "User",
+    __typename: "User",
     id: string;
     bannerImage?: string | File | null;
     focusModes?: FocusModeShape[] | null;

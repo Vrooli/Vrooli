@@ -6,7 +6,8 @@
  * be safe than sorry.
  */
 import { ActiveFocusMode, COOKIE, exists, FocusMode, ValueOf } from "@local/shared";
-import { NavigableObject } from "types";
+import { AssistantTask, NavigableObject } from "types";
+import { chatMatchHash } from "./hash";
 
 /**
  * Handles storing and retrieving cookies, which may or 
@@ -14,17 +15,20 @@ import { NavigableObject } from "types";
  */
 export const Cookies = {
     ...COOKIE,
-    Dimensions: "dimensions", // Used to store the dimensions of a resizable component
     PartialData: "partialData", // Used to store partial data for the page before the full data is loaded
     Preferences: "cookiePreferences",
     Theme: "theme",
     FontSize: "fontSize",
     Language: "language",
+    LastTab: "lastTab",
     IsLeftHanded: "isLeftHanded",
     FocusModeActive: "focusModeActive",
     FocusModeAll: "focusModeAll",
     ShowMarkdown: "showMarkdown",
     SideMenuState: "sideMenuState",
+    ChatMessageTree: "chatMessageTree",
+    ChatParticipants: "chatParticipants",
+    FormData: "formData",
 };
 export type Cookies = ValueOf<typeof Cookies>;
 
@@ -38,7 +42,7 @@ export type CookiePreferences = {
     targeting: boolean;
 }
 
-const getCookie = <T>(name: Cookies, typeCheck: (value: unknown) => value is T): T | undefined => {
+const getCookie = <T>(name: Cookies | string, typeCheck: (value: unknown) => value is T): T | undefined => {
     const cookie = localStorage.getItem(name);
     // Try to parse
     try {
@@ -52,13 +56,13 @@ const getCookie = <T>(name: Cookies, typeCheck: (value: unknown) => value is T):
     return undefined;
 };
 
-const setCookie = (name: Cookies, value: unknown) => { localStorage.setItem(name, JSON.stringify(value)); };
+const setCookie = (name: Cookies | string, value: unknown) => { localStorage.setItem(name, JSON.stringify(value)); };
 
 /**
  * Gets a cookie if it exists, otherwise sets it to the default value. 
  * Assumes that you have already checked that the cookie is allowed.
  */
-export const getOrSetCookie = <T>(name: Cookies, typeCheck: (value: unknown) => value is T, defaultValue?: T): T | undefined => {
+export const getOrSetCookie = <T>(name: Cookies | string, typeCheck: (value: unknown) => value is T, defaultValue?: T): T | undefined => {
     const cookie = getCookie(name, typeCheck);
     if (exists(cookie)) return cookie;
     if (exists(defaultValue)) setCookie(name, defaultValue);
@@ -154,7 +158,7 @@ export const getCookieAllFocusModes = <T extends FocusMode[]>(fallback?: T): T =
     );
 export const setCookieAllFocusModes = (modes: FocusMode[]) => ifAllowed("functional", () => setCookie(Cookies.FocusModeAll, modes));
 
-export const getSideMenuState = <T extends boolean | undefined>(id: string, fallback?: T): T =>
+export const getCookieSideMenuState = <T extends boolean | undefined>(id: string, fallback?: T): T =>
     ifAllowed("functional",
         () => {
             const allMenus = getOrSetCookie(Cookies.SideMenuState, (value: unknown): value is Record<string, boolean> => typeof value === "object" && value !== null, {});
@@ -163,34 +167,9 @@ export const getSideMenuState = <T extends boolean | undefined>(id: string, fall
         fallback,
     );
 
-export const setSideMenuState = (id: string, state: boolean) => ifAllowed("functional", () => {
+export const setCookieSideMenuState = (id: string, state: boolean) => ifAllowed("functional", () => {
     const allMenus = getOrSetCookie(Cookies.SideMenuState, (value: unknown): value is Record<string, boolean> => typeof value === "object" && value !== null, {});
     setCookie(Cookies.SideMenuState, allMenus ? { ...allMenus, [id]: state } : { [id]: state });
-});
-
-type Dimensions = { width: number, height: number };
-
-export const getCookieDimensions = (id: string, fallback?: Dimensions): Dimensions | undefined =>
-    ifAllowed("functional",
-        () => {
-            const allDimensions = getOrSetCookie(Cookies.Dimensions, (value: unknown): value is Record<string, Dimensions> => typeof value === "object" && value !== null, {});
-            if (!allDimensions || !allDimensions[id]) return fallback;
-            // If dimension exists, make sure it's not larger than the screen
-            const { width, height } = allDimensions[id];
-            const maxWidth = window.innerWidth - 100;
-            const maxHeight = window.innerHeight - 100;
-            console.log("got cookie dimensions", width, height);
-            return {
-                width: Math.min(width ?? 0, maxWidth),
-                height: Math.min(height ?? 0, maxHeight),
-            };
-        },
-        fallback,
-    );
-
-export const setCookieDimensions = (id: string, dimensions: Dimensions) => ifAllowed("functional", () => {
-    const allDimensions = getOrSetCookie(Cookies.Dimensions, (value: unknown): value is Record<string, Dimensions> => typeof value === "object" && value !== null, {});
-    setCookie(Cookies.Dimensions, allDimensions ? { ...allDimensions, [id]: dimensions } : { [id]: dimensions });
 });
 
 export const getCookieShowMarkdown = <T extends boolean | undefined>(fallback?: T): T =>
@@ -200,9 +179,217 @@ export const getCookieShowMarkdown = <T extends boolean | undefined>(fallback?: 
     );
 export const setCookieShowMarkdown = (showMarkdown: boolean) => ifAllowed("functional", () => setCookie(Cookies.ShowMarkdown, showMarkdown));
 
+export const getCookieLastTab = <T>(id: string, fallback?: T): T | undefined => ifAllowed("functional", () => {
+    const lastTab = getOrSetCookie(`${Cookies.LastTab}-${id}`, (value: unknown): value is string => typeof value === "string", undefined);
+    return lastTab as unknown as T;
+}, fallback);
+export const setCookieLastTab = <T>(id: string, tabType: T) => ifAllowed("functional", () => setCookie(`${Cookies.LastTab}-${id}`, tabType));
+
+
+
+
+
+/** Represents the stored values for a particular form identified by objectType and objectId */
+type FormCacheEntry = {
+    [key: string]: any; // This would be the form data
+}
+
+type FormCache = {
+    formData: { [formId: string]: FormCacheEntry };
+    order: string[]; // Order of formIds in cache, for FIFO
+};
+
+const MAX_FORM_CACHE_SIZE = 100; // You can set this to an appropriate limit
+
+/** Get the form data cache */
+const getFormDataCache = (): FormCache => getOrSetCookie(
+    Cookies.FormData,
+    (value: unknown): value is FormCache =>
+        typeof value === "object" &&
+        typeof (value as Partial<FormCache>)?.formData === "object" &&
+        Array.isArray((value as Partial<FormCache>)?.order),
+    {
+        formData: {},
+        order: [],
+    }, // Default value
+) as FormCache;
+
+export const getCookieFormData = (formId: string): FormCacheEntry | undefined =>
+    ifAllowed("functional", () => {
+        const cache = getFormDataCache();
+        return cache.formData[formId];
+    });
+
+export const setCookieFormData = (formId: string, data: FormCacheEntry) => ifAllowed("functional", () => {
+    const cache = getFormDataCache();
+
+    // If formId already exists, remove from order for reinsertion at end
+    const existingIndex = cache.order.indexOf(formId);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+    }
+
+    // If cache is full, remove the oldest form data
+    if (cache.order.length >= MAX_FORM_CACHE_SIZE) {
+        const oldestFormId = cache.order.shift();
+        if (oldestFormId) {
+            delete cache.formData[oldestFormId];
+        }
+    }
+
+    // Store the new/updated form data and update order
+    cache.formData[formId] = data;
+    cache.order.push(formId);
+
+    setCookie(Cookies.FormData, cache);
+});
+
+export const removeCookieFormData = (formId: string) => ifAllowed("functional", () => {
+    const cache = getFormDataCache();
+
+    // Remove form data from cache
+    const existingIndex = cache.order.indexOf(formId);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+        delete cache.formData[formId];
+
+        setCookie(Cookies.FormData, cache);
+    }
+});
+
+
+
+
+
+
+/** Maps a chat message ID to the ID of the selected child branch */
+export type BranchMap = Record<string, string>;
+type ChatMessageTreeCookie = {
+    branches: BranchMap
+    /** The message you viewed last */
+    locationId: string;
+}
+type ChatMessageCache = {
+    chats: { [chatId: string]: ChatMessageTreeCookie };
+    order: string[]; // Order of chatIds in cache, for FIFO
+};
+
+const MAX_CHAT_CACHE_SIZE = 100;
+
+/** Get the chat message cache */
+const getChatMessageCache = (): ChatMessageCache => getOrSetCookie(
+    Cookies.ChatMessageTree,
+    (value: unknown): value is ChatMessageCache =>
+        typeof value === "object" &&
+        typeof (value as Partial<ChatMessageCache>)?.chats === "object" &&
+        Array.isArray((value as Partial<ChatMessageCache>)?.order),
+    {
+        chats: {},
+        order: [],
+    }, // Default value
+) as ChatMessageCache;
+
+export const getCookieMessageTree = (chatId: string): ChatMessageTreeCookie | undefined =>
+    ifAllowed("functional", () => {
+        const cache = getChatMessageCache();
+        return cache.chats[chatId];
+    });
+
+export const setCookieMessageTree = (chatId: string, data: ChatMessageTreeCookie) => ifAllowed("functional", () => {
+    const cache = getChatMessageCache();
+
+    // If chatId already exists, remove from order for reinsertion at end
+    const existingIndex = cache.order.indexOf(chatId);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+    }
+
+    // If cache is full, remove the oldest chat
+    if (cache.order.length >= MAX_CHAT_CACHE_SIZE) {
+        const oldestChatId = cache.order.shift();
+        if (oldestChatId) {
+            delete cache.chats[oldestChatId];
+        }
+    }
+
+    // Store the new/updated chat data and update order
+    cache.chats[chatId] = data;
+    cache.order.push(chatId);
+
+    setCookie(Cookies.ChatMessageTree, cache);
+});
+
+
+
+
+
+type ChatGroupCookie = {
+    /** The last chatId for the group of userIds */
+    chatId: string;
+};
+
+type ChatMatchCache = {
+    chats: { [participantsHash: string]: ChatGroupCookie };
+    order: string[]; // Array of participantsHash in cache, for FIFO
+};
+
+const MAX_CHAT_MATCH_CACHE_SIZE = 100;
+
+const getChatMatchCache = (): ChatMatchCache => getOrSetCookie(
+    Cookies.ChatParticipants,
+    (value: unknown): value is ChatMatchCache =>
+        typeof value === "object" &&
+        typeof (value as Partial<ChatMatchCache>)?.chats === "object" &&
+        Array.isArray((value as Partial<ChatMatchCache>)?.order),
+    {
+        chats: {},
+        order: [], // Default value for order
+    }, // Default value
+) as ChatMatchCache;
+
+export const getCookieMatchingChat = (userIds: string[], task?: AssistantTask): string | undefined => ifAllowed("functional", () => {
+    const cache = getChatMatchCache();
+    const participantsHash = chatMatchHash(userIds, task);
+    return cache.chats[participantsHash]?.chatId;
+});
+
+export const setCookieMatchingChat = (chatId: string, userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
+    const cache = getChatMatchCache();
+    const participantsHash = chatMatchHash(userIds, task);
+
+    // If participantsHash already exists, remove from order for reinsertion at end
+    const existingIndex = cache.order.indexOf(participantsHash);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+    } else if (cache.order.length >= MAX_CHAT_MATCH_CACHE_SIZE) {
+        // If cache is full, remove the oldest participants group
+        const oldestParticipantsHash = cache.order.shift();
+        if (oldestParticipantsHash) {
+            delete cache.chats[oldestParticipantsHash];
+        }
+    }
+    // Store the new/updated participants group chatId and update order
+    cache.chats[participantsHash] = { chatId };
+    cache.order.push(participantsHash);
+
+    setCookie(Cookies.ChatParticipants, cache);
+});
+export const removeCookieMatchingChat = (userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
+    const cache = getChatMatchCache();
+    const participantsHash = chatMatchHash(userIds, task);
+
+    // Remove participantsHash from cache
+    const existingIndex = cache.order.indexOf(participantsHash);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+        delete cache.chats[participantsHash];
+
+        setCookie(Cookies.ChatParticipants, cache);
+    }
+});
 
 /** Supports ID data from URL params, as well as partial object */
-type PartialData = {
+export type CookiePartialData = {
     __typename: NavigableObject["__typename"],
     id?: string | null,
     idRoot?: string | null,
@@ -222,10 +409,10 @@ type DataType = "list" | "full";
  * Objects can be cached using their ID or handle, or root's ID or handle
  */
 type Cache = {
-    idMap: Record<string, PartialData>,
-    handleMap: Record<string, PartialData>,
-    idRootMap: Record<string, PartialData>,
-    handleRootMap: Record<string, PartialData>,
+    idMap: Record<string, CookiePartialData>,
+    handleMap: Record<string, CookiePartialData>,
+    idRootMap: Record<string, CookiePartialData>,
+    handleRootMap: Record<string, CookiePartialData>,
     order: string[], // Order of objects in cache, for FIFO
 };
 
@@ -251,7 +438,7 @@ const getCache = (): Cache => getOrSetCookie(
 ) as Cache;
 
 /** Shape knownData to replace idRoot and handleRoot with proper root object */
-const shapeKnownData = <T extends PartialData>(knownData: T): T => ({
+const shapeKnownData = <T extends CookiePartialData>(knownData: T): T => ({
     ...knownData,
     idRoot: undefined,
     handleRoot: undefined,
@@ -263,7 +450,7 @@ const shapeKnownData = <T extends PartialData>(knownData: T): T => ({
         },
     } : {}),
 });
-export const getCookiePartialData = <T extends PartialData>(knownData: PartialData): T =>
+export const getCookiePartialData = <T extends CookiePartialData>(knownData: CookiePartialData): T =>
     ifAllowed("functional",
         () => {
             const shapedKnownData = shapeKnownData(knownData);
@@ -283,7 +470,7 @@ export const getCookiePartialData = <T extends PartialData>(knownData: PartialDa
         },
         shapeKnownData(knownData),
     );
-export const setCookiePartialData = (partialData: PartialData, dataType: DataType) => ifAllowed("functional", () => {
+export const setCookiePartialData = (partialData: CookiePartialData, dataType: DataType) => ifAllowed("functional", () => {
     ifAllowed("functional", () => {
         // Get the cache
         const cache = getCache();
@@ -295,7 +482,6 @@ export const setCookiePartialData = (partialData: PartialData, dataType: DataTyp
             (partialData.root?.id && cache.idRootMap[partialData.root.id]) ||
             (partialData.root?.handle && cache.handleRootMap[partialData.root.handle]));
         // If data type is "list", don't overwrite the existing cached data
-        console.log("setcookiepartialdata", dataType, isAlreadyInCache);
         if (isAlreadyInCache && dataType === "list") {
             return;
         }
@@ -333,4 +519,21 @@ export const setCookiePartialData = (partialData: PartialData, dataType: DataTyp
 
         setCookie(Cookies.PartialData, cache);
     });
+});
+export const removeCookiePartialData = (partialData: CookiePartialData) => ifAllowed("functional", () => {
+    // Get the cache
+    const cache = getCache();
+    // Create a key that includes every identifier for the object
+    const key = `${partialData.id}|${partialData.handle}|${partialData.root?.id}|${partialData.root?.handle}`;
+    // Remove the object from the cache
+    delete cache.idMap[partialData.id || ""];
+    delete cache.handleMap[partialData.handle || ""];
+    delete cache.idRootMap[partialData.root?.id || ""];
+    delete cache.handleRootMap[partialData.root?.handle || ""];
+    // Remove the key from the order array
+    const existingIndex = cache.order.indexOf(key);
+    if (existingIndex !== -1) {
+        cache.order.splice(existingIndex, 1);
+    }
+    setCookie(Cookies.PartialData, cache);
 });

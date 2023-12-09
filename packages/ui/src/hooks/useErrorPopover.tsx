@@ -2,17 +2,18 @@ import { exists, uppercaseFirstLetter } from "@local/shared";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { useCallback, useMemo, useState } from "react";
+import { FormErrors } from "types";
 
 interface UsePopoverMenuOptions {
-    errors: Record<string, string | string[] | null | undefined> | null | undefined;
-    onSetSubmitting?: (isSubmitting: boolean) => void;
+    errors: FormErrors | undefined;
+    onSetSubmitting?: (isSubmitting: boolean) => unknown;
 }
 
 interface UsePopoverMenuReturn {
-    closePopover: () => void;
+    closePopover: () => unknown;
     errorMessage: string;
     hasErrors: boolean;
-    openPopover: (event: React.MouseEvent | React.TouchEvent) => void;
+    openPopover: (event: React.MouseEvent | React.TouchEvent) => unknown;
     Popover: () => JSX.Element;
 }
 

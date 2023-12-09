@@ -1,6 +1,6 @@
 import { RoleSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsRole, RoleEndpoints } from "../logic";
+import { EndpointsRole, RoleEndpoints } from "../logic/role";
 
 export const typeDef = gql`
     enum RoleSortBy {

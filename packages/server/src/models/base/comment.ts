@@ -1,31 +1,35 @@
 import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { Request } from "express";
-import { getUser } from "../../auth";
-import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../../builders";
+import { ModelMap } from ".";
+import { getUser } from "../../auth/request";
+import { addSupplementalFields } from "../../builders/addSupplementalFields";
+import { combineQueries } from "../../builders/combineQueries";
+import { modelToGql } from "../../builders/modelToGql";
+import { selectHelper } from "../../builders/selectHelper";
+import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
+import { visibilityBuilder } from "../../builders/visibilityBuilder";
 import { getSearchStringQuery } from "../../getters";
 import { PrismaType, SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
 import { SortMap } from "../../utils/sortMap";
+import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
-import { CommentFormat } from "../format/comment";
-import { ModelLogic } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { ReactionModel } from "./reaction";
-import { CommentModelLogic } from "./types";
+import { CommentFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic } from "./types";
 
 const __typename = "Comment" as const;
-const suppFields = ["you"] as const;
-export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
+export const CommentModel: CommentModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.comment,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
         },
-    },
+    }),
     format: CommentFormat,
     mutate: {
         shape: {
@@ -33,15 +37,15 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
                 id: data.id,
                 ownedByUser: { connect: { id: rest.userData.id } },
                 [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
             }),
         },
         trigger: {
-            onCommon: async (params) => {
-                await onCommonPlain({
+            afterMutations: async (params) => {
+                await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
                     ownerOrganizationField: "ownedByOrganization",
@@ -63,15 +67,15 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             nestLimit = 2,
         ): Promise<CommentThread[]> {
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, userData?.languages ?? ["en"], true);
+            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, userData?.languages ?? ["en"], true);
             const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
             // Combine queries
             const where = { ...idQuery };
             // Determine sort order
             // Make sure sort field is valid
-            const orderByField = input.sortBy ?? CommentModel.search.defaultSort;
-            const orderByIsValid = CommentModel.search.sortBy[orderByField] === undefined;
-            const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search.defaultSort] : undefined;
+            const orderByField = input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort;
+            const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined;
+            const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
             // Find requested search array
             const searchResults = await prisma.comment.findMany({
                 where,
@@ -135,13 +139,13 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             nestLimit = 2,
         ): Promise<CommentSearchResult> {
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, req.session.languages, true);
+            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, req.session.languages, true);
             // Determine text search query
             const searchQuery = input.searchString ? getSearchStringQuery({ objectType: "Comment", searchString: input.searchString }) : undefined;
             // Loop through search fields and add each to the search query, 
             // if the field is specified in the input
             const customQueries: { [x: string]: any }[] = [];
-            for (const field of Object.keys(CommentModel.search.searchFields)) {
+            for (const field of Object.keys(ModelMap.get<CommentModelLogic>("Comment").search.searchFields)) {
                 if (input[field as string] !== undefined) {
                     customQueries.push(SearchMap[field as string](input[field as string], getUser(req.session), __typename));
                 }
@@ -152,9 +156,8 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
             // Determine sort order
             // Make sure sort field is valid
-            const orderByField = input.sortBy ?? CommentModel.search.defaultSort;
-            const orderByIsValid = CommentModel.search.sortBy[orderByField] === undefined;
-            const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search.defaultSort] : undefined;
+            const orderByField = input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort;
+            const orderBy = orderByField in SortMap ? SortMap[orderByField] : undefined;
             // Find requested search array
             const searchResults = await prisma.comment.findMany({
                 where,
@@ -182,7 +185,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
                 ids: searchResults.map(r => r.id),
                 take: input.take ?? 10,
-                sortBy: input.sortBy ?? CommentModel.search.defaultSort,
+                sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
             }, info, nestLimit) : [];
             // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
             const flattenThreads = (threads: CommentThread[]) => {
@@ -252,19 +255,19 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
         sortBy: CommentSortBy,
         searchStringQuery: () => ({ translations: "transText" }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 };
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -287,11 +290,11 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             canReply: () => isLoggedIn && (isAdmin || isPublic),
         }),
         owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+            Organization: data?.ownedByOrganization,
+            User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
+        isPublic: (...rest) => oneIsPublic<CommentModelInfo["PrismaSelect"]>([
             ["apiVersion", "ApiVersion"],
             ["issue", "Issue"],
             ["post", "Post"],
@@ -302,11 +305,11 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             ["routineVersion", "RoutineVersion"],
             ["smartContractVersion", "SmartContractVersion"],
             ["standardVersion", "StandardVersion"],
-        ], languages),
+        ], ...rest),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({ ownedByUser: { id: userId } }),
         },
-    },
+    }),
 });

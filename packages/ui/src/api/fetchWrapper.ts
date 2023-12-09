@@ -1,5 +1,7 @@
 import { CommonKey, ErrorKey, exists } from "@local/shared";
 import { Method, ServerResponse } from "api";
+import { MakeLazyRequest } from "hooks/useLazyFetch";
+import { useCallback } from "react";
 import { PubSub } from "utils/pubsub";
 import { errorToMessage } from "./errorParser";
 import { fetchData } from "./fetchData";
@@ -55,7 +57,7 @@ const objectToFormData = <T extends object>(obj: T, form?: FormData, namespace?:
 };
 
 interface FetchLazyWrapperProps<Input extends object | undefined, Output> {
-    fetch: (input?: Input) => Promise<ServerResponse<Output>>;
+    fetch: MakeLazyRequest<Input, Output>;
     /** Input to pass to endpoint */
     inputs?: Input;
     /** Callback to determine if mutation was a success, using mutation's return data */
@@ -91,16 +93,16 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
     // Helper function to handle errors
     const handleError = (data?: ServerResponse | undefined) => {
         // Stop spinner
-        if (spinnerDelay) PubSub.get().publishLoading(false);
+        if (spinnerDelay) PubSub.get().publish("loading", false);
         // Determine if error caused by bad response, or caught error
         const isError: boolean = exists(data) && exists(data.errors);
         // If specific error message is set, display it
         if (typeof errorMessage === "function") {
-            PubSub.get().publishSnack({ ...errorMessage(data), severity: "Error", data });
+            PubSub.get().publish("snack", { ...errorMessage(data), severity: "Error", data });
         }
         // Otherwise, if show default error snack is set, display it
         else if (showDefaultErrorSnack) {
-            PubSub.get().publishSnack({
+            PubSub.get().publish("snack", {
                 message: errorToMessage(data as ServerResponse, ["en"]),
                 severity: "Error",
                 data,
@@ -116,13 +118,13 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
         }
     };
     // Start loading spinner
-    if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
+    if (spinnerDelay) PubSub.get().publish("loading", spinnerDelay);
     let result: ServerResponse<Output> = {};
     // Convert inputs to FormData if they contain a File
     const finalInputs = inputs && Object.values(inputs).some(value => value instanceof File)
         ? objectToFormData(inputs)
         : inputs;
-    await fetch(finalInputs as Input)
+    await fetch(finalInputs as Input, { displayError: false })
         .then((response: ServerResponse<Output>) => {
             result = response;
             // If response is null or undefined or not an object, then there must be an error
@@ -148,7 +150,7 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
             }
             // If the success message callback is set, publish it
             if (typeof successMessage === "function") {
-                PubSub.get().publishSnack({ ...successMessage(data), severity: "Success" });
+                PubSub.get().publish("snack", { ...successMessage(data), severity: "Success" });
             }
             // If the success callback is set, call it
             if (typeof onSuccess === "function") {
@@ -163,7 +165,7 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
             handleError(error);
         }).finally(() => {
             // Stop spinner
-            if (spinnerDelay) PubSub.get().publishLoading(false);
+            if (spinnerDelay) PubSub.get().publish("loading", false);
         });
     return result;
 };
@@ -184,4 +186,30 @@ export const fetchWrapper = <Input extends object | undefined, Output>({
         fetch: (inputs) => fetchData<Input | undefined, Output>({ endpoint, method, inputs }),
         ...rest,
     });
+};
+
+type UseSubmitHelperProps<Input extends object | undefined, Output> = FetchLazyWrapperProps<Input, Output> & {
+    disabled?: boolean,
+    existing?: object,
+    isCreate: boolean,
+}
+
+/** Wraps around fetchLazyWrapper to provide common checks before submitting */
+export const useSubmitHelper = <Input extends object | undefined, Output>({
+    disabled,
+    existing,
+    isCreate,
+    ...props
+}: UseSubmitHelperProps<Input, Output>) => {
+    return useCallback(() => {
+        if (disabled === true) {
+            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
+            return;
+        }
+        if (!isCreate && (Array.isArray(existing) ? existing.length === 0 : !exists(existing))) {
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<Input, Output>(props);
+    }, [disabled, existing, isCreate, props]);
 };

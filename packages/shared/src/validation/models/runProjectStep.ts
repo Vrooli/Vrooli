@@ -5,7 +5,7 @@ import { enumToYup, id, intPositiveOrOne, intPositiveOrZero, name, opt, req, Yup
 const runProjectStepStatus = enumToYup(RunProjectStepStatus);
 
 export const runProjectStepValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         contextSwitches: opt(intPositiveOrOne),
         name: req(name),
@@ -15,11 +15,11 @@ export const runProjectStepValidation: YupModel = {
     }, [
         ["directory", ["Connect"], "one", "opt"],
         ["node", ["Connect"], "one", "opt"],
-    ], [], o),
-    update: ({ o }) => yupObj({
+    ], [], d),
+    update: (d) => yupObj({
         id: req(id),
         contextSwitches: opt(intPositiveOrOne),
         status: opt(runProjectStepStatus),
         timeElapsed: opt(intPositiveOrZero),
-    }, [], [], o),
+    }, [], [], d),
 };

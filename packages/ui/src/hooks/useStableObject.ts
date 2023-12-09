@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 // A simple deep comparison function
-function deepEqual(a: any, b: any): boolean {
+function deepEqual(a: unknown, b: unknown): boolean {
     if (a === b) return true;
     if (a === null || b === null || a === undefined || b === undefined) return false;
     if (typeof a !== "object" || typeof b !== "object") return false;
@@ -27,7 +27,7 @@ type NonFunction<T> = T extends (...args: any[]) => any ? never : T;
  * 
  * NOTE: Does not work for functions. Use useStableCallback for that.
  */
-export const useStableObject = <T extends object | null | undefined>(obj: NonFunction<T>): NonFunction<T> => {
+export const useStableObject = <T extends string | number | object | null | undefined>(obj: NonFunction<T>): NonFunction<T> => {
     const prevObjRef = useRef<NonFunction<T>>(obj as NonFunction<T>);
     const [, forceUpdate] = useState({});
 

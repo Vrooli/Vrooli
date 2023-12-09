@@ -1,5 +1,5 @@
 import { chatParticipant_findMany, chatParticipant_findOne, chatParticipant_update } from "../generated";
-import { ChatParticipantEndpoints } from "../logic";
+import { ChatParticipantEndpoints } from "../logic/chatParticipant";
 import { setupRoutes } from "./base";
 
 export const ChatParticipantRest = setupRoutes({

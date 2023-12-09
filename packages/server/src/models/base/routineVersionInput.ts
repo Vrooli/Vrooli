@@ -1,26 +1,26 @@
 import { routineVersionInputValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../../builders";
-import { defaultPermissions, translationShapeHelper } from "../../utils";
-import { RoutineVersionInputFormat } from "../format/routineVersionInput";
-import { ModelLogic } from "../types";
-import { RoutineVersionModel } from "./routineVersion";
-import { RoutineVersionInputModelLogic, RoutineVersionModelLogic } from "./types";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { translationShapeHelper } from "../../utils/shapes";
+import { RoutineVersionInputFormat } from "../formats";
+import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
 
 const __typename = "RoutineVersionInput" as const;
-const suppFields = [] as const;
-export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic, typeof suppFields> = ({
+export const RoutineVersionInputModel: RoutineVersionInputModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.routine_version_input,
-    display: {
+    display: () => ({
         label: {
             select: () => ({
                 id: true,
                 name: true,
-                routineVersion: { select: RoutineVersionModel.display.label.select() },
+                routineVersion: { select: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.select() },
             }),
-            get: (select, languages) => select.name ?? RoutineVersionModel.display.label.get(select.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
+            get: (select, languages) => select.name ?? ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
         },
-    },
+    }),
     format: RoutineVersionInputFormat,
     mutate: {
         shape: {
@@ -29,33 +29,33 @@ export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic,
                 index: noNull(data.index),
                 isRequired: noNull(data.isRequired),
                 name: noNull(data.name),
-                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "RoutineVersion", parentRelationshipName: "inputs", data, ...rest })),
-                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: false, objectType: "StandardVersion", parentRelationshipName: "routineVersionInputs", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "inputs", data, ...rest })),
+                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "routineVersionInputs", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 index: noNull(data.index),
                 isRequired: noNull(data.isRequired),
                 name: noNull(data.name),
-                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create", "Disconnect"], isOneToOne: true, isRequired: false, objectType: "StandardVersion", parentRelationshipName: "routineVersionInputs", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Create", "Delete"], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create", "Disconnect"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "routineVersionInputs", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Create", "Delete"], data, ...rest })),
             }),
         },
         yup: routineVersionInputValidation,
     },
     search: undefined,
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
-        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<RoutineVersionInputModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         visibility: {
             private: {},
             public: {},
-            owner: (userId) => ({ routineVersion: RoutineVersionModel.validate.visibility.owner(userId) }),
+            owner: (userId) => ({ routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.owner(userId) }),
         },
-    },
+    }),
 });

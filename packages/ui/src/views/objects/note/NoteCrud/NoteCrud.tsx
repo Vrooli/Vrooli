@@ -1,12 +1,13 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, NoteVersion, NoteVersionCreateInput, noteVersionTranslationValidation, NoteVersionUpdateInput, noteVersionValidation, orDefault, Session, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, NoteVersion, NoteVersionCreateInput, noteVersionTranslationValidation, NoteVersionUpdateInput, noteVersionValidation, orDefault, Session, Success } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
+import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -14,27 +15,27 @@ import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { NoteFormProps } from "forms/types";
-import { useFormDialog } from "hooks/useFormDialog";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
+import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { FormContainer, FormSection } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYou, ListObject } from "utils/display/listTools";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { noopSubmit } from "utils/objects";
 import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
 import { NoteVersionShape, shapeNoteVersion } from "utils/shape/models/noteVersion";
 import { OwnerShape } from "utils/shape/models/types";
+import { validateFormValues } from "utils/validateFormValues";
 import { NoteCrudProps } from "views/objects/note/types";
+import { NoteFormProps } from "../types";
 
 const noteInitialValues = (
     session: Session | undefined,
@@ -47,6 +48,7 @@ const noteInitialValues = (
     versionLabel: existing?.versionLabel ?? "1.0.0",
     ...existing,
     root: {
+        __typename: "Note" as const,
         id: DUMMY_ID,
         isPrivate: true,
         owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" } as OwnerShape,
@@ -69,69 +71,58 @@ const noteInitialValues = (
     }]),
 });
 
-const transformNoteValues = (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) =>
+const transformNoteVersionValues = (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) =>
     isCreate ? shapeNoteVersion.create(values) : shapeNoteVersion.update(existing, values);
-
-const validateNoteValues = async (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) => {
-    const transformedValues = transformNoteValues(values, existing, isCreate);
-    console.log("validating note value", values, transformedValues);
-    const validationSchema = noteVersionValidation[isCreate ? "create" : "update"]({});
-    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-    return result;
-};
 
 const NoteForm = ({
     disabled,
     dirty,
+    display,
     existing,
     handleUpdate,
     isCreate,
     isOpen,
     isReadLoading,
     onCancel,
+    onClose,
     onCompleted,
     onDeleted,
     values,
     ...props
 }: NoteFormProps) => {
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
+    const { handleCancel, handleCompleted, handleDeleted, isCacheOn } = useUpsertActions<NoteVersion>({
+        display,
+        isCreate,
+        objectId: values.id,
+        objectType: "NoteVersion",
+        ...props,
+    });
     const {
         fetch,
-        handleCancel,
-        handleCompleted,
-        handleDeleted,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertActions<NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput>({
-        display,
+    } = useUpsertFetch<NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput>({
+        isCreate,
+        isMutate: true,
         endpointCreate: endpointPostNoteVersion,
         endpointUpdate: endpointPutNoteVersion,
-        isCreate,
-        onCancel,
-        onCompleted,
-        onDeleted,
     });
-    const { formRef, handleClose } = useFormDialog({ handleCancel });
+    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "NoteVersion" });
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publishSnack({ messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        console.log("in onSubmit - values: ", values);
-        console.log("in onSubmit - transformNoteValues: ", transformNoteValues(values, existing, isCreate));
-        fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
-            fetch,
-            inputs: transformNoteValues(values, existing, isCreate),
-            onSuccess: (data) => { handleCompleted(data); },
-            onCompleted: () => { props.setSubmitting(false); },
-        });
-    }, [disabled, existing, fetch, handleCompleted, isCreate, props, values]);
+    const onSubmit = useSubmitHelper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
+        disabled,
+        existing,
+        fetch,
+        inputs: transformNoteVersionValues(values, existing, isCreate),
+        isCreate,
+        onSuccess: (data) => { handleCompleted(data); },
+        onCompleted: () => { props.setSubmitting(false); },
+    });
 
     const {
         handleAddLanguage,
@@ -143,9 +134,8 @@ const NoteForm = ({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name", "pages[0].text"],
-        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
     });
-    console.log("noteform", props.errors, translationErrors);
 
     const actionData = useObjectActions({
         object: existing as ListObject,
@@ -167,7 +157,7 @@ const NoteForm = ({
                 errorMessage: () => ({ messageKey: "FailedToDelete" }),
             });
         };
-        PubSub.get().publishAlertDialog({
+        PubSub.get().publish("alertDialog", {
             messageKey: "DeleteConfirm",
             buttons: [{
                 labelKey: "Delete",
@@ -178,19 +168,19 @@ const NoteForm = ({
         });
     }, [deleteMutation, values, t, handleDeleted]);
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isDeleteLoading, isUpdateLoading, props.isSubmitting]);
+    const isLoading = useMemo(() => isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     return (
         <MaybeLargeDialog
             display={display}
             id="note-crud-dialog"
             isOpen={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
             sxs={{ paper: { height: "100%" } }}
         >
             <TopBar
                 display={display}
-                onClose={handleClose}
+                onClose={onClose}
                 titleComponent={<EditableTitle
                     handleDelete={handleDelete}
                     isDeletable={!(isCreate || disabled)}
@@ -198,16 +188,54 @@ const NoteForm = ({
                     language={language}
                     titleField="name"
                     subtitleField="description"
-                    validationEnabled={false}
                     variant="subheader"
                     sxs={{ stack: { padding: 0 } }}
+                    DialogContentForm={() => (
+                        <>
+                            <BaseForm
+                                display="dialog"
+                                style={{
+                                    width: "min(700px, 100vw)",
+                                    paddingBottom: "16px",
+                                }}
+                            >
+                                <FormContainer>
+                                    <RelationshipList
+                                        isEditing={true}
+                                        objectType={"Note"}
+                                        sx={{ marginBottom: 4 }}
+                                    />
+                                    <FormSection sx={{ overflowX: "hidden" }}>
+                                        <LanguageInput
+                                            currentLanguage={language}
+                                            handleAdd={handleAddLanguage}
+                                            handleDelete={handleDeleteLanguage}
+                                            handleCurrent={setLanguage}
+                                            languages={languages}
+                                        />
+                                        <TranslatedTextInput
+                                            fullWidth
+                                            label={t("Name")}
+                                            language={language}
+                                            name="name"
+                                        />
+                                        <TranslatedRichInput
+                                            language={language}
+                                            maxChars={2048}
+                                            minRows={4}
+                                            name="description"
+                                            placeholder={t("Description")}
+                                        />
+                                    </FormSection>
+                                </FormContainer>
+                            </BaseForm>
+                        </>
+                    )}
                 />}
             />
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
-                ref={formRef}
                 style={{
                     width: "min(800px, 100vw)",
                     height: "100%",
@@ -255,46 +283,34 @@ const NoteForm = ({
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 hideButtons={disabled}
                 isCreate={isCreate}
-                loading={props.isSubmitting}
+                loading={isLoading}
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
-                sideActionButtons={{
-                    children: (
-                        <EllipsisActionButton>
-                            <>
-                                <Box sx={{
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                }}>
-                                    {!disabled ? <LanguageInput
-                                        currentLanguage={language}
-                                        handleAdd={handleAddLanguage}
-                                        handleDelete={handleDeleteLanguage}
-                                        handleCurrent={setLanguage}
-                                        languages={languages}
-                                    /> : languages.length > 1 ? <SelectLanguageMenu
-                                        currentLanguage={language}
-                                        handleCurrent={setLanguage}
-                                        languages={languages}
-                                    /> : undefined}
-                                    {!disabled && <RelationshipList
-                                        isEditing={true}
-                                        objectType={"Note"}
-                                    />}
-                                </Box>
-                                {!isCreate && (
-                                    <ObjectActionsRow
-                                        actionData={actionData}
-                                        exclude={[ObjectAction.Delete, ObjectAction.Edit]}
-                                        object={values as ListObject}
-                                    />
-                                )}
-                            </>
-                        </EllipsisActionButton>
-                    ),
-                }}
+                sideActionButtons={(!isCreate || (disabled && languages.length > 1)) ? (
+                    <EllipsisActionButton>
+                        <>
+                            <Box sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                            }}>
+                                {disabled && languages.length > 1 ? <SelectLanguageMenu
+                                    currentLanguage={language}
+                                    handleCurrent={setLanguage}
+                                    languages={languages}
+                                /> : undefined}
+                            </Box>
+                            {!isCreate && (
+                                <ObjectActionsRow
+                                    actionData={actionData}
+                                    exclude={[ObjectAction.Delete, ObjectAction.Edit]}
+                                    object={values as ListObject}
+                                />
+                            )}
+                        </>
+                    </EllipsisActionButton>
+                ) : null}
             />
         </MaybeLargeDialog>
     );
@@ -310,19 +326,19 @@ export const NoteCrud = ({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
         ...endpointGetNoteVersion,
+        isCreate,
         objectType: "NoteVersion",
         overrideObject,
         transform: (data) => noteInitialValues(session, data),
     });
     const { canUpdate } = useMemo(() => getYou(existing as ListObject), [existing]);
-    console.log("EXISTING", existing);
 
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateNoteValues(values, existing, isCreate)}
+            validate={async (values) => await validateFormValues(values, existing, isCreate, transformNoteVersionValues, noteVersionValidation)}
         >
             {(formik) =>
                 <>

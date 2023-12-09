@@ -40,6 +40,7 @@ export const chatInvite_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -124,6 +125,10 @@ export const chatInvite_findMany = {
                 "language": true,
                 "description": true
               }
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true
             }
           },
           "id": true,
@@ -169,6 +174,7 @@ export const chatInvite_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },
@@ -196,6 +202,7 @@ export const chatInvite_findMany = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true
       },

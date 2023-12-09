@@ -1,13 +1,11 @@
-import { Button, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { Button, DialogContent, Stack, Typography, useTheme } from "@mui/material";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DeleteIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { DeleteDialogProps } from "../types";
-
-// Objects which show a simple confirmation instead of requiring the full "enter name" flow
-// const simpleConfirmationObjects = [GqlModelType.Note, GqlModelType.NoteVersion, GqlModelType.
 
 export const DeleteDialog = ({
     handleClose,
@@ -44,7 +42,7 @@ export const DeleteDialog = ({
                     <Typography variant="h6">{t("DeleteConfirmTitle", { objectName })}</Typography>
                     <Typography variant="body1" sx={{ color: palette.background.textSecondary, paddingBottom: 3 }}>{t("DeleteConfirmDescription")}</Typography>
                     <Typography variant="h6">Enter <b>{objectName}</b> to confirm.</Typography>
-                    <TextField
+                    <TextInput
                         variant="outlined"
                         fullWidth
                         value={nameInput}

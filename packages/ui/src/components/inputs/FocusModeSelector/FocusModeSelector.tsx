@@ -30,10 +30,10 @@ export const FocusModeSelector = () => {
         // If you can't add and don't have premium, open premium page
         else if (!hasPremium) {
             setLocation(LINKS.Premium);
-            PubSub.get().publishSnack({ message: "Upgrade to increase limit", severity: "Info" });
+            PubSub.get().publish("snack", { message: "Upgrade to increase limit", severity: "Info" });
         }
         // Otherwise, show error
-        else PubSub.get().publishSnack({ message: "Max reached", severity: "Error" });
+        else PubSub.get().publish("snack", { message: "Max reached", severity: "Error" });
     };
 
     return (
@@ -54,7 +54,7 @@ export const FocusModeSelector = () => {
                     inputAriaLabel="Focus Mode"
                     label={t("FocusMode", { count: 1, defaultValue: "Focus Mode" })}
                     onChange={(newMode) => {
-                        newMode && PubSub.get().publishFocusMode({
+                        newMode && PubSub.get().publish("focusMode", {
                             __typename: "ActiveFocusMode" as const,
                             mode: newMode,
                             stopCondition: FocusModeStopCondition.NextBegins,

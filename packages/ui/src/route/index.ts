@@ -1,7 +1,7 @@
-export * from "./getLastUrlPart";
+export * from "./getLastPathnamePart";
 export * from "./matcher";
 export * from "./openLink";
 export * from "./router";
 export * from "./searchParams";
-export * from "./useLocation";
+export * from "./types";
 

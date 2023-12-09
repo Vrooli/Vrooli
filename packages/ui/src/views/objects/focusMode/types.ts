@@ -1,4 +1,9 @@
 import { FocusMode } from "@local/shared";
-import { UpsertProps } from "../types";
+import { FormProps } from "forms/types";
+import { FocusModeShape } from "utils/shape/models/focusMode";
+import { CrudPropsDialog, CrudPropsPage } from "../types";
 
-export type FocusModeUpsertProps = UpsertProps<FocusMode>;
+type FocusModeUpsertPropsPage = CrudPropsPage;
+type FocusModeUpsertPropsDialog = CrudPropsDialog<FocusMode>;
+export type FocusModeUpsertProps = FocusModeUpsertPropsPage | FocusModeUpsertPropsDialog;
+export type FocusModeFormProps = FormProps<FocusMode, FocusModeShape>

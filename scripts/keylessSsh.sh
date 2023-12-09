@@ -3,9 +3,6 @@
 # By default, tries to use SITE_IP from .env file, but can also be passed
 # as a command line argument. Example usage:
 #  ./scripts/keylessSsh.sh 123.456.789.012
-#
-# Arguments (all optional):
-# -e: .env file location (e.g. "/root/my-folder/.env"). Defaults to .env-prod
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
@@ -17,14 +14,14 @@ CONN_TIMEOUT=10
 ENV_FILE="${HERE}/../.env-prod"
 while getopts "he:" opt; do
     case $opt in
-    e)
-        ENV_FILE=$OPTARG
-        ;;
     h)
         echo "Usage: $0 [-h] [-e ENV_FILE]"
         echo "  -h --help: Show this help message"
         echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
         exit 0
+        ;;
+    e)
+        ENV_FILE=$OPTARG
         ;;
     \?)
         echo "Invalid option: -$OPTARG" >&2

@@ -1,20 +1,18 @@
 import { MaxObjects, RunProjectSortBy, runProjectValidation, RunStatus } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../../builders";
+import { ModelMap } from ".";
+import { noNull } from "../../builders/noNull";
+import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
-import { RunProjectFormat } from "../format/runProject";
-import { ModelLogic } from "../types";
-import { OrganizationModel } from "./organization";
-import { ProjectVersionModel } from "./projectVersion";
-import { RunProjectModelLogic } from "./types";
+import { RunProjectFormat } from "../formats";
+import { SuppFields } from "../suppFields";
+import { OrganizationModelLogic, ProjectVersionModelLogic, RunProjectModelInfo, RunProjectModelLogic } from "./types";
 
 const __typename = "RunProject" as const;
-const suppFields = ["you"] as const;
-export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields> = ({
+export const RunProjectModel: RunProjectModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.run_project,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
@@ -25,7 +23,7 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
                 return getEmbeddableString({ name }, languages[0]);
             },
         },
-    },
+    }),
     format: RunProjectFormat,
     mutate: {
         shape: {
@@ -35,16 +33,16 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches: noNull(data.contextSwitches),
                     embeddingNeedsUpdate: true,
-                    isPrivate: noNull(data.isPrivate),
+                    isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
                     ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
                     ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
                     ...(data.organizationConnect ? {} : { user: { connect: { id: rest.userData.id } } }),
-                    ...(await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "ProjectVersion", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersion", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -56,8 +54,8 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
                     timeElapsed: noNull(data.timeElapsed),
                     ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
                     ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
                 };
             },
         },
@@ -81,11 +79,11 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { projectVersion: ProjectVersionModel.search.searchStringQuery() },
+                { projectVersion: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").search.searchStringQuery() },
             ],
         }),
         supplemental: {
-            graphqlFields: suppFields,
+            graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -95,7 +93,7 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
             },
         },
     },
-    validate: {
+    validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
@@ -107,14 +105,14 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data.organization,
-            User: data.user,
+            Organization: data?.organization,
+            User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_projectSelect>(data, [
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunProjectModelInfo["PrismaSelect"]>([
             ["organization", "Organization"],
             ["user", "User"],
-        ], languages),
+        ], data, ...rest),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },
@@ -122,9 +120,9 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-    },
+    }),
 });

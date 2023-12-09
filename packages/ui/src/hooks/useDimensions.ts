@@ -1,10 +1,13 @@
-import { Dimensions } from "components/graphs/types";
+import { Breakpoint, useTheme } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+type Dimensions = { width: number, height: number };
 type UseDimensionsReturn<T extends HTMLElement> = {
     dimensions: Dimensions;
+    /** Uses Material UI spacing syntax to style based on the dimensions, rather than the page's dimensions */
+    fromDims: (spacingObj: { [key in Breakpoint]?: unknown }) => any;
     ref: React.RefObject<T>;
-    refreshDimensions: () => void;
+    refreshDimensions: () => unknown;
 }
 
 /**
@@ -14,40 +17,66 @@ type UseDimensionsReturn<T extends HTMLElement> = {
  * and a function to manually refresh the dimensions.
  */
 export const useDimensions = <T extends HTMLElement>(): UseDimensionsReturn<T> => {
-    // Set up state to store the element's dimensions
     const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
-    // Set up a ref to the element whose dimensions we want to calculate
     const ref = useRef<T>(null);
+    const { breakpoints } = useTheme();
 
-    // Define a function that calculates the element's dimensions
+    const fromDims = useCallback((spacingObj: { [key in Breakpoint]?: unknown }): any => {
+        let appliedSpacing = spacingObj.xs;  // Default to xs
+        for (const [breakpoint, value] of Object.entries(breakpoints.values)) {
+            if (dimensions.width >= value && spacingObj[breakpoint] !== undefined) {
+                appliedSpacing = spacingObj[breakpoint];
+            }
+        }
+        return appliedSpacing;
+    }, [dimensions.width, breakpoints]);
+
     const calculateDimensions = useCallback(() => {
         const width = ref.current?.clientWidth ?? 0;
         const height = ref.current?.clientHeight ?? 0;
         setDimensions({ width, height });
     }, [setDimensions]);
 
-    // Calculate the dimensions when the component mounts or the element changes
     useEffect(() => {
         calculateDimensions();
     }, [calculateDimensions]);
 
-    // Define a function to manually refresh the dimensions
     const refreshDimensions = useCallback(() => {
         calculateDimensions();
     }, [calculateDimensions]);
 
-    // Update on screen resize
     useEffect(() => {
-        const handleResize = () => {
-            if (ref.current) {
+        let cleanup: () => void;
+
+        if (typeof ResizeObserver === "function") {
+            const observer = new ResizeObserver(() => {
                 refreshDimensions();
-            } else {
-                console.warn("No ref found for useDimensions hook.");
+            });
+
+            if (ref.current) {
+                observer.observe(ref.current);
             }
-        };
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
+
+            cleanup = () => {
+                if (ref.current) {
+                    observer.unobserve(ref.current);
+                }
+            };
+        } else {
+            console.warn("Browser doesn't support ResizeObserver. Falling back to window resize listener.");
+
+            const handleResize = () => {
+                refreshDimensions();
+            };
+
+            window.addEventListener("resize", handleResize);
+            cleanup = () => {
+                window.removeEventListener("resize", handleResize);
+            };
+        }
+
+        return cleanup;
     }, [refreshDimensions]);
 
-    return { dimensions, ref, refreshDimensions };
+    return { dimensions, fromDims, ref, refreshDimensions };
 };

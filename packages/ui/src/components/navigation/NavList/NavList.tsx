@@ -36,8 +36,8 @@ export const NavList = () => {
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
 
-    const { isOpen: isSideMenuOpen } = useSideMenu("side-menu", isMobile);
-    const openSideMenu = useCallback(() => { PubSub.get().publishSideMenu({ id: "side-menu", isOpen: true }); }, []);
+    const { isOpen: isSideMenuOpen } = useSideMenu({ id: "side-menu", isMobile });
+    const openSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: true }); }, []);
 
     return (
         <Container sx={{
@@ -69,8 +69,8 @@ export const NavList = () => {
             {/* Enter button displayed when not logged in */}
             {!checkIfLoggedIn(session) && (
                 <Button
-                    href={LINKS.Start}
-                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start); }}
+                    href={LINKS.Login}
+                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Login); }}
                     startIcon={<LogInIcon />}
                     variant="contained"
                     sx={{

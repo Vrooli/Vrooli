@@ -1,4 +1,4 @@
-import { LINKS } from "@local/shared";
+import { LINKS, noop } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
@@ -53,10 +53,9 @@ export function FocusModeButton({
             // Otherwise, open select dialog
             else setDialogOpen(true);
         }
-    }, [isAvailable, focusModeField.value, allFocusModes, isEditing, reminderListField.value, setLocation, focusModeHelpers, reminderListHelpers]);
+    }, [isAvailable, focusModeField.value, allFocusModes, isEditing, reminderListField?.value, setLocation, focusModeHelpers]);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, [setDialogOpen]);
     const handleSelect = useCallback((focusMode: RelationshipItemFocusMode) => {
-        console.log("setting focus mode", focusMode, focusModeField.value, reminderListField.value);
         if (focusModeField.value !== undefined && focusModeHelpers) focusModeHelpers.setValue(focusMode);
         else if (reminderListField.value !== undefined && reminderListHelpers) {
             // Add focus mode to reminder list
@@ -69,13 +68,11 @@ export function FocusModeButton({
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isDialogOpen) return ["FocusMode", handleSelect, closeDialog];
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        return [null, () => { }, () => { }];
+        return [null, noop, noop];
     }, [isDialogOpen, handleSelect, closeDialog]);
 
     const { Icon, tooltip } = useMemo(() => {
         const focusMode = focusModeField?.value ?? reminderListField?.value?.focusMode ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id);
-        console.log("getting icon and tooltip", focusMode);
         // If no data, marked as unset
         if (!focusMode) return {
             Icon: AddIcon,
@@ -86,7 +83,7 @@ export function FocusModeButton({
             Icon: FocusModeIcon,
             tooltip: t(`FocusModeTogglePress${isEditing ? "Editable" : ""}`, { focusMode: focusModeName }),
         };
-    }, [focusModeField?.value, allFocusModes, t, isEditing, reminderListField?.value?.id]);
+    }, [focusModeField?.value, reminderListField?.value?.focusMode, reminderListField?.value?.id, allFocusModes, t, isEditing]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;

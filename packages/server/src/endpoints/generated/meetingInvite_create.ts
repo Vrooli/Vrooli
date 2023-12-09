@@ -7,6 +7,7 @@ export const meetingInvite_create = {
       "bannerImage": true,
       "handle": true,
       "isBot": true,
+      "isBotDepictingPerson": true,
       "name": true,
       "profileImage": true,
       "__typename": "User"
@@ -35,6 +36,7 @@ export const meetingInvite_create = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -95,6 +97,7 @@ export const meetingInvite_create = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true,
             "__typename": "User"
@@ -323,6 +326,7 @@ export const meetingInvite_create = {
                   "bannerImage": true,
                   "handle": true,
                   "isBot": true,
+                  "isBotDepictingPerson": true,
                   "name": true,
                   "profileImage": true,
                   "__typename": "User"
@@ -366,6 +370,7 @@ export const meetingInvite_create = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true,
                 "__typename": "User"
@@ -530,6 +535,7 @@ export const meetingInvite_create = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -703,6 +709,7 @@ export const meetingInvite_create = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -747,6 +754,8 @@ export const meetingInvite_create = {
       "name": true
     },
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "openToAnyoneWithInvite": true,
     "showOnOrganizationProfile": true,
     "organization": {
@@ -817,6 +826,10 @@ export const meetingInvite_create = {
             "description": true
           },
           "__typename": "Role"
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
         },
         "__typename": "Member"
       },

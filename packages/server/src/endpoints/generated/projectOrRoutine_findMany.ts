@@ -7,8 +7,8 @@ export const projectOrRoutine_findMany = {
         "kind": "Name",
         "value": "projectOrRoutines",
         "loc": {
-          "start": 2553,
-          "end": 2570
+          "start": 2574,
+          "end": 2591
         }
       },
       "arguments": [
@@ -18,8 +18,8 @@ export const projectOrRoutine_findMany = {
             "kind": "Name",
             "value": "input",
             "loc": {
-              "start": 2571,
-              "end": 2576
+              "start": 2592,
+              "end": 2597
             }
           },
           "value": {
@@ -28,18 +28,18 @@ export const projectOrRoutine_findMany = {
               "kind": "Name",
               "value": "input",
               "loc": {
-                "start": 2579,
-                "end": 2584
+                "start": 2600,
+                "end": 2605
               }
             },
             "loc": {
-              "start": 2578,
-              "end": 2584
+              "start": 2599,
+              "end": 2605
             }
           },
           "loc": {
-            "start": 2571,
-            "end": 2584
+            "start": 2592,
+            "end": 2605
           }
         }
       ],
@@ -53,8 +53,8 @@ export const projectOrRoutine_findMany = {
               "kind": "Name",
               "value": "edges",
               "loc": {
-                "start": 2592,
-                "end": 2597
+                "start": 2613,
+                "end": 2618
               }
             },
             "arguments": [],
@@ -68,15 +68,15 @@ export const projectOrRoutine_findMany = {
                     "kind": "Name",
                     "value": "cursor",
                     "loc": {
-                      "start": 2608,
-                      "end": 2614
+                      "start": 2629,
+                      "end": 2635
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 2608,
-                    "end": 2614
+                    "start": 2629,
+                    "end": 2635
                   }
                 },
                 {
@@ -85,8 +85,8 @@ export const projectOrRoutine_findMany = {
                     "kind": "Name",
                     "value": "node",
                     "loc": {
-                      "start": 2623,
-                      "end": 2627
+                      "start": 2644,
+                      "end": 2648
                     }
                   },
                   "arguments": [],
@@ -102,13 +102,13 @@ export const projectOrRoutine_findMany = {
                             "kind": "Name",
                             "value": "Project",
                             "loc": {
-                              "start": 2649,
-                              "end": 2656
+                              "start": 2670,
+                              "end": 2677
                             }
                           },
                           "loc": {
-                            "start": 2649,
-                            "end": 2656
+                            "start": 2670,
+                            "end": 2677
                           }
                         },
                         "directives": [],
@@ -121,25 +121,25 @@ export const projectOrRoutine_findMany = {
                                 "kind": "Name",
                                 "value": "Project_list",
                                 "loc": {
-                                  "start": 2678,
-                                  "end": 2690
+                                  "start": 2699,
+                                  "end": 2711
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 2675,
-                                "end": 2690
+                                "start": 2696,
+                                "end": 2711
                               }
                             }
                           ],
                           "loc": {
-                            "start": 2657,
-                            "end": 2704
+                            "start": 2678,
+                            "end": 2725
                           }
                         },
                         "loc": {
-                          "start": 2642,
-                          "end": 2704
+                          "start": 2663,
+                          "end": 2725
                         }
                       },
                       {
@@ -150,13 +150,13 @@ export const projectOrRoutine_findMany = {
                             "kind": "Name",
                             "value": "Routine",
                             "loc": {
-                              "start": 2724,
-                              "end": 2731
+                              "start": 2745,
+                              "end": 2752
                             }
                           },
                           "loc": {
-                            "start": 2724,
-                            "end": 2731
+                            "start": 2745,
+                            "end": 2752
                           }
                         },
                         "directives": [],
@@ -169,47 +169,47 @@ export const projectOrRoutine_findMany = {
                                 "kind": "Name",
                                 "value": "Routine_list",
                                 "loc": {
-                                  "start": 2753,
-                                  "end": 2765
+                                  "start": 2774,
+                                  "end": 2786
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 2750,
-                                "end": 2765
+                                "start": 2771,
+                                "end": 2786
                               }
                             }
                           ],
                           "loc": {
-                            "start": 2732,
-                            "end": 2779
+                            "start": 2753,
+                            "end": 2800
                           }
                         },
                         "loc": {
-                          "start": 2717,
-                          "end": 2779
+                          "start": 2738,
+                          "end": 2800
                         }
                       }
                     ],
                     "loc": {
-                      "start": 2628,
-                      "end": 2789
+                      "start": 2649,
+                      "end": 2810
                     }
                   },
                   "loc": {
-                    "start": 2623,
-                    "end": 2789
+                    "start": 2644,
+                    "end": 2810
                   }
                 }
               ],
               "loc": {
-                "start": 2598,
-                "end": 2795
+                "start": 2619,
+                "end": 2816
               }
             },
             "loc": {
-              "start": 2592,
-              "end": 2795
+              "start": 2613,
+              "end": 2816
             }
           },
           {
@@ -218,8 +218,8 @@ export const projectOrRoutine_findMany = {
               "kind": "Name",
               "value": "pageInfo",
               "loc": {
-                "start": 2800,
-                "end": 2808
+                "start": 2821,
+                "end": 2829
               }
             },
             "arguments": [],
@@ -233,15 +233,15 @@ export const projectOrRoutine_findMany = {
                     "kind": "Name",
                     "value": "hasNextPage",
                     "loc": {
-                      "start": 2819,
-                      "end": 2830
+                      "start": 2840,
+                      "end": 2851
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 2819,
-                    "end": 2830
+                    "start": 2840,
+                    "end": 2851
                   }
                 },
                 {
@@ -250,15 +250,15 @@ export const projectOrRoutine_findMany = {
                     "kind": "Name",
                     "value": "endCursorProject",
                     "loc": {
-                      "start": 2839,
-                      "end": 2855
+                      "start": 2860,
+                      "end": 2876
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 2839,
-                    "end": 2855
+                    "start": 2860,
+                    "end": 2876
                   }
                 },
                 {
@@ -267,37 +267,37 @@ export const projectOrRoutine_findMany = {
                     "kind": "Name",
                     "value": "endCursorRoutine",
                     "loc": {
-                      "start": 2864,
-                      "end": 2880
+                      "start": 2885,
+                      "end": 2901
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 2864,
-                    "end": 2880
+                    "start": 2885,
+                    "end": 2901
                   }
                 }
               ],
               "loc": {
-                "start": 2809,
-                "end": 2886
+                "start": 2830,
+                "end": 2907
               }
             },
             "loc": {
-              "start": 2800,
-              "end": 2886
+              "start": 2821,
+              "end": 2907
             }
           }
         ],
         "loc": {
-          "start": 2586,
-          "end": 2890
+          "start": 2607,
+          "end": 2911
         }
       },
       "loc": {
-        "start": 2553,
-        "end": 2890
+        "start": 2574,
+        "end": 2911
       }
     },
     {
@@ -3232,17 +3232,34 @@ export const projectOrRoutine_findMany = {
       "kind": "Field",
       "name": {
         "kind": "Name",
-        "value": "name",
+        "value": "isBotDepictingPerson",
         "loc": {
           "start": 2466,
-          "end": 2470
+          "end": 2486
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
         "start": 2466,
-        "end": 2470
+        "end": 2486
+      }
+    },
+    {
+      "kind": "Field",
+      "name": {
+        "kind": "Name",
+        "value": "name",
+        "loc": {
+          "start": 2487,
+          "end": 2491
+        }
+      },
+      "arguments": [],
+      "directives": [],
+      "loc": {
+        "start": 2487,
+        "end": 2491
       }
     },
     {
@@ -3251,15 +3268,15 @@ export const projectOrRoutine_findMany = {
         "kind": "Name",
         "value": "profileImage",
         "loc": {
-          "start": 2471,
-          "end": 2483
+          "start": 2492,
+          "end": 2504
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 2471,
-        "end": 2483
+        "start": 2492,
+        "end": 2504
       }
     }
   ],
@@ -6428,17 +6445,34 @@ export const projectOrRoutine_findMany = {
             "kind": "Field",
             "name": {
               "kind": "Name",
-              "value": "name",
+              "value": "isBotDepictingPerson",
               "loc": {
                 "start": 2466,
-                "end": 2470
+                "end": 2486
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
               "start": 2466,
-              "end": 2470
+              "end": 2486
+            }
+          },
+          {
+            "kind": "Field",
+            "name": {
+              "kind": "Name",
+              "value": "name",
+              "loc": {
+                "start": 2487,
+                "end": 2491
+              }
+            },
+            "arguments": [],
+            "directives": [],
+            "loc": {
+              "start": 2487,
+              "end": 2491
             }
           },
           {
@@ -6447,26 +6481,26 @@ export const projectOrRoutine_findMany = {
               "kind": "Name",
               "value": "profileImage",
               "loc": {
-                "start": 2471,
-                "end": 2483
+                "start": 2492,
+                "end": 2504
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 2471,
-              "end": 2483
+              "start": 2492,
+              "end": 2504
             }
           }
         ],
         "loc": {
           "start": 2414,
-          "end": 2485
+          "end": 2506
         }
       },
       "loc": {
         "start": 2388,
-        "end": 2485
+        "end": 2506
       }
     }
   },
@@ -6478,8 +6512,8 @@ export const projectOrRoutine_findMany = {
       "kind": "Name",
       "value": "projectOrRoutines",
       "loc": {
-        "start": 2493,
-        "end": 2510
+        "start": 2514,
+        "end": 2531
       }
     },
     "variableDefinitions": [
@@ -6491,13 +6525,13 @@ export const projectOrRoutine_findMany = {
             "kind": "Name",
             "value": "input",
             "loc": {
-              "start": 2512,
-              "end": 2517
+              "start": 2533,
+              "end": 2538
             }
           },
           "loc": {
-            "start": 2511,
-            "end": 2517
+            "start": 2532,
+            "end": 2538
           }
         },
         "type": {
@@ -6508,24 +6542,24 @@ export const projectOrRoutine_findMany = {
               "kind": "Name",
               "value": "ProjectOrRoutineSearchInput",
               "loc": {
-                "start": 2519,
-                "end": 2546
+                "start": 2540,
+                "end": 2567
               }
             },
             "loc": {
-              "start": 2519,
-              "end": 2546
+              "start": 2540,
+              "end": 2567
             }
           },
           "loc": {
-            "start": 2519,
-            "end": 2547
+            "start": 2540,
+            "end": 2568
           }
         },
         "directives": [],
         "loc": {
-          "start": 2511,
-          "end": 2547
+          "start": 2532,
+          "end": 2568
         }
       }
     ],
@@ -6539,8 +6573,8 @@ export const projectOrRoutine_findMany = {
             "kind": "Name",
             "value": "projectOrRoutines",
             "loc": {
-              "start": 2553,
-              "end": 2570
+              "start": 2574,
+              "end": 2591
             }
           },
           "arguments": [
@@ -6550,8 +6584,8 @@ export const projectOrRoutine_findMany = {
                 "kind": "Name",
                 "value": "input",
                 "loc": {
-                  "start": 2571,
-                  "end": 2576
+                  "start": 2592,
+                  "end": 2597
                 }
               },
               "value": {
@@ -6560,18 +6594,18 @@ export const projectOrRoutine_findMany = {
                   "kind": "Name",
                   "value": "input",
                   "loc": {
-                    "start": 2579,
-                    "end": 2584
+                    "start": 2600,
+                    "end": 2605
                   }
                 },
                 "loc": {
-                  "start": 2578,
-                  "end": 2584
+                  "start": 2599,
+                  "end": 2605
                 }
               },
               "loc": {
-                "start": 2571,
-                "end": 2584
+                "start": 2592,
+                "end": 2605
               }
             }
           ],
@@ -6585,8 +6619,8 @@ export const projectOrRoutine_findMany = {
                   "kind": "Name",
                   "value": "edges",
                   "loc": {
-                    "start": 2592,
-                    "end": 2597
+                    "start": 2613,
+                    "end": 2618
                   }
                 },
                 "arguments": [],
@@ -6600,15 +6634,15 @@ export const projectOrRoutine_findMany = {
                         "kind": "Name",
                         "value": "cursor",
                         "loc": {
-                          "start": 2608,
-                          "end": 2614
+                          "start": 2629,
+                          "end": 2635
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 2608,
-                        "end": 2614
+                        "start": 2629,
+                        "end": 2635
                       }
                     },
                     {
@@ -6617,8 +6651,8 @@ export const projectOrRoutine_findMany = {
                         "kind": "Name",
                         "value": "node",
                         "loc": {
-                          "start": 2623,
-                          "end": 2627
+                          "start": 2644,
+                          "end": 2648
                         }
                       },
                       "arguments": [],
@@ -6634,13 +6668,13 @@ export const projectOrRoutine_findMany = {
                                 "kind": "Name",
                                 "value": "Project",
                                 "loc": {
-                                  "start": 2649,
-                                  "end": 2656
+                                  "start": 2670,
+                                  "end": 2677
                                 }
                               },
                               "loc": {
-                                "start": 2649,
-                                "end": 2656
+                                "start": 2670,
+                                "end": 2677
                               }
                             },
                             "directives": [],
@@ -6653,25 +6687,25 @@ export const projectOrRoutine_findMany = {
                                     "kind": "Name",
                                     "value": "Project_list",
                                     "loc": {
-                                      "start": 2678,
-                                      "end": 2690
+                                      "start": 2699,
+                                      "end": 2711
                                     }
                                   },
                                   "directives": [],
                                   "loc": {
-                                    "start": 2675,
-                                    "end": 2690
+                                    "start": 2696,
+                                    "end": 2711
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 2657,
-                                "end": 2704
+                                "start": 2678,
+                                "end": 2725
                               }
                             },
                             "loc": {
-                              "start": 2642,
-                              "end": 2704
+                              "start": 2663,
+                              "end": 2725
                             }
                           },
                           {
@@ -6682,13 +6716,13 @@ export const projectOrRoutine_findMany = {
                                 "kind": "Name",
                                 "value": "Routine",
                                 "loc": {
-                                  "start": 2724,
-                                  "end": 2731
+                                  "start": 2745,
+                                  "end": 2752
                                 }
                               },
                               "loc": {
-                                "start": 2724,
-                                "end": 2731
+                                "start": 2745,
+                                "end": 2752
                               }
                             },
                             "directives": [],
@@ -6701,47 +6735,47 @@ export const projectOrRoutine_findMany = {
                                     "kind": "Name",
                                     "value": "Routine_list",
                                     "loc": {
-                                      "start": 2753,
-                                      "end": 2765
+                                      "start": 2774,
+                                      "end": 2786
                                     }
                                   },
                                   "directives": [],
                                   "loc": {
-                                    "start": 2750,
-                                    "end": 2765
+                                    "start": 2771,
+                                    "end": 2786
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 2732,
-                                "end": 2779
+                                "start": 2753,
+                                "end": 2800
                               }
                             },
                             "loc": {
-                              "start": 2717,
-                              "end": 2779
+                              "start": 2738,
+                              "end": 2800
                             }
                           }
                         ],
                         "loc": {
-                          "start": 2628,
-                          "end": 2789
+                          "start": 2649,
+                          "end": 2810
                         }
                       },
                       "loc": {
-                        "start": 2623,
-                        "end": 2789
+                        "start": 2644,
+                        "end": 2810
                       }
                     }
                   ],
                   "loc": {
-                    "start": 2598,
-                    "end": 2795
+                    "start": 2619,
+                    "end": 2816
                   }
                 },
                 "loc": {
-                  "start": 2592,
-                  "end": 2795
+                  "start": 2613,
+                  "end": 2816
                 }
               },
               {
@@ -6750,8 +6784,8 @@ export const projectOrRoutine_findMany = {
                   "kind": "Name",
                   "value": "pageInfo",
                   "loc": {
-                    "start": 2800,
-                    "end": 2808
+                    "start": 2821,
+                    "end": 2829
                   }
                 },
                 "arguments": [],
@@ -6765,15 +6799,15 @@ export const projectOrRoutine_findMany = {
                         "kind": "Name",
                         "value": "hasNextPage",
                         "loc": {
-                          "start": 2819,
-                          "end": 2830
+                          "start": 2840,
+                          "end": 2851
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 2819,
-                        "end": 2830
+                        "start": 2840,
+                        "end": 2851
                       }
                     },
                     {
@@ -6782,15 +6816,15 @@ export const projectOrRoutine_findMany = {
                         "kind": "Name",
                         "value": "endCursorProject",
                         "loc": {
-                          "start": 2839,
-                          "end": 2855
+                          "start": 2860,
+                          "end": 2876
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 2839,
-                        "end": 2855
+                        "start": 2860,
+                        "end": 2876
                       }
                     },
                     {
@@ -6799,48 +6833,48 @@ export const projectOrRoutine_findMany = {
                         "kind": "Name",
                         "value": "endCursorRoutine",
                         "loc": {
-                          "start": 2864,
-                          "end": 2880
+                          "start": 2885,
+                          "end": 2901
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 2864,
-                        "end": 2880
+                        "start": 2885,
+                        "end": 2901
                       }
                     }
                   ],
                   "loc": {
-                    "start": 2809,
-                    "end": 2886
+                    "start": 2830,
+                    "end": 2907
                   }
                 },
                 "loc": {
-                  "start": 2800,
-                  "end": 2886
+                  "start": 2821,
+                  "end": 2907
                 }
               }
             ],
             "loc": {
-              "start": 2586,
-              "end": 2890
+              "start": 2607,
+              "end": 2911
             }
           },
           "loc": {
-            "start": 2553,
-            "end": 2890
+            "start": 2574,
+            "end": 2911
           }
         }
       ],
       "loc": {
-        "start": 2549,
-        "end": 2892
+        "start": 2570,
+        "end": 2913
       }
     },
     "loc": {
-      "start": 2487,
-      "end": 2892
+      "start": 2508,
+      "end": 2913
     }
   },
   "variableValues": {},

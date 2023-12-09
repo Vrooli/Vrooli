@@ -1,14 +1,14 @@
 import { Email } from "@local/shared";
 
 export interface EmailListProps {
-    handleUpdate: (emails: Email[]) => void;
+    handleUpdate: (emails: Email[]) => unknown;
     numVerifiedWallets: number;
     list: Email[];
 }
 
 export interface EmailListItemProps {
-    handleDelete: (email: Email) => void;
-    handleVerify: (email: Email) => void;
+    handleDelete: (email: Email) => unknown;
+    handleVerify: (email: Email) => unknown;
     index: number;
     data: Email;
 }

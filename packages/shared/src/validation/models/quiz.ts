@@ -2,18 +2,18 @@ import { bool, description, id, intPositiveOrOne, name, opt, req, transRel, YupM
 import { quizQuestionValidation } from "./quizQuestion";
 
 export const quizTranslationValidation: YupModel = transRel({
-    create: {
+    create: () => ({
         description: opt(description),
         name: req(name),
-    },
-    update: {
+    }),
+    update: () => ({
         description: opt(description),
         name: opt(name),
-    },
+    }),
 });
 
 export const quizValidation: YupModel = {
-    create: ({ o }) => yupObj({
+    create: (d) => yupObj({
         id: req(id),
         maxAttempts: opt(intPositiveOrOne),
         randomizeQuestionOrder: opt(bool),
@@ -25,8 +25,8 @@ export const quizValidation: YupModel = {
         ["project", ["Connect"], "one", "opt"],
         ["quizQuestions", ["Create"], "many", "opt", quizQuestionValidation],
         ["translations", ["Create"], "many", "opt", quizTranslationValidation],
-    ], [["projectConnect", "routineConnect"]], o),
-    update: ({ o }) => yupObj({
+    ], [["projectConnect", "routineConnect"]], d),
+    update: (d) => yupObj({
         id: req(id),
         maxAttempts: opt(intPositiveOrOne),
         randomizeQuestionOrder: opt(bool),
@@ -38,5 +38,5 @@ export const quizValidation: YupModel = {
         ["project", ["Connect", "Disconnect"], "one", "opt"],
         ["quizQuestions", ["Create", "Update", "Delete"], "many", "opt", quizQuestionValidation],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", quizTranslationValidation],
-    ], [], o),
+    ], [], d),
 };

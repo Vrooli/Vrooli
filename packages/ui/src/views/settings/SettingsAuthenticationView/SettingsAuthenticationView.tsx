@@ -1,9 +1,10 @@
 import { Email, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutInput, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
-import { Box, Button, Stack, TextField, useTheme } from "@mui/material";
+import { Box, Button, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
-import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { EmailList, WalletList } from "components/lists/devices";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
@@ -19,7 +20,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, pagePaddingBottom } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
+import { Cookies } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { SettingsAuthenticationFormProps, SettingsAuthenticationViewProps } from "../types";
 
@@ -37,30 +38,29 @@ const SettingsAuthenticationForm = ({
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
             >
                 {/* Hidden username input because some password managers require it */}
-                <TextField
+                <TextInput
                     name="username"
                     autoComplete="username"
                     sx={{ display: "none" }}
                 />
                 <FormSection>
-                    <PasswordTextField
+                    <PasswordTextInput
                         fullWidth
                         name="currentPassword"
                         label={t("PasswordCurrent")}
                         autoComplete="current-password"
                     />
-                    <PasswordTextField
+                    <PasswordTextInput
                         fullWidth
                         name="newPassword"
                         label={t("PasswordNew")}
                         autoComplete="new-password"
                     />
-                    <PasswordTextField
+                    <PasswordTextInput
                         fullWidth
                         name="newPasswordConfirmation"
                         autoComplete="new-password"
@@ -82,14 +82,13 @@ const SettingsAuthenticationForm = ({
 };
 
 export const SettingsAuthenticationView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsAuthenticationViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
 
@@ -99,17 +98,21 @@ export const SettingsAuthenticationView = ({
         fetchLazyWrapper<LogOutInput, Session>({
             fetch: logOut,
             inputs: { id },
-            onSuccess: (data) => { PubSub.get().publishSession(data); },
+            onSuccess: (data) => {
+                localStorage.removeItem(Cookies.FormData); // Clear old form data cache
+                PubSub.get().publish("session", data);
+                PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false });
+            },
             // If error, log out anyway
-            onError: () => { PubSub.get().publishSession(guestSession); },
+            onError: () => { PubSub.get().publish("session", guestSession); },
         });
-        PubSub.get().publishSession(guestSession);
+        PubSub.get().publish("session", guestSession);
         setLocation(LINKS.Home);
     }, [logOut, session, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
             return;
         }
         onProfileUpdate({ ...profile, wallets: updatedList });
@@ -118,7 +121,7 @@ export const SettingsAuthenticationView = ({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
             return;
         }
         onProfileUpdate({ ...profile, emails: updatedList });
@@ -188,11 +191,11 @@ export const SettingsAuthenticationView = ({
                             } as ProfileEmailUpdateInput}
                             onSubmit={(values, helpers) => {
                                 if (!profile) {
-                                    PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+                                    PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
                                     return;
                                 }
                                 if (typeof values.newPassword === "string" && values.newPassword.length > 0 && values.newPassword !== (values as any).newPasswordConfirmation) {
-                                    PubSub.get().publishSnack({ messageKey: "PasswordsDontMatch", severity: "Error" });
+                                    PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
                                     helpers.setSubmitting(false);
                                     return;
                                 }

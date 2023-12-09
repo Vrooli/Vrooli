@@ -1,5 +1,5 @@
 import { gql } from "apollo-server-express";
-import { EndpointsTranslate, TranslateEndpoints } from "../logic";
+import { EndpointsTranslate, TranslateEndpoints } from "../logic/translate";
 
 export const typeDef = gql`
     input TranslateInput {

@@ -1,6 +1,6 @@
 import { TagSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsTag, TagEndpoints } from "../logic";
+import { EndpointsTag, TagEndpoints } from "../logic/tag";
 
 export const typeDef = gql`
     enum TagSortBy {
@@ -9,11 +9,13 @@ export const typeDef = gql`
     }
 
     input TagCreateInput {
+        id: ID!
         anonymous: Boolean
         tag: String!
         translationsCreate: [TagTranslationCreateInput!]
     }
     input TagUpdateInput {
+        id: ID!
         anonymous: Boolean
         tag: String!
         translationsDelete: [ID!]

@@ -8,6 +8,7 @@ export const chatMessage_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -30,6 +31,7 @@ export const chatMessage_update = {
         "bannerImage": true,
         "handle": true,
         "isBot": true,
+        "isBotDepictingPerson": true,
         "name": true,
         "profileImage": true,
         "__typename": "User"
@@ -64,6 +66,7 @@ export const chatMessage_update = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "__typename": "User"
@@ -178,6 +181,10 @@ export const chatMessage_update = {
           },
           "__typename": "Role"
         },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Member"
       },
       "id": true,
@@ -234,6 +241,13 @@ export const chatMessage_update = {
   "id": true,
   "created_at": true,
   "updated_at": true,
+  "sequence": true,
+  "versionIndex": true,
+  "parent": {
+    "id": true,
+    "created_at": true,
+    "__typename": "ChatMessage"
+  },
   "user": {
     "id": true,
     "created_at": true,
@@ -241,6 +255,7 @@ export const chatMessage_update = {
     "bannerImage": true,
     "handle": true,
     "isBot": true,
+    "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
     "__typename": "User"

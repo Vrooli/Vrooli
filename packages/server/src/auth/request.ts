@@ -1,30 +1,42 @@
 import { COOKIE, uuidValidate } from "@local/shared";
 import cookie from "cookie";
 import { NextFunction, Request, Response } from "express";
-import fs from "fs";
 import jwt from "jsonwebtoken";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { ApiToken, BasicToken, RecursivePartial, SessionData, SessionToken, SessionUserToken } from "../types";
-import { isSafeOrigin } from "../utils";
+import { isSafeOrigin } from "../utils/origin";
 
-const SESSION_MILLI = 30 * 86400 * 1000;
+const SESSION_MILLI = 30 * 86400 * 1000; // 30 days
 
-let privateKey = "";
-const privateKeyFile = `${process.env.PROJECT_DIR}/jwt_priv.pem`;
-if (fs.existsSync(privateKeyFile)) {
-    privateKey = fs.readFileSync(privateKeyFile, "utf8");
-} else {
-    logger.error(`Could not find private key at ${privateKeyFile}`);
+interface JwtKeys {
+    privateKey: string;
+    publicKey: string;
 }
+let jwtKeys: JwtKeys | null = null;
+const getJwtKeys = (): JwtKeys => {
+    // If jwtKeys is already defined, return it immediately
+    if (jwtKeys) {
+        return jwtKeys;
+    }
 
-let publicKey = "";
-const publicKeyFile = `${process.env.PROJECT_DIR}/jwt_pub.pem`;
-if (fs.existsSync(publicKeyFile)) {
-    publicKey = fs.readFileSync(publicKeyFile, "utf8");
-} else {
-    logger.error(`Could not find public key at ${publicKeyFile}`);
-}
+    // Load the keys from process.env. They may be in a single line, so replace \n with actual newlines
+    const privateKey = process.env.JWT_PRIV ?? "";
+    const publicKey = process.env.JWT_PUB ?? "";
+
+    // Check if the keys are available and log an error if not
+    if (privateKey.length <= 0) {
+        logger.error("JWT private key not found");
+    }
+    if (publicKey.length <= 0) {
+        logger.error("JWT public key not found");
+    }
+
+    // Store the keys in jwtKeys for future use
+    jwtKeys = { privateKey, publicKey };
+
+    return jwtKeys;
+};
 
 /**
  * Parses a request's accept-language header
@@ -42,6 +54,18 @@ const parseAcceptLanguage = (req: { headers: Record<string, any> }): string[] =>
     return acceptValues;
 };
 
+const verifyJwt = (token: string, publicKey: string): Promise<any> => {
+    return new Promise((resolve, reject) => {
+        jwt.verify(token, publicKey, { algorithms: ["RS256"] }, (error: any, payload: any) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(payload);
+            }
+        });
+    });
+};
+
 /**
  * Verifies if a user is authenticated, using an http cookie. 
  * Also populates helpful request properties, which can be used by endpoints
@@ -50,59 +74,55 @@ const parseAcceptLanguage = (req: { headers: Record<string, any> }): string[] =>
  * @param next The next function to call.
  */
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
+    const handleUnauthenticatedRequest = (req: Request, next: NextFunction) => {
+        let error: CustomError | undefined;
+        // If from unsafe origin, deny access.
+        if (!req.session.fromSafeOrigin) error = new CustomError("0247", "UnsafeOriginNoApiToken", req.session.languages);
+        next(error);
+    };
     try {
         const { cookies } = req;
-        req.session = {} as any;
-        // Check if request is coming from a safe origin. 
-        // This is useful for handling public API requests.
-        req.session.fromSafeOrigin = isSafeOrigin(req);
-        // Add user's preferred language to the request. Later on we'll 
-        // use the preferred languages set in the user's account for localization, 
-        // but this is a good fallback.
-        req.session.languages = parseAcceptLanguage(req);
+        // Initialize session
+        req.session = {
+            fromSafeOrigin: isSafeOrigin(req),  // Useful for handling public API requests.
+            languages: parseAcceptLanguage(req), // Language fallback for error messages
+        };
+        req.session.languages = parseAcceptLanguage(req); // Useful for error messages
         // Check if a valid session cookie was supplied
         const token = cookies[COOKIE.Jwt];
         if (token === null || token === undefined) {
-            // If from unsafe origin, deny access.
-            let error: CustomError | undefined;
-            if (!req.session.fromSafeOrigin) error = new CustomError("0247", "UnsafeOriginNoApiToken", req.session.languages);
-            next(error);
+            handleUnauthenticatedRequest(req, next);
             return;
         }
-        // Verify that the session token is valid
-        jwt.verify(token, publicKey, { algorithms: ["RS256"] }, async (error: any, payload: any) => {
-            try {
-                if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
-                    // If from unsafe origin, deny access.
-                    let error: CustomError | undefined;
-                    if (!req.session.fromSafeOrigin) error = new CustomError("0248", "UnsafeOriginNoApiToken", req.session.languages);
-                    next(error);
-                    return;
-                }
-                // Now, set token and role variables for other middleware to use
-                req.session.apiToken = payload.apiToken ?? false;
-                req.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
-                req.session.timeZone = payload.timeZone ?? "UTC";
-                // Users, but make sure they all have unique ids
-                req.session.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
-                // Find preferred languages for first user. Combine with languages in request header
-                const firstUser = req.session.users[0];
-                const firstUserLanguages = firstUser?.languages ?? [];
-                if (firstUser && firstUserLanguages.length) {
-                    const languages = [...firstUserLanguages, ...(req.session.languages ?? [])];
-                    req.session.languages = [...new Set(languages)];
-                }
-                req.session.validToken = true;
-                next();
-            } catch (error) {
-                logger.error("Error verifying token", { trace: "0450", error });
-                // Remove the cookie
-                res.clearCookie(COOKIE.Jwt);
-                next(error);
-            }
-        });
+        // Verify that the session token is valid and not expired
+        const payload = await verifyJwt(token, getJwtKeys().publicKey);
+        if (isNaN(payload.exp) || payload.exp < Date.now()) {
+            handleUnauthenticatedRequest(req, next);
+            return;
+        }
+        // Set token and role variables for other middleware to use
+        req.session.apiToken = payload.apiToken ?? false;
+        req.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
+        req.session.timeZone = payload.timeZone ?? "UTC";
+        // Keep session token users, but make sure they all have unique ids
+        req.session.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
+        // Find preferred languages for first user. Combine with languages in request header
+        const firstUser = req.session.users[0];
+        const firstUserLanguages = firstUser?.languages ?? [];
+        if (firstUser && firstUserLanguages.length) {
+            const languages = [...firstUserLanguages, ...(req.session.languages ?? [])];
+            req.session.languages = [...new Set(languages)];
+        }
+        req.session.validToken = true;
+        next();
+
     } catch (error) {
+        if (error instanceof jwt.JsonWebTokenError) {
+            handleUnauthenticatedRequest(req, next);
+            return;
+        }
         logger.error("Error authenticating request", { trace: "0451", error });
+        res.clearCookie(COOKIE.Jwt);
         next(error);
     }
 }
@@ -121,43 +141,39 @@ export const authenticateSocket = async (socket, next) => {
     try {
         // Add IP address to socket object, so we can use it later
         socket.req = { ip: socket.handshake.address };
+        // Initialize session
+        socket.session = {
+            fromSafeOrigin: true,  // Always from a safe origin due to cors settings
+            languages: parseAcceptLanguage(socket.handshake), // Language fallback for error messages
+            validToken: false,
+        };
+        // Get token
         const cookies = cookie.parse(socket.handshake.headers.cookie);
         const token = cookies[COOKIE.Jwt];
-        socket.session = {};
-        // Currently, sockets are always from a safe origin, because of cors settings
-        socket.session.fromSafeOrigin = true;
-        // Add user's preferred language to the request. Later on we'll 
-        // use the preferred languages set in the user's account for localization, 
-        // but this is a good fallback.
-        socket.session.languages = parseAcceptLanguage(socket.handshake);
         if (!token) {
-            // No token, unauthorized
             return next(new Error("Unauthorized"));
         }
-
-        jwt.verify(token, publicKey, { algorithms: ["RS256"] }, async (error: any, payload: any) => {
-            if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
-                // Invalid token, unauthorized
-                return next(new Error("Unauthorized"));
-            }
-            // Now, set token and role variables for other middleware to use
-            socket.session.apiToken = payload.apiToken ?? false;
-            socket.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
-            socket.session.timeZone = payload.timeZone ?? "UTC";
-            // Users, but make sure they all have unique ids
-            socket.session.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
-            // Find preferred languages for first user. Combine with languages in request header
-            if (socket.session.users.length && socket.session.users[0].languages && socket.session.users[0].languages.length) {
-                let languages: string[] = socket.session.users[0].languages;
-                languages.push(...(socket.session.languages ?? []));
-                languages = [...new Set(languages)];
-                socket.session.languages = languages;
-            }
-            socket.session.validToken = true;
-            next();
-        });
+        // Verify that the session token is valid and not expired
+        const payload = await verifyJwt(token, getJwtKeys().publicKey);
+        if (isNaN(payload.exp) || payload.exp < Date.now()) {
+            throw new Error("Token expiration is invalid");
+        }
+        // Set token and role variables for other middleware to use
+        socket.session.apiToken = payload.apiToken ?? false;
+        socket.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
+        socket.session.timeZone = payload.timeZone ?? "UTC";
+        // Keep session token users, but make sure they all have unique ids
+        socket.session.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
+        // Find preferred languages for first user. Combine with languages in request header
+        if (socket.session.users.length && socket.session.users[0].languages && socket.session.users[0].languages.length) {
+            let languages: string[] = socket.session.users[0].languages;
+            languages.push(...(socket.session.languages ?? []));
+            languages = [...new Set(languages)];
+            socket.session.languages = languages;
+        }
+        socket.session.validToken = true;
+        next();
     } catch (error) {
-        // Something went wrong, deny connection
         return next(new Error("Unauthorized"));
     }
 };
@@ -196,6 +212,7 @@ export async function generateSessionJwt(
                 stopCondition: user.activeFocusMode.stopCondition,
                 stopTime: user.activeFocusMode.stopTime,
             } : undefined,
+            credits: user.credits,
             handle: user.handle,
             hasPremium: user.hasPremium ?? false,
             languages: user.languages ?? [],
@@ -204,12 +221,14 @@ export async function generateSessionJwt(
             updated_at: user.updated_at,
         }])).values()],
     };
-    const token = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
-    res.cookie(COOKIE.Jwt, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: SESSION_MILLI,
-    });
+    const token = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
+    if (!res.headersSent) {
+        res.cookie(COOKIE.Jwt, token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: SESSION_MILLI,
+        });
+    }
 }
 
 /**
@@ -223,12 +242,14 @@ export async function generateApiJwt(res: Response, apiToken: string): Promise<v
         ...basicToken(),
         apiToken,
     };
-    const token = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
-    res.cookie(COOKIE.Jwt, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: SESSION_MILLI,
-    });
+    const token = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
+    if (!res.headersSent) {
+        res.cookie(COOKIE.Jwt, token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: SESSION_MILLI,
+        });
+    }
 }
 
 /**
@@ -243,23 +264,27 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
         logger.error("❗️ No session token found", { trace: "0006" });
         return;
     }
-    jwt.verify(token, publicKey, { algorithms: ["RS256"] }, async (error: any, payload: any) => {
-        if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
-            logger.error("❗️ Session token is invalid", { trace: "0008" });
-            return;
+    try {
+        const payload = await verifyJwt(token, getJwtKeys().publicKey);
+        if (isNaN(payload.exp) || payload.exp < Date.now()) {
+            throw new Error("Token expiration is invalid");
         }
         const tokenContents: SessionToken = {
             ...payload,
             timeZone,
         };
-        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
-        res.cookie(COOKIE.Jwt, newToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            // Max age should be the same as the old token
-            maxAge: payload.exp - Date.now(),
-        });
-    });
+        const newToken = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
+
+        if (!res.headersSent) {
+            res.cookie(COOKIE.Jwt, newToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                maxAge: payload.exp - Date.now(),
+            });
+        }
+    } catch (error) {
+        logger.error("❗️ Session token is invalid", { trace: "0008" });
+    }
 }
 
 /**
@@ -273,10 +298,10 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
         logger.error("❗️ No session token found", { trace: "0445" });
         return;
     }
-    jwt.verify(token, publicKey, { algorithms: ["RS256"] }, async (error: any, payload: any) => {
-        if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
-            logger.error("❗️ Session token is invalid", { trace: "0447" });
-            return;
+    try {
+        const payload = await verifyJwt(token, getJwtKeys().publicKey);
+        if (isNaN(payload.exp) || payload.exp < Date.now()) {
+            throw new Error("Token expiration is invalid");
         }
         const tokenContents: SessionToken = {
             ...payload,
@@ -298,14 +323,18 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
                 },
             }, ...payload.users.slice(1)] : [],
         };
-        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
-        res.cookie(COOKIE.Jwt, newToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            // Max age should be the same as the old token
-            maxAge: payload.exp - Date.now(),
-        });
-    });
+        const newToken = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
+
+        if (!res.headersSent) {
+            res.cookie(COOKIE.Jwt, newToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                maxAge: payload.exp - Date.now(),
+            });
+        }
+    } catch (error) {
+        logger.error("❗️ Session token is invalid", { trace: "0447" });
+    }
 }
 
 /**

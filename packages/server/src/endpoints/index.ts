@@ -6,6 +6,4 @@
  */
 export * from "./generated";
 export * from "./graphql";
-export * from "./logic";
-export * from "./rest";
 

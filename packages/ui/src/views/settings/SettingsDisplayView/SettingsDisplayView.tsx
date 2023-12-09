@@ -1,4 +1,4 @@
-import { endpointPutProfile, ProfileUpdateInput, User, userValidation } from "@local/shared";
+import { endpointPutProfile, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -20,7 +20,6 @@ import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { pagePaddingBottom } from "styles";
 import { getSiteLanguage } from "utils/authentication/session";
-import { toDisplay } from "utils/display/pageTools";
 import { PubSub } from "utils/pubsub";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
 import { SettingsDisplayFormProps, SettingsDisplayViewProps } from "../types";
@@ -38,7 +37,6 @@ const SettingsDisplayForm = ({
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
             >
@@ -64,7 +62,7 @@ const SettingsDisplayForm = ({
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={props.errors as any}
+                errors={props.errors}
                 isCreate={false}
                 loading={props.isSubmitting}
                 onCancel={onCancel}
@@ -77,13 +75,12 @@ const SettingsDisplayForm = ({
 
 
 export const SettingsDisplayView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsDisplayViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
@@ -106,7 +103,7 @@ export const SettingsDisplayView = ({
                         } as ProfileUpdateInput}
                         onSubmit={(values, helpers) => {
                             if (!profile) {
-                                PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+                                PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
                             fetchLazyWrapper<ProfileUpdateInput, User>({
@@ -119,7 +116,7 @@ export const SettingsDisplayView = ({
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={userValidation.update({})}
+                        validationSchema={profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" })}
                     >
                         {(formik) => <SettingsDisplayForm
                             display={display}

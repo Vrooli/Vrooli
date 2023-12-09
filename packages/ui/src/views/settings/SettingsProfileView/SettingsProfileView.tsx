@@ -1,9 +1,10 @@
-import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, User, userTranslationValidation, userValidation } from "@local/shared";
-import { Box, Stack, TextField } from "@mui/material";
+import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, profileValidation, User, userTranslationValidation } from "@local/shared";
+import { Box, InputAdornment, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
+import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
@@ -13,14 +14,13 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
+import { HandleIcon, UserIcon } from "icons";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSection, pagePaddingBottom } from "styles";
-import { toDisplay } from "utils/display/pageTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { shapeProfile } from "utils/shape/models/profile";
-import { createPrims } from "utils/shape/models/tools";
 import { SettingsProfileFormProps, SettingsProfileViewProps } from "../types";
 
 const SettingsProfileForm = ({
@@ -46,16 +46,15 @@ const SettingsProfileForm = ({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["bio"],
-        validationSchema: userTranslationValidation.update({}),
+        validationSchema: userTranslationValidation.update({ env: import.meta.env.PROD ? "production" : "development" }),
     });
 
     return (
         <>
             <BaseForm
-                dirty={dirty}
                 display={display}
                 isLoading={isLoading}
-                maxWidth={500}
+                maxWidth={600}
             >
                 <ProfilePictureInput
                     onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
@@ -71,8 +70,40 @@ const SettingsProfileForm = ({
                         handleCurrent={setLanguage}
                         languages={languages}
                     />
-                    <Field fullWidth name="name" label={t("Name")} as={TextField} />
-                    <Field fullWidth name="handle" label={t("Handle")} as={TextField} />
+                    <Field
+                        fullWidth
+                        autoComplete="name"
+                        name="name"
+                        label={t("Name")}
+                        placeholder={t("NamePlaceholder")}
+                        as={TextInput}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <UserIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                        error={props.touched.name && Boolean(props.errors.name)}
+                        helperText={props.touched.name && props.errors.name}
+                    />
+                    <Field
+                        fullWidth
+                        autoComplete="handle"
+                        name="handle"
+                        label={t("Handle")}
+                        placeholder={t("HandlePlaceholder")}
+                        as={TextInput}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <HandleIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                        error={props.touched.handle && Boolean(props.errors.handle)}
+                        helperText={props.touched.handle && props.errors.handle}
+                    />
                     <TranslatedRichInput
                         language={language}
                         maxChars={2048}
@@ -96,12 +127,11 @@ const SettingsProfileForm = ({
 };
 
 export const SettingsProfileView = ({
-    isOpen,
+    display,
     onClose,
 }: SettingsProfileViewProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
@@ -132,28 +162,22 @@ export const SettingsProfileView = ({
                         }}
                         onSubmit={(values, helpers) => {
                             if (!profile) {
-                                PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+                                PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
-                            console.log("submitting profile update: values", values);
-                            console.log("submitting profile update: profile", profile);
-                            console.log("submitting profile update: shapeProfile.update(profile, values)", shapeProfile.update(profile, {
-                                id: profile.id,
-                                ...values,
-                            }));
-                            console.log("test1", createPrims(values, "profileImage"));
                             fetchLazyWrapper<ProfileUpdateInput, User>({
                                 fetch,
                                 inputs: shapeProfile.update(profile, {
                                     id: profile.id,
                                     ...values,
+                                    __typename: "User",
                                 }),
                                 successMessage: () => ({ messageKey: "SettingsUpdated" }),
                                 onSuccess: (updated) => { onProfileUpdate(updated); },
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={userValidation.update({})}
+                        validationSchema={profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" })}
                     >
                         {(formik) => <SettingsProfileForm
                             display={display}

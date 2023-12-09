@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Docker: Attach to Node",
+            "name": "🏗️🐋 Server debug: Docker",
             "type": "node",
             "request": "attach",
             "remoteRoot": "/srv/app/packages/server",
@@ -16,6 +16,18 @@
                 "/node_modules/**/*.js"
             ],
             "dockerRunCommand": "--env --publish 5329:5329 --publish 9229:9229 --name ${containerName} ${image}",
+        },
+        {
+            "name": "📲 UI debug",
+            "type": "pwa-chrome",
+            "request": "launch",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}",
+            "sourceMaps": true,
+            "breakOnLoad": true,
+            "skipFiles": [
+                "/node_modules/**/*.js"
+            ]
         }
     ]
 }

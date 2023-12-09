@@ -76,7 +76,7 @@ export function App() {
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
-    const [contentMargins, setContentMargins] = useState<{ paddingLeft?: string, paddingRight?: string }>({}); // Used to add margins to content when drawer is open
+    const [contentMargins, setContentMargins] = useState<{ marginLeft?: string, marginRight?: string }>({}); // Adds margins to content when a persistent drawer is open
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
 
     // Applies language change
@@ -182,23 +182,23 @@ export function App() {
     // Detect online/offline status, as well as "This site uses cookies" banner
     useEffect(() => {
         window.addEventListener("online", () => {
-            PubSub.get().publishSnack({ id: "online-status", messageKey: "NowOnline", severity: "Success" });
+            PubSub.get().publish("snack", { id: "online-status", messageKey: "NowOnline", severity: "Success" });
         });
         window.addEventListener("offline", () => {
             // ID is the same so there is ever only one online/offline snack displayed at a time
-            PubSub.get().publishSnack({ autoHideDuration: "persist", id: "online-status", messageKey: "NoInternet", severity: "Error" });
+            PubSub.get().publish("snack", { autoHideDuration: "persist", id: "online-status", messageKey: "NoInternet", severity: "Error" });
         });
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
         const cookiePreferences = getCookiePreferences();
         if (!cookiePreferences) {
-            PubSub.get().publishCookies();
+            PubSub.get().publish("cookies");
         }
     }, []);
 
     // Handle site-wide keyboard shortcuts
     useHotkeys([
-        { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publishCommandPalette(); } },
-        { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publishFindInPage(); } },
+        { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("commandPalette"); } },
+        { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("findInPage"); } },
     ]);
 
     const checkSession = useCallback((data?: Session) => {
@@ -227,7 +227,7 @@ export function App() {
                 }
                 // If error is something else, notify user
                 if (!isInvalidSession) {
-                    PubSub.get().publishSnack({
+                    PubSub.get().publish("snack", {
                         messageKey: "CannotConnectToServer",
                         autoHideDuration: "persist",
                         severity: "Error",
@@ -246,7 +246,7 @@ export function App() {
     useEffect(() => {
         checkSession();
         // Handle loading spinner, which can have a delay
-        const loadingSub = PubSub.get().subscribeLoading((data) => {
+        const loadingSub = PubSub.get().subscribe("loading", (data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             if (Number.isInteger(data)) {
                 timeoutRef.current = setTimeout(() => setIsLoading(true), Math.abs(data as number));
@@ -256,7 +256,7 @@ export function App() {
         });
         // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
         // can be passed in as a number
-        const celebrationSub = PubSub.get().subscribeCelebration((data) => {
+        const celebrationSub = PubSub.get().subscribe("celebration", (data) => {
             // Start confetti immediately
             setIsCelebrating(true);
             // Determine duration
@@ -266,7 +266,7 @@ export function App() {
             setTimeout(() => setIsCelebrating(false), duration);
         });
         // Handle session updates
-        const sessionSub = PubSub.get().subscribeSession((session) => {
+        const sessionSub = PubSub.get().subscribe("session", (session) => {
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
@@ -282,17 +282,17 @@ export function App() {
             setCookieAllFocusModes(focusModes);
         });
         // Handle theme updates
-        const themeSub = PubSub.get().subscribeTheme((data) => {
+        const themeSub = PubSub.get().subscribe("theme", (data) => {
             const newTheme = themes[data] ?? themes.dark;
             setThemeAndMeta(newTheme);
         });
         // Handle focus mode updates
-        const focusModeSub = PubSub.get().subscribeFocusMode((data) => {
+        const focusModeSub = PubSub.get().subscribe("focusMode", (data) => {
             setCookieActiveFocusMode(data);
             setSession((prevState) => {
                 if (!prevState) return prevState;
-                const updatedUsers = prevState?.users?.map((user, idx) => {
-                    if (idx === 0) {
+                const updatedUsers = prevState?.users?.map((user, index) => {
+                    if (index === 0) {
                         return {
                             ...user,
                             activeFocusMode: data,
@@ -321,38 +321,40 @@ export function App() {
             }
         });
         // Handle font size updates
-        const fontSizeSub = PubSub.get().subscribeFontSize((data) => {
+        const fontSizeSub = PubSub.get().subscribe("fontSize", (data) => {
             setFontSize(data);
             setCookieFontSize(data);
         });
         // Handle language updates
-        const languageSub = PubSub.get().subscribeLanguage((data) => {
+        const languageSub = PubSub.get().subscribe("language", (data) => {
             setLanguage(data);
             setCookieLanguage(data);
         });
         // Handle isLeftHanded updates
-        const isLeftHandedSub = PubSub.get().subscribeIsLeftHanded((data) => {
+        const isLeftHandedSub = PubSub.get().subscribe("isLeftHanded", (data) => {
             setIsLeftHanded(data);
             setCookieIsLeftHanded(data);
         });
         // Handle tutorial popup
-        const tutorialSub = PubSub.get().subscribeTutorial(() => {
+        const tutorialSub = PubSub.get().subscribe("tutorial", () => {
             setIsTutorialOpen(true);
         });
         // Handle content margins when drawer(s) open/close
-        const sideMenuPub = PubSub.get().subscribeSideMenu((data) => {
+        const sideMenuPub = PubSub.get().subscribe("sideMenu", (data) => {
             const { persistentOnDesktop, sideForRightHanded } = menusDisplayData[data.id];
             // Ignore if dialog is not persistent on desktop
             if (!persistentOnDesktop) return;
+            // For now, ignore if "idPrefix" is present. This is currently only used for menus associated with dialogs
+            if (data.idPrefix) return;
             // Flip side when in left-handed mode
             const side = isLeftHanded ? (sideForRightHanded === "left" ? "right" : "left") : sideForRightHanded;
             const menuElement = document.getElementById(data.id);
-            const padding = data.isOpen && !isMobile ? `${menuElement?.clientWidth ?? 0}px` : "0px";
+            const margin = data.isOpen && !isMobile ? `${menuElement?.clientWidth ?? 0}px` : "0px";
             // Only set on desktop
             if (side === "left") {
-                setContentMargins(existing => ({ ...existing, paddingLeft: padding }));
+                setContentMargins(existing => ({ ...existing, marginLeft: margin }));
             } else if (side === "right") {
-                setContentMargins(existing => ({ ...existing, paddingRight: padding }));
+                setContentMargins(existing => ({ ...existing, marginRight: margin }));
             }
         });
         // On unmount, unsubscribe from all PubSub topics
@@ -373,7 +375,7 @@ export function App() {
     // Handle websocket connection for tracking notifications
     useEffect(() => {
         socket.on("connect", () => {
-            console.log("connected to server");
+            console.info("websocket connected to server");
         });
 
         socket.on("notification", (notification) => {
@@ -388,7 +390,6 @@ export function App() {
 
     return (
         <>
-
             <StyledEngineProvider injectFirst>
                 <CssBaseline />
                 <ThemeProvider theme={theme}>
@@ -495,6 +496,7 @@ export function App() {
                                 <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
                                 <SideMenu />
                                 <Box id="content-wrap" sx={{
+                                    position: "relative",
                                     background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
                                     minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },
                                     ...(contentMargins),

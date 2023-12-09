@@ -7,7 +7,7 @@ export type PullRequestTranslationShape = Pick<PullRequestTranslation, "id" | "l
 }
 
 export type PullRequestShape = Pick<PullRequest, "id"> & {
-    __typename?: "PullRequest";
+    __typename: "PullRequest";
 }
 
 export const shapePullRequestTranslation: ShapeModel<PullRequestTranslationShape, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput> = {

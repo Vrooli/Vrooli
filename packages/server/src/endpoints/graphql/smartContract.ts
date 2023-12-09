@@ -1,6 +1,6 @@
 import { SmartContractSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { EndpointsSmartContract, SmartContractEndpoints } from "../logic";
+import { EndpointsSmartContract, SmartContractEndpoints } from "../logic/smartContract";
 
 export const typeDef = gql`
     enum SmartContractSortBy {
@@ -28,7 +28,7 @@ export const typeDef = gql`
 
     input SmartContractCreateInput {
         id: ID!
-        isPrivate: Boolean
+        isPrivate: Boolean!
         permissions: String
         parentConnect: ID
         ownedByUserConnect: ID

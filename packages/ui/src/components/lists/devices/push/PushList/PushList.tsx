@@ -36,7 +36,7 @@ export const PushList = ({
             },
         },
         enableReinitialize: true,
-        validationSchema: pushDeviceValidation.create({}),
+        validationSchema: pushDeviceValidation.create({ env: process.env.NODE_ENV as "development" | "production" }),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
             fetchLazyWrapper<PushDeviceCreateInput, PushDevice>({
@@ -48,7 +48,7 @@ export const PushList = ({
                     name: getDeviceInfo().deviceName,
                 },
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ messageKey: "CompleteVerificationInEmail", severity: "Info" });
+                    PubSub.get().publish("snack", { messageKey: "CompleteVerificationInEmail", severity: "Info" });
                     handleUpdate([...list, data]);
                     formik.resetForm();
                 },

@@ -1,20 +1,18 @@
 import { MaxObjects, NotificationSortBy } from "@local/shared";
 import { defaultPermissions } from "../../utils";
-import { NotificationFormat } from "../format/notification";
-import { ModelLogic } from "../types";
+import { NotificationFormat } from "../formats";
 import { NotificationModelLogic } from "./types";
 
 const __typename = "Notification" as const;
-const suppFields = [] as const;
-export const NotificationModel: ModelLogic<NotificationModelLogic, typeof suppFields> = ({
+export const NotificationModel: NotificationModelLogic = ({
     __typename,
     delegate: (prisma) => prisma.notification,
-    display: {
+    display: () => ({
         label: {
             select: () => ({ id: true, title: true }),
             get: (select) => select.title,
         },
-    },
+    }),
     format: NotificationFormat,
     search: {
         defaultSort: NotificationSortBy.DateCreatedDesc,
@@ -30,13 +28,13 @@ export const NotificationModel: ModelLogic<NotificationModelLogic, typeof suppFi
             ],
         }),
     },
-    validate: {
+    validate: () => ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            User: data.user,
+            User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
@@ -50,5 +48,5 @@ export const NotificationModel: ModelLogic<NotificationModelLogic, typeof suppFi
                 user: { id: userId },
             }),
         },
-    },
+    }),
 });

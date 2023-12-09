@@ -1,5 +1,5 @@
 import { Typography } from "@mui/material";
-import { fontSizeToPixels } from "utils/display/textTools";
+import { fontSizeToPixels } from "utils/display/stringTools";
 import { TextShrinkProps } from "../types";
 
 /**

@@ -84,6 +84,7 @@ export const bookmark_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -124,6 +125,7 @@ export const bookmark_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -196,6 +198,7 @@ export const bookmark_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -296,6 +299,7 @@ export const bookmark_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -336,6 +340,7 @@ export const bookmark_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -525,6 +530,7 @@ export const bookmark_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -565,6 +571,7 @@ export const bookmark_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -619,6 +626,7 @@ export const bookmark_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },
@@ -714,6 +722,7 @@ export const bookmark_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },
@@ -739,6 +748,7 @@ export const bookmark_findMany = {
             "bannerImage": true,
             "handle": true,
             "isBot": true,
+            "isBotDepictingPerson": true,
             "name": true,
             "profileImage": true
           },
@@ -843,6 +853,7 @@ export const bookmark_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -883,6 +894,7 @@ export const bookmark_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -997,6 +1009,7 @@ export const bookmark_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -1037,6 +1050,7 @@ export const bookmark_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -1152,6 +1166,7 @@ export const bookmark_findMany = {
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
+                "isBotDepictingPerson": true,
                 "name": true,
                 "profileImage": true
               }
@@ -1192,6 +1207,7 @@ export const bookmark_findMany = {
               "bannerImage": true,
               "handle": true,
               "isBot": true,
+              "isBotDepictingPerson": true,
               "name": true,
               "profileImage": true
             }
@@ -1256,6 +1272,7 @@ export const bookmark_findMany = {
           "bannerImage": true,
           "handle": true,
           "isBot": true,
+          "isBotDepictingPerson": true,
           "name": true,
           "profileImage": true,
           "bookmarks": true,

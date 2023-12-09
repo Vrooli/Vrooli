@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 interface UsePinchZoomProps {
-    onScaleChange: (scale: number, position: { x: number, y: number }) => void;
+    onScaleChange: (scale: number, position: { x: number, y: number }) => unknown;
     validTargetIds: string[];
 }
 

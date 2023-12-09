@@ -1,5 +1,5 @@
 import { gql } from "apollo-server-express";
-import { EndpointsPhone, PhoneEndpoints } from "../logic";
+import { EndpointsPhone, PhoneEndpoints } from "../logic/phone";
 
 export const typeDef = gql`
     input PhoneCreateInput {
