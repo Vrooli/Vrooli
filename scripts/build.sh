@@ -75,26 +75,9 @@ check_var GOOGLE_TRACKING_ID
 
 # Extract the current version number from the package.json file
 CURRENT_VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-# Ask for version number, if not supplied in arguments
-SHOULD_UPDATE_VERSION=false
-if [ -z "$VERSION" ]; then
-    prompt "What version number do you want to deploy? (current is ${CURRENT_VERSION}). Leave blank if keeping the same version number."
-    warning "WARNING: Keeping the same version number will overwrite the previous build."
-    read -r ENTERED_VERSION
-    # If version entered, set version
-    if [ ! -z "$ENTERED_VERSION" ]; then
-        VERSION=$ENTERED_VERSION
-        SHOULD_UPDATE_VERSION=true
-    else
-        info "Keeping the same version number."
-        VERSION=$CURRENT_VERSION
-    fi
-else
-    SHOULD_UPDATE_VERSION=true
-fi
-
-# Update package.json files for every package, if necessary
-if [ "${SHOULD_UPDATE_VERSION}" = true ]; then
+# If version was entered (and it's different from the current version), set version
+if [ ! -z "$VERSION" ] && [ "$VERSION" != "$CURRENT_VERSION" ]; then
+    # Update package.json files for every package
     cd ${HERE}/../packages
     # Find every directory containing a package.json file, up to 3 levels deep
     for dir in $(find . -maxdepth 3 -name package.json -printf '%h '); do
@@ -106,6 +89,8 @@ if [ "${SHOULD_UPDATE_VERSION}" = true ]; then
         # Go back to packages directory
         cd ${HERE}/../packages
     done
+else
+    info "No version supplied, or version supplied is the current version. Sticking with version ${CURRENT_VERSION}."
 fi
 
 # Navigate to shared directory
