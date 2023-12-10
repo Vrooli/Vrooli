@@ -58,7 +58,7 @@ fi
 # Copy current database and build to a safe location, under a temporary directory.
 cd ${HERE}/..
 DB_TMP="/var/tmp/${VERSION}/postgres"
-DB_CURR="${HERE}/../data/postgres"
+DB_CURR="${HERE}/../data/postgres-prod"
 BUILD_TMP="/var/tmp/${VERSION}/old-build"
 BUILD_CURR="${HERE}/../packages/ui/dist"
 # Don't copy database if it already exists in /var/tmp, or it doesn't exist in DB_CURR
@@ -68,7 +68,7 @@ elif [ ! -d "${DB_CURR}" ]; then
     warning "Current database does not exist at ${DB_CURR}, so not copying it"
 else
     info "Copying old database to ${DB_TMP}"
-    cp -rp ${HERE}/../data/postgres "${DB_TMP}"
+    cp -rp "${DB_CURR}" "${DB_TMP}"
     if [ $? -ne 0 ]; then
         error "Could not copy database to ${DB_TMP}"
         exit 1
