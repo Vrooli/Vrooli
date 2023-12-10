@@ -91,6 +91,7 @@ if [ ! -z "$VERSION" ] && [ "$VERSION" != "$CURRENT_VERSION" ]; then
     done
 else
     info "No version supplied, or version supplied is the current version. Sticking with version ${CURRENT_VERSION}."
+    VERSION=$CURRENT_VERSION
 fi
 
 # Navigate to shared directory
@@ -177,11 +178,6 @@ echo "VITE_GOOGLE_TRACKING_ID=${GOOGLE_TRACKING_ID}" >>.env
 trap "rm ${HERE}/../packages/ui/.env" EXIT
 
 # Generate query/mutation selectors
-if [ -z "$API_GENERATE" ]; then
-    prompt "Do you want to regenerate computed API information (GraphQL query/mutation selectors and OpenAPI schema)? (y/N)"
-    read -n1 -r API_GENERATE
-    echo
-fi
 if [[ "$API_GENERATE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
     NODE_OPTIONS="--max-old-space-size=4096" && ts-node --esm --experimental-specifier-resolution node ./src/tools/api/gqlSelects.ts
