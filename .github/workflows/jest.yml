@@ -1,6 +1,8 @@
 name: Jest Tests
 
 on:
+  push:
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -21,4 +23,4 @@ jobs:
       run: yarn install
 
     - name: Run Jest Tests in Workspaces
-      run: yarn workspaces run test
+      run: yarn workspace @local/shared test && yarn workspace @local/server test && yarn workspace @local/jobs test && yarn workspace @local/ui test

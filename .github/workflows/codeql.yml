@@ -33,7 +33,7 @@ jobs:
       run: yarn install # Install dependencies for all workspaces
 
     - name: Build TypeScript
-      run: yarn workspace packages build
+      run: yarn workspace @local/shared build && yarn workspace @local/server build && yarn workspace @local/jobs build && yarn workspace @local/ui build
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v2
