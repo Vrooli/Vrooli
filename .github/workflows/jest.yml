@@ -7,28 +7,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [16.x]
 
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
       with:
-        node-version: ${{ matrix.node-version }}
-    - name: Install and Test Shared
-      run: |
-        cd shared
-        yarn install
-        yarn test
-    - name: Install and Test Server
-      run: |
-        cd server
-        yarn install
-        yarn test
-    - name: Install and Test UI
-      run: |
-        cd ui
-        yarn install
-        yarn test
+        node-version: '16.x'
+        cache: 'yarn'
+
+    - name: Install Dependencies
+      run: yarn install
+
+    - name: Run Jest Tests in Workspaces
+      run: yarn workspaces run test

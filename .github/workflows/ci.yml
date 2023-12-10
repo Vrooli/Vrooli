@@ -1,22 +1,35 @@
-name: CI
+name: Continuous Integration
 
 on:
   workflow_run:
-    workflows: ["CodeQL Analysis", "Jest Tests"]
+    workflows: ["CodeQL", "Jest Tests"]
     types:
       - completed
 
 jobs:
-  ci-job:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      # Check out the branch that triggered the original workflow
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+    - uses: actions/checkout@v2
 
-      # Your custom steps go here
-      - run: git branch
-      - run: env
-      # Additional steps can be added as per your CI requirements
+    - name: Build Application
+      run: ./build.sh <arguments>
+
+    - name: Deploy Application
+      run: ./deploy.sh <arguments>
+
+    - name: Check Container Health
+      run: |
+        # Add commands to check the health of your containers
+        echo "Check container health here"
+
+    - name: Run Integration Tests
+      run: |
+        # Add commands to run your integration tests here
+        echo "Run integration tests here"
+
+    - name: Cleanup
+      run: |
+        # Add cleanup commands if not handled by deploy.sh
+        echo "Cleanup steps here"
