@@ -7,7 +7,6 @@
 
 [![Website](https://img.shields.io/website?label=vrooli.com&style=for-the-badge&url=https%3A%2F%2Fvrooli.com)][website]
 [![X/Twitter Follow](https://img.shields.io/twitter/follow/VrooliOfficial?color=1DA1F2&logo=twitter&style=for-the-badge)][x]
-[![Discord](https://img.shields.io/discord/880439923876974643?&style=for-the-badge)][discord]
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 
 # [<img align="top" alt="YouTube" width="50px" src="./assets/youtube.svg" />][youtube] [What Is Vrooli?][youtube]
@@ -136,7 +135,6 @@ If you'd like to work with me on this project, or want to contact me for another
 [personal-site]: https://matthalloran.info
 [setup-guide]: https://github.com/MattHalloran/ReactGraphQLTemplate#how-to-start
 [directory-structure]: https://docs.vrooli.com/setup/design/database/
-[discord]: https://discord.com/invite/VyrDFzbmmF
 [x]: https://x.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial
 [youtube]: https://www.youtube.com/@vrooli
 [email]: mailto:support@vrooli.com
