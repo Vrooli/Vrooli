@@ -1,4 +1,5 @@
 import { logger, ModelMap, PrismaType, withPrisma } from "@local/server";
+import { UI_URL_REMOTE } from "@local/server/src/server";
 import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
 import fs from "fs";
 import zlib from "zlib";
@@ -23,9 +24,6 @@ const Links: Record<typeof sitemapObjectTypes[number], string> = {
 // Where to save the sitemap index and files
 const sitemapIndexDir = "../../packages/ui/dist";
 const sitemapDir = `${sitemapIndexDir}/sitemaps`;
-
-// Name of website
-const siteName = "https://vrooli.com";
 
 /**
  * Converts a string to a BigInt
@@ -115,7 +113,7 @@ const genSitemapForObject = async (
             skip += batchSize;
             // Update current batch size
             currentBatchSize = batch.length;
-            const baseUrlSize = siteName.length + LINKS[objectType.replace("Version", "")].length;
+            const baseUrlSize = UI_URL_REMOTE.length + LINKS[objectType.replace("Version", "")].length;
             for (const entry of batch) {
                 // Convert batch to SiteMapEntryContent
                 const entryContent: SitemapEntryContent = {
@@ -138,7 +136,7 @@ const genSitemapForObject = async (
             return [];
         }
         // Convert collected entries to sitemap file
-        const sitemap = generateSitemap(siteName, { content: collectedEntries });
+        const sitemap = generateSitemap(UI_URL_REMOTE, { content: collectedEntries });
         // Zip and save sitemap file
         const sitemapFileName = `${objectType}-${sitemapFileNames.length}.xml.gz`;
         zlib.gzip(sitemap, (err, buffer) => {
@@ -179,7 +177,7 @@ export const genSitemap = async (): Promise<void> => {
                 sitemapFileNames.push(...sitemapFileNamesForObject);
             }
             // Generate sitemap index file
-            const sitemapIndex = generateSitemapIndex(`${siteName}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
+            const sitemapIndex = generateSitemapIndex(`${UI_URL_REMOTE}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
             // Write sitemap index file
             fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
         },

@@ -1,17 +1,17 @@
 import { DOCS_URL, LINKS, SOCIALS } from "@local/shared";
-import { Box, Button, Grid, keyframes, Stack, styled, Tooltip, useTheme } from "@mui/material";
+import { Box, Button, Grid, Stack, Tooltip, keyframes, styled, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
 import Earth from "assets/img/Earth.svg";
 import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
+import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainerNeon } from "components/slides";
-import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
 import { ArticleIcon, GitHubIcon, PlayIcon, XIcon } from "icons";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { greenNeonText, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, textPop } from "styles";
+import { SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, greenNeonText, textPop } from "styles";
 import { SvgComponent } from "types";
 import { Forms } from "utils/consts";
 import { SlideTitle } from "../../../styles";
@@ -72,7 +72,7 @@ export const LandingView = ({
 }: LandingViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const theme = useTheme();
+    const { breakpoints, palette } = useTheme();
 
     // Track if earth/sky is in view, and hndle scroll snap on slides
     const [earthTransform, setEarthTransform] = useState<string>("translate(0%, 100%) scale(1)");
@@ -125,7 +125,7 @@ export const LandingView = ({
                 onClose={onClose}
             />
             <SlidePage id="landing-slides" sx={{
-                background: theme.palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",
+                background: palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",
             }}>
                 <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 5 }}>
                     <SlideContent id={slide1Id} sx={{
@@ -138,13 +138,13 @@ export const LandingView = ({
                             ...greenNeonText,
                             fontWeight: "bold",
                             marginBottom: "0!important",
-                            [theme.breakpoints.up("md")]: {
+                            [breakpoints.up("md")]: {
                                 fontSize: "4.75rem",
                             },
-                            [theme.breakpoints.up("sm")]: {
+                            [breakpoints.up("sm")]: {
                                 fontSize: "4rem",
                             },
-                            [theme.breakpoints.up("xs")]: {
+                            [breakpoints.up("xs")]: {
                                 fontSize: "3.4rem",
                             },
                         }}>

@@ -562,6 +562,8 @@ spec:
               value: redis:6379
             - name: SERVER_URL
               value: "https://vrooli.com/api"
+            - name: UI_URL
+              value: "https://vrooli.com"
             - name: SITE_EMAIL_ALIAS
               value: "site@vrooli.com"
             - name: SITE_EMAIL_FROM

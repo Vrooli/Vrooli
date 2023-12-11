@@ -14,7 +14,7 @@ import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { io } from "../../io";
-import { SERVER_URL } from "../../server";
+import { UI_URL } from "../../server";
 import { ChatContextManager } from "../../tasks/llm/context";
 import { requestBotResponse } from "../../tasks/llm/queue";
 import { PrismaType } from "../../types";
@@ -458,12 +458,11 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         // Filter out links where the that aren't a mention. Rules:
                         // 1. Label must start with @
                         // 2. Link must be to this site
-                        const correctOrigin = new URL(SERVER_URL).origin;
                         links = links.filter(l => {
                             if (!l.label.startsWith("@")) return false;
                             try {
                                 const url = new URL(l.link);
-                                return url.origin === correctOrigin;
+                                return url.origin === UI_URL;
                             } catch (e) {
                                 return false;
                             }

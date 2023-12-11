@@ -8,6 +8,7 @@ import { Award } from "../../events/awards";
 import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { rateLimit } from "../../middleware/rateLimit";
+import { UI_URL_REMOTE } from "../../server";
 import { GQLEndpoint, RecursivePartial } from "../../types";
 import { hasProfanity } from "../../utils/censor";
 
@@ -29,7 +30,6 @@ export type EndpointsAuth = {
 /** Expiry time for wallet authentication */
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
-const BASE_URL = "https://vrooli.com";
 /** Default user data */
 const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Prisma.userUncheckedCreateInput>> = {
     isPrivateBookmarks: true,
@@ -43,7 +43,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                 create: {
                     resources: {
                         create: [{
-                            link: `${BASE_URL}${LINKS.Calendar}`,
+                            link: `${UI_URL_REMOTE}${LINKS.Calendar}`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -53,7 +53,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.MyStuff}?type=Reminder`,
+                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type=Reminder`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -62,7 +62,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.MyStuff}?type=Note`,
+                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type=Note`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -71,7 +71,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.History}?type=RunsActive`,
+                            link: `${UI_URL_REMOTE}${LINKS.History}?type=RunsActive`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -92,7 +92,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                 create: {
                     resources: {
                         create: [{
-                            link: `${BASE_URL}${LINKS.History}?type=Bookmarked`,
+                            link: `${UI_URL_REMOTE}${LINKS.History}?type=Bookmarked`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -101,7 +101,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.Search}?type=Routine`,
+                            link: `${UI_URL_REMOTE}${LINKS.Search}?type=Routine`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -111,7 +111,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.Search}?type=Project`,
+                            link: `${UI_URL_REMOTE}${LINKS.Search}?type=Project`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{

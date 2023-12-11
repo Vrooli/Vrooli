@@ -1,9 +1,10 @@
-import { APP_URL, BUSINESS_NAME } from "@local/shared";
+import { BUSINESS_NAME, LINKS } from "@local/shared";
 import { PaymentType } from "@prisma/client";
 import Bull from "bull";
 import fs from "fs";
 import { logger } from "../../events/logger.js";
 import { HOST, PORT } from "../../redisConn.js";
+import { UI_URL } from "../../server.js";
 import { emailProcess } from "./process.js";
 
 export type EmailProcessPayload = {
@@ -36,7 +37,7 @@ export function sendMail(to: string[] = [], subject = "", text = "", html = "", 
 
 /** Adds a password reset link email to a task queue */
 export function sendResetPasswordLink(email: string, userId: string | number, code: string) {
-    const link = `${APP_URL}/password-reset?code=${userId}:${code}`;
+    const link = `${UI_URL}${LINKS.ResetPassword}?code=${userId}:${code}`;
     emailQueue.add({
         to: [email],
         subject: `${BUSINESS_NAME} Password Reset`,
@@ -48,7 +49,7 @@ export function sendResetPasswordLink(email: string, userId: string | number, co
 /** Adds a verification link email to a task queue */
 export function sendVerificationLink(email: string, userId: string | number, code: string) {
     // Replace all "${VERIFY_LINK}" in welcomeTemplate with the the actual link
-    const link = `${APP_URL}/start?code=${userId}:${code}`;
+    const link = `${UI_URL}${LINKS.Login}?code=${userId}:${code}`;
     const html = welcomeTemplate.replace(/\$\{VERIFY_LINK\}/g, link);
     emailQueue.add({
         to: [email],
