@@ -23,6 +23,7 @@ import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { Cookies } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
+import { openObject } from "utils/navigation/openObject";
 import { getUserActions, NAV_ACTION_TAGS, NavAction } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
@@ -132,7 +133,7 @@ export const SideMenu = () => {
         if (isMobile) handleClose(event);
         // If already selected, go to profile page
         if (userId === user.id) {
-            setLocation(LINKS.Profile);
+            openObject(user, setLocation)
         }
         // Otherwise, switch to selected account
         else {

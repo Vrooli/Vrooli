@@ -18,7 +18,6 @@ export const LinkInput = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const textInputRef = useRef<HTMLDivElement | null>(null);
     const [field, , helpers] = useField<string>(name);
 
     // Search dialog to find objects to link to
@@ -80,7 +79,6 @@ export const LinkInput = ({
                         name={name}
                         label={label ?? t("Link")}
                         as={TextInput}
-                        ref={textInputRef}
                         placeholder={"https://example.com"}
                         tabIndex={tabIndex}
                         InputProps={{
@@ -102,7 +100,6 @@ export const LinkInput = ({
                         sx={{
                             background: palette.secondary.main,
                             borderRadius: "0 5px 5px 0",
-                            height: `${textInputRef.current?.clientHeight ?? 56}px)`,
                             color: palette.secondary.contrastText,
                         }}>
                         <SearchIcon />

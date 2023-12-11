@@ -499,6 +499,7 @@ export const DashboardView = ({
                             mutate={true}
                             parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
                             title={t("Resource", { count: 2 })}
+                            sxs={{ list: { justifyContent: "flex-start" } }}
                         />
                     </Box>
                     {/* Events */}

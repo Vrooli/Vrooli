@@ -32,7 +32,6 @@ const ResourceBox = styled(Box)(({ theme }) => ({
     background: theme.palette.primary.light,
     color: theme.palette.secondary.contrastText,
     borderRadius: "16px",
-    margin: "auto",
     padding: theme.spacing(1),
     cursor: "pointer",
     width: "194px",
@@ -195,6 +194,7 @@ export const ResourceListHorizontal = ({
     mutate = true,
     parent,
     title,
+    sxs,
 }: ResourceListHorizontalProps) => {
     console.log("qwaf resource list render", list);
     const { palette } = useTheme();
@@ -363,7 +363,7 @@ export const ResourceListHorizontal = ({
                             ref={provided.innerRef}
                             id={id}
                             {...provided.droppableProps}
-                            justifyContent="flex-start"
+                            justifyContent="center"
                             alignItems="center"
                             sx={{
                                 display: "flex",
@@ -374,6 +374,7 @@ export const ResourceListHorizontal = ({
                                 paddingTop: title ? 0 : 1,
                                 paddingBottom: 1,
                                 overflowX: "auto",
+                                ...sxs?.list,
                             }}>
                             {/* Resources */}
                             {list?.resources?.map((c: Resource, index) => (
