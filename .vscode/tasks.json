@@ -21,6 +21,6 @@
             "problemMatcher": [],
             "label": "npm: build - packages/ui",
             "detail": "tsc && vite-build"
-        }
+        },
     ]
 }
