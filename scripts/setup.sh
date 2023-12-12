@@ -309,10 +309,27 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
     check_and_add_to_install_list "ts-node" ""
     check_and_add_to_install_list "nodemon" ""
     check_and_add_to_install_list "prisma" "4.14.0"
-    check_and_add_to_install_list "vite" ""
+    check_and_add_to_install_list "vite" "4.4.4"
     # Install all at once if there are packages to install
     if [ ! -z "$toInstall" ]; then
         yarn global add $toInstall
+        if [ $? -ne 0 ]; then
+            error "Failed to install global dependencies: $toInstall"
+            info "Trying to install each package individually..."
+            # Split the toInstall string into an array
+            IFS=' ' read -r -a individualPackages <<<"$toInstall"
+            # Loop through each package and try to install it individually
+            for pkg in "${individualPackages[@]}"; do
+                info "Attempting to install $pkg individually..."
+                yarn global add "$pkg"
+                if [ $? -ne 0 ]; then
+                    error "Failed to install $pkg"
+                    exit 1
+                else
+                    info "$pkg installed successfully"
+                fi
+            done
+        fi
     fi
 
     # If reinstalling modules, delete all node_modules directories before installing dependencies
