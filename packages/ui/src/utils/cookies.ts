@@ -7,6 +7,7 @@
  */
 import { ActiveFocusMode, COOKIE, exists, FocusMode, ValueOf } from "@local/shared";
 import { AssistantTask, NavigableObject } from "types";
+import { getDeviceInfo } from "./display/device";
 import { chatMatchHash } from "./hash";
 
 /**
@@ -74,6 +75,15 @@ export const getOrSetCookie = <T>(name: Cookies | string, typeCheck: (value: unk
  * @returns CookiePreferences object, or null if not set
  */
 export const getCookiePreferences = (): CookiePreferences | null => {
+    // PWAs don't require cookie consent
+    if (getDeviceInfo().isStandalone) {
+        return {
+            strictlyNecessary: true,
+            performance: true,
+            functional: true,
+            targeting: true,
+        }
+    }
     const cookie = getCookie(Cookies.Preferences, (value: unknown): value is CookiePreferences => typeof value === "object");
     if (!cookie) return null;
     return {

@@ -57,7 +57,6 @@ const getRouteMap = async (): Promise<{ [x: string]: string }> => {
  */
 const main = async () => {
     const UI_URL = process.env.UI_URL;
-    console.log('env', process.env);
     if (!UI_URL) throw new Error("UI_URL environment variable not set");
 
     // Get route names

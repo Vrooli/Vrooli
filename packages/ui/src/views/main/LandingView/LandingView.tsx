@@ -150,10 +150,10 @@ export const LandingView = ({
                                 fontSize: "3.4rem",
                             },
                         }}>
-                            Revolutionize Your Workflow
+                            Let AI Take the Wheel
                         </SlideTitle>
                         <SlideText sx={{ paddingBottom: 4 }}>
-                            Harness the power of AI to automate tasks, collaborate effortlessly, and start businesses with ease.
+                            Use AI teams to automate business tasks and enhance personal productivity
                         </SlideText>
                         <Box sx={{
                             display: "flex",

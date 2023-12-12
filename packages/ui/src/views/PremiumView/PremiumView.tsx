@@ -1,14 +1,18 @@
 import { LINKS, PaymentType } from "@local/shared";
-import { Box, Button, keyframes, Link, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
+import { Box, Button, Link, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, keyframes, useTheme } from "@mui/material";
 import Blob1 from "assets/img/blob1.svg";
 import Blob2 from "assets/img/blob2.svg";
-import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Testimonials } from "components/Testimonials/Testimonials";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useStripe } from "hooks/useStripe";
 import { CompleteIcon, LogInIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { stringifySearchParams, useLocation } from "route";
 import { PremiumViewProps } from "../types";
+import { useWindowSize } from "hooks/useWindowSize";
+import { getDisplay } from "utils/display/listTools";
+import { pagePaddingBottom } from "styles";
+import { getDeviceInfo } from "utils/display/device";
 
 const purpleRadial = "radial-gradient(circle, rgb(16 6 46) 15%, rgb(11 1 36) 55%, rgb(8 3 20) 85%)";
 
@@ -97,9 +101,10 @@ export const PremiumView = ({
     display,
     onClose,
 }: PremiumViewProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const { breakpoints, palette } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     const { currentUser, prices, startCheckout, redirectToCustomerPortal } = useStripe();
 
@@ -110,6 +115,7 @@ export const PremiumView = ({
             backgroundAttachment: "fixed",
             color: "white",
             padding: 2,
+            marginBottom: (isMobile && getDeviceInfo().isStandalone) ? pagePaddingBottom : 0,
         }}>
             {/* Blob 1 */}
             <Box sx={{
