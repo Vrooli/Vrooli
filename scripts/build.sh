@@ -207,11 +207,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # Generate sitemap.xml
-ts-node --esm --experimental-specifier-resolution node ./src/tools/sitemap.ts
+export UI_URL="${UI_URL}" && ts-node --esm --experimental-specifier-resolution node ./src/tools/sitemap.ts
 if [ $? -ne 0 ]; then
-    error "Failed to generate sitemap.xml"
-    echo "${HERE}/../packages/ui/src/tools/sitemap.ts"
-    # This is not a critical error, so we don't exit
+    error "Failed to generate sitemap.xml using ${HERE}/../packages/ui/src/tools/sitemap.ts"
+    # This is not a critical error, so we won't exit
 fi
 
 # Create brave-rewards-verification.txt file
