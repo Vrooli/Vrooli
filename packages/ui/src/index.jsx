@@ -5,7 +5,6 @@ import { App } from "./App";
 import "./i18n"; // Must import for translations to work
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { getDeviceInfo } from "./utils/display/device";
-import { PubSub } from "./utils/pubsub";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -31,9 +30,9 @@ if (import.meta.env.PROD) {
     if ("serviceWorker" in navigator) {
         navigator.serviceWorker.ready.then((registration) => {
             // Add listener to detect new updates, so we can show a message to the user
-            registration.addEventListener("updatefound", () => {
-                PubSub.get().publish("snack", { message: "Downloading updates...", autoHideDuration: "persist" });
-            });
+            // registration.addEventListener("updatefound", () => {
+            //     PubSub.get().publish("snack", { message: "Downloading updates...", autoHideDuration: "persist" });
+            // });
             // Send message to service worker to let it know if this is a standalone (i.e. downloaded) PWA. 
             // Standalone PWAs come with more assets, like splash screens.
             //TODO not used yet
