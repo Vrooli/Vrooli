@@ -7,6 +7,7 @@ import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
 import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainerNeon } from "components/slides";
+import { useWindowSize } from "hooks/useWindowSize";
 import { ArticleIcon, GitHubIcon, PlayIcon, XIcon } from "icons";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -73,6 +74,7 @@ export const LandingView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     // Track if earth/sky is in view, and hndle scroll snap on slides
     const [earthTransform, setEarthTransform] = useState<string>("translate(0%, 100%) scale(1)");
@@ -169,7 +171,7 @@ export const LandingView = ({
                                 onClick={() => openLink(setLocation, LINKS.Signup, { form: Forms.SignUp })}
                                 startIcon={<PlayIcon fill='white' />}
                                 sx={{
-                                    fontSize: "1.8rem",
+                                    fontSize: isMobile ? "1.3rem" : "1.8rem",
                                     zIndex: 2,
                                 }}
                             >Start Now</PulseButton>
@@ -178,7 +180,7 @@ export const LandingView = ({
                                 color="secondary"
                                 onClick={() => openLink(setLocation, LINKS.Search)}
                                 sx={{
-                                    fontSize: "1.4rem",
+                                    fontSize: isMobile ? "1rem" : "1.4rem",
                                     zIndex: 2,
                                     color: "white",
                                     borderColor: "white",
@@ -188,7 +190,7 @@ export const LandingView = ({
                         <Stack direction="row" spacing={2} display="flex" justifyContent="center" alignItems="center">
                             {externalLinks.map(([tooltip, link, Icon]) => (
                                 <Tooltip key={tooltip} title={tooltip} placement="bottom">
-                                    <SlideIconButton onClick={() => openLink(setLocation, link, { form: Forms.SignUp })}>
+                                    <SlideIconButton onClick={() => openLink(setLocation, link)}>
                                         <Icon fill='#0fa' />
                                     </SlideIconButton>
                                 </Tooltip>
