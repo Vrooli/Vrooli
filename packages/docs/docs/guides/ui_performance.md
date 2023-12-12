@@ -15,11 +15,11 @@ Below are a few approaches to testing and improving performance.
 Before removing packages, please make sure that depcheck was correct. If you are only using the package in a Dockerfile, for example, it may not catch it!
 - Remove unused components and pages - Every byte counts with web responsiveness! One method for finding unused code is to use [ts-unused-exports](https://github.com/pzavolinsky/ts-unused-exports).
 - Peek inside code bundles - Seeing what's inside the code bundles can help you determine what areas of the code should be lazy loaded, and what is taking the most space. To do this:  
-    1. `cd packages/ui ` 
+    1. Make sure `sourcemap` is set to `true` in the `vite.config.ts` file.
+    1. Navigate to the UI package: `cd packages/ui ` 
     2. `yarn build`
     3. `yarn analyze`
-
-    **Note**: If `yarn analyze` is not working, then the source-map-explorer is likely unable to open your web browser. In this case, try running it directly with the `--html` flag (i.e. `npx source-map-explorer --html source-tree.html <bundles_location>`) (vite example [must have sourcemap set to `true`]: `npx source-map-explorer --html source-tree.html dist/assets/*`). Then open the generated file directly
+    4. Open the generated `source-tree.html` file in your browser. This will show you the size of each file in the bundle, and how they are related to each other.
 
 ## Accessibility
 Accessibility is a crucial aspect of web development, ensuring that your website is usable by people with various disabilities. This section guides you on how to test and improve the accessibility of your website.
