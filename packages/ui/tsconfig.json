@@ -35,7 +35,8 @@
         "fonts.d.ts",
         "types.d.ts",
         "sw-template.js",
-        "src/api/hooks"
+        "src/api/hooks",
+        "public/pkg/libheif/worker.js"
     ],
     "exclude": [
         "**/*.spec.ts",

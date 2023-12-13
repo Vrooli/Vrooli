@@ -3,6 +3,7 @@
     "ignorePatterns": [
         "dist/",
         "server/src/auth/message_signing/",
+        "ui/public/pkg/",
         "vite.config.ts",
         "graphqlTypes.ts",
         "generated/"
