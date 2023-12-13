@@ -198,6 +198,9 @@ if [[ "$API_GENERATE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     cd ${HERE}/../packages/ui
 fi
 
+# Copy @codemirror languages to the public directory
+"${HERE}/codemirror.sh"
+
 # Build React app
 info "Building React app..."
 yarn build

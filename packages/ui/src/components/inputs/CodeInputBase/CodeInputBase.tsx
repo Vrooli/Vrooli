@@ -1,9 +1,7 @@
-import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
 import { Range } from "@codemirror/state";
 import { ChatInviteStatus, DUMMY_ID, LangsKey, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
@@ -13,8 +11,12 @@ import { Status } from "utils/consts";
 import { jsonToString } from "utils/shape/general";
 // import { isJson } from "utils/shape/general"; // Update this so that we can lint JSON standard input type (different from normal JSON)
 import { redo, undo } from "@codemirror/commands";
-import { Extension, StateField } from "@codemirror/state";
-import { BlockInfo, Decoration, EditorView, gutter, GutterMarker, showTooltip } from "@codemirror/view";
+import { StateField } from "@codemirror/state";
+import { BlockInfo, Decoration, EditorView, GutterMarker, gutter, showTooltip } from "@codemirror/view";
+import CodeMirror from "codemirror";
+import "codemirror/addon/mode/loadmode";
+import "codemirror/lib/codemirror.css";
+import "codemirror/mode/meta";
 import { SessionContext } from "contexts/SessionContext";
 import { ErrorIcon, MagicIcon, OpenThreadIcon, RedoIcon, UndoIcon, WarningIcon } from "icons";
 import ReactDOMServer from "react-dom/server";
@@ -26,6 +28,14 @@ import { ChatShape } from "utils/shape/models/chat";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { CodeInputBaseProps } from "../types";
+
+// declare module "codemirror" {
+//     interface Editor {
+//         // Add methods that are missing in the typings
+//         autoLoadMode: (instance: CodeMirror.Editor, mode: string) => void;
+//         // ... other methods
+//     }
+// }
 
 export enum StandardLanguage {
     Angular = "angular",
@@ -183,170 +193,48 @@ function underlineVariables(doc) {
     return Decoration.set(decorations);
 }
 
-/**
- * Dynamically imports language packages.
- */
-const languageMap: { [x in StandardLanguage]: (() => Promise<{
-    main: LanguageSupport | StreamLanguage<any> | Extension,
-    linter?: ((view: EditorView) => Diagnostic[]) | Extension,
-}>) } = {
-    [StandardLanguage.Angular]: async () => {
-        const { angular } = await import("@codemirror/lang-angular");
-        return { main: angular() };
-    },
-    [StandardLanguage.Cpp]: async () => {
-        const { cpp } = await import("@codemirror/lang-cpp");
-        return { main: cpp() };
-    },
-    [StandardLanguage.Css]: async () => {
-        const { css } = await import("@codemirror/lang-css");
-        return { main: css() };
-    },
-    [StandardLanguage.Dockerfile]: async () => {
-        const { dockerFile } = await import("@codemirror/legacy-modes/mode/dockerfile");
-        return { main: StreamLanguage.define(dockerFile) };
-    },
-    [StandardLanguage.Go]: async () => {
-        const { go } = await import("@codemirror/legacy-modes/mode/go");
-        return { main: StreamLanguage.define(go) };
-    },
-    [StandardLanguage.Graphql]: async () => {
-        const { graphql } = await import("cm6-graphql");
-        return { main: graphql() };
-    },
-    [StandardLanguage.Groovy]: async () => {
-        const { groovy } = await import("@codemirror/legacy-modes/mode/groovy");
-        return { main: StreamLanguage.define(groovy) };
-    },
-    [StandardLanguage.Haskell]: async () => {
-        const { haskell } = await import("@codemirror/legacy-modes/mode/haskell");
-        return { main: StreamLanguage.define(haskell) };
-    },
-    [StandardLanguage.Html]: async () => {
-        const { html } = await import("@codemirror/lang-html");
-        return { main: html() };
-    },
-    [StandardLanguage.Java]: async () => {
-        const { java } = await import("@codemirror/lang-java");
-        return { main: java() };
-    },
-    [StandardLanguage.Javascript]: async () => {
-        const { javascript } = await import("@codemirror/lang-javascript");
-        return { main: javascript({ jsx: true }) };
-    },
-    [StandardLanguage.Json]: async () => {
-        const { json, jsonParseLinter } = await import("@codemirror/lang-json");
-        return { main: json(), linter: jsonParseLinter() };
-    },
-    [StandardLanguage.JsonStandard]: async () => {
-        const { json, jsonParseLinter } = await import("@codemirror/lang-json");
-        return { main: json(), linter: jsonParseLinter() };
-    },
-    [StandardLanguage.Nginx]: async () => {
-        const { nginx } = await import("@codemirror/legacy-modes/mode/nginx");
-        return { main: StreamLanguage.define(nginx) };
-    },
-    [StandardLanguage.Nix]: async () => {
-        const { nix } = await import("@replit/codemirror-lang-nix");
-        return { main: nix() };
-    },
-    [StandardLanguage.Php]: async () => {
-        const { php } = await import("@codemirror/lang-php");
-        return { main: php() };
-    },
-    [StandardLanguage.Powershell]: async () => {
-        const { powerShell } = await import("@codemirror/legacy-modes/mode/powershell");
-        return { main: StreamLanguage.define(powerShell) };
-    },
-    [StandardLanguage.Protobuf]: async () => {
-        const { protobuf } = await import("@codemirror/legacy-modes/mode/protobuf");
-        return { main: StreamLanguage.define(protobuf) };
-    },
-    [StandardLanguage.Puppet]: async () => {
-        const { puppet } = await import("@codemirror/legacy-modes/mode/puppet");
-        return { main: StreamLanguage.define(puppet) };
-    },
-    [StandardLanguage.Python]: async () => {
-        const { python } = await import("@codemirror/lang-python");
-        return { main: python() };
-    },
-    [StandardLanguage.R]: async () => {
-        const { r } = await import("codemirror-lang-r");
-        return { main: r() };
-    },
-    [StandardLanguage.Ruby]: async () => {
-        const { ruby } = await import("@codemirror/legacy-modes/mode/ruby");
-        return { main: StreamLanguage.define(ruby) };
-    },
-    [StandardLanguage.Rust]: async () => {
-        const { rust } = await import("@codemirror/lang-rust");
-        return { main: rust() };
-    },
-    [StandardLanguage.Sass]: async () => {
-        const { sass } = await import("@codemirror/lang-sass");
-        return { main: sass() };
-    },
-    [StandardLanguage.Shell]: async () => {
-        const { shell } = await import("@codemirror/legacy-modes/mode/shell");
-        return { main: StreamLanguage.define(shell) };
-    },
-    [StandardLanguage.Solidity]: async () => {
-        const { solidity } = await import("@replit/codemirror-lang-solidity");
-        return { main: solidity };
-    },
-    [StandardLanguage.Spreadsheet]: async () => {
-        const { spreadsheet } = await import("@codemirror/legacy-modes/mode/spreadsheet");
-        return { main: StreamLanguage.define(spreadsheet) };
-    },
-    [StandardLanguage.Sql]: async () => {
-        const { standardSQL } = await import("@codemirror/legacy-modes/mode/sql");
-        return { main: StreamLanguage.define(standardSQL) };
-    },
-    [StandardLanguage.Svelte]: async () => {
-        const { svelte } = await import("@replit/codemirror-lang-svelte");
-        return { main: svelte() };
-    },
-    [StandardLanguage.Swift]: async () => {
-        const { swift } = await import("@codemirror/legacy-modes/mode/swift");
-        return { main: StreamLanguage.define(swift) };
-    },
-    [StandardLanguage.Typescript]: async () => {
-        const { javascript } = await import("@codemirror/lang-javascript");
-        return { main: javascript({ jsx: true, typescript: true }) };
-    },
-    [StandardLanguage.Vb]: async () => {
-        const { vb } = await import("@codemirror/legacy-modes/mode/vb");
-        return { main: StreamLanguage.define(vb) };
-    },
-    [StandardLanguage.Vbscript]: async () => {
-        const { vbScript } = await import("@codemirror/legacy-modes/mode/vbscript");
-        return { main: StreamLanguage.define(vbScript) };
-    },
-    [StandardLanguage.Verilog]: async () => {
-        const { verilog } = await import("@codemirror/legacy-modes/mode/verilog");
-        return { main: StreamLanguage.define(verilog) };
-    },
-    [StandardLanguage.Vhdl]: async () => {
-        const { vhdl } = await import("@codemirror/legacy-modes/mode/vhdl");
-        return { main: StreamLanguage.define(vhdl) };
-    },
-    [StandardLanguage.Vue]: async () => {
-        const { vue } = await import("@codemirror/lang-vue");
-        return { main: vue() };
-    },
-    [StandardLanguage.Xml]: async () => {
-        const { xml } = await import("@codemirror/lang-xml");
-        return { main: xml() };
-    },
-    [StandardLanguage.Yacas]: async () => {
-        const { yacas } = await import("@codemirror/legacy-modes/mode/yacas");
-        return { main: StreamLanguage.define(yacas) };
-    },
-    [StandardLanguage.Yaml]: async () => {
-        const { yaml } = await import("@codemirror/legacy-modes/mode/yaml");
-        return { main: StreamLanguage.define(yaml) };
-    },
-};
+// /** Maps language types to their import location */
+// const languageImportMap: { [x in StandardLanguage]: string } = {
+//     [StandardLanguage.Angular]: "@codemirror/lang-angular",
+//     [StandardLanguage.Cpp]: "@codemirror/lang-cpp",
+//     [StandardLanguage.Css]: "@codemirror/lang-css",
+//     [StandardLanguage.Dockerfile]: "@codemirror/legacy-modes/mode/dockerfile",
+//     [StandardLanguage.Go]: "@codemirror/legacy-modes/mode/go",
+//     [StandardLanguage.Graphql]: "cm6-graphql",
+//     [StandardLanguage.Groovy]: "@codemirror/legacy-modes/mode/groovy",
+//     [StandardLanguage.Haskell]: "@codemirror/legacy-modes/mode/haskell",
+//     [StandardLanguage.Html]: "@codemirror/lang-html",
+//     [StandardLanguage.Java]: "@codemirror/lang-java",
+//     [StandardLanguage.Javascript]: "@codemirror/lang-javascript",
+//     [StandardLanguage.Json]: "@codemirror/lang-json",
+//     [StandardLanguage.JsonStandard]: "@codemirror/lang-json",
+//     [StandardLanguage.Nginx]: "@codemirror/legacy-modes/mode/nginx",
+//     [StandardLanguage.Nix]: "@replit/codemirror-lang-nix",
+//     [StandardLanguage.Php]: "@codemirror/lang-php",
+//     [StandardLanguage.Powershell]: "@codemirror/legacy-modes/mode/powershell",
+//     [StandardLanguage.Protobuf]: "@codemirror/legacy-modes/mode/protobuf",
+//     [StandardLanguage.Puppet]: "@codemirror/legacy-modes/mode/puppet",
+//     [StandardLanguage.Python]: "@codemirror/lang-python",
+//     [StandardLanguage.R]: "codemirror-lang-r",
+//     [StandardLanguage.Ruby]: "@codemirror/legacy-modes/mode/ruby",
+//     [StandardLanguage.Rust]: "@codemirror/lang-rust",
+//     [StandardLanguage.Sass]: "@codemirror/lang-sass",
+//     [StandardLanguage.Shell]: "@codemirror/legacy-modes/mode/shell",
+//     [StandardLanguage.Solidity]: "@replit/codemirror-lang-solidity",
+//     [StandardLanguage.Spreadsheet]: "@codemirror/legacy-modes/mode/spreadsheet",
+//     [StandardLanguage.Sql]: "@codemirror/legacy-modes/mode/sql",
+//     [StandardLanguage.Svelte]: "@replit/codemirror-lang-svelte",
+//     [StandardLanguage.Swift]: "@codemirror/legacy-modes/mode/swift",
+//     [StandardLanguage.Typescript]: "@codemirror/lang-javascript",
+//     [StandardLanguage.Vb]: "@codemirror/legacy-modes/mode/vb",
+//     [StandardLanguage.Vbscript]: "@codemirror/legacy-modes/mode/vbscript",
+//     [StandardLanguage.Verilog]: "@codemirror/legacy-modes/mode/verilog",
+//     [StandardLanguage.Vhdl]: "@codemirror/legacy-modes/mode/vhdl",
+//     [StandardLanguage.Vue]: "@codemirror/lang-vue",
+//     [StandardLanguage.Xml]: "@codemirror/lang-xml",
+//     [StandardLanguage.Yacas]: "@codemirror/legacy-modes/mode/yacas",
+//     [StandardLanguage.Yaml]: "@codemirror/legacy-modes/mode/yaml",
+// };
 
 class ErrorMarker extends GutterMarker {
     toDOM() {
@@ -425,7 +313,44 @@ export const CodeInputBase = ({
     const session = useContext(SessionContext);
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
 
-    const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
+    // const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
+    const codeMirrorRef = useRef<Editor | null>(null);
+    useEffect(() => {
+        // Assuming you have a textarea with a specific ID in your render method
+        const textAreaElement = document.getElementById("code-editor-textarea");
+
+        if (textAreaElement) {
+            // Initialize CodeMirror on the textarea
+            const editor = CodeMirror.fromTextArea(textAreaElement, {
+                value: internalValue,
+                lineNumbers: true,
+                mode: "text/plain", // Default mode, you can set this based on your requirements
+                // Add other options as needed
+            });
+
+            // Store the editor instance in a ref for later use
+            codeMirrorRef.current = editor;
+
+            // Optional: Add an event listener if you want to handle changes
+            editor.on("change", (cm) => {
+                updateInternalValue(cm.getValue());
+            });
+
+            // Set the initial mode based on the component's state
+            const info = CodeMirror.findModeByName(mode);
+            if (info) {
+                CodeMirror.autoLoadMode(editor, info.mode);
+                editor.setOption("mode", info.mime);
+            }
+        }
+
+        // Cleanup function to detach CodeMirror from the DOM when the component unmounts
+        return () => {
+            if (codeMirrorRef.current) {
+                codeMirrorRef.current.toTextArea();
+            }
+        };
+    }, []); // Empty dependency array to ensure this runs only once on mount
 
     // Last valid schema format
     const [internalValue, setInternalValue] = useState<string>(jsonToString(format) ?? "");
@@ -484,33 +409,83 @@ export const CodeInputBase = ({
     });
 
     // Handle language selection
+    // CodeMirror.modeURL = "/codemirror/%N/%N.js";
     const [mode, setMode] = useState<StandardLanguage>(limitTo && limitTo.length > 0 ? limitTo[0] : StandardLanguage.Json);
     const [extensions, setExtensions] = useState<any[]>([]);
     const [supportsValidation, setSupportsValidation] = useState<boolean>(false);
+    // useEffect(() => {
+    //     if (codeMirrorRef.current && mode in languageMap) {
+    //         const editor = codeMirrorRef.current.editor;
+    //         const info = CodeMirror.findModeByName(mode);
+
+    //         if (info) {
+    //             CodeMirror.autoLoadMode(editor, info.mode);
+    //             editor.setOption("mode", info.mime);
+    //         }
+
+    //         languageMap[mode]().then(({ main, linter }) => {
+    //             const updatedExtensions = [main];
+    //             if (linter) {
+    //                 updatedExtensions.push(wrappedLinter(linter));
+    //                 setSupportsValidation(true);
+    //             } else {
+    //                 setErrors([]);
+    //                 setSupportsValidation(false);
+    //             }
+    //             // If mode is JSON standard, add additional extensions for variables
+    //             if (mode === StandardLanguage.JsonStandard) {
+    //                 updatedExtensions.push(
+    //                     cursorTooltipField, // Handle tooltips for JSON variables
+    //                     underlineDecorationField, // Underline JSON variables
+    //                 );
+    //             }
+    //             setExtensions(updatedExtensions);
+    //         });
+    //     }
+    // }, [mode]);
+
     useEffect(() => {
-        if (mode in languageMap) {
-            languageMap[mode]().then(({ main, linter }) => {
-                console.log("imported extensions", main, linter);
-                const updatedExtensions = [main];
-                if (linter) {
-                    updatedExtensions.push(wrappedLinter(linter));
-                    setSupportsValidation(true);
-                }
-                else {
-                    setErrors([]);
-                    setSupportsValidation(false);
-                }
-                // If mode is JSON standard, add additional extensions for variables
-                if (mode === StandardLanguage.JsonStandard) {
-                    updatedExtensions.push(
-                        cursorTooltipField, // Handle tooltips for JSON variables
-                        underlineDecorationField, // Underline JSON variables
-                    );
-                }
-                setExtensions(updatedExtensions);
-            });
+        if (codeMirrorRef.current) {
+            // Find the mode information based on the selected mode
+            const info = CodeMirror.findModeByName(mode);
+
+            if (info) {
+                // Dynamically load the mode script if it's not already loaded
+                CodeMirror.requireMode(info.mode, () => {
+                    // Once the mode script is loaded, set the mode on the editor
+                    codeMirrorRef.current.setOption("mode", info.mime);
+                });
+            }
+
+            // If the mode has an associated linter or other extensions, load them here
+            if (mode in languageMap) {
+                languageMap[mode]().then(({ main, linter }) => {
+                    // Assuming 'main' is a function that applies the necessary
+                    // extensions or configurations to the CodeMirror instance
+                    main(codeMirrorRef.current);
+
+                    if (linter) {
+                        // Apply the linter or other extensions
+                        // This part depends on how your linters are set up
+                        // For example, you might do something like:
+                        codeMirrorRef.current.setOption("lint", linter);
+                        setSupportsValidation(true);
+                    } else {
+                        setErrors([]);
+                        setSupportsValidation(false);
+                    }
+                });
+            }
         }
     }, [mode]);
+
+    useEffect(() => {
+        if (codeMirrorRef.current) {
+            codeMirrorRef.current.on("change", (cm) => {
+                updateInternalValue(cm.getValue());
+            });
+        }
+    }, []);
 
     // Handle assistant dialog
     const closeAssistantDialog = useCallback(() => {
@@ -697,7 +672,12 @@ export const CodeInputBase = ({
                         </Box>
                     </Grid>
                 </Box>
-                <CodeMirror
+                <textarea
+                    id="your-textarea-id"
+                    ref={codeMirrorRef}
+                    defaultValue={internalValue}
+                ></textarea>
+                {/* <CodeMirror
                     ref={codeMirrorRef}
                     value={internalValue}
                     theme={palette.mode === "dark" ? "dark" : "light"}
@@ -728,7 +708,7 @@ export const CodeInputBase = ({
                         })]}
                     onChange={updateInternalValue}
                     height={"400px"}
-                />
+                /> */}
                 {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect
              parts of the JSON, and an input for entering the currently-selected section of JSON */}
                 {/* TODO */}
