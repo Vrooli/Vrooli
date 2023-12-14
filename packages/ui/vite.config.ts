@@ -38,18 +38,24 @@ export default defineConfig({
             output: {
                 // Anything which doesn't need to be in the main bundle can be defined here as a separate chunk. 
                 // This should be done only if you've tried everything else to reduce the bundle size.
+                // Also, this doesn't guarantee that the chunk will be moved to its own bundle. But it's worth a try.
                 manualChunks: {
-                    'lang-cpp': ['@lezer/cpp'],
-                    'lang-css': ['@codemirror/lang-css', '@lezer/css', '@lezer/sass'],
-                    'lang-html': ['@codemirror/lang-html', '@lezer/html'],
-                    'lang-java': ['@lezer/java'],
-                    'lang-javascript': ['@lezer/javascript'],
-                    'lezer-lr': ['@lezer/lr'],
-                    'lang-php': ['@lezer/php'],
-                    'lang-python': ['@lezer/python'],
-                    'lang-rust': ['@lezer/rust'],
+                    'lang-angular': ['@codemirror/lang-angular'],
+                    'lang-cpp': ['@codemirror/lang-cpp'],
+                    'lang-css': ['@codemirror/lang-css'],
+                    'lang-html': ['@codemirror/lang-html'],
+                    'lang-java': ['@codemirror/lang-java'],
+                    'lang-javascript': ['@codemirror/lang-javascript'],
+                    'lang-json': ['@codemirror/lang-json'],
+                    'lang-php': ['@codemirror/lang-php'],
+                    'lang-python': ['@codemirror/lang-python'],
+                    'lang-rust': ['@codemirror/lang-rust'],
+                    'lang-sass': ['@codemirror/lang-sass'],
                     'lang-sql': ['@codemirror/legacy-modes/mode/sql'],
                     'lang-svelte': ['@replit/codemirror-lang-svelte'],
+                    'lang-vue': ['@codemirror/lang-vue'],
+                    'lang-xml': ['@codemirror/lang-xml'],
+                    'codemirror-view': ['@codemirror/view'],
                 },
             },
         },
