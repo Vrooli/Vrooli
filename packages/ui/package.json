@@ -59,7 +59,7 @@
         "schema-to-yup": "^1.11.11",
         "socket.io-client": "^4.6.2",
         "typescript": "^5.3.2",
-        "vite": "^4.5.1",
+        "vite": "^5.0.8",
         "workbox-background-sync": "^7.0.0",
         "workbox-broadcast-update": "^7.0.0",
         "workbox-cacheable-response": "^7.0.0",
