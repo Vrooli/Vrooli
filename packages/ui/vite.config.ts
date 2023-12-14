@@ -32,8 +32,9 @@ export default defineConfig({
         ]
     },
     build: {
+        chunkSizeWarningLimit: 1000,
         // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
-        sourcemap: false,
+        sourcemap: true,
         rollupOptions: {
             output: {
                 // Anything which doesn't need to be in the main bundle can be defined here as a separate chunk. 
@@ -55,6 +56,13 @@ export default defineConfig({
                     'lang-svelte': ['@replit/codemirror-lang-svelte'],
                     'lang-vue': ['@codemirror/lang-vue'],
                     'lang-xml': ['@codemirror/lang-xml'],
+                    'codemirror-autocomplete': ['@codemirror/autocomplete'],
+                    'codemirror-commands': ['@codemirror/commands'],
+                    'codemirror-language': ['@codemirror/language'],
+                    'codemirror-lint': ['@codemirror/lint'],
+                    'codemirror-search': ['@codemirror/search'],
+                    'codemirror-state': ['@codemirror/state'],
+                    'codemirror-theme-one-dark': ['@codemirror/theme-one-dark'],
                     'codemirror-view': ['@codemirror/view'],
                 },
             },
