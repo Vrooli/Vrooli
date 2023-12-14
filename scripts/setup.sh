@@ -147,12 +147,12 @@ else
 fi
 
 header "Installing nvm"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 . ~/.nvm/nvm.sh
 
 header "Installing Node (includes npm)"
-nvm install 16.16.0
-nvm alias default v16.16.0
+nvm install 18.19.0
+nvm alias default v18.19.0
 
 header "Installing Yarn"
 npm install -g yarn
@@ -304,7 +304,6 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
         fi
     }
     toInstall=""
-    check_and_add_to_install_list "apollo" "2.34.0"
     check_and_add_to_install_list "typescript" ""
     check_and_add_to_install_list "ts-node" ""
     check_and_add_to_install_list "nodemon" ""
@@ -349,7 +348,6 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
 
     # Install AWS CLI, for uploading to S3 bucket. This is used for Kubernetes deployments.
     sudo apt-get install awscli
-
 else
     # Less needs to be done for production environments
     info "Skipping global dependencies installation - production environment detected"

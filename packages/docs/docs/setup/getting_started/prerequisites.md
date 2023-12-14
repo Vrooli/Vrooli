@@ -1,7 +1,7 @@
 # Prerequisites  
 Make sure you have the following installed:   
 1. *Windows only*: [Windows Terminal](https://www.microsoft.com/store/productId/9N0DX20HK701)
-2. *Windows only*: [Ubuntu](https://www.microsoft.com/store/productId/9PNKSF5ZN4SW)
+2. *Windows only*: [Ubuntu (version 22 or higher)](https://apps.microsoft.com/detail/9PN20MSR04DW?hl=en-us&gl=US)
 3. [Docker](https://www.docker.com/). On Windows, Docker will guide you through enabling Windows Subsystem for Linux (WSL)
 4. [VSCode](https://code.visualstudio.com/) *(also look into enabling Settings Sync)*    
 
