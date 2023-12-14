@@ -147,12 +147,12 @@ else
 fi
 
 header "Installing nvm"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 . ~/.nvm/nvm.sh
 
 header "Installing Node (includes npm)"
-nvm install 16.16.0
-nvm alias default v16.16.0
+nvm install 18.19.0
+nvm alias default v18.19.0
 
 header "Installing Yarn"
 npm install -g yarn
