@@ -34,5 +34,24 @@ export default defineConfig({
     build: {
         // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
         sourcemap: false,
+        rollupOptions: {
+            output: {
+                // Anything which doesn't need to be in the main bundle can be defined here as a separate chunk. 
+                // This should be done only if you've tried everything else to reduce the bundle size.
+                manualChunks: {
+                    'lang-cpp': ['@lezer/cpp'],
+                    'lang-css': ['@codemirror/lang-css', '@lezer/css', '@lezer/sass'],
+                    'lang-html': ['@codemirror/lang-html', '@lezer/html'],
+                    'lang-java': ['@lezer/java'],
+                    'lang-javascript': ['@lezer/javascript'],
+                    'lezer-lr': ['@lezer/lr'],
+                    'lang-php': ['@lezer/php'],
+                    'lang-python': ['@lezer/python'],
+                    'lang-rust': ['@lezer/rust'],
+                    'lang-sql': ['@codemirror/legacy-modes/mode/sql'],
+                    'lang-svelte': ['@replit/codemirror-lang-svelte'],
+                },
+            },
+        },
     }
 })
