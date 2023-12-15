@@ -1,23 +1,16 @@
-import { LanguageSupport, StreamLanguage } from "@codemirror/language";
-import { Diagnostic, linter } from "@codemirror/lint";
-import { Range } from "@codemirror/state";
-import { ChatInviteStatus, DUMMY_ID, LangsKey, uuid } from "@local/shared";
+import { ChatInviteStatus, DUMMY_ID, LangsKey, isEqual, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Status } from "utils/consts";
 import { jsonToString } from "utils/shape/general";
 // import { isJson } from "utils/shape/general"; // Update this so that we can lint JSON standard input type (different from normal JSON)
-import { redo, undo } from "@codemirror/commands";
-import { Extension, StateField } from "@codemirror/state";
-import { BlockInfo, Decoration, EditorView, gutter, GutterMarker, showTooltip } from "@codemirror/view";
 import { SessionContext } from "contexts/SessionContext";
-import { ErrorIcon, MagicIcon, OpenThreadIcon, RedoIcon, UndoIcon, WarningIcon } from "icons";
-import ReactDOMServer from "react-dom/server";
+import { MagicIcon, OpenThreadIcon, RedoIcon, UndoIcon } from "icons";
+import React from "react";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieMatchingChat } from "utils/cookies";
@@ -26,6 +19,56 @@ import { ChatShape } from "utils/shape/models/chat";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { CodeInputBaseProps } from "../types";
+
+// Stub types for code splitting
+type Extension = {
+    extension: Extension;
+} | readonly Extension[];
+type BlockInfo = {
+    from: number;
+    length: number;
+    top: number;
+    height: number;
+    to: number;
+}
+type Range<T> = {
+    from: number;
+    to: number;
+    value: T;
+}
+type Diagnostic = {
+    from: number;
+    to: number;
+    severity: string;
+    markClass?: string;
+    source?: string;
+    message: string;
+    renderMessage?: () => Node;
+    actions?: readonly object[];
+}
+type LanguageSupport = object;
+type StreamLanguage = {
+    define(spec: unknown): unknown;
+}
+type EditorSelection = {
+    readonly ranges: readonly Range<number>[];
+}
+type EditorState = {
+    readonly doc: {
+        sliceString(from: number, to: number): string;
+    };
+    readonly selection: EditorSelection;
+}
+type EditorView = {
+    state: EditorState;
+}
+type ReactCodeMirrorRef = {
+    editor?: HTMLDivElement | null;
+    state?: EditorState;
+    view?: EditorView;
+}
+
+const LazyCodeMirror = React.lazy(() => import("@uiw/react-codemirror"));
 
 export enum StandardLanguage {
     Angular = "angular",
@@ -69,125 +112,132 @@ export enum StandardLanguage {
     Yaml = "yaml",
 }
 
-const underlineMarkVariable = Decoration.mark({ class: "variable-decoration" });
-const underlineMarkOptional = Decoration.mark({ class: "optional-decoration" });
-const underlineMarkWildcard = Decoration.mark({ class: "wildcard-decoration" });
-const underlineMarkError = Decoration.mark({ class: "error-decoration" });
-const getCursorTooltips = (state) => {
-    const tooltips: any[] = [];
-    const docText = state.doc.sliceString(0, state.doc.length);
-    const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+":)|("\[[a-zA-Z0-9_]+\]")/g;
+async function loadDecorations() {
+    const { Decoration, EditorView, showTooltip } = await import("@codemirror/view");
+    const { StateField } = await import("@codemirror/state");
+    const underlineMarkVariable = Decoration.mark({ class: "variable-decoration" });
+    const underlineMarkOptional = Decoration.mark({ class: "optional-decoration" });
+    const underlineMarkWildcard = Decoration.mark({ class: "wildcard-decoration" });
+    const underlineMarkError = Decoration.mark({ class: "error-decoration" });
 
-    for (const r of state.selection.ranges) {
-        if (!r.empty) continue;
-
-        let match;
-        while (match = regex.exec(docText)) {
-            const variableText = match[0].slice(1, match[0].includes("?") ? -2 : -1); // Remove the quotes
-            const start = match.index + 1; // Ignore the first quote
-            const end = start + variableText.length; // We already ignored the quotes
-
-            // If the cursor isn't within this match, skip it
-            if (r.from < start || r.from > end) continue;
-
-            let tooltipText = "";
-
-            if (variableText.startsWith("<") && variableText.endsWith(">")) {
-                tooltipText = "Variable: This key represents a variable which will be compared against the value at this key in the data JSON object.";
-            } else if (variableText.startsWith("?")) {
-                tooltipText = "Optional: This key is optional. If it is present in the data JSON object, its value will be compared against the value at this key in the data JSON object.";
-            } else if (variableText.startsWith("[") && variableText.endsWith("]")) {
-                tooltipText = "Wildcard: This key allows additional keys to be added to the object, and its value type specifies the type of the added values.";
-            }
-
-            if (tooltipText) {
-                tooltips.push({
-                    pos: start,
-                    end,
-                    above: true,
-                    create() {
-                        const dom = document.createElement("div");
-                        dom.textContent = tooltipText;
-                        return { dom };
-                    },
-                });
-            }
+    function underlineVariables(doc) {
+        const decorations: Range<typeof underlineMarkVariable>[] = [];
+        // Regexes for each type of variable
+        const variableRegex = /"<[a-zA-Z0-9_]+>"/g;
+        const optionalRegex = /"\?[a-zA-Z0-9_]+":/g;
+        const wildcardRegex = /"\[[a-zA-Z0-9_]+\]"/g;
+        // Get the document text
+        const docText = doc.sliceString(0, doc.length);
+        // Match and decorate variables
+        let match = variableRegex.exec(docText);
+        while (match) {
+            const start = match.index + 1;
+            const end = start + match[0].length - 2;
+            decorations.push(underlineMarkVariable.range(start, end));
+            match = variableRegex.exec(docText);
         }
-    }
-
-    return tooltips;
-};
-
-const cursorTooltipField = StateField.define({
-    create: getCursorTooltips,
-
-    update(value, tr) {
-        if (!tr.docChanged && !tr.selection) return value;
-        return getCursorTooltips(tr.state);
-    },
-
-    provide: f => showTooltip.computeN([f], state => state.field(f)),
-});
-
-const underlineDecorationField = StateField.define({
-    create(state) {
-        return underlineVariables(state.doc);
-    },
-
-    update(decorations, tr) {
-        if (tr.docChanged) {
-            return underlineVariables(tr.newDoc);
-        }
-        return decorations;
-    },
-
-    provide: f => EditorView.decorations.from(f),
-});
-
-function underlineVariables(doc) {
-    const decorations: Range<Decoration>[] = [];
-    // Regexes for each type of variable
-    const variableRegex = /"<[a-zA-Z0-9_]+>"/g;
-    const optionalRegex = /"\?[a-zA-Z0-9_]+":/g;
-    const wildcardRegex = /"\[[a-zA-Z0-9_]+\]"/g;
-    // Get the document text
-    const docText = doc.sliceString(0, doc.length);
-    // Match and decorate variables
-    let match = variableRegex.exec(docText);
-    while (match) {
-        const start = match.index + 1;
-        const end = start + match[0].length - 2;
-        decorations.push(underlineMarkVariable.range(start, end));
-        match = variableRegex.exec(docText);
-    }
-    // Match and decorate optionals
-    match = optionalRegex.exec(docText);
-    while (match) {
-        const start = match.index + 1;
-        const end = start + match[0].length - 3;
-        decorations.push(underlineMarkOptional.range(start, end));
+        // Match and decorate optionals
         match = optionalRegex.exec(docText);
-    }
-    // Match and decorate wildcards
-    match = wildcardRegex.exec(docText);
-    while (match) {
-        const start = match.index + 1;
-        const end = start + match[0].length - 2;
-        decorations.push(underlineMarkWildcard.range(start, end));
+        while (match) {
+            const start = match.index + 1;
+            const end = start + match[0].length - 3;
+            decorations.push(underlineMarkOptional.range(start, end));
+            match = optionalRegex.exec(docText);
+        }
+        // Match and decorate wildcards
         match = wildcardRegex.exec(docText);
+        while (match) {
+            const start = match.index + 1;
+            const end = start + match[0].length - 2;
+            decorations.push(underlineMarkWildcard.range(start, end));
+            match = wildcardRegex.exec(docText);
+        }
+        // Sort the decorations by their start position. Decoration.set 
+        // requires this for some reason.
+        decorations.sort((a, b) => a.from - b.from);
+        // Return the decorations as a set
+        return Decoration.set(decorations);
     }
-    // Sort the decorations by their start position. Decoration.set 
-    // requires this for some reason.
-    decorations.sort((a, b) => a.from - b.from);
-    // Return the decorations as a set
-    return Decoration.set(decorations);
+
+    const underlineDecorationField = StateField.define({
+        create(state) {
+            return underlineVariables(state.doc);
+        },
+
+        update(decorations, tr) {
+            if (tr.docChanged) {
+                return underlineVariables(tr.newDoc);
+            }
+            return decorations;
+        },
+
+        provide: f => EditorView.decorations.from(f),
+    });
+
+    const getCursorTooltips = (state) => {
+        const tooltips: any[] = [];
+        const docText = state.doc.sliceString(0, state.doc.length);
+        const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+":)|("\[[a-zA-Z0-9_]+\]")/g;
+
+        for (const r of state.selection.ranges) {
+            if (!r.empty) continue;
+
+            let match;
+            while (match = regex.exec(docText)) {
+                const variableText = match[0].slice(1, match[0].includes("?") ? -2 : -1); // Remove the quotes
+                const start = match.index + 1; // Ignore the first quote
+                const end = start + variableText.length; // We already ignored the quotes
+
+                // If the cursor isn't within this match, skip it
+                if (r.from < start || r.from > end) continue;
+
+                let tooltipText = "";
+
+                if (variableText.startsWith("<") && variableText.endsWith(">")) {
+                    tooltipText = "Variable: This key represents a variable which will be compared against the value at this key in the data JSON object.";
+                } else if (variableText.startsWith("?")) {
+                    tooltipText = "Optional: This key is optional. If it is present in the data JSON object, its value will be compared against the value at this key in the data JSON object.";
+                } else if (variableText.startsWith("[") && variableText.endsWith("]")) {
+                    tooltipText = "Wildcard: This key allows additional keys to be added to the object, and its value type specifies the type of the added values.";
+                }
+
+                if (tooltipText) {
+                    tooltips.push({
+                        pos: start,
+                        end,
+                        above: true,
+                        create() {
+                            const dom = document.createElement("div");
+                            dom.textContent = tooltipText;
+                            return { dom };
+                        },
+                    });
+                }
+            }
+        }
+
+        return tooltips;
+    };
+
+    const cursorTooltipField = StateField.define({
+        create: getCursorTooltips,
+
+        update(value, tr) {
+            if (!tr.docChanged && !tr.selection) return value;
+            return getCursorTooltips(tr.state);
+        },
+
+        provide: f => showTooltip.computeN([f], state => state.field(f)),
+    });
+
+    return [cursorTooltipField, underlineDecorationField];
 }
 
 /**
  * Dynamically imports language packages.
  */
 const languageMap: { [x in StandardLanguage]: (() => Promise<{
-    main: LanguageSupport | StreamLanguage<any> | Extension,
+    main: LanguageSupport | StreamLanguage | Extension,
     linter?: ((view: EditorView) => Diagnostic[]) | Extension,
 }>) } = {
     [StandardLanguage.Angular]: async () => {
@@ -204,10 +254,12 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Dockerfile]: async () => {
         const { dockerFile } = await import("@codemirror/legacy-modes/mode/dockerfile");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(dockerFile) };
     },
     [StandardLanguage.Go]: async () => {
         const { go } = await import("@codemirror/legacy-modes/mode/go");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(go) };
     },
     [StandardLanguage.Graphql]: async () => {
@@ -216,10 +268,12 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Groovy]: async () => {
         const { groovy } = await import("@codemirror/legacy-modes/mode/groovy");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(groovy) };
     },
     [StandardLanguage.Haskell]: async () => {
         const { haskell } = await import("@codemirror/legacy-modes/mode/haskell");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(haskell) };
     },
     [StandardLanguage.Html]: async () => {
@@ -236,14 +290,15 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Json]: async () => {
         const { json, jsonParseLinter } = await import("@codemirror/lang-json");
-        return { main: json(), linter: jsonParseLinter() };
+        return { main: json(), linter: jsonParseLinter() as unknown as ((view: EditorView) => Diagnostic[]) };
     },
     [StandardLanguage.JsonStandard]: async () => {
         const { json, jsonParseLinter } = await import("@codemirror/lang-json");
-        return { main: json(), linter: jsonParseLinter() };
+        return { main: json(), linter: jsonParseLinter() as unknown as ((view: EditorView) => Diagnostic[]) };
     },
     [StandardLanguage.Nginx]: async () => {
         const { nginx } = await import("@codemirror/legacy-modes/mode/nginx");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(nginx) };
     },
     [StandardLanguage.Nix]: async () => {
@@ -256,14 +311,17 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Powershell]: async () => {
         const { powerShell } = await import("@codemirror/legacy-modes/mode/powershell");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(powerShell) };
     },
     [StandardLanguage.Protobuf]: async () => {
         const { protobuf } = await import("@codemirror/legacy-modes/mode/protobuf");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(protobuf) };
     },
     [StandardLanguage.Puppet]: async () => {
         const { puppet } = await import("@codemirror/legacy-modes/mode/puppet");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(puppet) };
     },
     [StandardLanguage.Python]: async () => {
@@ -276,6 +334,7 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Ruby]: async () => {
         const { ruby } = await import("@codemirror/legacy-modes/mode/ruby");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(ruby) };
     },
     [StandardLanguage.Rust]: async () => {
@@ -288,6 +347,7 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Shell]: async () => {
         const { shell } = await import("@codemirror/legacy-modes/mode/shell");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(shell) };
     },
     [StandardLanguage.Solidity]: async () => {
@@ -296,10 +356,12 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Spreadsheet]: async () => {
         const { spreadsheet } = await import("@codemirror/legacy-modes/mode/spreadsheet");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(spreadsheet) };
     },
     [StandardLanguage.Sql]: async () => {
         const { standardSQL } = await import("@codemirror/legacy-modes/mode/sql");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(standardSQL) };
     },
     [StandardLanguage.Svelte]: async () => {
@@ -308,6 +370,7 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Swift]: async () => {
         const { swift } = await import("@codemirror/legacy-modes/mode/swift");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(swift) };
     },
     [StandardLanguage.Typescript]: async () => {
@@ -316,18 +379,22 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Vb]: async () => {
         const { vb } = await import("@codemirror/legacy-modes/mode/vb");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(vb) };
     },
     [StandardLanguage.Vbscript]: async () => {
         const { vbScript } = await import("@codemirror/legacy-modes/mode/vbscript");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(vbScript) };
     },
     [StandardLanguage.Verilog]: async () => {
         const { verilog } = await import("@codemirror/legacy-modes/mode/verilog");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(verilog) };
     },
     [StandardLanguage.Vhdl]: async () => {
         const { vhdl } = await import("@codemirror/legacy-modes/mode/vhdl");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(vhdl) };
     },
     [StandardLanguage.Vue]: async () => {
@@ -340,29 +407,27 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
     },
     [StandardLanguage.Yacas]: async () => {
         const { yacas } = await import("@codemirror/legacy-modes/mode/yacas");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(yacas) };
     },
     [StandardLanguage.Yaml]: async () => {
         const { yaml } = await import("@codemirror/legacy-modes/mode/yaml");
+        const { StreamLanguage } = await import("@codemirror/language");
         return { main: StreamLanguage.define(yaml) };
     },
 };
 
-class ErrorMarker extends GutterMarker {
-    toDOM() {
-        const marker = document.createElement("div");
-        marker.innerHTML = ReactDOMServer.renderToString(<ErrorIcon fill="red" />);
-        return marker;
+const getSeverityForLine = (line: BlockInfo, errors: Diagnostic[], view: EditorView) => {
+    const linePosStart = line.from;
+    const linePosEnd = line.to;
+    for (const error of errors) {
+        if (error.from >= linePosStart && error.to <= linePosEnd) {
+            return error.severity;
+        }
     }
-}
+    return null;
+};
 
-class WarnMarker extends GutterMarker {
-    toDOM() {
-        const marker = document.createElement("div");
-        marker.innerHTML = ReactDOMServer.renderToString(<WarningIcon fill="yellow" />);
-        return marker;
-    }
-}
 /**
  * Maps languages to their labels and help texts.
  */
@@ -419,13 +484,21 @@ export const CodeInputBase = ({
     limitTo,
     variables,
 }: CodeInputBaseProps) => {
-    console.log("codeinputbase", limitTo);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
 
     const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
+    const commandFunctionsRef = useRef<{ undo: ((view: EditorView) => unknown) | null, redo: ((view: EditorView) => unknown) | null }>({ undo: null, redo: null });
+
+    const loadCommandFunctions = async () => {
+        if (!commandFunctionsRef.current.undo || !commandFunctionsRef.current.redo) {
+            const commands = await import("@codemirror/commands");
+            commandFunctionsRef.current.undo = commands.undo as unknown as ((view: EditorView) => unknown);
+            commandFunctionsRef.current.redo = commands.redo as unknown as ((view: EditorView) => unknown);
+        }
+    };
 
     // Last valid schema format
     const [internalValue, setInternalValue] = useState<string>(jsonToString(format) ?? "");
@@ -445,72 +518,117 @@ export const CodeInputBase = ({
 
     // Track errors
     const [errors, setErrors] = useState<Diagnostic[]>([]);
-    const wrappedLinter = (nextLinter) => {
+    const wrappedLinter = useCallback(async (nextLinter) => {
+        const { linter } = await import("@codemirror/lint");
         return linter(view => {
             // Run the existing linter and get its diagnostics.
             const diagnostics = nextLinter(view);
             // Count the number of errors.
-            const errors = diagnostics.filter(d => d.severity === "error");
+            const updatedErrors = diagnostics.filter(d => d.severity === "error");
             // Update state
-            console.log("setting errors", errors);
-            setErrors(errors);
+            if (!isEqual(updatedErrors, errors)) {
+                setErrors(updatedErrors);
+            }
             // Return the diagnostics so they still get displayed.
             return diagnostics;
         });
-    };
-    // Locate errors
-    const getSeverityForLine = (line: BlockInfo, errors: Diagnostic[], view: EditorView) => {
-        const linePosStart = line.from;
-        const linePosEnd = line.to;
-        for (const error of errors) {
-            if (error.from >= linePosStart && error.to <= linePosEnd) {
-                return error.severity;
-            }
-        }
-        return null;
-    };
-    // Display errors in gutter
-    const errorGutter = gutter({
-        lineMarker: (view, line) => {
-            const severity = getSeverityForLine(line, errors, view);
-            if (severity === "error") {
-                return new ErrorMarker();
-            } else if (severity === "warning") {
-                return new WarnMarker();
-            }
-            return null;
-        },
-        class: "cm-errorGutter",
-    });
+    }, [errors]);
 
     // Handle language selection
     const [mode, setMode] = useState<StandardLanguage>(limitTo && limitTo.length > 0 ? limitTo[0] : StandardLanguage.Json);
-    const [extensions, setExtensions] = useState<any[]>([]);
+    const changeMode = useCallback((mode: StandardLanguage) => {
+        setErrors([]); // Reset errors
+        setMode(mode);
+    }, []);
+    const [extensions, setExtensions] = useState<Extension[]>([]);
     const [supportsValidation, setSupportsValidation] = useState<boolean>(false);
     useEffect(() => {
-        if (mode in languageMap) {
-            languageMap[mode]().then(({ main, linter }) => {
-                console.log("imported extensions", main, linter);
-                const updatedExtensions = [main];
-                if (linter) {
-                    updatedExtensions.push(wrappedLinter(linter));
-                    setSupportsValidation(true);
-                }
-                else {
-                    setErrors([]);
-                    setSupportsValidation(false);
-                }
-                // If mode is JSON standard, add additional extensions for variables
-                if (mode === StandardLanguage.JsonStandard) {
-                    updatedExtensions.push(
-                        cursorTooltipField, // Handle tooltips for JSON variables
-                        underlineDecorationField, // Underline JSON variables
-                    );
-                }
-                setExtensions(updatedExtensions);
+        let isMounted = true;
+
+        const loadGutter = async () => {
+            const { gutter } = await import("@codemirror/view");
+            const { ErrorMarker, WarnMarker } = await import("./codeMirrorMarkers");
+            return gutter({
+                lineMarker: (view, line) => {
+                    const severity = getSeverityForLine(line, errors, view as unknown as EditorView);
+                    if (severity === "error") {
+                        return new ErrorMarker();
+                    } else if (severity === "warning") {
+                        return new WarnMarker();
+                    }
+                    return null;
+                },
+                class: "cm-errorGutter",
             });
-        }
-    }, [mode]);
+        };
+
+        const updateExtensions = async () => {
+            try {
+                const updatedExtensions: Extension[] = [];
+
+                // Load and add base theme
+                const { EditorView } = await import("@codemirror/view");
+                const base = EditorView.baseTheme({
+                    ".error-decoration": {
+                        textDecoration: "underline",
+                        textDecorationStyle: "wavy",
+                        textDecorationColor: palette.error.main,
+                    },
+                    ".variable-decoration": {
+                        textDecoration: "underline",
+                        textDecorationStyle: "double",
+                        textDecorationColor: "blue",
+                    },
+                    ".optional-decoration": {
+                        textDecoration: "underline",
+                        textDecorationStyle: "double",
+                        textDecorationColor: "magenta",
+                    },
+                    ".wildcard-decoration": {
+                        textDecoration: "underline",
+                        textDecorationStyle: "double",
+                        textDecorationColor: "lightseagreen",
+                    },
+                });
+                updatedExtensions.push(base);
+
+                // Load and add gutter
+                const errorGutterExtension = await loadGutter();
+                updatedExtensions.push(errorGutterExtension);
+
+                // Load language extensions
+                if (mode in languageMap) {
+                    const { main, linter } = await languageMap[mode]();
+                    updatedExtensions.push(main as Extension);
+                    if (linter) {
+                        const linterExtension = await wrappedLinter(linter);
+                        updatedExtensions.push(linterExtension as Extension);
+                        if (isMounted) setSupportsValidation(true);
+                    } else if (isMounted) {
+                        setSupportsValidation(false);
+                    }
+                    // If mode is JSON standard, add additional extensions for variables
+                    if (mode === StandardLanguage.JsonStandard) {
+                        const [cursorTooltipField, underlineDecorationField] = await loadDecorations();
+                        updatedExtensions.push(
+                            cursorTooltipField, // Handle tooltips for JSON variables
+                            underlineDecorationField, // Underline JSON variables
+                        );
+                    }
+                }
+
+                if (isMounted) setExtensions(updatedExtensions);
+            } catch (error) {
+                console.error("Error updating extensions:", error);
+            }
+        };
+
+        updateExtensions();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [errors, mode, palette.error.main, wrappedLinter]);
 
     // Handle assistant dialog
     const closeAssistantDialog = useCallback(() => {
@@ -540,7 +658,6 @@ export const CodeInputBase = ({
         if (selection) {
             const { from, to } = selection.ranges[0];
             highlightedText = codeMirrorRef.current?.view?.state?.doc?.sliceString(from, to) ?? "";
-            console.log("got selection", from, to, highlightedText);
         }
         if (highlightedText.length > maxContextLength) highlightedText = highlightedText.substring(0, maxContextLength);
         if (highlightedText.length > 0) context = highlightedText;
@@ -576,32 +693,39 @@ export const CodeInputBase = ({
         onClick: () => unknown,
     }
     const actions = useMemo(() => {
-        const actions: Action[] = [];
+        const actionsList: Action[] = [];
         // If user has premium, add button for AI assistant
         if (hasPremium) {
-            actions.push({
+            actionsList.push({
                 label: "AI assistant",
                 Icon: MagicIcon,
                 onClick: () => { openAssistantDialog(); },
             });
         }
         // Always add undo and redo buttons
-        actions.push({
+        actionsList.push({
             label: t("Undo"),
             Icon: UndoIcon,
-            onClick: () => {
-                codeMirrorRef.current?.view !== undefined && undo(codeMirrorRef.current.view);
+            onClick: async () => {
+                await loadCommandFunctions();
+                if (codeMirrorRef.current?.view) {
+                    commandFunctionsRef.current.undo?.(codeMirrorRef.current.view);
+                }
             },
-        }, {
+        });
+        actionsList.push({
             label: t("Redo"),
             Icon: RedoIcon,
-            onClick: () => {
-                codeMirrorRef.current?.view !== undefined && redo(codeMirrorRef.current.view);
+            onClick: async () => {
+                await loadCommandFunctions();
+                if (codeMirrorRef.current?.view) {
+                    commandFunctionsRef.current.redo?.(codeMirrorRef.current.view);
+                }
             },
         });
         // For json and jsonStandard, add "pretty print" button to format JSON
         if (mode === StandardLanguage.Json || mode === StandardLanguage.JsonStandard) {
-            actions.push({
+            actionsList.push({
                 label: t("Format"),
                 Icon: OpenThreadIcon,
                 onClick: () => {
@@ -614,7 +738,7 @@ export const CodeInputBase = ({
                 },
             });
         }
-        return actions;
+        return actionsList;
     }, [hasPremium, internalValue, mode, openAssistantDialog, t, updateInternalValue]);
 
     // Find language label and help text
@@ -645,7 +769,7 @@ export const CodeInputBase = ({
                             <SelectorBase
                                 name="mode"
                                 value={mode}
-                                onChange={setMode}
+                                onChange={changeMode}
                                 disabled={disabled}
                                 options={availableLanguages}
                                 getOptionLabel={(r) => t(languageDisplayMap[r as StandardLanguage][0], { ns: "langs" })}
@@ -697,38 +821,16 @@ export const CodeInputBase = ({
                         </Box>
                     </Grid>
                 </Box>
-                <CodeMirror
-                    ref={codeMirrorRef}
-                    value={internalValue}
-                    theme={palette.mode === "dark" ? "dark" : "light"}
-                    extensions={[
-                        ...extensions, // Language-specific extensions
-                        errorGutter, // Display warnings and errors in gutter
-                        EditorView.baseTheme({ // Custom theme
-                            ".error-decoration": {
-                                textDecoration: "underline",
-                                textDecorationStyle: "wavy",
-                                textDecorationColor: palette.error.main,
-                            },
-                            ".variable-decoration": {
-                                textDecoration: "underline",
-                                textDecorationStyle: "double",
-                                textDecorationColor: "blue",
-                            },
-                            ".optional-decoration": {
-                                textDecoration: "underline",
-                                textDecorationStyle: "double",
-                                textDecorationColor: "magenta",
-                            },
-                            ".wildcard-decoration": {
-                                textDecoration: "underline",
-                                textDecorationStyle: "double",
-                                textDecorationColor: "lightseagreen",
-                            },
-                        })]}
-                    onChange={updateInternalValue}
-                    height={"400px"}
-                />
+                <Suspense fallback={<div>Loading editor...</div>}>
+                    <LazyCodeMirror
+                        ref={codeMirrorRef as any}
+                        value={internalValue}
+                        theme={palette.mode === "dark" ? "dark" : "light"}
+                        extensions={extensions}
+                        onChange={updateInternalValue}
+                        height={"400px"}
+                    />
+                </Suspense>
                 {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect
              parts of the JSON, and an input for entering the currently-selected section of JSON */}
                 {/* TODO */}

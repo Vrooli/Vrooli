@@ -1,8 +1,6 @@
 import { endpointGetApi, endpointGetChat, endpointGetComment, endpointGetNote, endpointGetOrganization, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetSmartContract, endpointGetStandard, endpointGetTag, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
 import { Box, Checkbox, CircularProgress, IconButton, Link, TypographyProps, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
-import hljs from "highlight.js";
-import "highlight.js/styles/monokai-sublime.css";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
 import { CopyIcon } from "icons";
@@ -18,9 +16,22 @@ const CodeBlock = ({ children }) => {
     const textRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
-        if (textRef && textRef.current) {
-            hljs.highlightBlock(textRef.current);
-        }
+        let isMounted = true;
+
+        const loadHighlightJs = async () => {
+            const hljs = (await import("highlight.js")).default;
+            await import("highlight.js/styles/monokai-sublime.css");
+
+            if (textRef.current && isMounted) {
+                hljs.highlightBlock(textRef.current);
+            }
+        };
+
+        loadHighlightJs();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     const copyCode = () => {

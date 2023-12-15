@@ -78,7 +78,7 @@
         "build": "vite build && node workbox-build.js",
         "start-development": "yarn type-check && vite",
         "start-production": "serve --config serve.json",
-        "analyze": "source-map-explorer --html \"source-tree-$(date '+%Y%m%d%H%M%S').html\" dist/assets/*",
+        "analyze": "source-map-explorer --html \"source-tree-$(date '+%Y%m%d%H%M%S').html\" --no-border-checks dist/assets/*",
         "lint": "eslint src",
         "test": "jest --coverage",
         "type-check": "tsc --noEmit"
