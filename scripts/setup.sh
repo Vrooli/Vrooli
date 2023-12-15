@@ -1,6 +1,7 @@
 #!/bin/bash
 # Sets up NPM, Yarn, global dependencies, and anything else
 # required to get the project up and running.
+ORIGINAL_DIR=$(pwd)
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
@@ -123,6 +124,7 @@ if [[ "$ON_REMOTE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
         # If ssh also fails, exit with an error
         if [ $? -ne 0 ]; then
             echo "Failed to restart ssh. Exiting with error."
+            cd "$ORIGINAL_DIR"
             exit 1
         fi
     fi
@@ -173,6 +175,7 @@ if $USE_KUBERNETES; then
 
         if ! [ -x "$(command -v kubectl)" ]; then
             error "Failed to install Kubernetes"
+            cd "$ORIGINAL_DIR"
             exit 1
         else
             success "Kubernetes installed successfully"
@@ -193,6 +196,7 @@ if $USE_KUBERNETES; then
 
         if ! [ -x "$(command -v helm)" ]; then
             error "Failed to install Helm"
+            cd "$ORIGINAL_DIR"
             exit 1
         else
             success "Helm installed successfully"
@@ -212,6 +216,7 @@ if $USE_KUBERNETES; then
 
             if ! [ -x "$(command -v minikube)" ]; then
                 error "Failed to install Minikube"
+                cd "$ORIGINAL_DIR"
                 exit 1
             else
                 success "Minikube installed successfully"
@@ -251,6 +256,7 @@ if ! command -v docker &>/dev/null; then
     # Check if Docker installation failed
     if ! command -v docker &>/dev/null; then
         echo "Error: Docker installation failed."
+        cd "$ORIGINAL_DIR"
         exit 1
     fi
 else
@@ -263,6 +269,7 @@ sudo service docker start
 # Verify Docker is running by attempting a command
 if ! docker version >/dev/null 2>&1; then
     error "Failed to start Docker or Docker is not running. If you are in Windows Subsystem for Linux (WSL), please start Docker Desktop and try again."
+    cd "$ORIGINAL_DIR"
     exit 1
 fi
 
@@ -273,6 +280,7 @@ if ! command -v docker-compose &>/dev/null; then
     # Check if Docker Compose installation failed
     if ! command -v docker-compose &>/dev/null; then
         echo "Error: Docker Compose installation failed."
+        cd "$ORIGINAL_DIR"
         exit 1
     fi
 else
@@ -323,6 +331,7 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
                 yarn global add "$pkg"
                 if [ $? -ne 0 ]; then
                     error "Failed to install $pkg"
+                    cd "$ORIGINAL_DIR"
                     exit 1
                 else
                     info "$pkg installed successfully"
@@ -406,4 +415,5 @@ if [[ "$ENV_FILES_SET_UP" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     fi
 fi
 
+cd "$ORIGINAL_DIR"
 info "Done! You may need to restart your editor for syntax highlighting to work correctly."
