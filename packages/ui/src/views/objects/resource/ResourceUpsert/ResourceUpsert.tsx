@@ -34,13 +34,10 @@ export const resourceInitialValues = (
     session: Session | undefined,
     existing: Partial<ResourceShape>,
 ): ResourceShape => {
-    console.log("qwaf resourceInitialValues start", existing);
     let listFor: ResourceShape["list"]["listFor"];
     if (existing.list && "listFor" in existing.list) {
-        console.log("qwaf yeet2");
         listFor = existing.list.listFor as ResourceShape["list"]["listFor"];
     } else {
-        console.log("qwaf yeet3");
         listFor = { __typename: "RoutineVersion", id: DUMMY_ID };
     }
     return {
@@ -86,7 +83,6 @@ const ResourceForm = ({
     values,
     ...props
 }: ResourceFormProps) => {
-    console.log("qwaf reesourceupsert render", existing, values);
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -120,6 +116,9 @@ const ResourceForm = ({
         isCreate,
         objectId: values.id,
         objectType: "Resource",
+        onCancel,
+        onCompleted,
+        onDeleted,
         ...props,
     });
     const {
@@ -146,7 +145,6 @@ const ResourceForm = ({
             return;
         }
         if (isMutate) {
-            console.log("qwaf mutatinggggg", values, transformResourceValues(values, existing, isCreate));
             fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
                 fetch,
                 inputs: transformResourceValues(values, existing, isCreate),
@@ -202,15 +200,6 @@ const ResourceForm = ({
                     {/* Select shortcut or object */}
                     <Stack direction="row" spacing={2}>
                         <Button
-                            disabled={disabled || resourceType === "shortcut"}
-                            fullWidth
-                            onClick={() => { handleResourceTypeChange("shortcut"); }}
-                            variant={"outlined"}
-                            startIcon={resourceType === "shortcut" ? <CompleteIcon /> : undefined}
-                        >
-                            {t("Shortcut", { count: 1 })}
-                        </Button>
-                        <Button
                             disabled={disabled || resourceType === "link"}
                             fullWidth
                             onClick={() => { handleResourceTypeChange("link"); }}
@@ -218,6 +207,15 @@ const ResourceForm = ({
                             startIcon={resourceType === "link" ? <CompleteIcon /> : undefined}
                         >
                             {t("Link", { count: 1 })}
+                        </Button>
+                        <Button
+                            disabled={disabled || resourceType === "shortcut"}
+                            fullWidth
+                            onClick={() => { handleResourceTypeChange("shortcut"); }}
+                            variant={"outlined"}
+                            startIcon={resourceType === "shortcut" ? <CompleteIcon /> : undefined}
+                        >
+                            {t("Shortcut", { count: 1 })}
                         </Button>
                     </Stack>
                     {resourceType === "shortcut" && <>
@@ -233,7 +231,7 @@ const ResourceForm = ({
                     </>}
                     {resourceType === "link" && <>
                         {/* Enter link or search for object */}
-                        <LinkInput onObjectData={foundLinkData} tabIndex={0} />
+                        <LinkInput autoFocus onObjectData={foundLinkData} tabIndex={0} />
                         <Selector
                             name="usedFor"
                             options={Object.keys(ResourceUsedFor)}
