@@ -1,10 +1,24 @@
 import type { Schedule, ScheduleRecurrence } from "@local/shared";
-import moment from "moment-timezone"; // Native Date objects don't handle time zones well
+import { Moment } from "moment-timezone";
+
+// Native Date objects don't handle time zones well, so we use moment-timezone instead.
+// This must be loaded asynchronously so the UI can code-split it.
+let moment;
+const ensureMomentTimezone = async () => {
+    if (!moment) {
+        if (typeof window !== "undefined") {
+            // Client-side: Use dynamic import
+            moment = (await import("moment-timezone")).default;
+        } else {
+            // Server-side: Use regular require
+            moment = require("moment-timezone");
+        }
+    }
+};
 
 const ONE_YEAR_IN_MS = 1000 * 60 * 60 * 24 * 365;
 const ONE_HOUR_IN_MS = 1000 * 60 * 60;
 const ONE_MINUTE_IN_MS = 1000 * 60;
-
 
 /**
  * Ensure that the given time frame does not exceed a year.
@@ -35,6 +49,8 @@ export const validateTimeFrame = (timeframeStart: Date, timeframeEnd: Date): boo
  * @returns The next start time for the daily recurrence.
  */
 export const calculateNextDailyOccurrence = (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Date => {
+    ensureMomentTimezone();
+
     // Keep the current start time in UTC.
     const currentMoment = moment.utc(currentStartTime);
 
@@ -54,6 +70,8 @@ export const calculateNextDailyOccurrence = (currentStartTime: Date, recurrence:
  * @returns The start time of the next weekly occurrence.
  */
 export const calculateNextWeeklyOccurrence = (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Date => {
+    ensureMomentTimezone();
+
     // Keep the current start time in UTC.
     const currentMoment = moment.utc(currentStartTime);
 
@@ -81,6 +99,8 @@ export const calculateNextWeeklyOccurrence = (currentStartTime: Date, recurrence
  * @returns The start time of the next monthly occurrence.
  */
 export const calculateNextMonthlyOccurrence = (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Date => {
+    ensureMomentTimezone();
+
     // Convert the current start time to the desired time zone.
     const currentMoment = moment.utc(currentStartTime);
 
@@ -111,6 +131,8 @@ export const calculateNextMonthlyOccurrence = (currentStartTime: Date, recurrenc
  * @returns The start time of the next yearly occurrence.
  */
 export const calculateNextYearlyOccurrence = (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Date => {
+    ensureMomentTimezone();
+
     // Keep the current start time in UTC.
     const currentMoment = moment.utc(currentStartTime);
 
@@ -121,7 +143,7 @@ export const calculateNextYearlyOccurrence = (currentStartTime: Date, recurrence
         seconds: currentMoment.seconds(),
     };
 
-    let nextOccurrence: moment.Moment;
+    let nextOccurrence: Moment;
     // If month and dayOfMonth are set, calculate the occurrence for the current year.
     if (recurrence.month !== null && recurrence.month !== undefined && recurrence.dayOfMonth !== null && recurrence.dayOfMonth !== undefined) {
         // Create a moment for the potential next occurrence this year, keeping the time
@@ -163,6 +185,8 @@ export const jumpToFirstRelevantDailyOccurrence = (
     timeframeStart: Date,
     timeZone = "UTC",
 ): Date => {
+    ensureMomentTimezone();
+
     const relevantStart = moment.utc(scheduleStart);
     let timeframeStartMoment = moment.utc(timeframeStart);
 
@@ -205,6 +229,8 @@ export const jumpToFirstRelevantWeeklyOccurrence = (
     timeframeStart: Date,
     timeZone = "UTC",
 ): Date => {
+    ensureMomentTimezone();
+
     const relevantStart = moment.utc(scheduleStart);
     let timeframeStartMoment = moment.utc(timeframeStart);
     const targetDayOfWeek = (recurrence.dayOfWeek !== null && recurrence.dayOfWeek !== undefined) ? recurrence.dayOfWeek : timeframeStartMoment.day();
@@ -256,6 +282,8 @@ export const jumpToFirstRelevantMonthlyOccurrence = (
     timeframeStart: Date,
     timeZone = "UTC",
 ): Date => {
+    ensureMomentTimezone();
+
     const relevantStart = moment.utc(scheduleStart);
     let timeframeStartMoment = moment.utc(timeframeStart);
 
@@ -305,6 +333,8 @@ export const jumpToFirstRelevantYearlyOccurrence = (
     timeframeStart: Date,
     timeZone = "UTC",
 ): Date => {
+    ensureMomentTimezone();
+
     // Use UTC for calculations
     const scheduleStartMoment = moment.utc(scheduleStart);
     let timeframeStartMoment = moment.utc(timeframeStart);
