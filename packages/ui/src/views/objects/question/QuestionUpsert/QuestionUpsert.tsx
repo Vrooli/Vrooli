@@ -158,7 +158,7 @@ const QuestionForm = ({
                             maxChars={16384}
                             minRows={3}
                             sxs={{
-                                bar: {
+                                topBar: {
                                     borderRadius: 0,
                                     background: palette.primary.main,
                                 },

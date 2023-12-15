@@ -45,6 +45,14 @@ import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { validateFormValues } from "utils/validateFormValues";
 import { ChatCrudProps, ChatFormProps } from "../types";
 
+/** Basic chatInfo for a new convo with Valyxa */
+export const VALYXA_INFO = {
+    ...getCookiePartialData({ __typename: "User", id: VALYXA_ID }),
+    id: VALYXA_ID,
+    isBot: true,
+    name: "Valyxa" as const,
+} as const;
+
 export const chatInitialValues = (
     session: Session | undefined,
     task: AssistantTask | undefined,
@@ -76,7 +84,7 @@ export const chatInitialValues = (
             }],
             user: {
                 __typename: "User" as const,
-                id: "4b038f3b-f1f7-1f9b-8f4b-cff4b8f9b20f",
+                id: VALYXA_ID,
                 isBot: true,
                 name: "Valyxa",
             },
@@ -124,14 +132,6 @@ export const chatInitialValues = (
 
 export const transformChatValues = (values: ChatShape, existing: ChatShape, isCreate: boolean) =>
     isCreate ? shapeChat.create(values) : shapeChat.update(existing, values);
-
-/** Basic chatInfo for a new convo with Valyxa */
-export const VALYXA_INFO = {
-    ...getCookiePartialData({ __typename: "User", id: VALYXA_ID }),
-    id: VALYXA_ID,
-    isBot: true,
-    name: "Valyxa" as const,
-} as const;
 
 /**
  * Finds messages that are yours or are unsent (i.e. bot's initial message), 

@@ -132,7 +132,7 @@ const CommentForm = ({
                     }]}
                     sxs={{
                         root: { width: "100%", background: palette.primary.dark, borderRadius: 1, overflow: "overlay", marginTop: 1 },
-                        bar: { borderRadius: 0 },
+                        topBar: { borderRadius: 0 },
                         textArea: { borderRadius: 0, paddingRight: 4, height: "100%" },
                     }}
                 />
@@ -245,7 +245,7 @@ export const CommentDialog = ({
                         placeholder={t("PleaseBeNice")}
                         minRows={10}
                         sxs={{
-                            bar: {
+                            topBar: {
                                 borderRadius: 0,
                                 background: palette.primary.main,
                                 position: "sticky",
