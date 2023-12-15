@@ -10,6 +10,7 @@ import { TextInput } from "../TextInput/TextInput";
 import { LinkInputProps } from "../types";
 
 export const LinkInput = ({
+    autoFocus,
     label,
     name = "link",
     onObjectData,
@@ -76,6 +77,7 @@ export const LinkInput = ({
                 <Stack direction="row" spacing={0}>
                     <Field
                         fullWidth
+                        autoFocus={autoFocus}
                         name={name}
                         label={label ?? t("Link")}
                         as={TextInput}

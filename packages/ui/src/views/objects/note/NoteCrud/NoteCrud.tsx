@@ -22,6 +22,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { useWindowSize } from "hooks/useWindowSize";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -91,9 +92,10 @@ const NoteForm = ({
     ...props
 }: NoteFormProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const { breakpoints, palette } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     const { handleCancel, handleCompleted, handleDeleted, isCacheOn } = useUpsertActions<NoteVersion>({
         display,
@@ -189,7 +191,17 @@ const NoteForm = ({
                     titleField="name"
                     subtitleField="description"
                     variant="subheader"
-                    sxs={{ stack: { padding: 0 } }}
+                    sxs={{
+                        stack: {
+                            padding: 0,
+                            ...(display === "page" && !isMobile ? {
+                                margin: "auto",
+                                maxWidth: "800px",
+                                paddingTop: 1,
+                                paddingBottom: 1,
+                            } : {})
+                        }
+                    }}
                     DialogContentForm={() => (
                         <>
                             <BaseForm
@@ -244,15 +256,19 @@ const NoteForm = ({
             >
                 <TranslatedRichInput
                     language={language}
+                    autoFocus
                     name="pages[0].text"
                     placeholder={t("PleaseBeNice")}
                     disabled={disabled}
                     minRows={10}
                     sxs={{
-                        bar: {
+                        topBar: {
                             borderRadius: 0,
                             position: "sticky",
                             top: 0,
+                            ...(isMobile ? {
+                                borderRadius: 0,
+                            } : {})
                         },
                         root: {
                             height: "100%",

@@ -101,6 +101,7 @@ const SignupForm = () => {
                             <Field
                                 fullWidth
                                 autoComplete="name"
+                                autoFocus
                                 name="name"
                                 label={t("Name")}
                                 placeholder={t("NamePlaceholder")}
@@ -452,92 +453,92 @@ export const SignupView = ({
 
 
 // // Wallet provider popups
-    // const [connectOpen, setConnectOpen] = useState(false);
-    // const [installOpen, setInstallOpen] = useState(false);
-    // const openWalletConnectDialog = useCallback(() => { setConnectOpen(true); }, []);
-    // const openWalletInstallDialog = useCallback(() => { setInstallOpen(true); }, []);
+// const [connectOpen, setConnectOpen] = useState(false);
+// const [installOpen, setInstallOpen] = useState(false);
+// const openWalletConnectDialog = useCallback(() => { setConnectOpen(true); }, []);
+// const openWalletInstallDialog = useCallback(() => { setInstallOpen(true); }, []);
 
-    // // Performs handshake to establish trust between site backend and user's wallet.
-    // // 1. Whitelist website on wallet
-    // // 2. Send public address to backend
-    // // 3. Store public address and nonce in database
-    // // 4. Sign human-readable message (which includes nonce) using wallet
-    // // 5. Send signed message to backend for verification
-    // // 6. Receive JWT and user session
-    // const walletLogin = useCallback(async (providerKey: string) => {
-    //     // Check if wallet extension installed
-    //     if (!hasWalletExtension(providerKey)) {
-    //         PubSub.get().publish("alertDialog", {
-    //             messageKey: "WalletProviderNotFoundDetails",
-    //             buttons: [
-    //                 { labelKey: "TryAgain", onClick: openWalletConnectDialog },
-    //                 { labelKey: "InstallWallet", onClick: openWalletInstallDialog },
-    //                 { labelKey: "EmailLogin", onClick: toEmailLogIn },
-    //             ],
-    //         });
-    //         return;
-    //     }
-    //     // Validate wallet
-    //     const walletCompleteResult = await validateWallet(providerKey);
-    //     if (walletCompleteResult?.session) {
-    //         PubSub.get().publish("snack", { messageKey: "WalletVerified", severity: "Success" });
-    //         PubSub.get().publish("session", walletCompleteResult.session);
-    //         // Redirect to main dashboard
-    //         setLocation(redirect ?? LINKS.Home);
-    //         // Set up push notifications
-    //         setupPush();
-    //     }
-    // }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect]);
+// // Performs handshake to establish trust between site backend and user's wallet.
+// // 1. Whitelist website on wallet
+// // 2. Send public address to backend
+// // 3. Store public address and nonce in database
+// // 4. Sign human-readable message (which includes nonce) using wallet
+// // 5. Send signed message to backend for verification
+// // 6. Receive JWT and user session
+// const walletLogin = useCallback(async (providerKey: string) => {
+//     // Check if wallet extension installed
+//     if (!hasWalletExtension(providerKey)) {
+//         PubSub.get().publish("alertDialog", {
+//             messageKey: "WalletProviderNotFoundDetails",
+//             buttons: [
+//                 { labelKey: "TryAgain", onClick: openWalletConnectDialog },
+//                 { labelKey: "InstallWallet", onClick: openWalletInstallDialog },
+//                 { labelKey: "EmailLogin", onClick: toEmailLogIn },
+//             ],
+//         });
+//         return;
+//     }
+//     // Validate wallet
+//     const walletCompleteResult = await validateWallet(providerKey);
+//     if (walletCompleteResult?.session) {
+//         PubSub.get().publish("snack", { messageKey: "WalletVerified", severity: "Success" });
+//         PubSub.get().publish("session", walletCompleteResult.session);
+//         // Redirect to main dashboard
+//         setLocation(redirect ?? LINKS.Home);
+//         // Set up push notifications
+//         setupPush();
+//     }
+// }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect]);
 
-    // const closeWalletConnectDialog = useCallback((providerKey: string | null) => {
-    //     setConnectOpen(false);
-    //     if (providerKey) {
-    //         walletLogin(providerKey);
-    //     }
-    // }, [walletLogin]);
+// const closeWalletConnectDialog = useCallback((providerKey: string | null) => {
+//     setConnectOpen(false);
+//     if (providerKey) {
+//         walletLogin(providerKey);
+//     }
+// }, [walletLogin]);
 
-    // const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false); }, []);
+// const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false); }, []);
 
-    //  <WalletSelectDialog
-    //             handleOpenInstall={openWalletInstallDialog}
-    //             open={connectOpen}
-    //             onClose={closeWalletConnectDialog}
-    //         />
-    //         <WalletInstallDialog
-    //             open={installOpen}
-    //             onClose={closeWalletInstallDialog}
-    //         />
+//  <WalletSelectDialog
+//             handleOpenInstall={openWalletInstallDialog}
+//             open={connectOpen}
+//             onClose={closeWalletConnectDialog}
+//         />
+//         <WalletInstallDialog
+//             open={installOpen}
+//             onClose={closeWalletInstallDialog}
+//         />
 
-    //          <Box sx={{
-    //                     display: "flex",
-    //                     justifyContent: "center",
-    //                     alignItems: "center",
-    //                     marginBottom: 2,
-    //                 }}>
-    //                     <Typography
-    //                         variant="h6"
-    //                         sx={{
-    //                             display: "inline-block",
-    //                         }}
-    //                     >
-    //                         {t("SelectLogInMethod")}
-    //                     </Typography>
-    //                     <HelpButton markdown={helpText} />
-    //                 </Box>
-    //                 <Stack
-    //                     direction="column"
-    //                     spacing={2}
-    //                 >
-    //                     <Button
-    //                         fullWidth
-    //                         onClick={openWalletConnectDialog}
-    //                         startIcon={<WalletIcon />}
-    //                         sx={{ ...buttonProps }}
-    //                     >{t("Wallet")}</Button>
-    //                     <Button
-    //                         fullWidth
-    //                         onClick={toEmailLogIn}
-    //                         startIcon={<EmailIcon />}
-    //                         sx={{ ...buttonProps }}
-    //                     >{t("Email")}</Button>
-    //                 </Stack>
+//          <Box sx={{
+//                     display: "flex",
+//                     justifyContent: "center",
+//                     alignItems: "center",
+//                     marginBottom: 2,
+//                 }}>
+//                     <Typography
+//                         variant="h6"
+//                         sx={{
+//                             display: "inline-block",
+//                         }}
+//                     >
+//                         {t("SelectLogInMethod")}
+//                     </Typography>
+//                     <HelpButton markdown={helpText} />
+//                 </Box>
+//                 <Stack
+//                     direction="column"
+//                     spacing={2}
+//                 >
+//                     <Button
+//                         fullWidth
+//                         onClick={openWalletConnectDialog}
+//                         startIcon={<WalletIcon />}
+//                         sx={{ ...buttonProps }}
+//                     >{t("Wallet")}</Button>
+//                     <Button
+//                         fullWidth
+//                         onClick={toEmailLogIn}
+//                         startIcon={<EmailIcon />}
+//                         sx={{ ...buttonProps }}
+//                     >{t("Email")}</Button>
+//                 </Stack>

@@ -6,7 +6,7 @@ import { MessageNode, MessageTree } from "hooks/useMessageTree";
 import React, { Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { BranchMap } from "utils/cookies";
-import { getDisplay, ListObject } from "utils/display/listTools";
+import { ListObject, getDisplay } from "utils/display/listTools";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 const getTypingIndicatorText = (participants: ListObject[], maxChars: number) => {

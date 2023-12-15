@@ -196,7 +196,6 @@ export const ResourceListHorizontal = ({
     title,
     sxs,
 }: ResourceListHorizontalProps) => {
-    console.log("qwaf resource list render", list);
     const { palette } = useTheme();
     const { t } = useTranslation();
 

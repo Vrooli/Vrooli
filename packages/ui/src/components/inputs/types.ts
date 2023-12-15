@@ -119,6 +119,7 @@ export interface LanguageInputProps {
 }
 
 export interface LinkInputProps {
+    autoFocus?: boolean;
     label?: string;
     name?: string;
     onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => unknown;
@@ -334,6 +335,7 @@ export interface TranslatedRichInputProps {
         onClick: () => unknown;
         tooltip?: string;
     }>;
+    autoFocus?: boolean;
     disabled?: boolean;
     isOptional?: boolean;
     language: string;
@@ -343,7 +345,8 @@ export interface TranslatedRichInputProps {
     name: string;
     placeholder?: string;
     sxs?: {
-        bar?: SxType;
+        topBar?: SxType;
+        bottomBar?: SxType;
         root?: SxType;
         textArea?: Record<string, unknown>;
     };

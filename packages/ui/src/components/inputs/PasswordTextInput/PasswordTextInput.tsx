@@ -82,6 +82,12 @@ export const PasswordTextInput = ({
                             aria-label="toggle password visibility"
                             onClick={handleClickShowPassword}
                             edge="end"
+                            sx={{
+                                "&:focus": {
+                                    border: `2px solid ${palette.background.textPrimary}`
+                                },
+                                borderRadius: "2px",
+                            }}
                         >
                             {
                                 showPassword ?

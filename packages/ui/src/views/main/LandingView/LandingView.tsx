@@ -157,15 +157,16 @@ export const LandingView = ({
                         </SlideText>
                         <Box sx={{
                             display: "flex",
-                            flexDirection: "row",
+                            flexDirection: "column",
                             justifyContent: "center",
-                            gap: 2,
+                            gap: 1,
                             alignItems: "center",
                             marginLeft: "auto !important",
                             marginRight: "auto !important",
                             marginBottom: 3,
                         }}>
                             <PulseButton
+                                autoFocus
                                 variant="outlined"
                                 color="secondary"
                                 onClick={() => openLink(setLocation, LINKS.Signup, { form: Forms.SignUp })}
@@ -173,10 +174,12 @@ export const LandingView = ({
                                 sx={{
                                     fontSize: isMobile ? "1.3rem" : "1.8rem",
                                     zIndex: 2,
+                                    textTransform: "none",
+                                    borderRadius: 3,
                                 }}
-                            >Start Now</PulseButton>
+                            >Start for free</PulseButton>
                             <Button
-                                variant="outlined"
+                                variant="text"
                                 color="secondary"
                                 onClick={() => openLink(setLocation, LINKS.Search)}
                                 sx={{
@@ -184,6 +187,8 @@ export const LandingView = ({
                                     zIndex: 2,
                                     color: "white",
                                     borderColor: "white",
+                                    textDecoration: "underline",
+                                    textTransform: "none",
                                 }}
                             >View Site</Button>
                         </Box>
