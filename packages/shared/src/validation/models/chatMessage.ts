@@ -18,6 +18,7 @@ export const chatMessageValidation: YupModel = {
         versionOfId: opt(id),
     }, [
         ["chat", ["Connect"], "one", "req", ["messages"]],
+        ["user", ["Connect"], "one", "opt"],
         ["translations", ["Create"], "many", "opt", chatMessageTranslationValidation],
     ], [], d),
     update: (d) => yupObj({
