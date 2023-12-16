@@ -61,7 +61,7 @@ const SignupForm = () => {
                             localStorage.removeItem(Cookies.FormData); // Clear old form data cache
                             setupPush();
                             PubSub.get().publish("session", data);
-                            PubSub.get().publish("celebration");
+                            PubSub.get().publish("celebration", { targetId: "sign-up-button" });
                             PubSub.get().publish("alertDialog", {
                                 messageKey: "WelcomeVerifyEmail",
                                 messageVariables: { appName: BUSINESS_NAME },
@@ -201,6 +201,7 @@ const SignupForm = () => {
                         </Grid>
                     </Grid>
                     <Button
+                        id="sign-up-button"
                         fullWidth
                         disabled={loading}
                         type="submit"

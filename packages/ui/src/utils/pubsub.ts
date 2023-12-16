@@ -34,6 +34,14 @@ export type AlertDialogPub = {
     }[];
 }
 
+export type CelebrationType = "balloons" | "confetti" | "emoji";
+export type CelebrationPub = {
+    celebrationType?: CelebrationType;
+    duration?: number;
+    emojis?: string[];
+    targetId?: string;
+}
+
 export type SideMenuPub = {
     id: "side-menu" | "chat-side-menu";
     idPrefix?: string;
@@ -42,7 +50,7 @@ export type SideMenuPub = {
 
 export interface EventPayloads {
     alertDialog: AlertDialogPub;
-    celebration: { duration?: number };
+    celebration: CelebrationPub;
     chatMessageEdit: string | false;
     commandPalette: void;
     cookies: void;
