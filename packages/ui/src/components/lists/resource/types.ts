@@ -1,5 +1,6 @@
 import { Resource, ResourceList, ResourceListFor } from "@local/shared";
-import { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
+import { DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps } from "react-beautiful-dnd";
+import { SxType } from "types";
 
 export interface ResourceCardProps {
     data: Resource;
@@ -25,6 +26,7 @@ export interface ResourceListHorizontalProps {
     loading?: boolean;
     mutate?: boolean;
     parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
+    sxs?: { list?: SxType };
 }
 
 export interface ResourceListVerticalProps {

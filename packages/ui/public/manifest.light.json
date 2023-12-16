@@ -47,7 +47,7 @@
     "scope": "/",
     "scope_extensions": [
         {
-            "origin": "*.vrooli.com"
+            "origin": "*.<DOMAIN>"
         }
     ],
     "start_url": "/",
@@ -118,7 +118,7 @@
     "related_applications": [
         {
             "platform": "webapp",
-            "url": "https://vrooli.com/"
+            "url": "<UI_URL>"
         }
     ],
     "launch_handler": {

@@ -30,7 +30,7 @@ const sections: TutorialSection[] = [
         title: "Welcome to Vrooli!",
         steps: [
             {
-                text: "This tutorial will show you how to use Vrooli to assist your personal and professional life.\n\nIt will only take a few minutes, and you can skip it at any time.\n\nTo open the tutorial again, type **tutorial** in the Home page's search bar.",
+                text: "This tutorial will show you how to use Vrooli to assist your personal and professional life.\n\nIt will only take a few minutes, and you can skip it at any time.\n\nTo open the tutorial again, press the **Tutorial** option in the side menu.",
                 page: LINKS.Home,
             },
         ],
@@ -48,11 +48,6 @@ const sections: TutorialSection[] = [
                 element: "home-tabs",
             },
             {
-                text: "Below the focus mode tabs is a search bar. Use this to filter the home page, or to enter quick commands.",
-                page: LINKS.Home,
-                element: "main-search",
-            },
-            {
                 text: "Next is a customizable list of resources.\n\nThese can be anything you want, such as links to your favorite websites, or objects on Vrooli.",
                 page: LINKS.Home,
                 element: "main-resource-list",
@@ -66,11 +61,6 @@ const sections: TutorialSection[] = [
                 text: "Then there's a list of reminders.\n\nThese are associated with the current focus mode. Press **See All** to view all reminders, regardless of focus mode.",
                 page: LINKS.Home,
                 element: "main-reminder-list",
-            },
-            {
-                text: "Finally, there's a list of notes. Use these to jot down quick thoughts, store information, or anything else you want.\n\nPress **See All** to view all notes.",
-                page: LINKS.Home,
-                element: "main-note-list",
             },
         ],
     },

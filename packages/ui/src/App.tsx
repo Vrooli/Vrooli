@@ -1,8 +1,8 @@
 import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, createTheme, CssBaseline, GlobalStyles, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode, socket } from "api";
-import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
+import { Celebration } from "components/Celebration/Celebration";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
 import { chatSideMenuDisplayData } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -70,7 +70,6 @@ export function App() {
     const [language, setLanguage] = useState<string>(getSiteLanguage(undefined));
     const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookieIsLeftHanded(false));
     const [isLoading, setIsLoading] = useState(false);
-    const [isCelebrating, setIsCelebrating] = useState(false);
     const [isTutorialOpen, setIsTutorialOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
@@ -254,17 +253,6 @@ export function App() {
                 setIsLoading(Boolean(data));
             }
         });
-        // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
-        // can be passed in as a number
-        const celebrationSub = PubSub.get().subscribe("celebration", (data) => {
-            // Start confetti immediately
-            setIsCelebrating(true);
-            // Determine duration
-            let duration = 5000;
-            if (Number.isInteger(data)) duration = data as number;
-            // Stop confetti after duration
-            setTimeout(() => setIsCelebrating(false), duration);
-        });
         // Handle session updates
         const sessionSub = PubSub.get().subscribe("session", (session) => {
             // If undefined or empty, set session to published data
@@ -360,7 +348,6 @@ export function App() {
         // On unmount, unsubscribe from all PubSub topics
         return (() => {
             PubSub.get().unsubscribe(loadingSub);
-            PubSub.get().unsubscribe(celebrationSub);
             PubSub.get().unsubscribe(sessionSub);
             PubSub.get().unsubscribe(themeSub);
             PubSub.get().unsubscribe(focusModeSub);
@@ -490,7 +477,7 @@ export function App() {
                                 <PullToRefresh />
                                 <CommandPalette />
                                 <FindInPage />
-                                {isCelebrating && <AsyncConfetti />}
+                                <Celebration />
                                 <AlertDialog />
                                 <SnackStack />
                                 <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />

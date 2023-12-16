@@ -19,6 +19,7 @@ export const NotificationModel: NotificationModelLogic = ({
         sortBy: NotificationSortBy,
         searchFields: {
             createdTimeFrame: true,
+            userId: true,
         },
         searchStringQuery: () => ({
             OR: [

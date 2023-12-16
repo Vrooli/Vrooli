@@ -14,10 +14,10 @@ import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { io } from "../../io";
-import { SERVER_URL } from "../../server";
+import { UI_URL } from "../../server";
 import { ChatContextManager } from "../../tasks/llm/context";
 import { requestBotResponse } from "../../tasks/llm/queue";
-import { PrismaType } from "../../types";
+import { getAuthenticatedData, permissionsCheck, PrismaType } from "../../types";
 import { bestTranslation, SortMap } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
@@ -458,12 +458,11 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         // Filter out links where the that aren't a mention. Rules:
                         // 1. Label must start with @
                         // 2. Link must be to this site
-                        const correctOrigin = new URL(SERVER_URL).origin;
                         links = links.filter(l => {
                             if (!l.label.startsWith("@")) return false;
                             try {
                                 const url = new URL(l.link);
-                                return url.origin === correctOrigin;
+                                return url.origin === UI_URL;
                             } catch (e) {
                                 return false;
                             }
@@ -559,6 +558,13 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             info: GraphQLInfo | PartialGraphQLInfo,
         ): Promise<ChatMessageSearchTreeResult> {
             if (!input.chatId) throw new CustomError("0531", "InvalidArgs", getUser(req.session)?.languages ?? ["en"], { input });
+            // Query for all authentication data
+            const userData = getUser(req.session);
+            const authDataById = await getAuthenticatedData({ "Chat": [input.chatId] }, prisma, userData ?? null);
+            if (Object.keys(authDataById).length === 0) {
+                throw new CustomError("0016", "NotFound", userData?.languages ?? req.session.languages, { input, userId: userData?.id });
+            }
+            await permissionsCheck(authDataById, { ["Read"]: [input.chatId] }, {}, userData);
             // Partially convert info type
             const partial = toPartialGqlInfo(info, {
                 __typename: "ChatMessageSearchTreeResult",

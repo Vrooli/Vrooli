@@ -181,6 +181,7 @@ export const ChatModel: ChatModelLogic = ({
         defaultSort: ChatSortBy.DateUpdatedDesc,
         searchFields: {
             createdTimeFrame: true,
+            creatorId: true,
             openToAnyoneWithInvite: true,
             labelsIds: true,
             organizationId: true,

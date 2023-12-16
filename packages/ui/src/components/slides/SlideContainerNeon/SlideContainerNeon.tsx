@@ -78,7 +78,7 @@ const LINE_WIDTH_MULTIPLIER = 1;
 const COLOR = "255, 255, 255";
 const OPACITY = "0.5";
 /** The maximum moving speed of a particle in x or y coordinate can has in each frame. (in pixels) */
-const POINT_MAX_SPEED = 0.1;
+const POINT_MAX_SPEED = 0.04;
 /** The deceleration rate of a particle after it succeeds it's maximum moving speed. */
 const POINT_SLOW_DOWN_RATE = 0.8;
 /** The ratio of the width or height of the chunk divided by the interaction radius of particle. (a number greater than 1 means lossless computing. 0.8 is recommended) */

@@ -1,5 +1,4 @@
 import { AccountStatus, COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, EmailSignUpInput, emailSignUpValidation, LINKS, LogOutInput, password as passwordValidation, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { hashPassword, logIn, setupPasswordReset, validateCode, validateVerificationCode } from "../../auth/email";
 import { generateSessionJwt, getUser, updateSessionTimeZone } from "../../auth/request";
 import { sessionUserTokenToUser, toSession, toSessionUser } from "../../auth/session";
@@ -8,6 +7,7 @@ import { Award } from "../../events/awards";
 import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { rateLimit } from "../../middleware/rateLimit";
+import { UI_URL_REMOTE } from "../../server";
 import { GQLEndpoint, RecursivePartial } from "../../types";
 import { hasProfanity } from "../../utils/censor";
 
@@ -29,9 +29,8 @@ export type EndpointsAuth = {
 /** Expiry time for wallet authentication */
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
-const BASE_URL = "https://vrooli.com";
 /** Default user data */
-const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Prisma.userUncheckedCreateInput>> = {
+const DEFAULT_USER_DATA = {
     isPrivateBookmarks: true,
     isPrivateVotes: true,
     focusModes: {
@@ -43,7 +42,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                 create: {
                     resources: {
                         create: [{
-                            link: `${BASE_URL}${LINKS.Calendar}`,
+                            link: `${UI_URL_REMOTE}${LINKS.Calendar}`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -53,7 +52,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.MyStuff}?type=Reminder`,
+                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type=Reminder`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -62,7 +61,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.MyStuff}?type=Note`,
+                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type=Note`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -71,7 +70,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.History}?type=RunsActive`,
+                            link: `${UI_URL_REMOTE}${LINKS.History}?type=RunsActive`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -92,7 +91,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                 create: {
                     resources: {
                         create: [{
-                            link: `${BASE_URL}${LINKS.History}?type=Bookmarked`,
+                            link: `${UI_URL_REMOTE}${LINKS.History}?type=Bookmarked`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -101,7 +100,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.Search}?type=Routine`,
+                            link: `${UI_URL_REMOTE}${LINKS.Search}?type=Routine`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -111,7 +110,7 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
                                 }],
                             },
                         }, {
-                            link: `${BASE_URL}${LINKS.Search}?type=Project`,
+                            link: `${UI_URL_REMOTE}${LINKS.Search}?type=Project`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -126,6 +125,10 @@ const DEFAULT_USER_DATA: RecursivePartial<Prisma.XOR<Prisma.userCreateInput, Pri
             },
         }],
     },
+    // NOTE: We are purposely omitting premium data, so that its absence
+    // can indicate that:
+    // 1. The user has never had premium
+    // 2. The user has never verified their account to receive free credits
 };
 
 /**
@@ -150,7 +153,15 @@ export const AuthEndpoints: EndpointsAuth = {
                 // Find user by id
                 user = await prisma.user.findUnique({
                     where: { id: userId },
-                    select: { id: true },
+                    select: {
+                        id: true,
+                        premium: {
+                            select: {
+                                isActive: true,
+                                credits: true,
+                            },
+                        },
+                    },
                 });
                 if (!user)
                     throw new CustomError("0129", "NoUser", req.session.languages);
@@ -174,6 +185,23 @@ export const AuthEndpoints: EndpointsAuth = {
                     const verified = await validateVerificationCode(firstEmail.emailAddress, user.id, verificationCode, prisma, req.session.languages);
                     if (!verified)
                         throw new CustomError("0132", "CannotVerifyEmailCode", req.session.languages);
+                    // If this is the first time verifying (i.e. premium relation is null), give user free credits
+                    if (!user.premium) {
+                        const premiumData = {
+                            isActive: false,
+                            credits: 100,
+                        };
+                        await prisma.premium.create({
+                            data: {
+                                ...premiumData,
+                                user: { connect: { id: user.id } },
+                            },
+                        });
+                        user = {
+                            ...user,
+                            premium: premiumData,
+                        };
+                    }
                 }
                 return await toSession(user, prisma, req);
             }
@@ -438,7 +466,15 @@ export const AuthEndpoints: EndpointsAuth = {
                     nonce: true,
                     nonceCreationTime: true,
                     user: {
-                        select: { id: true },
+                        select: {
+                            id: true,
+                            premium: {
+                                select: {
+                                    isActive: true,
+                                    credits: true,
+                                },
+                            },
+                        },
                     },
                     verified: true,
                 },
@@ -469,6 +505,12 @@ export const AuthEndpoints: EndpointsAuth = {
                         wallets: {
                             connect: { id: walletData.id },
                         },
+                        premium: {
+                            create: {
+                                isActive: false,
+                                credits: 100,
+                            },
+                        },
                         ...DEFAULT_USER_DATA,
                     },
                     select: { id: true },
@@ -487,6 +529,16 @@ export const AuthEndpoints: EndpointsAuth = {
                             wallets: {
                                 connect: { id: walletData.id },
                             },
+                        },
+                    });
+                }
+                // If you never verified your account, give free credits
+                if (!walletData.user?.premium) {
+                    await prisma.premium.create({
+                        data: {
+                            user: { connect: { id: req.session.users?.[0]?.id as string } },
+                            isActive: false,
+                            credits: 100,
                         },
                     });
                 }

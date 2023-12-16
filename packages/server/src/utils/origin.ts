@@ -42,7 +42,7 @@ export const isValidIP = (ip: string): boolean => {
 
 /**
  * Validate if the given string is a valid domain name 
- * (e.g. vrooli.com, www.vrooli.com, subdomain.vrooli.com).
+ * (e.g. mysite.com, www.mysite.com, subdomain.mysite.com).
  * @param {string} domain - The domain name to validate.
  * @returns {boolean} - True if valid, false otherwise.
  */

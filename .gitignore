@@ -14,6 +14,9 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# Source map analytics
+source-tree*.html
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 

@@ -65,7 +65,7 @@ const Testimonial = ({
             color: palette.background.textPrimary,
             borderRadius: 4,
             boxShadow: 3,
-            zIndex: 10,
+            zIndex: 6,
             ...sx,
         }}>
             <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center" }}>

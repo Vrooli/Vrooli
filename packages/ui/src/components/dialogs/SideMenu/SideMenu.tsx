@@ -14,15 +14,17 @@ import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, InfoIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { noSelect } from "styles";
-import { SvgComponent } from "types";
+import { ActionOption, SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { Cookies } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
+import { openObject } from "utils/navigation/openObject";
+import { Actions, performAction, toActionOption } from "utils/navigation/quickActions";
 import { getUserActions, NAV_ACTION_TAGS, NavAction } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
@@ -132,7 +134,7 @@ export const SideMenu = () => {
         if (isMobile) handleClose(event);
         // If already selected, go to profile page
         if (userId === user.id) {
-            setLocation(LINKS.Profile);
+            openObject(user, setLocation);
         }
         // Otherwise, switch to selected account
         else {
@@ -175,6 +177,11 @@ export const SideMenu = () => {
     const handleOpen = (event: React.MouseEvent<HTMLElement>, link: string) => {
         setLocation(link);
         if (isMobile) handleClose(event);
+    };
+
+    const handleAction = (event: React.MouseEvent<HTMLElement>, action: ActionOption) => {
+        if (isMobile) handleClose(event);
+        performAction(action, session);
     };
 
     const accounts = useMemo(() => session?.users ?? [], [session?.users]);
@@ -330,6 +337,7 @@ export const SideMenu = () => {
                     <NavListItem label={t("Award", { count: 2 })} Icon={AwardIcon} onClick={(event) => handleOpen(event, LINKS.Awards)} palette={palette} />
                     <NavListItem label={t("Premium")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Premium)} palette={palette} />
                     <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
+                    <NavListItem label={t("Tutorial")} Icon={HelpIcon} onClick={(event) => handleAction(event, toActionOption(Actions.tutorial))} palette={palette} />
                 </List>
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* Additional Resources */}
@@ -343,7 +351,7 @@ export const SideMenu = () => {
                     paddingBottom: 1,
                 }}>
                     <Box sx={{ minWidth: "56px", display: "flex", alignItems: "center" }}>
-                        <HelpIcon fill={palette.background.textPrimary} />
+                        <InfoIcon fill={palette.background.textPrimary} />
                     </Box>
                     <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: "0 !important" }}>{t("AdditionalResources")}</Typography>
                     {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}

@@ -8,7 +8,7 @@ To open the project from the command line, enter `code <PROJECT_NAME>` from the 
 
 ## 2. Install packages
 1. `cd <PROJECT_NAME>`  
-2. `chmod +x ./scripts/* && ./scripts/setup.sh`
+2. `chmod +x ./scripts/* && . ./scripts/setup.sh` (Note that we're sourcing the script, so that environment changes like the node version persist after the script is done running)
 4. Restart code editor  
 
 **Note:** If `setup.sh` installs any global packages, this is because they are either used by a `Dockerfile` or `package.json`. If you want to make sure the dependency versions are correct, you should check those files.

@@ -39,7 +39,7 @@ const getRouteMap = async (): Promise<{ [x: string]: string }> => {
         keyValues = keyValues.map((keyValue) => {
             const key: string = keyValue[0].trim();
             let value: string = (keyValue[1] as any).match(/['"].*['"]/g)[0];
-            value = value.replaceAll("'", "").replaceAll("\"", "");
+            value = value.replace(/'/g, "").replace(/"/g, "");
             return [key, value];
         });
         // Convert to object
@@ -56,6 +56,9 @@ const getRouteMap = async (): Promise<{ [x: string]: string }> => {
  * Reads and parses file containing routes. Finds sitemap data and generates a sitemap.xml file
  */
 const main = async () => {
+    const UI_URL = process.env.UI_URL;
+    if (!UI_URL) throw new Error("UI_URL environment variable not set");
+
     // Get route names
     const routeMap = await getRouteMap();
 
@@ -80,7 +83,7 @@ const main = async () => {
             // May need to use route map object to convert to path
             let path = route.match(/path=".*?"/g)?.[0] ?? route.match(/path={.*?}/g)?.[0];
             if (path) {
-                path = path.replaceAll("path=", "").replaceAll("\"", "").replaceAll("{", "").replaceAll("}", "");
+                path = path.replace(/path=/g, "").replace(/"/g, "").replace(/{/g, "").replace(/}/g, "");
                 // If path is a key in the route map object (i.e. contains a '.' and after '.' is a key in the route map), 
                 // replace it with the corresponding value
                 if (path.includes(".") && path.split(".")[1] in routeMap) {
@@ -90,18 +93,18 @@ const main = async () => {
             // Match priority (e.g. priority={0.5} => 0.5)
             let priority = route.match(/priority={.*?}/g)?.[0];
             if (priority) {
-                priority = priority.replaceAll("priority={", "").replaceAll("}", "");
+                priority = priority.replace(/priority={/g, "").replace(/}/g, "");
             }
             // Match changeFreq (e.g. changeFreq="daily" => daily, changeFreq={"daily"} => daily)
             let changeFreq = route.match(/changeFreq=".*?"/g)?.[0] ?? route.match(/changeFreq={.*?}/g)?.[0];
             if (changeFreq) {
-                changeFreq = changeFreq.replaceAll("changeFreq=", "").replaceAll("\"", "").replaceAll("{", "").replaceAll("}", "");
+                changeFreq = changeFreq.replace(/changeFreq=/g, "").replace(/"/g, "").replace(/{/g, "").replace(/}/g, "");
             }
             return { path, priority, changeFreq };
         }).filter((route) => route.path) as SitemapEntryMain[];
         console.info("Parsed sitemap data from routes: ", entries);
         // Generate sitemap.xml
-        const sitemap = generateSitemap("https://vrooli.com", { main: entries });
+        const sitemap = generateSitemap(UI_URL, { main: entries });
         console.info("Generated sitemap: ", sitemap);
         // Check if sitemap save directory exists
         const sitemapDir = new URL("../../dist/sitemaps", import.meta.url);

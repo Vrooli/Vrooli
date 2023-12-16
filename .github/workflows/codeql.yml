@@ -1,10 +1,10 @@
 name: "CodeQL"
 
-on:
-  push:
-  pull_request:
-  schedule:
-    - cron: '42 16 * * 0'
+# on:
+#   push:
+#   pull_request:
+#   schedule:
+#     - cron: '42 16 * * 0'
 
 jobs:
   analyze:
@@ -18,27 +18,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript' ] # TypeScript is analyzed as JavaScript
+        language: ["javascript"] # TypeScript is analyzed as JavaScript
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '16'
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "16"
 
-    - name: Install Dependencies
-      run: yarn install # Install dependencies for all workspaces
+      - name: Install Dependencies
+        run: yarn install # Install dependencies for all workspaces
 
-    - name: Build TypeScript
-      run: yarn workspace @local/shared build && yarn workspace @local/server build && yarn workspace @local/jobs build && yarn workspace @local/ui build
+      - name: Build TypeScript
+        run: yarn workspace @local/shared build && yarn workspace @local/server build && yarn workspace @local/jobs build && yarn workspace @local/ui build
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
-      with:
-        languages: ${{ matrix.language }}
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2

@@ -85,6 +85,7 @@ export const SearchMap = {
     createdById: (id: Maybe<string>) => oneToOneId(id, "createdBy"),
     createdByIdRoot: (id: Maybe<string>) => ({ root: oneToOneId(id, "createdBy") }),
     createdTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("created_at", time),
+    creatorId: (id: Maybe<string>) => oneToOneId(id, "creator"),
     currency: (currency: Maybe<string>) => ({ currency }),
     directoryListingsId: (id: Maybe<string>) => oneToManyId(id, "directoryListings"),
     endTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("endTime", time),

@@ -8,7 +8,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useDebounce } from "hooks/useDebounce";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
-import { DeleteIcon, EditIcon, LinkIcon } from "icons";
+import { CloseIcon, DeleteIcon, EditIcon, LinkIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
@@ -32,7 +32,6 @@ const ResourceBox = styled(Box)(({ theme }) => ({
     background: theme.palette.primary.light,
     color: theme.palette.secondary.contrastText,
     borderRadius: "16px",
-    margin: "auto",
     padding: theme.spacing(1),
     cursor: "pointer",
     width: "194px",
@@ -195,8 +194,8 @@ export const ResourceListHorizontal = ({
     mutate = true,
     parent,
     title,
+    sxs,
 }: ResourceListHorizontalProps) => {
-    console.log("qwaf resource list render", list);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -352,7 +351,10 @@ export const ResourceListHorizontal = ({
                 <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
                 {true && <Tooltip title={t("Edit")}>
                     <IconButton onClick={() => { setIsEditing(e => !e); }}>
-                        <EditIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} />
+                        {isEditing ?
+                            <CloseIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} /> :
+                            <EditIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} />
+                        }
                     </IconButton>
                 </Tooltip>}
             </Box>}
@@ -363,7 +365,7 @@ export const ResourceListHorizontal = ({
                             ref={provided.innerRef}
                             id={id}
                             {...provided.droppableProps}
-                            justifyContent="flex-start"
+                            justifyContent="center"
                             alignItems="center"
                             sx={{
                                 display: "flex",
@@ -374,6 +376,7 @@ export const ResourceListHorizontal = ({
                                 paddingTop: title ? 0 : 1,
                                 paddingBottom: 1,
                                 overflowX: "auto",
+                                ...sxs?.list,
                             }}>
                             {/* Resources */}
                             {list?.resources?.map((c: Resource, index) => (

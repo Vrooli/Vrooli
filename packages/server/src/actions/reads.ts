@@ -74,7 +74,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     // Query for all authentication data
     const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, prisma, userData ?? null);
     if (Object.keys(authDataById).length === 0) {
-        throw new CustomError("0021", "NotFound", userData?.languages ?? req.session.languages, { objectType });
+        throw new CustomError("0021", "NotFound", userData?.languages ?? req.session.languages, { id, objectType });
     }
     // Check permissions
     await permissionsCheck(authDataById, { ["Read"]: [id as string] }, {}, userData);

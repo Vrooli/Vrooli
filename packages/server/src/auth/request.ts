@@ -4,6 +4,7 @@ import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
+import { UI_URL_REMOTE } from "../server";
 import { ApiToken, BasicToken, RecursivePartial, SessionData, SessionToken, SessionUserToken } from "../types";
 import { isSafeOrigin } from "../utils/origin";
 
@@ -183,7 +184,7 @@ export const authenticateSocket = async (socket, next) => {
  */
 const basicToken = (): BasicToken => ({
     iat: Date.now(),
-    iss: "https://vrooli.com/",
+    iss: UI_URL_REMOTE,
     exp: Date.now() + SESSION_MILLI,
 });
 

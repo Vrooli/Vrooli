@@ -4,6 +4,7 @@ import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
+import { UI_URL } from "../server";
 import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled } from "../tasks/email/queue";
 import { PrismaType } from "../types";
 import { withPrisma } from "../utils/withPrisma";
@@ -522,7 +523,6 @@ export const setupStripe = (app: Express): void => {
         logger.error("Missing one or more Stripe secret keys", { trace: "0489" });
         return;
     }
-    const urlBase = process.env.VITE_SERVER_LOCATION === "local" ? "http://localhost:3000" : "https://vrooli.com";
     // Set up Stripe
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -530,7 +530,7 @@ export const setupStripe = (app: Express): void => {
         typescript: true,
         appInfo: {
             name: "Vrooli",
-            url: urlBase,
+            url: UI_URL,
             version: "2.0.0",
         },
     });
@@ -657,8 +657,8 @@ export const setupStripe = (app: Express): void => {
                     // to save the customer some typing, but Stripe doesn't allow 
                     // this to be sent along with the customer ID.
                     const session = await stripe.checkout.sessions.create({
-                        success_url: `${urlBase}/premium?status=success`,
-                        cancel_url: `${urlBase}/premium?status=canceled`,
+                        success_url: `${UI_URL}/premium?status=success`,
+                        cancel_url: `${UI_URL}/premium?status=canceled`,
                         payment_method_types: ["card"],
                         line_items: [
                             {
@@ -743,7 +743,7 @@ export const setupStripe = (app: Express): void => {
         try {
             const session = await stripe.billingPortal.sessions.create({
                 customer: stripeCustomerId as string, // Should be defined now, since we created a customer if it didn't exist
-                return_url: returnUrl ?? urlBase,
+                return_url: returnUrl ?? UI_URL,
             });
             // Send session URL as response
             res.json(session);

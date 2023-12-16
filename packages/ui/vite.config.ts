@@ -32,7 +32,40 @@ export default defineConfig({
         ]
     },
     build: {
+        chunkSizeWarningLimit: 1000,
         // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
-        sourcemap: false,
+        sourcemap: true,
+        rollupOptions: {
+            output: {
+                // Anything which doesn't need to be in the main bundle can be defined here as a separate chunk. 
+                // This should be done only if you've tried everything else to reduce the bundle size.
+                // Also, this doesn't guarantee that the chunk will be moved to its own bundle. But it's worth a try.
+                manualChunks: {
+                    'lang-angular': ['@codemirror/lang-angular'],
+                    'lang-cpp': ['@codemirror/lang-cpp'],
+                    'lang-css': ['@codemirror/lang-css'],
+                    'lang-html': ['@codemirror/lang-html'],
+                    'lang-java': ['@codemirror/lang-java'],
+                    'lang-javascript': ['@codemirror/lang-javascript'],
+                    'lang-json': ['@codemirror/lang-json'],
+                    'lang-php': ['@codemirror/lang-php'],
+                    'lang-python': ['@codemirror/lang-python'],
+                    'lang-rust': ['@codemirror/lang-rust'],
+                    'lang-sass': ['@codemirror/lang-sass'],
+                    'lang-sql': ['@codemirror/legacy-modes/mode/sql'],
+                    'lang-svelte': ['@replit/codemirror-lang-svelte'],
+                    'lang-vue': ['@codemirror/lang-vue'],
+                    'lang-xml': ['@codemirror/lang-xml'],
+                    'codemirror-autocomplete': ['@codemirror/autocomplete'],
+                    'codemirror-commands': ['@codemirror/commands'],
+                    'codemirror-language': ['@codemirror/language'],
+                    'codemirror-lint': ['@codemirror/lint'],
+                    'codemirror-search': ['@codemirror/search'],
+                    'codemirror-state': ['@codemirror/state'],
+                    'codemirror-theme-one-dark': ['@codemirror/theme-one-dark'],
+                    'codemirror-view': ['@codemirror/view'],
+                },
+            },
+        },
     }
 })

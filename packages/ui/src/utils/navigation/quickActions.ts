@@ -195,38 +195,37 @@ export const shortcuts: PreSearchItem[] = [
  * Action shortcuts that can appear in the main search bar or command palette. 
  * Instead of taking you to a page, they perform an action (e.g. clear search history).
  */
-export const actions: ActionItem[] = [
-    {
+export const Actions: { [x: string]: ActionItem } = {
+    clearSearchHistory: {
         label: "Clear search history",
         id: "clear-search-history",
         canPerform: () => true,
     },
-    {
+    activateDarkMode: {
         label: "Activate dark mode",
         id: "activate-dark-mode",
         canPerform: (session: Session) => getCurrentUser(session).theme !== "dark",
     },
-    {
+    activateLightMode: {
         label: "Activate light mode",
         id: "activate-light-mode",
         canPerform: (session: Session) => getCurrentUser(session).theme !== "light",
     },
-    {
+    tutorial: {
         label: "Tutorial",
         id: "tutorial",
         canPerform: (session: Session) => session.isLoggedIn,
     },
-];
+};
 
 /**
  * Shape actions to match AutoCompleteListItem format.
  */
-export const actionsItems: ActionOption[] = actions.map(({ canPerform, id, label }) => ({
+export const toActionOption = (action: ActionItem): ActionOption => ({
     __typename: "Action",
-    canPerform,
-    id,
-    label,
-}));
+    ...action,
+});
+export const actionsItems: ActionOption[] = Object.values(Actions).map(toActionOption);
 
 /**
  * Maps action ids to their corresponding action. 

@@ -1,9 +1,11 @@
 import { ChatInviteStatus, DUMMY_ID, noop, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
+import { SessionContext } from "contexts/SessionContext";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useUndoRedo } from "hooks/useUndoRedo";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { getCurrentUser } from "utils/authentication/session";
 import { getCookieMatchingChat, getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
@@ -11,7 +13,7 @@ import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
-import { defaultActiveStates, RichInputToolbar } from "../RichInputToolbar/RichInputToolbar";
+import { RichInputToolbar, defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputAction, RichInputActiveStates, RichInputBaseProps } from "../types";
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
@@ -39,6 +41,7 @@ export const RichInputBase = ({
     sxs,
 }: RichInputBaseProps) => {
     const { palette, typography } = useTheme();
+    const session = useContext(SessionContext);
     const isLeftHanded = useIsLeftHanded();
 
     const { internalValue, changeInternalValue, resetInternalValue, undo, redo, canUndo, canRedo } = useUndoRedo({
@@ -82,6 +85,8 @@ export const RichInputBase = ({
     });
     const openAssistantDialog = useCallback((highlighted: string) => {
         if (disabled) return;
+        const userId = getCurrentUser(session)?.id;
+        if (!userId) return;
 
         // We want to provide the assistant with the most relevant context
         const maxContextLength = 1500;
@@ -95,7 +100,7 @@ export const RichInputBase = ({
         if (context) context = `"""\n${context}\n"""\n\n`;
 
         // Now we'll try to find an existing chat with Valyxa for this task
-        const existingChatId = getCookieMatchingChat([VALYXA_INFO.id], "note");
+        const existingChatId = getCookieMatchingChat([userId, VALYXA_INFO.id], "note");
         const overrideObject = {
             __typename: "Chat" as const,
             id: existingChatId ?? DUMMY_ID,
@@ -110,7 +115,7 @@ export const RichInputBase = ({
 
         // Open the assistant dialog
         setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
-    }, [disabled, internalValue]);
+    }, [disabled, internalValue, session]);
 
     // Resize input area to fit content
     const id = useMemo(() => `input-container-${name}`, [name]);

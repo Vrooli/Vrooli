@@ -81,35 +81,37 @@ export const DashboardView = ({
     // When a chat is loaded, store chat ID by participant and task
     useEffect(() => {
         if (!loadedChat?.id) return;
-        setCookieMatchingChat(loadedChat.id, [VALYXA_ID]);
+        const userId = getCurrentUser(session).id;
+        if (!userId) return;
+        setCookieMatchingChat(loadedChat.id, [userId, VALYXA_ID]);
     }, [loadedChat, loadedChat?.id, session]);
 
-    const createNewChat = useCallback(() => {
-        console.log("creating chattttt", chat);
+    const createChat = useCallback((resetChat = false) => {
         chatCreateStatus.current = "inProgress";
+        const chatToUse = resetChat ? chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS) : chat;
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
-            inputs: transformChatValues(withoutOtherMessages(chat, session), withoutOtherMessages(chat, session), true),
+            inputs: transformChatValues(withoutOtherMessages(chatToUse, session), withoutOtherMessages(chatToUse, session), true),
             onSuccess: (data) => {
                 console.log("created new chat!", data);
                 setChat(data);
-                setCookieMatchingChat(data.id, [VALYXA_ID]);
+                const userId = getCurrentUser(session).id;
+                if (userId) setCookieMatchingChat(data.id, [userId, VALYXA_ID]);
             },
             onCompleted: () => {
                 chatCreateStatus.current = "complete";
             },
-            onError: (response) => {
-                console.log("failed to create NEW chat", response);
-            },
         });
-    }, [chat, fetchCreate, session]);
+    }, [chat, languages, fetchCreate, session, t]);
 
     // Create chats automatically
     const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
     useEffect(() => {
+        const userId = getCurrentUser(session).id;
+        if (!userId) return;
         // Unlike the chat view, we look for the chat by local storage data rather than the ID in the URL
-        const existingChatId = getCookieMatchingChat([VALYXA_ID]);
-        const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [getCurrentUser(session).id, VALYXA_ID].includes(p.user.id));
+        const existingChatId = getCookieMatchingChat([userId, VALYXA_ID]);
+        const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [userId, VALYXA_ID].includes(p.user.id));
         if (chat.id === DUMMY_ID && existingChatId) {
             console.log("fetching chattttt", existingChatId);
             fetchLazyWrapper<FindByIdInput, Chat>({
@@ -120,19 +122,16 @@ export const DashboardView = ({
                     setChat(data);
                 },
                 onError: (response) => {
-                    console.log("bleep error 0", response);
                     if (hasErrorCode(response, "NotFound")) {
-                        createNewChat();
-                    } else {
-                        console.log("bleep error 1");
+                        createChat();
                     }
                 },
             });
         }
         else if (!isChatValid && chatCreateStatus.current === "notStarted") {
-            createNewChat();
+            createChat();
         }
-    }, [chat, createNewChat, display, fetchCreate, getChat, isOpen, session, setLocation]);
+    }, [chat, createChat, display, fetchCreate, getChat, isOpen, session, setLocation]);
 
     // Handle focus modes
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
@@ -178,7 +177,6 @@ export const DashboardView = ({
     useEffect(() => {
         // Resources are added to the focus mode's resource list
         if (activeFocusMode?.mode?.resourceList?.id && activeFocusMode.mode?.resourceList.id !== DUMMY_ID) {
-            console.log("qwaf setting resource list from activeFocusMode.mode.resourceList", activeFocusMode.mode.resourceList);
             setResourceList({
                 ...activeFocusMode.mode.resourceList,
                 __typename: "ResourceList",
@@ -284,10 +282,6 @@ export const DashboardView = ({
         setInputFocused(true);
         setShowChat(true);
     }, []);
-    const onBlur = useCallback(() => {
-        setInputFocused(false);
-        if (messagesCount < 2) setShowChat(false);
-    }, [messagesCount]);
 
     // We query messages separate from the chat, since we must traverse the message tree
     const [getTreeData, { data: searchTreeData }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
@@ -467,7 +461,7 @@ export const DashboardView = ({
                         </Button>
                         <Button
                             color="primary"
-                            onClick={createNewChat}
+                            onClick={() => { createChat(true); }}
                             variant="contained"
                             sx={{ margin: 2, borderRadius: 8 }}
                             startIcon={<AddIcon />}
@@ -499,6 +493,7 @@ export const DashboardView = ({
                             mutate={true}
                             parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
                             title={t("Resource", { count: 2 })}
+                            sxs={{ list: { justifyContent: "flex-start" } }}
                         />
                     </Box>
                     {/* Events */}
@@ -576,7 +571,6 @@ export const DashboardView = ({
                 maxRows={inputFocused ? 10 : 2}
                 minRows={1}
                 name="search"
-                onBlur={onBlur}
                 onChange={setMessage}
                 onFocus={onFocus}
                 placeholder={t("WhatWouldYouLikeToDo")}

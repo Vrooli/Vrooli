@@ -1,17 +1,18 @@
 import { DOCS_URL, LINKS, SOCIALS } from "@local/shared";
-import { Box, Button, Grid, keyframes, Stack, styled, Tooltip, useTheme } from "@mui/material";
+import { Box, Button, Grid, Stack, Tooltip, keyframes, styled, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
 import Earth from "assets/img/Earth.svg";
 import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
+import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainerNeon } from "components/slides";
-import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
+import { useWindowSize } from "hooks/useWindowSize";
 import { ArticleIcon, GitHubIcon, PlayIcon, XIcon } from "icons";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { greenNeonText, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, textPop } from "styles";
+import { SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, greenNeonText, textPop } from "styles";
 import { SvgComponent } from "types";
 import { Forms } from "utils/consts";
 import { SlideTitle } from "../../../styles";
@@ -72,7 +73,8 @@ export const LandingView = ({
 }: LandingViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const theme = useTheme();
+    const { breakpoints, palette } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     // Track if earth/sky is in view, and hndle scroll snap on slides
     const [earthTransform, setEarthTransform] = useState<string>("translate(0%, 100%) scale(1)");
@@ -125,7 +127,7 @@ export const LandingView = ({
                 onClose={onClose}
             />
             <SlidePage id="landing-slides" sx={{
-                background: theme.palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",
+                background: palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",
             }}>
                 <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 5 }}>
                     <SlideContent id={slide1Id} sx={{
@@ -138,57 +140,62 @@ export const LandingView = ({
                             ...greenNeonText,
                             fontWeight: "bold",
                             marginBottom: "0!important",
-                            [theme.breakpoints.up("md")]: {
+                            [breakpoints.up("md")]: {
                                 fontSize: "4.75rem",
                             },
-                            [theme.breakpoints.up("sm")]: {
+                            [breakpoints.up("sm")]: {
                                 fontSize: "4rem",
                             },
-                            [theme.breakpoints.up("xs")]: {
+                            [breakpoints.up("xs")]: {
                                 fontSize: "3.4rem",
                             },
                         }}>
-                            Revolutionize Your Workflow
+                            Let AI Take the Wheel
                         </SlideTitle>
                         <SlideText sx={{ paddingBottom: 4 }}>
-                            Harness the power of AI to automate tasks, collaborate effortlessly, and start businesses with ease.
+                            Use AI teams to automate business tasks and enhance personal productivity
                         </SlideText>
                         <Box sx={{
                             display: "flex",
-                            flexDirection: "row",
+                            flexDirection: "column",
                             justifyContent: "center",
-                            gap: 2,
+                            gap: 1,
                             alignItems: "center",
                             marginLeft: "auto !important",
                             marginRight: "auto !important",
                             marginBottom: 3,
                         }}>
                             <PulseButton
+                                autoFocus
                                 variant="outlined"
                                 color="secondary"
                                 onClick={() => openLink(setLocation, LINKS.Signup, { form: Forms.SignUp })}
                                 startIcon={<PlayIcon fill='white' />}
                                 sx={{
-                                    fontSize: "1.8rem",
+                                    fontSize: isMobile ? "1.3rem" : "1.8rem",
                                     zIndex: 2,
+                                    textTransform: "none",
+                                    borderRadius: 3,
                                 }}
-                            >Start Now</PulseButton>
+                            >Start for free</PulseButton>
                             <Button
-                                variant="outlined"
+                                variant="text"
                                 color="secondary"
                                 onClick={() => openLink(setLocation, LINKS.Search)}
                                 sx={{
-                                    fontSize: "1.4rem",
+                                    fontSize: isMobile ? "1rem" : "1.4rem",
                                     zIndex: 2,
                                     color: "white",
                                     borderColor: "white",
+                                    textDecoration: "underline",
+                                    textTransform: "none",
                                 }}
                             >View Site</Button>
                         </Box>
                         <Stack direction="row" spacing={2} display="flex" justifyContent="center" alignItems="center">
                             {externalLinks.map(([tooltip, link, Icon]) => (
                                 <Tooltip key={tooltip} title={tooltip} placement="bottom">
-                                    <SlideIconButton onClick={() => openLink(setLocation, link, { form: Forms.SignUp })}>
+                                    <SlideIconButton onClick={() => openLink(setLocation, link)}>
                                         <Icon fill='#0fa' />
                                     </SlideIconButton>
                                 </Tooltip>

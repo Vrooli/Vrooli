@@ -1,10 +1,12 @@
 import { Box, Button, IconButton, keyframes, Link, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import MattProfilePic from "assets/img/profile-matt.jpg";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useWindowSize } from "hooks/useWindowSize";
 import { GitHubIcon, OrganizationIcon, WebsiteIcon, XIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { slideTitle, textPop } from "styles";
+import { pagePaddingBottom, slideTitle, textPop } from "styles";
+import { getDeviceInfo } from "utils/display/device";
 import { AboutViewProps } from "views/types";
 
 type MemberData = {
@@ -68,9 +70,10 @@ export const AboutView = ({
     display,
     onClose,
 }: AboutViewProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const { breakpoints, palette } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     return (
         <Box pl={2} pr={2}>
@@ -80,7 +83,9 @@ export const AboutView = ({
                 onClose={onClose}
                 title={t("AboutUs")}
             />
-            <Stack mt={4} spacing={4}>
+            <Stack mt={4} spacing={4} sx={{
+                marginBottom: (isMobile && getDeviceInfo().isStandalone) ? pagePaddingBottom : 0,
+            }}>
                 <Box>
                     <Typography variant="h4" gutterBottom>
                         Hello there! <RotatedBox sx={{ display: "inline-block" }}>👋</RotatedBox>

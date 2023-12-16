@@ -23,17 +23,26 @@ const handleImagePreview = async (file: any) => {
     if (ext === "heic" || ext === "heif") {
         PubSub.get().publish("loading", true);
         // Dynamic import of heic2any
-        const heic2any = (await import("heic2any")).default;
+        const heic2any = (await import("utils/heic/heic2any")).default;
 
         // Convert HEIC/HEIF file to JPEG Blob
-        const outputBlob = await heic2any({
-            blob: file,  // Use the original file object
-            toType: "image/jpeg",
-            quality: 0.7, // adjust quality as needed
-        }) as Blob;
-        PubSub.get().publish("loading", false);
-        // Return as object URL
-        return URL.createObjectURL(outputBlob);
+        try {
+            const outputBlob = await heic2any({
+                blob: file,  // Use the original file object
+                toType: "image/jpeg",
+                quality: 0.7, // adjust quality as needed
+            }) as Blob;
+            // Return as object URL
+            return URL.createObjectURL(outputBlob);
+        } catch (error) {
+            console.error(error);
+            PubSub.get().publish("alertDialog", {
+                messageKey: "HeicConvertNotLoaded",
+                buttons: [{ labelKey: "Ok" }],
+            });
+        } finally {
+            PubSub.get().publish("loading", false);
+        }
     }
     // If not a HEIC/HEIF file, proceed as normal
     else {

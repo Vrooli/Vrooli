@@ -60,6 +60,7 @@ const ForgotPasswordForm = ({
                             <Field
                                 fullWidth
                                 autoComplete="email"
+                                autoFocus
                                 name="email"
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}

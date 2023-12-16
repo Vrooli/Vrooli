@@ -4,7 +4,7 @@ Vrooli can be run at varying levels of scale, from a single server to a full Kub
 However, this conversion process is not perfect. The configuration will most likely not work on the first try, and will require some debugging. This guide will walk you through the process of testing the Kubernetes configuration locally.
 
 ## Before Getting Started
-1. Make sure you have run `./scripts/setup.sh` at some point, so you have the necessary services installed (e.g. Docker, Minikube).
+1. Make sure you have run `. ./scripts/setup.sh` at some point, so you have the necessary services installed (e.g. Docker, Minikube).
 2. Stop any running instances of Vrooli so you don't kill your computer.
 3. Docker images should be on Docker Hub. If you have made changes to the Docker images, you will need to rebuild them and push them to Docker Hub. You can do this by running `./scripts/build.sh -u y`. If you want to make sure the images are safe to put on Docker Hub, see the next section. 
 

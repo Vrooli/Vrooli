@@ -1,10 +1,16 @@
 import { FormControl, FormHelperText, IconButton, InputAdornment, InputLabel, LinearProgress, OutlinedInput, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { InvisibleIcon, LockIcon, VisibleIcon } from "icons";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import zxcvbn from "zxcvbn";
 import { PasswordTextInputProps } from "../types";
+
+type PasswordStrengthProps = {
+    label: string;
+    primary: string;
+    secondary: string;
+    score: number;
+};
 
 export const PasswordTextInput = ({
     autoComplete = "current-password",
@@ -24,7 +30,12 @@ export const PasswordTextInput = ({
         setShowPassword(!showPassword);
     }, [showPassword]);
 
-    const getPasswordStrengthProps = useCallback((password: string) => {
+    const getPasswordStrengthProps = useCallback(async (password: string) => {
+        const defaultProps = { label: "N/A", primary: palette.info.main, secondary: palette.info.light };
+        if (!password) {
+            return { ...defaultProps, score: 0 };
+        }
+        const zxcvbn = (await import("zxcvbn")).default;
         const result = zxcvbn(password);
         const score = result.score;
         switch (score) {
@@ -38,10 +49,14 @@ export const PasswordTextInput = ({
             case 4:
                 return { label: "Very Strong", primary: palette.success.dark, secondary: palette.success.light, score };
             default:
-                return { label: "N/A", primary: palette.info.main, secondary: palette.info.light, score };
+                return { ...defaultProps, score };
         }
     }, [palette]);
-    const strengthProps = getPasswordStrengthProps(field.value);
+
+    const [strengthProps, setStrengthProps] = useState<PasswordStrengthProps>({ label: "N/A", primary: palette.info.main, secondary: palette.info.light, score: 0 });
+    useEffect(() => {
+        getPasswordStrengthProps(field.value).then(setStrengthProps);
+    }, [field.value, getPasswordStrengthProps]);
 
     return (
         <FormControl fullWidth={fullWidth} variant="outlined" {...props as any}>
@@ -67,6 +82,12 @@ export const PasswordTextInput = ({
                             aria-label="toggle password visibility"
                             onClick={handleClickShowPassword}
                             edge="end"
+                            sx={{
+                                "&:focus": {
+                                    border: `2px solid ${palette.background.textPrimary}`
+                                },
+                                borderRadius: "2px",
+                            }}
                         >
                             {
                                 showPassword ?

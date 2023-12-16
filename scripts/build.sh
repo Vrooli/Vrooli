@@ -206,13 +206,25 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Normalize UI_URL to ensure it ends with exactly one "/"
+export UI_URL="${UI_URL%/}/"
+DOMAIN=$(echo "${UI_URL%/}" | sed -E 's|https?://([^/]+)|\1|')
+echo "Got domain ${DOMAIN} from UI_URL ${UI_URL}"
+
 # Generate sitemap.xml
 ts-node --esm --experimental-specifier-resolution node ./src/tools/sitemap.ts
 if [ $? -ne 0 ]; then
-    error "Failed to generate sitemap.xml"
-    echo "${HERE}/../packages/ui/src/tools/sitemap.ts"
-    # This is not a critical error, so we don't exit
+    error "Failed to generate sitemap.xml using ${HERE}/../packages/ui/src/tools/sitemap.ts"
+    # This is not a critical error, so we won't exit
 fi
+
+# Replace placeholder url in public files
+sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/manifest.dark.json"
+sed -i'' "s|\*.<DOMAIN>|*.${DOMAIN}|g" "${HERE}/../packages/ui/dist/manifest.dark.json"
+sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/manifest.light.json"
+sed -i'' "s|\*.<DOMAIN>|*.${DOMAIN}|g" "${HERE}/../packages/ui/dist/manifest.light.json"
+sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/robots.txt"
+sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/search.xml"
 
 # Create brave-rewards-verification.txt file
 if [ -z "${BRAVE_REWARDS_TOKEN}" ]; then

@@ -403,12 +403,12 @@ export const inboxTabParams = [{
     titleKey: "Message" as CommonKey,
     searchType: SearchType.Chat,
     tabType: InboxPageTabOption.Message,
-    where: () => ({}),
+    where: (userId: string) => ({ creatorId: userId }),
 }, {
     titleKey: "Notification" as CommonKey,
     searchType: SearchType.Notification,
     tabType: InboxPageTabOption.Notification,
-    where: () => ({}),
+    where: (userId: string) => ({ userId }),
 }];
 
 export const myStuffTabParams = [{
