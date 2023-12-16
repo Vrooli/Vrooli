@@ -206,9 +206,9 @@ const ChatForm = ({
 
     // When a chat is loaded, store chat ID by participants and task
     useEffect(() => {
-        const userIdsWithoutYou = existing.participants?.filter(p => p.user?.id !== getCurrentUser(session).id).map(p => p.user?.id);
-        if (existing.id === DUMMY_ID || userIdsWithoutYou.length === 0) return;
-        setCookieMatchingChat(existing.id, userIdsWithoutYou, task);
+        const userIds = existing.participants?.map(p => p.user?.id);
+        if (existing.id === DUMMY_ID || userIds.length === 0) return;
+        setCookieMatchingChat(existing.id, userIds, task);
     }, [existing.id, existing.participants, session, task]);
 
     const { addMessages, clearMessages, editMessage, messagesCount, removeMessages, tree } = useMessageTree<ChatMessageShape>([]);

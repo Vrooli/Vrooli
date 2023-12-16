@@ -70,6 +70,7 @@ export const typeDef = gql`
         searchString: String
         sortBy: NotificationSortBy
         take: Int
+        userId: ID
         visibility: VisibilityType
     }
     type NotificationSearchResult {

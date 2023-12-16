@@ -115,7 +115,7 @@ export const RichInputBase = ({
 
         // Open the assistant dialog
         setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
-    }, [disabled, internalValue]);
+    }, [disabled, internalValue, session]);
 
     // Resize input area to fit content
     const id = useMemo(() => `input-container-${name}`, [name]);

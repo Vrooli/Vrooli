@@ -95,6 +95,7 @@ export const typeDef = gql`
     input ChatSearchInput {
         after: String
         createdTimeFrame: TimeFrame
+        creatorId: ID
         ids: [ID!]
         openToAnyoneWithInvite: Boolean
         labelsIds: [ID!]

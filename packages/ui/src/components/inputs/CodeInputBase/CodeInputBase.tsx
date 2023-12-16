@@ -686,7 +686,7 @@ export const CodeInputBase = ({
 
         // Open the assistant dialog
         setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
-    }, [disabled, internalValue]);
+    }, [disabled, internalValue, session]);
 
     // Handle action buttons
     type Action = {

@@ -81,7 +81,9 @@ export const DashboardView = ({
     // When a chat is loaded, store chat ID by participant and task
     useEffect(() => {
         if (!loadedChat?.id) return;
-        setCookieMatchingChat(loadedChat.id, [VALYXA_ID]);
+        const userId = getCurrentUser(session).id;
+        if (!userId) return;
+        setCookieMatchingChat(loadedChat.id, [userId, VALYXA_ID]);
     }, [loadedChat, loadedChat?.id, session]);
 
     const createChat = useCallback((resetChat = false) => {
@@ -93,7 +95,8 @@ export const DashboardView = ({
             onSuccess: (data) => {
                 console.log("created new chat!", data);
                 setChat(data);
-                setCookieMatchingChat(data.id, [VALYXA_ID]);
+                const userId = getCurrentUser(session).id;
+                if (userId) setCookieMatchingChat(data.id, [userId, VALYXA_ID]);
             },
             onCompleted: () => {
                 chatCreateStatus.current = "complete";
@@ -119,11 +122,8 @@ export const DashboardView = ({
                     setChat(data);
                 },
                 onError: (response) => {
-                    console.log("bleep error 0", response);
                     if (hasErrorCode(response, "NotFound")) {
                         createChat();
-                    } else {
-                        console.log("bleep error 1");
                     }
                 },
             });
