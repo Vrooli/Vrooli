@@ -8,7 +8,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useDebounce } from "hooks/useDebounce";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
-import { DeleteIcon, EditIcon, LinkIcon } from "icons";
+import { CloseIcon, DeleteIcon, EditIcon, LinkIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
@@ -351,7 +351,10 @@ export const ResourceListHorizontal = ({
                 <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
                 {true && <Tooltip title={t("Edit")}>
                     <IconButton onClick={() => { setIsEditing(e => !e); }}>
-                        <EditIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} />
+                        {isEditing ?
+                            <CloseIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} /> :
+                            <EditIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} />
+                        }
                     </IconButton>
                 </Tooltip>}
             </Box>}

@@ -6,12 +6,18 @@ const CREDITS_PREMIUM = 10_000;
 
 /**
  * Provides free credits to users based on their premium status.
+ * NOTE: Skips users who don't have a verified email address or wallet.
  */
 export const paymentsFreeCredits = async (): Promise<void> => {
     await batch<Prisma.userFindManyArgs>({
         objectType: "User",
         processBatch: async (batch, prisma) => {
             for (const user of batch) {
+                // If the user doesn't have a verified email or wallet, skip them
+                const hasVerifiedEmail = user.emails.some(email => email.verified);
+                const hasVerifiedWallet = user.wallets.some(wallet => wallet.verified);
+                if (!(hasVerifiedEmail || hasVerifiedWallet)) continue;
+
                 const currentCredits = user.premium?.credits ?? 0;
                 const newCredits = user.premium?.isActive
                     ? Math.max(CREDITS_PREMIUM, currentCredits)
@@ -37,6 +43,11 @@ export const paymentsFreeCredits = async (): Promise<void> => {
         },
         select: {
             id: true,
+            emails: {
+                select: {
+                    verified: true,
+                },
+            },
             premium: {
                 select: {
                     id: true,
@@ -44,8 +55,15 @@ export const paymentsFreeCredits = async (): Promise<void> => {
                     credits: true,
                 },
             },
+            wallets: {
+                select: {
+                    verified: true,
+                },
+            },
         },
-        where: { isBot: false },
+        where: {
+            isBot: false,
+        },
         trace: "0470",
     });
 };

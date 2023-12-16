@@ -54,7 +54,7 @@ export function sendVerificationLink(email: string, userId: string | number, cod
     emailQueue.add({
         to: [email],
         subject: `Verify ${BUSINESS_NAME} Account`,
-        text: `Welcome to ${BUSINESS_NAME}! Please log in through this link (${link}) to verify your account. If you did not create an account with us, please ignore this link.`,
+        text: `Welcome to ${BUSINESS_NAME}! Please log in through [this link](${link}) to verify your account. If you did not create an account with us, please ignore this link.`,
         html,
     });
 }

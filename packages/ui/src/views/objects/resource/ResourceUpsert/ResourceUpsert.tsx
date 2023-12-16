@@ -3,7 +3,6 @@ import { Button, Divider, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
@@ -226,7 +225,7 @@ const ResourceForm = ({
                             options={shortcuts}
                             getOptionLabel={(shortcut) => t(shortcut.label as CommonKey, { count: 1 })}
                             fullWidth
-                            label={t("Shortcut", { count: 1 })}
+                            label={t("SelectShortcut")}
                         />
                     </>}
                     {resourceType === "link" && <>
@@ -260,13 +259,13 @@ const ResourceForm = ({
                         name="description"
                     />
                     {/* Language select */}
-                    <LanguageInput
+                    {/*<LanguageInput
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
                         handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
                         languages={languages}
-                    />
+                    />*/}
                 </Stack>
             </BaseForm>
             <BottomActionsButtons

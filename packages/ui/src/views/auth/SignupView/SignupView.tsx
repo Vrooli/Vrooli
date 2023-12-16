@@ -61,6 +61,7 @@ const SignupForm = () => {
                             localStorage.removeItem(Cookies.FormData); // Clear old form data cache
                             setupPush();
                             PubSub.get().publish("session", data);
+                            PubSub.get().publish("celebration");
                             PubSub.get().publish("alertDialog", {
                                 messageKey: "WelcomeVerifyEmail",
                                 messageVariables: { appName: BUSINESS_NAME },

@@ -84,7 +84,7 @@ export const DashboardView = ({
         setCookieMatchingChat(loadedChat.id, [VALYXA_ID]);
     }, [loadedChat, loadedChat?.id, session]);
 
-    const createChat = useCallback((resetChat: boolean = false) => {
+    const createChat = useCallback((resetChat = false) => {
         chatCreateStatus.current = "inProgress";
         const chatToUse = resetChat ? chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS) : chat;
         fetchLazyWrapper<ChatCreateInput, Chat>({
@@ -99,7 +99,7 @@ export const DashboardView = ({
                 chatCreateStatus.current = "complete";
             },
         });
-    }, [chat, languages, fetchCreate, session]);
+    }, [chat, languages, fetchCreate, session, t]);
 
     // Create chats automatically
     const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
@@ -459,7 +459,7 @@ export const DashboardView = ({
                         </Button>
                         <Button
                             color="primary"
-                            onClick={() => { createChat(true) }}
+                            onClick={() => { createChat(true); }}
                             variant="contained"
                             sx={{ margin: 2, borderRadius: 8 }}
                             startIcon={<AddIcon />}
