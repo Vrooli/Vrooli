@@ -158,8 +158,10 @@ export const UserView = ({
     /** Starts a new chat */
     const handleStartChat = useCallback(() => {
         if (!user || !user.id) return;
+        const yourId = getCurrentUser(session).id;
+        if (!yourId) return;
         // Check for last chat you opened with this user
-        const existingChatId = getCookieMatchingChat([user.id]);
+        const existingChatId = getCookieMatchingChat([yourId, user.id]);
         console.log("got existing chat id", existingChatId);
         // Use that to determine URL
         const url = existingChatId ? getObjectUrl({ __typename: "Chat" as const, id: existingChatId }) : `${LINKS.Chat}/add`;

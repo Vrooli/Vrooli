@@ -648,6 +648,8 @@ export const CodeInputBase = ({
     });
     const openAssistantDialog = useCallback(() => {
         if (disabled) return;
+        const userId = getCurrentUser(session)?.id;
+        if (!userId) return;
 
         // We want to provide the assistant with the most relevant context
         let context: string | undefined = undefined;
@@ -669,7 +671,7 @@ export const CodeInputBase = ({
         if (context) context = "```\n" + context + "\n```\n\n";
 
         // Now we'll try to find an existing chat with Valyxa for this task
-        const existingChatId = getCookieMatchingChat([VALYXA_INFO.id], "standard");
+        const existingChatId = getCookieMatchingChat([userId, VALYXA_INFO.id], "standard");
         const overrideObject = {
             __typename: "Chat" as const,
             id: existingChatId ?? DUMMY_ID,

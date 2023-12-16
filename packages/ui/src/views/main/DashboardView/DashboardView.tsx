@@ -104,9 +104,11 @@ export const DashboardView = ({
     // Create chats automatically
     const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
     useEffect(() => {
+        const userId = getCurrentUser(session).id;
+        if (!userId) return;
         // Unlike the chat view, we look for the chat by local storage data rather than the ID in the URL
-        const existingChatId = getCookieMatchingChat([VALYXA_ID]);
-        const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [getCurrentUser(session).id, VALYXA_ID].includes(p.user.id));
+        const existingChatId = getCookieMatchingChat([userId, VALYXA_ID]);
+        const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [userId, VALYXA_ID].includes(p.user.id));
         if (chat.id === DUMMY_ID && existingChatId) {
             console.log("fetching chattttt", existingChatId);
             fetchLazyWrapper<FindByIdInput, Chat>({
