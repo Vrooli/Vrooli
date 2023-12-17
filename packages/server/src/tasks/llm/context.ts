@@ -194,7 +194,7 @@ export class ChatContextCollector {
                         currentTokenCount += estimatedTokens;
                         currentMessageId = messageDetails.parentId ?? null;
                     } else {
-                        logger.warn("Failed to estimate tokens for message", { trace: "0075", messageDetails });
+                        logger.warning("Failed to estimate tokens for message", { trace: "0075", messageDetails });
                         break; // Break the loop if token estimation fails
                     }
                 }

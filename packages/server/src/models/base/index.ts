@@ -1,6 +1,7 @@
 import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
 import { PrismaDelegate } from "../../builders/types";
 import { CustomError } from "../../events/error";
+import { logger } from "../../events/logger";
 import { PrismaType } from "../../types";
 import { Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types";
 
@@ -49,9 +50,11 @@ export class ModelMap {
     private async initializeMap() {
         const modelNames = Object.keys(GqlModelType) as (keyof typeof ModelMap.prototype.map)[];
         for (const modelName of modelNames) {
+            const modelPath = `./${lowercaseFirstLetter(modelName)}`;
             try {
                 this.map[modelName] = (await import(`./${lowercaseFirstLetter(modelName)}`))[`${modelName}Model`];
             } catch (error) {
+                logger.warning(`Failed to load model ${modelName}Model at ${modelPath}`, { trace: "0202", error });
                 this.map[modelName] = {};
             }
         }
