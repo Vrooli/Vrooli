@@ -7,6 +7,7 @@ import { useUndoRedo } from "hooks/useUndoRedo";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieMatchingChat, getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
+import { getDeviceInfo, keyComboToString } from "utils/display/device";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
@@ -35,6 +36,7 @@ export const RichInputBase = ({
     onBlur,
     onFocus,
     onChange,
+    onSubmit,
     placeholder = "",
     tabIndex,
     value,
@@ -156,6 +158,16 @@ export const RichInputBase = ({
         setActiveStates(newActiveStates);
     };
 
+    const [enterWillSubmit, setEnterWillSubmit] = useState<boolean | undefined>(typeof onSubmit === "function" ? true : undefined);
+    useEffect(() => {
+        if (enterWillSubmit === undefined && typeof onSubmit === "function") {
+            setEnterWillSubmit(true);
+        } else if (typeof enterWillSubmit === "boolean" && typeof onSubmit !== "function") {
+            setEnterWillSubmit(undefined);
+        }
+    }, [enterWillSubmit, onSubmit]);
+    const toggleEnterWillSubmit = useCallback(() => { setEnterWillSubmit(!enterWillSubmit); }, [enterWillSubmit]);
+
     const currentHandleActionRef = useRef<((action: RichInputAction, data?: unknown) => unknown) | null>(null);
     const setChildHandleAction = useCallback((handleAction: (action: RichInputAction, data?: unknown) => unknown) => {
         currentHandleActionRef.current = handleAction;
@@ -173,6 +185,7 @@ export const RichInputBase = ({
     const viewProps = useMemo(() => ({
         autoFocus,
         disabled,
+        enterWillSubmit,
         error,
         getTaggableItems,
         id,
@@ -183,6 +196,7 @@ export const RichInputBase = ({
         onBlur,
         onFocus,
         onChange: changeInternalValue,
+        onSubmit,
         openAssistantDialog,
         placeholder,
         redo,
@@ -192,7 +206,7 @@ export const RichInputBase = ({
         undo,
         value: internalValue,
         sx: sxs?.textArea,
-    }), [autoFocus, changeInternalValue, disabled, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
+    }), [autoFocus, changeInternalValue, disabled, enterWillSubmit, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, onSubmit, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
 
     return (
         <>
@@ -244,6 +258,27 @@ export const RichInputBase = ({
                                 { marginRight: "auto", flexDirection: "row-reverse" } :
                                 { marginLeft: "auto", flexDirection: "row" }),
                         }}>
+                            {/* TODO for for morning: get this button working, then work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
+                            {/* Indicator for when "Enter" key will submit */}
+                            {/* On desktop, allow users to set the behavior of the "Enter" key. 
+                                On mobile, the virtual keyboard will (hopefully) display a "Return" 
+                                button - so this isn't needed */}
+                            {
+                                typeof enterWillSubmit === "boolean" && !getDeviceInfo().isMobile &&
+                                <IconButton
+                                    size="medium"
+                                    onClick={toggleEnterWillSubmit}
+                                    sx={{
+                                        background: palette.primary.dark,
+                                        color: palette.primary.contrastText,
+                                        borderRadius: 2,
+                                    }}
+                                >
+                                    <Typography variant="body2" mt="auto" mb="auto" sx={{ fontSize: "0.5em" }}>
+                                        '{keyComboToString(...(enterWillSubmit ? ["Shift", "Enter"] as const : ["Enter"] as const))}' for new line
+                                    </Typography>
+                                </IconButton>
+                            }
                             {/* Characters remaining indicator */}
                             {
                                 !disabled && maxChars !== undefined &&

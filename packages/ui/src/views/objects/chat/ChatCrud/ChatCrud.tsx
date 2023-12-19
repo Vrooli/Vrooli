@@ -592,8 +592,9 @@ const ChatForm = ({
                                     PubSub.get().publish("snack", { message: "Chat not found", severity: "Error" });
                                     return;
                                 }
-                                if (message.trim() === "") return;
-                                addMessage(message);
+                                const trimmed = message.trim();
+                                if (trimmed.length === 0) return;
+                                addMessage(trimmed);
                             },
                         }]}
                         disabled={!existing}
@@ -618,6 +619,15 @@ const ChatForm = ({
                         onBlur={onBlur}
                         onChange={setMessage}
                         onFocus={onFocus}
+                        onSubmit={(m) => {
+                            if (!existing) {
+                                PubSub.get().publish("snack", { message: "Chat not found", severity: "Error" });
+                                return;
+                            }
+                            const trimmed = m.trim();
+                            if (trimmed.length === 0) return;
+                            addMessage(trimmed);
+                        }}
                         name="newMessage"
                         sxs={{
                             root: {

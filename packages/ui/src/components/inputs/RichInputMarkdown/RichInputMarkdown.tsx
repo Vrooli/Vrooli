@@ -106,6 +106,7 @@ const getSelection = (id: string) => {
 export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     autoFocus = false,
     disabled = false,
+    enterWillSubmit,
     error = false,
     getTaggableItems,
     id,
@@ -115,6 +116,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     onBlur,
     onFocus,
     onChange,
+    onSubmit,
     openAssistantDialog,
     placeholder = "",
     redo,
@@ -458,6 +460,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                 ref={textAreaRef as any}
                 autoFocus={autoFocus}
                 disabled={disabled}
+                enterWillSubmit={enterWillSubmit}
                 multiline
                 name={name}
                 placeholder={placeholder}
@@ -466,6 +469,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                 onBlur={onBlur}
                 onFocus={onFocus}
                 onChange={(e) => { onChange(e.target.value); }}
+                onSubmit={() => { onSubmit?.(value); }}
                 tabIndex={tabIndex}
                 spellCheck
                 sx={{

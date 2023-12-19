@@ -3,8 +3,10 @@ import { useTranslation } from "react-i18next";
 import { TextInputProps } from "../types";
 
 export const TextInput = ({
+    enterWillSubmit,
     label,
     isOptional,
+    onSubmit,
     placeholder,
     ...props
 }: TextInputProps) => {
@@ -27,8 +29,18 @@ export const TextInput = ({
         </>
     );
 
+    const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (enterWillSubmit !== true || typeof onSubmit !== "function") return;
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            onSubmit();
+        }
+    };
+
+
     return <TextField
         label={label ? <LabelWithOptional /> : ""}
+        onKeyDown={onKeyDown}
         placeholder={placeholder}
         InputLabelProps={(label && placeholder) ? { shrink: true } : {}}
         variant="outlined"

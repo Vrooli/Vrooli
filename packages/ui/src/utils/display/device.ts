@@ -38,6 +38,7 @@ export const getDeviceInfo = (): {
     deviceName: string | undefined,
     deviceType: DeviceType | undefined,
     deviceOS: DeviceOS | undefined,
+    isMobile: boolean,
     isStandalone: boolean,
 } => {
     // Get the user agent string
@@ -59,7 +60,7 @@ export const getDeviceInfo = (): {
     const deviceOS = isAndroid ? DeviceOS.Android : isIOS ? DeviceOS.IOS : isWindows ? DeviceOS.Windows : isMacOS ? DeviceOS.MacOS : isLinux ? DeviceOS.Linux : DeviceOS.Unknown;
     // Check if the app is running in standalone mode (i.e. downloaded to the home screen
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-    return { deviceName, deviceType, deviceOS, isStandalone };
+    return { deviceName, deviceType, deviceOS, isMobile, isStandalone };
 };
 
 /**

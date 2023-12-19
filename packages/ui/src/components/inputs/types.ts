@@ -126,7 +126,7 @@ export interface LinkInputProps {
     tabIndex?: number;
 }
 
-export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
+export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
@@ -150,6 +150,8 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
     onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
     onFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
     onChange: (newText: string) => unknown;
+    /** Allows "Enter" or "Shift+Enter" to submit */
+    onSubmit?: (newText: string) => unknown;
     placeholder?: string;
     tabIndex?: number;
     value: string;
@@ -164,6 +166,7 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
 export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
 
 export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "disableAssistant" | "helperText" | "maxChars" | "sxs"> {
+    enterWillSubmit?: boolean;
     id: string;
     openAssistantDialog: (selectedText: string) => unknown;
     onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
@@ -311,6 +314,8 @@ export interface TagSelectorBaseProps {
 }
 
 export type TextInputProps = TextFieldProps & {
+    enterWillSubmit?: boolean;
+    onSubmit?: () => unknown;
     isOptional?: boolean;
 }
 

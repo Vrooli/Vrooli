@@ -557,8 +557,9 @@ export const DashboardView = ({
                     disabled: isChatLoading || isCreateLoading || isUpdateLoading,
                     Icon: SendIcon,
                     onClick: () => {
-                        if (message.trim() === "") return;
-                        addMessage(message);
+                        const trimmed = message.trim();
+                        if (trimmed.length === 0) return;
+                        addMessage(trimmed);
                     },
                 }]}
                 disableAssistant={true}
@@ -573,6 +574,11 @@ export const DashboardView = ({
                 name="search"
                 onChange={setMessage}
                 onFocus={onFocus}
+                onSubmit={(m) => {
+                    const trimmed = m.trim();
+                    if (trimmed.length === 0) return;
+                    addMessage(trimmed);
+                }}
                 placeholder={t("WhatWouldYouLikeToDo")}
                 sxs={{
                     root: {
