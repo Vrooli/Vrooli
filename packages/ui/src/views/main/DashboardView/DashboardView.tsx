@@ -113,7 +113,7 @@ export const DashboardView = ({
         const existingChatId = getCookieMatchingChat([userId, VALYXA_ID]);
         const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [userId, VALYXA_ID].includes(p.user.id));
         if (chat.id === DUMMY_ID && existingChatId) {
-            console.log("fetching chattttt", existingChatId);
+            console.log("fetching chattttt", existingChatId, [userId, VALYXA_ID]);
             fetchLazyWrapper<FindByIdInput, Chat>({
                 fetch: getChat,
                 inputs: { id: existingChatId },

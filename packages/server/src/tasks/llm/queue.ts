@@ -17,9 +17,9 @@ const llmQueue = new Bull<RequestBotResponsePayload>("llm", { redis: { port: POR
 llmQueue.process(llmProcess);
 
 /**
- * Responds to a chat message, handling response generation and processing, 
+ * Responds to a chat message. Handles response generation and processing, 
  * websocket events, and any other logic
  */
 export function requestBotResponse(props: RequestBotResponsePayload) {
-    llmQueue.add(props);
+    llmQueue.add(props, { timeout: 1000 * 60 * 3 });
 }

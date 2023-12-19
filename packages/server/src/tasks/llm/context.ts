@@ -202,6 +202,8 @@ export class ChatContextCollector {
             trace: "0072",
         });
 
+        // Reverse the array to get the messages in chronological order
+        messageContextInfo.reverse();
         return messageContextInfo;
     }
 
@@ -212,7 +214,7 @@ export class ChatContextCollector {
     }
 
     private async getMessageDetails(redisClient: RedisClientType, messageId: string): Promise<CachedChatMessage> {
-        let messageData = await redisClient.hGetAll(`message:${messageId}`);
+        let messageData: CachedChatMessage = await redisClient.hGetAll(`message:${messageId}`) as CachedChatMessage;
 
         if (!messageData || Object.keys(messageData).length === 0) {
             // Query from Prisma if not found in Redis
@@ -248,7 +250,7 @@ export class ChatContextCollector {
                             translatedTokenCounts: JSON.stringify((new ChatContextManager(this.languageModelService)).calculateTokenCounts(message.translations, ...this.languageModelService.getEstimationTypes())),
                         };
                         if (message.parent) {
-                            messageData.parent = message.parent.id;
+                            messageData.parentId = message.parent.id;
                         }
                         if (message.user) {
                             messageData.userId = message.user.id;

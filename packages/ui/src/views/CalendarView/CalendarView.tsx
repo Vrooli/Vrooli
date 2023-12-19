@@ -311,6 +311,7 @@ export const CalendarView = ({
             <TopBar
                 ref={ref}
                 display={display}
+                hideTitleOnDesktop
                 onClose={onClose}
                 title={t("Schedule", { count: 1 })}
                 below={<PageTabs

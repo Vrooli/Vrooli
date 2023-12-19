@@ -31,7 +31,7 @@ export type RoutineVersionShape = Pick<RoutineVersion, "id" | "isAutomatable" | 
 }
 
 export const shapeRoutineVersionTranslation: ShapeModel<RoutineVersionTranslationShape, RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput> = {
-    create: (d) => createPrims(d, "id", "language", "description", "instructions", "name"),
+    create: (d) => createPrims(d, "id", "language", "description", ["instructions", (instructions) => instructions ?? ""], "name"),
     update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "instructions", "name"), a),
 };
 
