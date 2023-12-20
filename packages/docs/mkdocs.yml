@@ -51,6 +51,7 @@ nav:
       - Fonts: guides/fonts.md
       - UX Performance: guides/ui_performance.md
       - PWA and TWA: guides/pwa_and_twa.md
+      - Mobile Testing: guides/mobile_testing.md
       - Income Streams: guides/income_streams.md
       - Database Design: guides/database_design.md
       - Migrate: guides/migrate.md
