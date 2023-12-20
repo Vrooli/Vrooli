@@ -416,7 +416,7 @@ export const DashboardView = ({
             display: "flex",
             flexDirection: "column",
             maxHeight: "100vh",
-            height: `calc(100vh - ${isMobile ? pagePaddingBottom : 0})`,
+            height: `calc(100vh - env(safe-area-inset-bottom))`,
             overflow: "hidden",
         }}>
             {/* Main content */}
@@ -483,7 +483,7 @@ export const DashboardView = ({
                 overflowY: "auto",
                 width: "min(700px, 100%)",
             }}>
-                {/* TODO for morning: Fix DashboardView and ChatCrud size when virtualKeyboard closes on iOs, then work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
+                {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
                 {!showChat && <>
                     {/* Resources */}
                     <Box p={1}>

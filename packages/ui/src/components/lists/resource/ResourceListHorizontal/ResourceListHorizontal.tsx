@@ -31,13 +31,12 @@ const ResourceBox = styled(Box)(({ theme }) => ({
     boxShadow: theme.shadows[4],
     background: theme.palette.primary.light,
     color: theme.palette.secondary.contrastText,
-    borderRadius: "16px",
-    padding: theme.spacing(1),
+    borderRadius: "8px",
+    padding: theme.spacing(0.5),
     cursor: "pointer",
-    width: "194px",
-    minWidth: "194px",
-    minHeight: "120px",
-    height: "120px",
+    width: "200px",
+    minWidth: "200px",
+    height: `calc(${theme.typography.h3.fontSize} * 2 + ${theme.spacing(1)})`,
     position: "relative",
     "&:hover": {
         filter: "brightness(120%)",
@@ -154,7 +153,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
                         variant="body2"
                         component="h3"
                         sx={{
-                            ...multiLineEllipsis(3),
+                            ...multiLineEllipsis(2),
                             textAlign: "center",
                             lineBreak: title ? "auto" : "anywhere", // Line break anywhere only if showing link
                         }}

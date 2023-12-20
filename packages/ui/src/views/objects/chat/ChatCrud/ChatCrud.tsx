@@ -438,8 +438,8 @@ const ChatForm = ({
                     flexDirection: "column",
                     overflow: "hidden",
                     ...(display === "page" && {
-                        maxHeight: `calc(100vh - ${isMobile ? pagePaddingBottom : 0})`,
-                        height: `calc(100vh - ${isMobile ? pagePaddingBottom : 0})`,
+                        maxHeight: `calc(100vh - env(safe-area-inset-bottom))`,
+                        height: `calc(100vh - env(safe-area-inset-bottom))`,
                     }),
                 }}>
                     <TopBar

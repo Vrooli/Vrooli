@@ -57,7 +57,12 @@ const ToolButton = forwardRef(({
             ref={ref}
             disabled={disabled}
             size="small"
-            onClick={onClick}
+            onClick={(event) => {
+                // Stop propagation so text field doesn't lose focus
+                event.preventDefault();
+                event.stopPropagation();
+                onClick(event);
+            }}
             sx={{
                 background: isActive ? palette.secondary.main : palette.primary.main,
                 color: palette.primary.contrastText,
