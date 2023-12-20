@@ -258,8 +258,6 @@ export const RichInputBase = ({
                                 { marginRight: "auto", flexDirection: "row-reverse" } :
                                 { marginLeft: "auto", flexDirection: "row" }),
                         }}>
-                            {/* TODO for for morning: get this button working, then work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
-                            {/* Indicator for when "Enter" key will submit */}
                             {/* On desktop, allow users to set the behavior of the "Enter" key. 
                                 On mobile, the virtual keyboard will (hopefully) display a "Return" 
                                 button - so this isn't needed */}

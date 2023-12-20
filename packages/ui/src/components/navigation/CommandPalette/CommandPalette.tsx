@@ -27,7 +27,7 @@ export const CommandPalette = () => {
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [searchString, setSearchString] = useState<string>("");
-    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
+    const updateSearch = useCallback((newValue: string) => { setSearchString(newValue); }, []);
 
     const [open, setOpen] = useState(false);
     const close = useCallback(() => setOpen(false), []);
@@ -42,7 +42,7 @@ export const CommandPalette = () => {
 
     const [refetch, { data, loading }] = useLazyFetch<PopularSearchInput, PopularSearchResult>({
         ...endpointGetFeedPopular,
-        inputs: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
+        inputs: { searchString: searchString.replace(/![^\s]{1,}/g, "") },
     });
     useEffect(() => { open && refetch(); }, [open, refetch, searchString]);
 

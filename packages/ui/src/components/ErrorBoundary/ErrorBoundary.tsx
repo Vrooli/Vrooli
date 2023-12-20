@@ -1,4 +1,4 @@
-import { Box, Button, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Checkbox, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import BunnyCrash from "assets/img/BunnyCrash.svg";
 import { ArrowDropDownIcon, ArrowDropUpIcon, CopyIcon, HomeIcon, RefreshIcon } from "icons";
 import { Component } from "react";
@@ -14,6 +14,7 @@ interface ErrorBoundaryState {
     hasError: boolean;
     error: Error | null;
     mailToUrl: string;
+    shouldSendReport: boolean;
     showDetails: boolean;
 }
 
@@ -25,7 +26,17 @@ interface ErrorBoundaryState {
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
         super(props);
-        this.state = { hasError: false, error: null, mailToUrl: "mailto:official@vrooli.com", showDetails: false };
+
+        const storedSendReport = localStorage.getItem("shouldSendReport");
+        const sendReportInitialValue = storedSendReport === null ? true : storedSendReport === "true";
+
+        this.state = {
+            hasError: false,
+            error: null,
+            mailToUrl: "mailto:official@vrooli.com",
+            shouldSendReport: sendReportInitialValue,
+            showDetails: false,
+        };
     }
 
     static getDerivedStateFromError(error: Error) {
@@ -50,6 +61,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         navigator.clipboard.writeText(text ?? "");
     };
 
+    // TODO send report if true and either button is pressed
+    toggleSendReport = () => {
+        this.setState(prevState => {
+            // Update localStorage when state changes
+            const updatedValue = !prevState.shouldSendReport;
+            localStorage.setItem("shouldSendReport", String(updatedValue));
+            return { shouldSendReport: updatedValue };
+        });
+    };
+
     render() {
         const { hasError, error, mailToUrl, showDetails } = this.state;
         if (hasError) {
@@ -68,7 +89,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                         bottom: 0,
                         paddingLeft: "16px",
                         paddingRight: "16px",
-                        backgroundColor: "#072c6a",
+                        backgroundColor: "#2b3539",
+                        maxWidth: "100vw",
+                        maxHeight: "100vh",
                         color: "white",
                         // Style visited, active, and hovered links
                         "& span, p": {
@@ -87,7 +110,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                         },
                     }}
                 >
-                    <Stack direction="column" spacing={4} style={{ textAlign: "center" }}>
+                    <Stack direction="column" spacing={4} style={{ textAlign: "center", maxWidth: "100%" }}>
                         <SlideImageContainer>
                             <SlideImage
                                 alt="A lop-eared bunny calling for tech support."
@@ -100,6 +123,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                             borderRadius: "8px",
                             background: "#480202",
                             color: "white",
+                            maxWidth: "100%",
+                            maxHeight: "50vh",
+                            overflow: "auto",
                         }}>
                             <Stack
                                 direction="row"
@@ -132,6 +158,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                             </a>{" "}
                             and we will try to help you as soon as possible.
                         </Typography>
+                        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                            <Checkbox
+                                checked={this.state.shouldSendReport}
+                                onChange={this.toggleSendReport}
+                                sx={{
+                                    color: "white",
+                                    "&.Mui-checked": {
+                                        color: "#42f9a3",
+                                    },
+                                }}
+                            />
+                            <Typography>Send crash logs</Typography>
+                        </Box>
                         <Stack direction="row" spacing={2} pt={2} pb={8} justifyContent="center" alignItems="center">
                             <Button
                                 variant="contained"

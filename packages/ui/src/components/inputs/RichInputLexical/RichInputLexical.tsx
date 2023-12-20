@@ -1,11 +1,11 @@
-import { $isCodeNode, CodeHighlightNode, CodeNode, CODE_LANGUAGE_MAP } from "@lexical/code";
+import { $isCodeNode, CODE_LANGUAGE_MAP, CodeHighlightNode, CodeNode } from "@lexical/code";
 import { HashtagNode } from "@lexical/hashtag";
 import { $isLinkNode, AutoLinkNode, LinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { $isListNode, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListItemNode, ListNode } from "@lexical/list";
-import { $convertFromMarkdownString, $convertToMarkdownString, ElementTransformer, TextMatchTransformer, TRANSFORMERS } from "@lexical/markdown";
+import { $convertFromMarkdownString, $convertToMarkdownString, ElementTransformer, TRANSFORMERS, TextMatchTransformer } from "@lexical/markdown";
 import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
 import { InitialEditorStateType } from "@lexical/react/LexicalComposer";
-import { createLexicalComposerContext, LexicalComposerContext, LexicalComposerContextType, useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { LexicalComposerContext, LexicalComposerContextType, createLexicalComposerContext, useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
 import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
@@ -21,7 +21,7 @@ import { $isTableNode, TableCellNode, TableNode, TableRowNode } from "@lexical/t
 import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, createCommand, createEditor, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode } from "lexical";
+import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode, createCommand, createEditor } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
@@ -738,6 +738,9 @@ const RichInputLexicalComponents = ({
     return (
         <Box
             id={id}
+            component="div"
+            onBlur={onBlur}
+            onFocus={onFocus}
             sx={{
                 position: "relative",
                 display: "grid",

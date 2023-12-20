@@ -18,6 +18,7 @@ import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useDeleter } from "hooks/useDeleter";
 import { useHistoryState } from "hooks/useHistoryState";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { findTargetMessage, useMessageTree } from "hooks/useMessageTree";
 import { useObjectActions } from "hooks/useObjectActions";
@@ -164,6 +165,7 @@ const ChatForm = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isKeyboardOpen = useKeyboardOpen();
 
     const [message, setMessage] = useHistoryState<string>("chatMessage", context ?? "");
     const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
@@ -436,8 +438,8 @@ const ChatForm = ({
                     flexDirection: "column",
                     overflow: "hidden",
                     ...(display === "page" && {
-                        maxHeight: "100vh",
-                        height: "100vh",
+                        maxHeight: `calc(100vh - ${isMobile ? pagePaddingBottom : 0})`,
+                        height: `calc(100vh - ${isMobile ? pagePaddingBottom : 0})`,
                     }),
                 }}>
                     <TopBar
@@ -636,7 +638,7 @@ const ChatForm = ({
                                 maxHeight: "min(75vh, 500px)",
                                 width: "min(700px, 100%)",
                                 margin: "auto",
-                                marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
+                                marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
                             },
                             topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                             bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },

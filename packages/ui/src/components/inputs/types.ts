@@ -147,8 +147,8 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
     maxRows?: number;
     minRows?: number;
     name: string;
-    onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
-    onFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
+    onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
+    onFocus?: (event: React.FocusEvent<HTMLElement>) => unknown;
     onChange: (newText: string) => unknown;
     /** Allows "Enter" or "Shift+Enter" to submit */
     onSubmit?: (newText: string) => unknown;

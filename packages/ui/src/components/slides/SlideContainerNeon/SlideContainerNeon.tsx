@@ -451,6 +451,8 @@ class ParticleCanvas {
     canvas: HTMLCanvasElement | null;
     ctx: CanvasRenderingContext2D | null;
     grid: Grid | undefined;
+    lastHeight: number;
+    lastWidth: number;
     simulator: Simulator | undefined;
     render: {
         draw: boolean;
@@ -472,6 +474,9 @@ class ParticleCanvas {
 
         this.grid = undefined; // chunk manager
         this.simulator = undefined;
+
+        this.lastWidth = window.innerWidth;
+        this.lastHeight = window.innerHeight;
 
         this.registerListener();
 
@@ -510,13 +515,29 @@ class ParticleCanvas {
     }
 
     registerListener() {
+        const resizeThreshold = 50; // Threshold for resize to trigger a reset
+
         this.resizeListener = () => {
-            if (this.tid) this.cancelTimerOrAnimationFrame(this.tid);
-            this.updateCanvasSize();
-            this.resetRenderInfo();
-            this.render.draw = true;
-            this.pendingRender();
+            // Get the current width and height
+            const currentWidth = window.innerWidth;
+            const currentHeight = window.innerHeight;
+
+            // Check if the change in size is greater than the threshold
+            if (Math.abs(currentWidth - this.lastWidth) > resizeThreshold ||
+                Math.abs(currentHeight - this.lastHeight) > resizeThreshold) {
+
+                if (this.tid) this.cancelTimerOrAnimationFrame(this.tid);
+                this.updateCanvasSize();
+                this.resetRenderInfo();
+                this.render.draw = true;
+                this.pendingRender();
+
+                // Update the last width and height
+                this.lastWidth = currentWidth;
+                this.lastHeight = currentHeight;
+            }
         };
+
         window.addEventListener("resize", this.resizeListener);
     }
 

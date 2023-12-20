@@ -266,7 +266,7 @@ export const performAction = async (option: ActionOption, session: Session | nul
             if (session?.isLoggedIn) {
                 PubSub.get().publish("tutorial");
             } else {
-                PubSub.get().publish("snack", { messageKey: "MustBeLoggedIn", severity: "Error" });
+                PubSub.get().publish("snack", { messageKey: "NotLoggedIn", severity: "Error" });
             }
             break;
     }

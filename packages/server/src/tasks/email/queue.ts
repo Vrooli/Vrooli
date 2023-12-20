@@ -15,7 +15,7 @@ export type EmailProcessPayload = {
 }
 
 let welcomeTemplate = "";
-const welcomeTemplateFile = `${process.env.PROJECT_DIR}/packages/server/dist/notify/email/templates/welcome.html`;
+const welcomeTemplateFile = `${process.env.PROJECT_DIR}/packages/server/dist/tasks/email/templates/welcome.html`;
 if (fs.existsSync(welcomeTemplateFile)) {
     welcomeTemplate = fs.readFileSync(welcomeTemplateFile).toString();
 } else {

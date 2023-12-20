@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
 import privacyMarkdown from "assets/policy/privacy.md";
-import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useMarkdown } from "hooks/useMarkdown";
 import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
@@ -44,9 +44,13 @@ export const PrivacyPolicyView = ({
 
     const privacy = useMarkdown(privacyMarkdown, (markdown) => {
         const business_fields = Object.keys(convertToDot(BUSINESS_DATA));
-        business_fields.forEach(f => markdown = markdown?.replaceAll(`<${f}>`, valueFromDot(BUSINESS_DATA, f) || "") ?? "");
+        business_fields.forEach(f => {
+            const regex = new RegExp(`<${f}>`, "g");
+            markdown = markdown?.replace(regex, valueFromDot(BUSINESS_DATA, f) || "") ?? "";
+        });
         return markdown;
     });
+
 
     const { currTab, tabs } = useTabs<PolicyTabOption, false>({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
     const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabOption, false>) => {

@@ -12,6 +12,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
 import { useHistoryState } from "hooks/useHistoryState";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useMessageTree } from "hooks/useMessageTree";
 import { PageTab } from "hooks/useTabs";
@@ -59,6 +60,7 @@ export const DashboardView = ({
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isKeyboardOpen = useKeyboardOpen();
 
     const [message, setMessage] = useHistoryState<string>("dashboardMessage", "");
     const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
@@ -414,7 +416,7 @@ export const DashboardView = ({
             display: "flex",
             flexDirection: "column",
             maxHeight: "100vh",
-            height: "100vh",
+            height: `calc(100vh - ${isMobile ? pagePaddingBottom : 0})`,
             overflow: "hidden",
         }}>
             {/* Main content */}
@@ -481,6 +483,7 @@ export const DashboardView = ({
                 overflowY: "auto",
                 width: "min(700px, 100%)",
             }}>
+                {/* TODO for morning: Fix DashboardView and ChatCrud size when virtualKeyboard closes on iOs, then work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
                 {!showChat && <>
                     {/* Resources */}
                     <Box p={1}>
@@ -587,7 +590,7 @@ export const DashboardView = ({
                         maxHeight: "min(75vh, 500px)",
                         width: "min(700px, 100%)",
                         margin: "auto",
-                        marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
+                        marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
                     },
                     topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                     bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
