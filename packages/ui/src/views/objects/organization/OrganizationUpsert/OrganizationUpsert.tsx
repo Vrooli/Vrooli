@@ -150,10 +150,12 @@ const OrganizationForm = ({
                             languages={languages}
                         />
                         <TranslatedTextInput
+                            autoFocus
                             fullWidth
                             label={t("Name")}
                             language={language}
                             name="name"
+                            placeholder={t("NamePlaceholder")}
                         />
                         <TranslatedRichInput
                             language={language}

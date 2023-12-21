@@ -174,10 +174,12 @@ const StandardForm = ({
                             languages={languages}
                         />
                         <TranslatedTextInput
+                            autoFocus
                             fullWidth
                             label={t("Name")}
                             language={language}
                             name="name"
+                            placeholder={t("NamePlaceholder")}
                         />
                         <TranslatedRichInput
                             language={language}
@@ -185,7 +187,7 @@ const StandardForm = ({
                             maxChars={2048}
                             minRows={4}
                             maxRows={8}
-                            placeholder={t("Description")}
+                            placeholder={t("DescriptionPlaceholder")}
                         />
                     </FormSection>
                     <StandardInput fieldName="preview" />

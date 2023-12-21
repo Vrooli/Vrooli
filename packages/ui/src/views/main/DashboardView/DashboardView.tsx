@@ -139,25 +139,40 @@ export const DashboardView = ({
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<FocusMode, false>[]>(() => allFocusModes.map((mode, index) => ({
-        index,
-        label: mode.name,
-        tabType: mode,
-    })), [allFocusModes]);
+    const tabs = useMemo<PageTab<FocusMode | "Add", false>[]>(() => ([
+        ...allFocusModes.map((mode, index) => ({
+            index,
+            label: mode.name,
+            tabType: mode,
+        })),
+        {
+            index: allFocusModes.length,
+            label: "Add",
+            Icon: AddIcon,
+            tabType: "Add",
+        },
+    ]), [allFocusModes]);
     const currTab = useMemo(() => {
-        const match = tabs.find(tab => tab.tabType.id === activeFocusMode?.mode?.id);
+        if (typeof activeFocusMode === "string") return "Add";
+        const match = tabs.find(tab => typeof tab.tabType !== "string" && tab.tabType.id === activeFocusMode?.mode?.id);
         if (match) return match;
         if (tabs.length) return tabs[0];
         return null;
     }, [tabs, activeFocusMode]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode, false>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode | "Add", false>) => {
         e.preventDefault();
+        // If "Add", go to the add focus mode page
+        if (tab.tabType === "Add") {
+            setLocation(LINKS.SettingsFocusModes);
+            return;
+        }
+        // Otherwise, publish the focus mode
         PubSub.get().publish("focusMode", {
             __typename: "ActiveFocusMode" as const,
             mode: tab.tabType,
             stopCondition: FocusModeStopCondition.NextBegins,
         });
-    }, []);
+    }, [setLocation]);
     useEffect(() => {
         refetch({ activeFocusModeId: activeFocusMode?.mode?.id });
     }, [activeFocusMode, refetch]);
@@ -416,7 +431,7 @@ export const DashboardView = ({
             display: "flex",
             flexDirection: "column",
             maxHeight: "100vh",
-            height: `calc(100vh - env(safe-area-inset-bottom))`,
+            height: "calc(100vh - env(safe-area-inset-bottom))",
             overflow: "hidden",
         }}>
             {/* Main content */}
@@ -437,10 +452,10 @@ export const DashboardView = ({
                     <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
                 </IconButton>}
                 below={<>
-                    {showTabs && <PageTabs
+                    {showTabs && currTab && <PageTabs
                         ariaLabel="home-tabs"
                         id="home-tabs"
-                        currTab={currTab!}
+                        currTab={currTab as PageTab<FocusMode, false>}
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}
@@ -449,14 +464,14 @@ export const DashboardView = ({
                     {showChat && <Box
                         display="flex"
                         flexDirection="row"
-                        justifyContent="center"
+                        justifyContent="space-around"
                         alignItems="center"
                     >
                         <Button
                             color="primary"
                             onClick={() => { setShowChat(false); }}
                             variant="contained"
-                            sx={{ margin: 2, borderRadius: 8 }}
+                            sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
                             startIcon={<ChevronLeftIcon />}
                         >
                             {t("Dashboard")}
@@ -465,7 +480,7 @@ export const DashboardView = ({
                             color="primary"
                             onClick={() => { createChat(true); }}
                             variant="contained"
-                            sx={{ margin: 2, borderRadius: 8 }}
+                            sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
                             startIcon={<AddIcon />}
                         >
                             {t("NewChat")}

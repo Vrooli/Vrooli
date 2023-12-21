@@ -146,15 +146,17 @@ const QuestionForm = ({
                             languages={languages}
                         />
                         <TranslatedTextInput
+                            autoFocus
                             fullWidth
                             label={t("Name")}
                             language={language}
                             name="name"
+                            placeholder={t("NamePlaceholder")}
                         />
                         <TranslatedRichInput
                             language={language}
                             name="description"
-                            placeholder={t("Description")}
+                            placeholder={t("DescriptionPlaceholder")}
                             maxChars={16384}
                             minRows={3}
                             sxs={{

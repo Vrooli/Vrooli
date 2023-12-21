@@ -1,6 +1,7 @@
 import { exists } from "@local/shared";
 import { Box, Button, CircularProgress, Grid, useTheme } from "@mui/material";
 import { useErrorPopover } from "hooks/useErrorPopover";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useWindowSize } from "hooks/useWindowSize";
 import { CancelIcon, CreateIcon, SaveIcon } from "icons";
 import { useCallback, useMemo } from "react";
@@ -26,6 +27,7 @@ export const BottomActionsButtons = ({
     const { t } = useTranslation();
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
+    const isKeyboardOpen = useKeyboardOpen();
     const iconStyle = useMemo<SxType>(() => (hideTextOnMobile && isMobile ? { marginLeft: 0, marginRight: 0 } : {}) as SxType, [hideTextOnMobile, isMobile]);
 
     // Errors popup
@@ -47,7 +49,7 @@ export const BottomActionsButtons = ({
             {/* Side action buttons displayed above grid options */}
             {sideActionButtons ? <Box sx={{
                 position: "absolute",
-                top: "-64px",
+                top: isKeyboardOpen ? 0 : "-64px",
                 justifyContent: "flex-end",
                 display: "flex",
                 flexDirection: "row",
@@ -86,7 +88,12 @@ export const BottomActionsButtons = ({
                     aria-label={t("Cancel")}
                     disabled={loading || (disabledCancel !== undefined ? disabledCancel : false)}
                     fullWidth
-                    onClick={() => { onCancel(); }}
+                    onClick={(event: React.MouseEvent | React.TouchEvent) => {
+                        console.log("in CANCELLLLL", event);
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onCancel();
+                    }}
                     startIcon={<CancelIcon />}
                     variant="outlined"
                     sx={{ "& span": iconStyle }}

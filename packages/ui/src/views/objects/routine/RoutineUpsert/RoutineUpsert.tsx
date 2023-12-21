@@ -249,10 +249,12 @@ const RoutineForm = ({
                             languages={languages}
                         />
                         <TranslatedTextInput
+                            autoFocus
                             fullWidth
                             label={t("Name")}
                             language={language}
                             name="name"
+                            placeholder={t("NamePlaceholder")}
                         />
                         <TranslatedRichInput
                             language={language}
@@ -260,7 +262,7 @@ const RoutineForm = ({
                             maxChars={2048}
                             maxRows={4}
                             minRows={2}
-                            placeholder={t("Description")}
+                            placeholder={t("DescriptionPlaceholder")}
                         />
                         <TranslatedRichInput
                             language={language}

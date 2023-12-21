@@ -32,5 +32,14 @@ export const useKeyboardOpen = (): boolean => {
         };
     }, []);
 
+    //TODO this fixes initial state for pages like NoteCrud, but then you have to press "Submit" or "Cancel" twice
+    // // Check initial state
+    // useEffect(() => {
+    //     const activeElement = document.activeElement as HTMLElement | null;
+    //     if (!activeElement) return;
+    //     const isTextBox = activeElement?.role === "textbox" || activeElement?.tagName === "TEXTAREA";
+    //     setIsKeyboardOpen(isTextBox && getDeviceInfo().isMobile);
+    // }, []);
+
     return isKeyboardOpen;
 };

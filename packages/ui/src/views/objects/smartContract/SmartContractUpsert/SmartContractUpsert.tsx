@@ -170,10 +170,12 @@ const SmartContractForm = ({
                             languages={languages}
                         />
                         <TranslatedTextInput
+                            autoFocus
                             fullWidth
                             label={t("Name")}
                             language={language}
                             name="name"
+                            placeholder={t("NamePlaceholder")}
                         />
                         <TranslatedRichInput
                             language={language}
@@ -181,7 +183,7 @@ const SmartContractForm = ({
                             maxChars={2048}
                             minRows={4}
                             maxRows={8}
-                            placeholder={t("Description")}
+                            placeholder={t("DescriptionPlaceholder")}
                         />
                     </FormSection>
                     <CodeInput

@@ -358,6 +358,7 @@ export interface TranslatedRichInputProps {
 }
 
 export interface TranslatedTextInputProps {
+    autoFocus?: boolean;
     fullWidth?: boolean;
     isOptional?: boolean;
     label?: string;

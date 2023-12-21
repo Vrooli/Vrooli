@@ -169,6 +169,7 @@ const BotForm = ({
                         <Field
                             fullWidth
                             autoComplete="name"
+                            autoFocus
                             name="name"
                             label={t("Name")}
                             placeholder={t("NamePlaceholder")}

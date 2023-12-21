@@ -169,6 +169,7 @@ const ProjectForm = ({
                     />
                     <FormSection>
                         <TranslatedTextInput
+                            autoFocus
                             fullWidth
                             label={t("Name")}
                             placeholder={t("NamePlaceholder")}

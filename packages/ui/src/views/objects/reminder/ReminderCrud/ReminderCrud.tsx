@@ -231,6 +231,7 @@ const ReminderForm = ({
                             objectType={"Reminder"}
                         />
                         <Field
+                            autoFocus
                             fullWidth
                             name="name"
                             label={t("Name")}
