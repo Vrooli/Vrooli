@@ -36,6 +36,7 @@ export function useObjectFromUrl<
     TData extends UrlObject = PartialWithType<PData>,
     TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
 >({
+    disabled,
     displayError,
     endpoint,
     isCreate,
@@ -45,6 +46,7 @@ export function useObjectFromUrl<
     overrideObject,
     transform,
 }: {
+    disabled?: boolean,
     /** If true, shows error snack when fetching fails */
     displayError?: boolean,
     endpoint: string,
@@ -78,7 +80,7 @@ export function useObjectFromUrl<
         // If overrideObject provided, use it. Also use transform if provided
         if (typeof overrideObject === "object") return applyTransform(overrideObject) as ObjectReturnType<TData, TFunc>;
         // Try to find object in cache
-        const storedData = getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
+        const storedData = getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...(disabled ? {} : urlParams) });
         // If transform provided, use it
         const data = applyTransform(storedData) as ObjectReturnType<TData, TFunc>;
         // Try to find form data in cache

@@ -1,8 +1,7 @@
 // Used to display popular/search results of a particular object type
-import { Box, CircularProgress, Link, Stack, Typography, useTheme } from "@mui/material";
+import { Box, CircularProgress, Stack, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
 import { TitleProps } from "components/text/types";
-import { clickSize } from "styles";
 import { TitleContainerProps } from "../types";
 
 export function TitleContainer({
@@ -11,7 +10,6 @@ export function TitleContainer({
     Icon,
     id,
     loading = false,
-    onClick,
     options = [],
     sx,
     title,
@@ -50,31 +48,6 @@ export function TitleContainer({
                     }}>
                         {loading ? <CircularProgress color="secondary" /> : children}
                     </Box>
-                    {/* Links */}
-                    {
-                        options.length > 0 && (
-                            <Stack direction="row" sx={{
-                                ...clickSize,
-                                justifyContent: "end",
-                            }}
-                            >
-                                {options.map(({ label, onClick }, index) => (
-                                    <Link key={index} onClick={onClick} sx={{
-                                        cursor: "pointer",
-                                        marginTop: "auto",
-                                        marginBottom: "auto",
-                                        marginRight: 2,
-                                    }}>
-                                        <Typography sx={{
-                                            color: palette.mode === "light" ? palette.secondary.dark : palette.secondary.light,
-                                        }}
-                                        >{label}
-                                        </Typography>
-                                    </Link>
-                                ))}
-                            </Stack>
-                        )
-                    }
                 </Stack>
             </Box>
         </Stack>

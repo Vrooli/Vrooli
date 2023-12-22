@@ -7,15 +7,19 @@ import { PubSub } from "./pubsub";
 /**
  * Sets up push notifications for the user
  */
-export const setupPush = async () => {
+export const setupPush = async (showErrorWhenNotSupported = true) => {
     try {
         // Check if push notifications are supported (i.e. not in HTTP environment, and PWA is installed)
         if (window.location.protocol === "http:") {
-            console.warn("Push notifications are not supported in HTTP environment. Returning silently.");
+            const message = "Notifications are not supported in http";
+            if (showErrorWhenNotSupported) PubSub.get().publish("snack", { message, severity: "Error" });
+            else console.warn(message);
             return;
         }
         if (!("serviceWorker" in navigator)) {
-            console.warn("Push notifications are not supported in this browser. PWA may not be installed. Returning silently.");
+            const message = "Notifications are not supported in this browser";
+            if (showErrorWhenNotSupported) PubSub.get().publish("snack", { message, severity: "Error" });
+            else console.warn(message);
             return;
         }
         const result = await requestNotificationPermission();

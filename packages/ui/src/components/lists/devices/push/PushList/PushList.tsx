@@ -112,7 +112,7 @@ export const PushList = ({
                 <Button
                     disabled={loadingAdd}
                     fullWidth
-                    onClick={setupPush}
+                    onClick={() => { setupPush(true); }}
                     startIcon={<AddIcon />}
                     variant="outlined"
                 >{t("AddThisDevice")}</Button>

@@ -59,7 +59,7 @@ const SignupForm = () => {
                         },
                         onSuccess: (data) => {
                             localStorage.removeItem(Cookies.FormData); // Clear old form data cache
-                            setupPush();
+                            setupPush(false);
                             PubSub.get().publish("session", data);
                             PubSub.get().publish("celebration", { targetId: "sign-up-button" });
                             PubSub.get().publish("alertDialog", {

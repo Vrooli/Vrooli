@@ -22,7 +22,7 @@ export function ListTitleContainer({
                     <Typography variant="h6" pt={2} sx={{
                         textAlign: "center",
                     }}>{emptyText ?? t("NoResults", { ns: "error" })}</Typography> :
-                    <List sx={{ overflow: "hidden" }}>
+                    <List sx={{ overflow: "hidden", padding: 0 }}>
                         {children}
                     </List>
             }

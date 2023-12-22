@@ -76,6 +76,7 @@ export const typeDef = gql`
         tagId: ID
         take: Int
         userId: ID
+        visibility: VisibilityType
     }
     type BookmarkSearchResult {
         pageInfo: PageInfo!

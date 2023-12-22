@@ -192,7 +192,7 @@ export const ChatSideMenu = ({
                 </Box>
                 <Box sx={{ overflowY: "auto" }} >
                     <SelectorBase
-                        color={palette.primary.contrastText}
+                        color={palette.background.textPrimary}
                         name="tab"
                         value={currTab}
                         label=""

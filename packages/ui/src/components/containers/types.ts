@@ -20,7 +20,6 @@ export interface TitleContainerProps {
     title: string;
     id?: string;
     loading?: boolean;
-    onClick?: (event: React.MouseEvent) => unknown;
     options?: {
         /** Adds icon for option to the right of the title */
         Icon?: SvgComponent;

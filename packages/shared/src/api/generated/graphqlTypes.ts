@@ -534,6 +534,7 @@ export type BookmarkSearchInput = {
   tagId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
   userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type BookmarkSearchResult = {

@@ -315,7 +315,7 @@ export const chatTabParams = [{
     titleKey: "Chat" as CommonKey,
     searchType: SearchType.Chat,
     tabType: ChatPageTabOption.Chat,
-    where: () => ({}),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     color: (palette: Palette) => palette.primary.contrastText,
     titleKey: "Favorite" as CommonKey,
@@ -403,12 +403,12 @@ export const inboxTabParams = [{
     titleKey: "Message" as CommonKey,
     searchType: SearchType.Chat,
     tabType: InboxPageTabOption.Message,
-    where: (userId: string) => ({ creatorId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     titleKey: "Notification" as CommonKey,
     searchType: SearchType.Notification,
     tabType: InboxPageTabOption.Notification,
-    where: (userId: string) => ({ userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }];
 
 export const myStuffTabParams = [{

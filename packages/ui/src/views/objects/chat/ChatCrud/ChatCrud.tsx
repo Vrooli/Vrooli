@@ -438,8 +438,8 @@ const ChatForm = ({
                     flexDirection: "column",
                     overflow: "hidden",
                     ...(display === "page" && {
-                        maxHeight: `calc(100vh - env(safe-area-inset-bottom))`,
-                        height: `calc(100vh - env(safe-area-inset-bottom))`,
+                        maxHeight: "calc(100vh - env(safe-area-inset-bottom))",
+                        height: "calc(100vh - env(safe-area-inset-bottom))",
                     }),
                 }}>
                     <TopBar
@@ -677,6 +677,7 @@ export const ChatCrud = ({
                 setExisting(chatInitialValues(session, task, t, getUserLanguages(session)[0]));
             }
         },
+        disabled: display !== "page",
         displayError: display === "page" || isOpen === true, // Suppress errors from closed dialogs
         isCreate,
         objectType: "Chat",

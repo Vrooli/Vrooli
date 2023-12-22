@@ -221,7 +221,7 @@ export const FormSection = styled(Stack)(({ theme }) => ({
 export const formContainer = (theme: Theme): SxProps => ({
     flexDirection: "column",
     margin: theme.spacing(2),
-    gap: theme.spacing(4),
+    gap: theme.spacing(3),
 });
 export const FormContainer = styled(Stack)(({ theme }) => ({
     ...formContainer(theme),
