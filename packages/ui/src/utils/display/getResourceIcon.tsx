@@ -114,7 +114,7 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string, palette
     }
     const hostName = hostParts[0].toLowerCase();
     // ResourceUsedFor.Context is a special case, as we can replace it with a Vrooli route's icon
-    if (usedFor === ResourceUsedFor.Context && hostName === (import.meta.env.PROD ? "vrooli.com" : "localhost")) {
+    if (usedFor === ResourceUsedFor.Context && hostName === (process.env.PROD ? "vrooli.com" : "localhost")) {
         // Get route info
         const route = getRoute(url.pathname);
         const routeKey = Object.keys(LINKS).find(key => LINKS[key as LINKS] === route);

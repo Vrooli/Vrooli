@@ -40,7 +40,7 @@ const transformMemberInviteValues = (values: MemberInviteShape[], existing: Memb
 
 const validateMemberInviteValues = async (values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) => {
     const transformedValues = transformMemberInviteValues(values, existing, isCreate);
-    const validationSchema = memberInviteValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
+    const validationSchema = memberInviteValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" });
     const result = await Promise.all(transformedValues.map(async (value) => await validateAndGetYupErrors(validationSchema, value)));
 
     // Filter and combine the result into one object with only error results

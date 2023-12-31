@@ -109,7 +109,7 @@ const ApiForm = ({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["details", "name", "summary"],
-        validationSchema: apiVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: apiVersionTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
     });
 
     const [hasDocUrl, setHasDocUrl] = useState(false);

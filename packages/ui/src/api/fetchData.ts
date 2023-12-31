@@ -3,19 +3,19 @@ import { stringifySearchParams } from "route";
 
 // Determine origin of API server
 const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
-const serverUrlProvided: boolean = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0;
-const portServer: string = import.meta.env.VITE_PORT_SERVER ?? "5329";
+const serverUrlProvided = Boolean(process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0);
+const portServer: string = process.env.VITE_PORT_SERVER ?? "5329";
 export const urlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}/api` :
     serverUrlProvided ?
-        `${import.meta.env.VITE_SERVER_URL}` :
-        `http://${import.meta.env.VITE_SITE_IP}:${portServer}/api`;
+        `${process.env.VITE_SERVER_URL}` :
+        `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
 export const restBase = "/v2/rest";
 export const webSocketUrlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}` :
     serverUrlProvided ?
-        `${import.meta.env.VITE_SERVER_URL}` :
-        `http://${import.meta.env.VITE_SITE_IP}:${portServer}`;
+        `${process.env.VITE_SERVER_URL}` :
+        `http://${process.env.VITE_SITE_IP}:${portServer}`;
 
 type FetchDataProps<Input extends object | undefined> = {
     endpoint: string;

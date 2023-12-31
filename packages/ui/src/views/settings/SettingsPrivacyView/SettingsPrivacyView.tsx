@@ -142,7 +142,7 @@ export const SettingsPrivacyView = ({
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" })}
+                        validationSchema={profileValidation.update({ env: process.env.PROD ? "production" : "development" })}
                     >
                         {(formik) => <SettingsPrivacyForm
                             display={display}

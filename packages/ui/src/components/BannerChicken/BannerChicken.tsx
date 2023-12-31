@@ -36,7 +36,7 @@ export const BannerChicken = () => {
             {/* AdSense script */}
             <script
                 async
-                src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${import.meta.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`}
+                src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`}
                 crossOrigin="anonymous"
                 onLoad={() => setAdDisplayed(true)}
                 onError={() => setAdDisplayed(false)}
@@ -46,7 +46,7 @@ export const BannerChicken = () => {
                 // Disable ads for local development. Ads only work on live domains. 
                 // You can use a test domain to test ads before deploying.
                 data-adtest={window.location.host.includes("localhost")}
-                data-ad-client={`ca-${import.meta.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`}
+                data-ad-client={`ca-${process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`}
                 data-ad-slot="9649766873"
                 data-ad-format="auto"
                 data-full-width-responsive="true"></ins>

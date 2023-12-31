@@ -8,7 +8,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { useFetch } from "./useFetch";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 
 export const useStripe = () => {
     const [, setLocation] = useLocation();

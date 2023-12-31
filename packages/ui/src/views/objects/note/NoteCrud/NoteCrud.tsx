@@ -136,7 +136,7 @@ const NoteForm = ({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["description", "name", "pages[0].text"],
-        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
     });
 
     const actionData = useObjectActions({
@@ -199,8 +199,8 @@ const NoteForm = ({
                                 maxWidth: "800px",
                                 paddingTop: 1,
                                 paddingBottom: 1,
-                            } : {})
-                        }
+                            } : {}),
+                        },
                     }}
                     DialogContentForm={() => (
                         <>
@@ -268,7 +268,7 @@ const NoteForm = ({
                             top: 0,
                             ...(isMobile ? {
                                 borderRadius: 0,
-                            } : {})
+                            } : {}),
                         },
                         root: {
                             height: "100%",

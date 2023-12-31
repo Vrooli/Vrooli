@@ -3,7 +3,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
 /** Logs info like missing translation keys */
-const debug = import.meta.env.DEV;
+const debug = process.env.DEV as unknown as boolean;
 /** Displays keys instead of translations. Useful to find missing translations */
 export const CI_MODE = false;
 

@@ -79,7 +79,7 @@ const OrganizationForm = ({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ["bio", "name"],
-        validationSchema: organizationTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: organizationTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
     });
 
     const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Organization>({

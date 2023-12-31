@@ -25,7 +25,7 @@ const transformChatInviteValues = (values: ChatInviteShape[], existing: ChatInvi
 
 const validateChatInviteValues = async (values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) => {
     const transformedValues = transformChatInviteValues(values, existing, isCreate);
-    const validationSchema = chatInviteValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
+    const validationSchema = chatInviteValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" });
     const result = await Promise.all(transformedValues.map(async (value) => await validateAndGetYupErrors(validationSchema, value)));
 
     // Filter and combine the result into one object with only error results
