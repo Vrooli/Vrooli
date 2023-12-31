@@ -1,16 +1,20 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource } from "@local/shared";
+import { Count, DeleteManyInput, DeleteType, DUMMY_ID, endpointPostDeleteMany, Resource } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { ObjectList } from "components/lists/ObjectList/ObjectList";
+import { ObjectListActions } from "components/lists/types";
+import { useBulkObjectActions } from "hooks/useBulkObjectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useSelectableList } from "hooks/useSelectableList";
 import { AddIcon } from "icons";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
+import { ListObject } from "utils/display/listTools";
 import { updateArray } from "utils/shape/general";
 import { resourceInitialValues, ResourceUpsert } from "views/objects/resource";
-import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
-import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceListVerticalProps } from "../types";
 
 export const ResourceListVertical = ({
@@ -22,7 +26,12 @@ export const ResourceListVertical = ({
     parent,
 }: ResourceListVerticalProps) => {
     const { t } = useTranslation();
-    console.log("resourcelistvertical", list);
+    const [, setLocation] = useLocation();
+
+    const [isEditing, setIsEditing] = useState(false);
+    useEffect(() => {
+        if (!canUpdate) setIsEditing(false);
+    }, [canUpdate]);
 
     const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const onDelete = useCallback((index: number) => {
@@ -35,11 +44,9 @@ export const ResourceListVertical = ({
         if (mutate && resource.id) {
             fetchLazyWrapper<DeleteManyInput, Count>({
                 fetch: deleteMutation,
-                inputs: { ids: [resource.id], objectType: "Resource" as any },
+                inputs: { objects: [{ id: resource.id, objectType: DeleteType.Resource }] },
                 onSuccess: () => {
-                    if (handleUpdate) {
-                        handleUpdate(updatedList);
-                    }
+                    handleUpdate?.(updatedList);
                 },
             });
         }
@@ -47,21 +54,6 @@ export const ResourceListVertical = ({
             handleUpdate(updatedList);
         }
     }, [deleteMutation, handleUpdate, list, mutate]);
-
-    // Right click context menu
-    const [contextAnchor, setContextAnchor] = useState<any>(null);
-    const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
-    const selectedIndex = useMemo(() => selectedResource ? list?.resources?.findIndex(r => r.id === selectedResource.id) : -1, [list, selectedResource]);
-    const contextId = useMemo(() => `resource-context-menu-${selectedResource?.id}`, [selectedResource]);
-    const openContext = useCallback((target: EventTarget, index: number) => {
-        setContextAnchor(target);
-        const resource = list?.resources[index];
-        setSelectedResource(resource ?? null);
-    }, [list?.resources]);
-    const closeContext = useCallback(() => {
-        setContextAnchor(null);
-        setSelectedResource(null);
-    }, []);
 
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
@@ -122,10 +114,46 @@ export const ResourceListVertical = ({
         />;
     }, [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, onDeleted, parent]);
 
+    const {
+        isSelecting,
+        handleToggleSelecting,
+        handleToggleSelect,
+        selectedData,
+        setIsSelecting,
+        setSelectedData,
+    } = useSelectableList<Resource>();
+    const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<Resource>({
+        allData: list?.resources ?? [],
+        selectedData,
+        setAllData: (data) => {
+            //TODO
+        },
+        setSelectedData: (data) => {
+            setSelectedData(data);
+            setIsSelecting(false);
+        },
+        setLocation,
+    });
+    const onAction = useCallback((action: keyof ObjectListActions<Resource>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                //TODO
+                break;
+            }
+            case "Updated": {
+                //TODO
+                break;
+            }
+        }
+    }, []);
+    const onClick = useCallback((data: ListObject) => {
+        //TODO
+    }, []);
+
     return (
         <>
             {/* Right-click context menu */}
-            <ResourceListItemContextMenu
+            {/* <ResourceListItemContextMenu
                 canUpdate={canUpdate}
                 id={contextId}
                 anchorEl={contextAnchor}
@@ -150,31 +178,22 @@ export const ResourceListVertical = ({
                     }
                 }}
                 resource={selectedResource}
-            />
+            /> */}
             {/* Add resource dialog */}
             {dialog}
-            {list?.resources && list.resources.length > 0 && <Box sx={{
-                boxShadow: 12,
-                overflow: "overlay",
-                borderRadius: "8px",
-                maxWidth: "1000px",
-                marginLeft: "auto",
-                marginRight: "auto",
-            }}>
-                {/* Resource list */}
-                {list.resources.map((c: Resource, index) => (
-                    <ResourceListItem
-                        key={`resource-card-${index}`}
-                        canUpdate={canUpdate}
-                        data={c}
-                        handleContextMenu={openContext}
-                        handleEdit={() => openUpdateDialog(index)}
-                        handleDelete={onDelete}
-                        index={index}
-                        loading={loading}
-                    />
-                ))}
-            </Box>}
+            <ObjectList
+                canNavigate={() => !isEditing}
+                dummyItems={new Array(5).fill("Resource")}
+                handleToggleSelect={handleToggleSelect}
+                hideUpdateButton={isEditing}
+                isSelecting={isSelecting}
+                items={list?.resources ?? []}
+                keyPrefix="resource-list-item"
+                loading={loading}
+                onAction={onAction}
+                onClick={onClick}
+                selectedItems={selectedData}
+            />
             {/* Add resource button */}
             {canUpdate && <Box sx={{
                 maxWidth: "400px",

@@ -1105,8 +1105,7 @@ export type Count = {
 };
 
 export type DeleteManyInput = {
-  ids: Array<Scalars['ID']>;
-  objectType: DeleteType;
+  objects: Array<DeleteOneInput>;
 };
 
 export type DeleteOneInput = {
@@ -1116,6 +1115,7 @@ export type DeleteOneInput = {
 
 export enum DeleteType {
   Api = 'Api',
+  ApiKey = 'ApiKey',
   ApiVersion = 'ApiVersion',
   Bookmark = 'Bookmark',
   BookmarkList = 'BookmarkList',

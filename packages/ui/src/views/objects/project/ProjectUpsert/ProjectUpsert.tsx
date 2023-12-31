@@ -17,7 +17,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useContext, useMemo } from "react";
+import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
@@ -73,8 +73,21 @@ const projectInitialValues = (
     }]),
 });
 
+type ViewMode = "card" | "list";
+
 const transformProjectVersionValues = (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) =>
     isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
+
+const DirectoryViewModeToggle = ({ onViewModeChange }) => (
+    <Box sx={{ marginBottom: "10px", display: "flex", gap: 2 }}>
+        <Button variant="contained" color="primary" onClick={() => onViewModeChange("card")}>
+            Card View
+        </Button>
+        <Button variant="outlined" color="primary" onClick={() => onViewModeChange("list")}>
+            List View
+        </Button>
+    </Box>
+);
 
 const ProjectForm = ({
     disabled,
@@ -95,6 +108,11 @@ const ProjectForm = ({
 }: ProjectFormProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const [viewMode, setViewMode] = useState<ViewMode>("card");
+
+    const handleViewModeChange = (mode: ViewMode) => {
+        setViewMode(mode);
+    };
 
     // Handle translations
     const {
@@ -192,13 +210,15 @@ const ProjectForm = ({
                             languages={languages}
                         />
                     </FormSection>
-                    <DirectoryListHorizontal
+                    <DirectoryViewModeToggle onViewModeChange={handleViewModeChange} />
+                    {viewMode === "card" ? <DirectoryListHorizontal
                         canUpdate={true}
                         directory={directoryField.value}
                         handleUpdate={directoryHelpers.setValue}
                         loading={isLoading}
                         mutate={false}
-                    />
+                        sortBy={"NameDesc"}
+                    /> : <>TODO</>}
                     <VersionInput
                         fullWidth
                         versions={versions}

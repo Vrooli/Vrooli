@@ -14,6 +14,7 @@ import { useDeleter } from "./useDeleter";
 import { useVoter } from "./useVoter";
 
 export type UseObjectActionsProps = {
+    isListReorderable?: boolean;
     object: ListObject | null | undefined;
     objectType: ListObject["__typename"];
     openAddCommentDialog?: () => unknown;
@@ -60,6 +61,7 @@ const toSuccess = (data: unknown) => {
 /** Hook for updating state and navigating upon completing an action */
 export const useObjectActions = ({
     canNavigate,
+    isListReorderable,
     object,
     objectType,
     onClick,

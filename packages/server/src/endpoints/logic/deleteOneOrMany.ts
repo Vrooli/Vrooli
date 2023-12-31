@@ -14,11 +14,11 @@ export const DeleteOneOrManyEndpoints: EndpointsDeleteOneOrMany = {
     Mutation: {
         deleteOne: async (_, { input }, { prisma, req }) => {
             await rateLimit({ maxUser: 1000, req });
-            return deleteOneHelper({ input, objectType: input.objectType, prisma, req });
+            return deleteOneHelper({ input, prisma, req });
         },
         deleteMany: async (_, { input }, { prisma, req }) => {
             await rateLimit({ maxUser: 1000, req });
-            return deleteManyHelper({ input, objectType: input.objectType, prisma, req });
+            return deleteManyHelper({ input, prisma, req });
         },
     },
 };

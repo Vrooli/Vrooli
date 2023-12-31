@@ -1,4 +1,4 @@
-import { ApiKey, ApiKeyCreateInput, ApiKeyDeleteOneInput, ApiKeyUpdateInput, ApiKeyValidateInput, COOKIE, Success } from "@local/shared";
+import { ApiKey, ApiKeyCreateInput, ApiKeyDeleteOneInput, ApiKeyUpdateInput, ApiKeyValidateInput, COOKIE, DeleteOneInput, Success } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { deleteOneHelper } from "../../actions/deletes";
 import { updateOneHelper } from "../../actions/updates";
@@ -32,7 +32,7 @@ export const ApiKeyEndpoints: EndpointsApiKey = {
         apiKeyDeleteOne: async (_, { input }, { prisma, req }) => {
             assertRequestFrom(req, { isOfficialUser: true });
             await rateLimit({ maxUser: 10, req });
-            return deleteOneHelper({ input, objectType, prisma, req });
+            return deleteOneHelper({ input: { id: input.id, objectType } as DeleteOneInput, prisma, req });
         },
         apiKeyValidate: async (_, { input }, { req, res }) => {
             await rateLimit({ maxApi: 5000, req });

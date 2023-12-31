@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteStatus, DUMMY_ID, GqlModelType, noop, User } from "@local/shared";
+import { ChatInvite, ChatInviteStatus, DUMMY_ID, noop, User } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -6,6 +6,7 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
 import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -37,24 +38,14 @@ export const ParticipantManageView = ({
         where,
     } = useTabs<ParticipantManagePageTabOption>({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
 
-    const [isSelecting, setIsSelecting] = useState(true);
-    const [selectedData, setSelectedData] = useState<ListObject[]>([]);
-    const handleToggleSelecting = useCallback(() => {
-        if (isSelecting) { setSelectedData([]); }
-        setIsSelecting(is => !is);
-    }, [isSelecting]);
-    const handleToggleSelect = useCallback((item: ListObject) => {
-        setSelectedData(items => {
-            const newItems = [...items];
-            const index = newItems.findIndex(i => i.id === item.id);
-            if (index === -1) {
-                newItems.push(item as ListObject);
-            } else {
-                newItems.splice(index, 1);
-            }
-            return newItems;
-        });
-    }, []);
+    const {
+        isSelecting,
+        handleToggleSelecting,
+        handleToggleSelect,
+        selectedData,
+        setIsSelecting,
+        setSelectedData,
+    } = useSelectableList();
     // Remove selection when tab changes
     useEffect(() => {
         setSelectedData([]);
@@ -87,7 +78,6 @@ export const ParticipantManageView = ({
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<ListObject>({
         allData: [] as any, //TODO
         selectedData,
-        objectType: searchType as unknown as GqlModelType,
         setAllData: noop, //TODO
         setSelectedData: (data) => {
             setSelectedData(data);

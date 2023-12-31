@@ -13,6 +13,7 @@ export type ConfirmationLevel = "none" | "minimal" | "full";
 
 export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> = {
     Api: "full",
+    ApiKey: "full",
     ApiVersion: "minimal",
     Bookmark: "none",
     BookmarkList: "full",

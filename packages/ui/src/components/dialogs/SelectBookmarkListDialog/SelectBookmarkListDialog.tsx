@@ -78,8 +78,10 @@ export const SelectBookmarkListDialog = ({
         const deletedBookmarks = data?.edges.filter(e => !selectedLists.some(sl => sl.id === e.node.list.id));
         if (deletedBookmarks) {
             await deleteMutation({
-                ids: deletedBookmarks.map(e => e.node.id),
-                objectType: DeleteType.Bookmark,
+                objects: deletedBookmarks.map(e => ({
+                    id: e.node.id,
+                    objectType: DeleteType.Bookmark,
+                })),
             });
         }
         onClose(selectedLists.length > 0);

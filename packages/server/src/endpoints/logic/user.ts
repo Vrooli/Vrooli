@@ -1,4 +1,4 @@
-import { BotCreateInput, BotUpdateInput, FindByIdOrHandleInput, ImportCalendarInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, ProfileUpdateInput, Session, Success, User, UserDeleteInput, UserSearchInput } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, DeleteType, FindByIdOrHandleInput, ImportCalendarInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, ProfileUpdateInput, Session, Success, User, UserDeleteInput, UserSearchInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { cudHelper } from "../../actions/cuds";
 import { deleteOneHelper } from "../../actions/deletes";
@@ -127,7 +127,7 @@ export const UserEndpoints: EndpointsUser = {
             }
             // TODO anonymize public data
             // Delete user
-            const result = await deleteOneHelper({ input: { id }, objectType, prisma, req });
+            const result = await deleteOneHelper({ input: { id, objectType: objectType as DeleteType }, prisma, req });
             // If successful, remove user from session
             if (result.success) {
                 return AuthEndpoints.Mutation.logOut(undefined, { input: { id } }, { prisma, req, res }, info) as any;

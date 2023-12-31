@@ -205,11 +205,6 @@ export const typeDef = gql`
         handleRoot: String # Not always applicable
     }
 
-    # Input for deleting multiple objects
-    input DeleteManyInput {
-        ids: [ID!]!
-    }
-
     # Input for an exception to a search query parameter
     input SearchException {
         field: String!

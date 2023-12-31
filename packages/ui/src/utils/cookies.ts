@@ -82,7 +82,7 @@ export const getCookiePreferences = (): CookiePreferences | null => {
             performance: true,
             functional: true,
             targeting: true,
-        }
+        };
     }
     const cookie = getCookie(Cookies.Preferences, (value: unknown): value is CookiePreferences => typeof value === "object");
     if (!cookie) return null;

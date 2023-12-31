@@ -7,6 +7,8 @@ import { RoutineVersionShape } from "utils/shape/models/routineVersion";
 import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
 
+export type DirectoryListSortBy = "DateCreatedAsc" | "DateCreatedDesc" | "DateUpdatedAsc" | "DateUpdatedDesc" | "NameAsc" | "NameDesc";
+
 export type DirectoryItem = ApiVersionShape |
     NoteVersionShape |
     OrganizationShape |
@@ -23,20 +25,13 @@ export interface DirectoryCardProps {
     onDelete: (index: number) => unknown;
 }
 
-export interface DirectoryListHorizontalProps {
+export interface DirectoryListProps {
     canUpdate?: boolean;
     handleUpdate?: (updatedDirectory: ProjectVersionDirectory) => unknown;
     directory: ProjectVersionDirectory | null;
     loading?: boolean;
     mutate?: boolean;
-}
-
-export interface DirectoryListVerticalProps {
-    canUpdate?: boolean;
-    handleUpdate?: (updatedDirectory: ProjectVersionDirectory) => unknown;
-    directory: ProjectVersionDirectory | null | undefined;
-    loading: boolean;
-    mutate: boolean;
+    sortBy: DirectoryListSortBy;
 }
 
 export interface DirectoryListItemProps {

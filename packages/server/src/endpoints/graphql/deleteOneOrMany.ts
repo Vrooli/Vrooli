@@ -5,6 +5,7 @@ import { DeleteOneOrManyEndpoints, EndpointsDeleteOneOrMany } from "../logic/del
 export const typeDef = gql`
     enum DeleteType {
         Api
+        ApiKey
         ApiVersion
         Bookmark
         BookmarkList
@@ -57,8 +58,7 @@ export const typeDef = gql`
     }
 
     input DeleteManyInput {
-        ids: [ID!]!
-        objectType: DeleteType!
+        objects: [DeleteOneInput!]!
     }
 
     extend type Mutation {

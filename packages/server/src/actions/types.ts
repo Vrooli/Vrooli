@@ -26,14 +26,12 @@ export type CreateManyHelperProps = Omit<CreateOneHelperProps, "input"> & {
 
 export type DeleteManyHelperProps = {
     input: DeleteManyInput;
-    objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: { session: SessionData };
 }
 
 export type DeleteOneHelperProps = {
-    input: Pick<DeleteOneInput, "id">;
-    objectType: `${GqlModelType}`;
+    input: DeleteOneInput;
     prisma: PrismaType;
     req: { session: SessionData };
 }

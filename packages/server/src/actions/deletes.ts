@@ -9,18 +9,16 @@ import { DeleteManyHelperProps, DeleteOneHelperProps } from "./types";
  */
 export async function deleteOneHelper({
     input,
-    objectType,
     prisma,
     req,
 }: DeleteOneHelperProps): Promise<Success> {
     const userData = assertRequestFrom(req, { isUser: true });
     // Delete object. cudHelper will check permissions and handle triggers
     const deleted = (await cudHelper({
-        // deleteMany: [input.id],
         inputData: [{
             actionType: "Delete",
             input: input.id,
-            objectType,
+            objectType: input.objectType,
         }],
         partialInfo: {},
         prisma,
@@ -36,7 +34,6 @@ export async function deleteOneHelper({
  */
 export async function deleteManyHelper({
     input,
-    objectType,
     prisma,
     req,
 }: DeleteManyHelperProps): Promise<Count> {
@@ -44,7 +41,7 @@ export async function deleteManyHelper({
     // Delete objects. cudHelper will check permissions and handle triggers
     const deleted = await cudHelper({
         // deleteMany: input.ids,
-        inputData: input.ids.map(id => ({
+        inputData: input.objects.map(({ id, objectType }) => ({
             actionType: "Delete",
             input: id,
             objectType,

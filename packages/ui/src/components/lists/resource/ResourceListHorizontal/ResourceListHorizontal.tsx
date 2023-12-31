@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { CommonKey, Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource, ResourceUsedFor } from "@local/shared";
+import { CommonKey, Count, DeleteManyInput, DeleteType, DUMMY_ID, endpointPostDeleteMany, Resource, ResourceUsedFor } from "@local/shared";
 import { Box, IconButton, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
@@ -222,14 +222,12 @@ export const ResourceListHorizontal = ({
         if (mutate && resource.id) {
             fetchLazyWrapper<DeleteManyInput, Count>({
                 fetch: deleteMutation,
-                inputs: { ids: [resource.id], objectType: "Resource" as any },
+                inputs: { objects: [{ id: resource.id, objectType: DeleteType.Resource }] },
                 onSuccess: () => {
-                    if (handleUpdate) {
-                        handleUpdate({
-                            ...list,
-                            resources: list.resources.filter(r => r.id !== resource.id) as any,
-                        });
-                    }
+                    handleUpdate?.({
+                        ...list,
+                        resources: list.resources.filter(r => r.id !== resource.id) as any,
+                    });
                 },
             });
         }

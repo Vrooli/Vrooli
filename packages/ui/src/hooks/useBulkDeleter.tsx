@@ -1,63 +1,70 @@
-import { Count, DeleteManyInput, DeleteType, endpointPostDeleteMany, exists, GqlModelType, User } from "@local/shared";
+import { Count, DeleteManyInput, DeleteType, endpointPostDeleteMany, exists, User } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { BulkDeleteDialog } from "components/dialogs/BulkDeleteDialog/BulkDeleteDialog";
 import { useCallback, useState } from "react";
 import { BulkObjectActionComplete } from "utils/actions/bulkObjectActions";
 import { ListObject } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
-import { ObjectsToDeleteConfirmLevel } from "./useDeleter";
+import { ConfirmationLevel, ObjectsToDeleteConfirmLevel } from "./useDeleter";
 import { useLazyFetch } from "./useLazyFetch";
 
 export const useBulkDeleter = ({
-    objectType,
     onBulkActionComplete,
     selectedData,
 }: {
-    objectType: GqlModelType;
     onBulkActionComplete: (action: BulkObjectActionComplete.Delete, objectsDeleted: ListObject[]) => unknown;
     selectedData: ListObject[];
 }) => {
 
-    const hasDeletingSupport = exists(DeleteType[objectType]);
+    const hasDeletingSupport = selectedData.some(item => exists(DeleteType[item.__typename]));
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const closeDeleteDialog = useCallback(() => { setIsDeleteDialogOpen(false); }, []);
 
     const [deleteMany] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
 
     const doBulkDelete = useCallback((confirmedForDeletion: ListObject[]) => {
-        if (!selectedData || !selectedData.length || !objectType) {
+        if (!selectedData || !selectedData.length) {
             return;
         }
         fetchLazyWrapper<DeleteManyInput, Count>({
             fetch: deleteMany,
-            inputs: { ids: confirmedForDeletion.map(c => c.id) as string[], objectType: objectType as unknown as DeleteType },
+            inputs: {
+                objects: confirmedForDeletion
+                    .filter(c => c.id && exists(DeleteType[c.__typename]))
+                    .map(c => ({ id: c.id as string, objectType: c.__typename as DeleteType })),
+            },
             successMessage: () => ({ messageKey: "ObjectsDeleted", messageVariables: { count: confirmedForDeletion.length } }),
             onSuccess: () => {
                 onBulkActionComplete(BulkObjectActionComplete.Delete, confirmedForDeletion);
                 setIsDeleteDialogOpen(false);
             },
         });
-    }, [deleteMany, selectedData, objectType, onBulkActionComplete]);
+    }, [deleteMany, selectedData, onBulkActionComplete]);
 
     const handleBulkDelete = useCallback(() => {
-        if (!selectedData || !selectedData.length || !objectType) {
+        if (!selectedData || !selectedData.length) {
             return;
         }
-        // Find confirmation level for this object type
-        let confirmationType = ObjectsToDeleteConfirmLevel[objectType as unknown as DeleteType];
-        // Special case: Users with "isBot" set to true require minimal confirmation instead of full
-        if (objectType === "User") {
-            if (selectedData.every(o => (o as Partial<User>).isBot === true)) {
-                confirmationType = "minimal";
+        let highestConfirmationLevel: ConfirmationLevel = "none";
+        for (const object of selectedData) {
+            let confirmationLevel = ObjectsToDeleteConfirmLevel[object.__typename as DeleteType];
+            // Special case: Users with "isBot" set to true require minimal confirmation instead of full
+            if (object.__typename === "User" && (object as Partial<User>).isBot === true) {
+                confirmationLevel = "minimal";
+            }
+            if (confirmationLevel === "full") {
+                highestConfirmationLevel = "full";
+                break;
+            } else if (confirmationLevel === "minimal" && highestConfirmationLevel === "none") {
+                highestConfirmationLevel = "minimal";
             }
         }
-        console.log();
-        if (confirmationType === "none") {
+        if (highestConfirmationLevel === "none") {
             // Delete without confirmation
             doBulkDelete(selectedData);
             return;
         }
-        if (confirmationType === "minimal") {
+        if (highestConfirmationLevel === "minimal") {
             // Show simple confirmation dialog
             PubSub.get().publish("alertDialog", {
                 messageKey: "DeleteConfirmMultiple",
@@ -73,7 +80,7 @@ export const useBulkDeleter = ({
         }
         // If here, assume full confirmation
         setIsDeleteDialogOpen(true);
-    }, [objectType, selectedData, doBulkDelete]);
+    }, [selectedData, doBulkDelete]);
 
     let BulkDeleteDialogComponent: JSX.Element | null;
     if (hasDeletingSupport) {

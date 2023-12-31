@@ -1,4 +1,4 @@
-import { exists, GqlModelType } from "@local/shared";
+import { exists } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { SetLocation } from "route";
@@ -9,7 +9,6 @@ import { useBulkDeleter } from "./useBulkDeleter";
 
 export type UseBulkObjectActionsProps<T extends ListObject = ListObject> = {
     allData: T[];
-    objectType: T["__typename"];
     selectedData: T[];
     setAllData: (data: T[]) => unknown;
     setSelectedData: (data: T[]) => unknown;
@@ -27,7 +26,6 @@ export type UseBulkObjectActionsReturn<T extends ListObject = ListObject> = {
     isDeleteDialogOpen: boolean;
     isProjectAddDialogOpen: boolean;
     isReportDialogOpen: boolean;
-    objectType: T["__typename"];
     onBulkActionStart: (action: BulkObjectAction | `${BulkObjectAction}`) => unknown;
     onBulkActionComplete: (action: BulkObjectActionComplete | `${BulkObjectActionComplete}`, data: any) => unknown;
 };
@@ -42,7 +40,6 @@ const callIfExists = (callback: (() => unknown) | null | undefined) => {
 
 export const useBulkObjectActions = <T extends ListObject = ListObject>({
     allData,
-    objectType,
     selectedData,
     setAllData,
     setSelectedData,
@@ -79,12 +76,11 @@ export const useBulkObjectActions = <T extends ListObject = ListObject>({
         BulkDeleteDialogComponent,
     } = useBulkDeleter({
         selectedData,
-        objectType: objectType as GqlModelType,
         onBulkActionComplete,
     });
 
     // Determine which actions are available   
-    const availableActions = useMemo(() => getAvailableBulkActions(selectedData, objectType, session), [selectedData, objectType, session]);
+    const availableActions = useMemo(() => getAvailableBulkActions(selectedData, session), [selectedData, session]);
 
     // Dialog states
     const [isBookmarkDialogOpen, setIsBookmarkDialogOpen] = useState<boolean>(false);
@@ -132,7 +128,6 @@ export const useBulkObjectActions = <T extends ListObject = ListObject>({
         isDeleteDialogOpen,
         isProjectAddDialogOpen,
         isReportDialogOpen,
-        objectType,
         onBulkActionStart,
         onBulkActionComplete,
     };

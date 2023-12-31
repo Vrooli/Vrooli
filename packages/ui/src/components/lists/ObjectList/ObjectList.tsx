@@ -70,6 +70,8 @@ export type ObjectListProps<T extends OrArray<ListObject>> = Pick<ObjectListItem
     /** List of dummy items types to display while loading */
     dummyItems?: (GqlModelType | `${GqlModelType}`)[];
     handleToggleSelect?: (item: ListObject) => unknown,
+    /** True if list can be reordered (e.g. resource list) */
+    isListReorderable?: boolean;
     /** The list of item data. Objects like view and star are converted to their respective objects. */
     items?: readonly ListObject[],
     /** Hides individual list item actions and makes items selectable for bulk actions (e.g. deleting multiple items at once)  */
@@ -86,6 +88,7 @@ export const ObjectList = <T extends OrArray<ListObject>>({
     keyPrefix,
     handleToggleSelect,
     hideUpdateButton,
+    isListReorderable,
     isSelecting,
     items,
     loading,
@@ -117,6 +120,7 @@ export const ObjectList = <T extends OrArray<ListObject>>({
     const actionData = useObjectActions({
         canNavigate,
         object,
+        isListReorderable,
         objectType: object?.__typename ?? "Routine" as GqlModelType,
         onAction,
         setLocation,

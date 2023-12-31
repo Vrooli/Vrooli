@@ -10,9 +10,10 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
 import { ActionIcon, AddIcon, CancelIcon, CompleteIcon, DeleteIcon } from "icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
@@ -54,28 +55,17 @@ export const InboxView = ({
         where: where(),
     });
 
-    const [isSelecting, setIsSelecting] = useState(false);
-    const [selectedData, setSelectedData] = useState<InboxObject[]>([]);
-    const handleToggleSelecting = useCallback(() => {
-        if (isSelecting) { setSelectedData([]); }
-        setIsSelecting(is => !is);
-    }, [isSelecting]);
-    const handleToggleSelect = useCallback((item: ListObject) => {
-        setSelectedData(items => {
-            const newItems = [...items];
-            const index = newItems.findIndex(i => i.id === item.id);
-            if (index === -1) {
-                newItems.push(item as InboxObject);
-            } else {
-                newItems.splice(index, 1);
-            }
-            return newItems;
-        });
-    }, []);
+    const {
+        isSelecting,
+        handleToggleSelecting,
+        handleToggleSelect,
+        selectedData,
+        setIsSelecting,
+        setSelectedData,
+    } = useSelectableList<InboxObject>();
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<InboxObject>({
         allData,
         selectedData,
-        objectType: searchType as InboxObject["__typename"],
         setAllData,
         setSelectedData: (data) => {
             setSelectedData(data);
