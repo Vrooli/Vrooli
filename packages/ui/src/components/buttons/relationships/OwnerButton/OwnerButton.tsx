@@ -58,7 +58,7 @@ export function OwnerButton({
     }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeOrganizationDialog]);
 
     // Owner list dialog (select self, organization, or another user)
-    const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
+    const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<HTMLElement | null>(null);
     const handleOwnerClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isAvailable) return;
         ev.stopPropagation();
@@ -68,7 +68,7 @@ export function OwnerButton({
             if (owner) openObject(owner, setLocation);
         }
         // Otherwise, open dialog
-        else setOwnerDialogAnchor(ev.currentTarget);
+        else setOwnerDialogAnchor(ev.currentTarget as HTMLElement);
     }, [isEditing, isAvailable, versionField?.value, rootField?.value, setLocation]);
     const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {

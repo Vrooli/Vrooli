@@ -42,7 +42,7 @@ export const RunButton = ({
         const params = parseSearchParams();
         return typeof params.run === "string" && uuidValidate(params.run);
     });
-    const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
+    const [selectRunAnchor, setSelectRunAnchor] = useState<HTMLElement | null>(null);
     const handleRunSelect = useCallback((run: RunProject | RunRoutine | null) => {
         // If run is null, it means the routine will be opened without a run
         if (!run) {

@@ -1,4 +1,4 @@
-import { FormControl, FormHelperText, IconButton, InputAdornment, InputLabel, LinearProgress, OutlinedInput, useTheme } from "@mui/material";
+import { FormControl, FormControlProps, FormHelperText, IconButton, InputAdornment, InputLabel, LinearProgress, OutlinedInput, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { InvisibleIcon, LockIcon, VisibleIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
@@ -59,7 +59,7 @@ export const PasswordTextInput = ({
     }, [field.value, getPasswordStrengthProps]);
 
     return (
-        <FormControl fullWidth={fullWidth} variant="outlined" {...props as any}>
+        <FormControl fullWidth={fullWidth} variant="outlined" {...props as FormControlProps}>
             <InputLabel htmlFor={name}>{label ?? "Password"}</InputLabel>
             <OutlinedInput
                 id={name}
@@ -84,7 +84,7 @@ export const PasswordTextInput = ({
                             edge="end"
                             sx={{
                                 "&:focus": {
-                                    border: `2px solid ${palette.background.textPrimary}`
+                                    border: `2px solid ${palette.background.textPrimary}`,
                                 },
                                 borderRadius: "2px",
                             }}

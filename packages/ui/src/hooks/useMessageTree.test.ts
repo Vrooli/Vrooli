@@ -485,7 +485,7 @@ const case4 = [
         "versionIndex": 0,
         "parent": null,
     },
-];
+] as MinimumChatMessage[];
 
 /**
  * Checks the validity of root nodes in the message tree.

@@ -1,0 +1,25 @@
+import { useCallback, useState } from "react";
+import { ListObject } from "utils/display/listTools";
+
+/** Hook for providing context menu logic for object lists */
+export const useObjectContextMenu = () => {
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const [object, setObject] = useState<ListObject | null>(null);
+    const handleContextMenu = useCallback((target: EventTarget, object: ListObject | null) => {
+        if (!object) return;
+        setAnchorEl(target as HTMLElement);
+        setObject(object);
+    }, []);
+    const closeContextMenu = useCallback(() => {
+        setAnchorEl(null);
+        // Don't remove object, since dialogs opened from context menu may need it
+    }, []);
+
+    return {
+        anchorEl,
+        closeContextMenu,
+        handleContextMenu,
+        object,
+        setObject,
+    };
+};

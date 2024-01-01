@@ -6,7 +6,7 @@ import { getCurrentUser } from "utils/authentication/session";
  * Displays a banner ad the bottom of the screen, above the BottomNav. 
  * Uses session to display no ads for premium users, and less ads if logged in.
  * 
- * NOTE: If we call this "BannerAd", ad blockers will cause the whole site to break. 
+ * NOTE: If we call this "BannerAd", ad blockers will cause the whole bundle to break. 
  * Hence the name "BannerChicken".
  */
 export const BannerChicken = () => {

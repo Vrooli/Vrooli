@@ -17,7 +17,7 @@ module.exports = {
             "<rootDir>/config/jest/fileTransform.cjs",
     },
     transformIgnorePatterns: [
-        "[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|cjs|ts|tsx)$",
+        // "[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|cjs|ts|tsx)$",
         "^.+\\.module\\.(css|sass|scss)$",
     ],
     moduleNameMapper: {
