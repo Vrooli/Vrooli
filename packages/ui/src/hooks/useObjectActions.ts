@@ -16,7 +16,7 @@ import { useVoter } from "./useVoter";
 export type UseObjectActionsProps = {
     isListReorderable?: boolean;
     object: ListObject | null | undefined;
-    objectType: ListObject["__typename"];
+    objectType: ListObject["__typename"] | undefined;
     openAddCommentDialog?: () => unknown;
     setLocation: SetLocation;
     setObject: Dispatch<SetStateAction<any>>;
@@ -39,7 +39,7 @@ export type UseObjectActionsReturn = {
     isShareDialogOpen: boolean;
     isStatsDialogOpen: boolean;
     isReportDialogOpen: boolean;
-    objectType: ListObject["__typename"];
+    objectType: ListObject["__typename"] | undefined;
     onActionStart: (action: ObjectAction | `${ObjectAction}`) => unknown;
     onActionComplete: (action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => unknown;
 }
@@ -61,7 +61,7 @@ const toSuccess = (data: unknown) => {
 /** Hook for updating state and navigating upon completing an action */
 export const useObjectActions = ({
     canNavigate,
-    isListReorderable,
+    isListReorderable, //TODO: Implement reordering
     object,
     objectType,
     onClick,
@@ -117,18 +117,18 @@ export const useObjectActions = ({
         isBookmarkDialogOpen,
     } = useBookmarker({
         objectId: object?.root?.id ?? object?.id, // Can only bookmark root objects
-        objectType: objectType.replace("Version", "") as GqlModelType,
+        objectType: objectType?.replace("Version", "") as GqlModelType | undefined,
         onActionComplete,
     });
     const { handleCopy } = useCopier({
         objectId: object?.id,
         objectName: getDisplay(object).title,
-        objectType: objectType as GqlModelType,
+        objectType: objectType as GqlModelType | undefined,
         onActionComplete,
     });
     const { handleVote } = useVoter({
         objectId: object?.root?.id ?? object?.id, // Can only vote on root objects
-        objectType: objectType.replace("Version", "") as GqlModelType,
+        objectType: objectType?.replace("Version", "") as GqlModelType | undefined,
         onActionComplete,
     });
     const {

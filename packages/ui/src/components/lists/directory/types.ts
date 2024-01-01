@@ -6,6 +6,7 @@ import { ProjectVersionShape } from "utils/shape/models/projectVersion";
 import { RoutineVersionShape } from "utils/shape/models/routineVersion";
 import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
+import { ObjectListActions } from "../types";
 
 export type DirectoryListSortBy = "DateCreatedAsc" | "DateCreatedDesc" | "DateUpdatedAsc" | "DateUpdatedDesc" | "NameAsc" | "NameDesc";
 
@@ -21,8 +22,8 @@ export interface DirectoryCardProps {
     canUpdate: boolean;
     data: DirectoryItem;
     index: number;
-    onContextMenu: (target: EventTarget, index: number) => unknown;
-    onDelete: (index: number) => unknown;
+    onContextMenu: (target: EventTarget, data: DirectoryItem) => unknown;
+    onDelete: (data: DirectoryItem) => unknown;
 }
 
 export interface DirectoryListProps {
@@ -32,24 +33,22 @@ export interface DirectoryListProps {
     loading?: boolean;
     mutate?: boolean;
     sortBy: DirectoryListSortBy;
+    title?: string;
 }
 
-export interface DirectoryListItemProps {
-    canUpdate: boolean;
-    data: DirectoryItem;
-    handleContextMenu: (target: EventTarget, index: number) => unknown;
-    handleEdit: (index: number) => unknown;
-    handleDelete: (index: number) => unknown;
-    index: number;
-    loading: boolean;
+export type DirectoryListHorizontalProps = DirectoryListProps & {
+    closeAddDialog: () => unknown;
+    handleToggleSelect: (data: DirectoryItem) => unknown;
+    isAddDialogOpen: boolean;
+    isEditing: boolean;
+    isSelecting: boolean;
+    list: DirectoryItem[];
+    onAction: (action: keyof ObjectListActions<DirectoryItem>, ...data: unknown[]) => unknown;
+    onAdd: (data: DirectoryItem) => unknown;
+    onClick: (data: DirectoryItem) => unknown;
+    onDelete: (data: DirectoryItem) => unknown;
+    openAddDialog: () => unknown;
+    selectedData: DirectoryItem[];
 }
 
-export interface DirectoryListItemContextMenuProps {
-    canUpdate: boolean;
-    id: string;
-    anchorEl: HTMLElement | null;
-    index: number | null;
-    onClose: () => unknown;
-    onDelete: (index: number) => unknown;
-    data: DirectoryItem | null;
-}
+export type DirectoryListVerticalProps = DirectoryListHorizontalProps

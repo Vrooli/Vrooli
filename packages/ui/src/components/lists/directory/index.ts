@@ -1,4 +1,2 @@
-export * from "./DirectoryListHorizontal/DirectoryListHorizontal";
-export * from "./DirectoryListItemContextMenu/DirectoryListItemContextMenu";
-export * from "./DirectoryListVertical/DirectoryListVertical";
+export * from "./DirectoryList/DirectoryList";
 

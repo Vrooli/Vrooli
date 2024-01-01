@@ -3,9 +3,10 @@ import { Box, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { useDimensions } from "hooks/useDimensions";
 import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectContextMenu } from "hooks/useObjectContextMenu";
 import { useStableCallback } from "hooks/useStableCallback";
 import { useStableObject } from "hooks/useStableObject";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import { lazily } from "react-lazily";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
@@ -105,26 +106,14 @@ export const ObjectList = <T extends OrArray<ListObject>>({
     const { dimensions, ref: dimRef } = useDimensions();
     const isMobile = useMemo(() => dimensions.width <= breakpoints.values.md, [breakpoints, dimensions]);
 
-    // Handle context menu
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const [object, setObject] = useState<ListObject | null>(null);
-    const handleContextMenu = useCallback((target: EventTarget, object: ListObject | null) => {
-        if (!object) return;
-        setAnchorEl(target as HTMLElement);
-        setObject(object);
-    }, []);
-    const closeContextMenu = useCallback(() => {
-        setAnchorEl(null);
-        // Don't remove object, since dialogs opened from context menu may need it
-    }, []);
+    const contextData = useObjectContextMenu();
     const actionData = useObjectActions({
         canNavigate,
-        object,
         isListReorderable,
-        objectType: object?.__typename ?? "Routine" as GqlModelType,
+        objectType: contextData.object?.__typename as GqlModelType | undefined,
         onAction,
         setLocation,
-        setObject,
+        ...contextData,
     });
 
     // Generate real list items
@@ -139,7 +128,7 @@ export const ObjectList = <T extends OrArray<ListObject>>({
                     key={`${keyPrefix}-${curr.id}`}
                     canNavigate={canNavigate}
                     data={curr as ListObject}
-                    handleContextMenu={handleContextMenu}
+                    handleContextMenu={contextData.handleContextMenu}
                     handleToggleSelect={handleToggleSelect ?? noop}
                     hideUpdateButton={hideUpdateButton}
                     isMobile={isMobile}
@@ -152,7 +141,7 @@ export const ObjectList = <T extends OrArray<ListObject>>({
                 />
             );
         });
-    }, [stableItems, keyPrefix, canNavigate, handleContextMenu, handleToggleSelect, hideUpdateButton, isMobile, isSelecting, selectedItems, stableOnAction, stableOnClick]);
+    }, [stableItems, keyPrefix, canNavigate, contextData.handleContextMenu, handleToggleSelect, hideUpdateButton, isMobile, isSelecting, selectedItems, stableOnAction, stableOnClick]);
 
     // Generate dummy items
     const dummyListItems = useMemo(() => {
@@ -181,10 +170,10 @@ export const ObjectList = <T extends OrArray<ListObject>>({
             {/* Context menus */}
             <ObjectActionMenu
                 actionData={actionData}
-                anchorEl={anchorEl}
+                anchorEl={contextData.anchorEl}
                 exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
-                object={object}
-                onClose={closeContextMenu}
+                object={contextData.object}
+                onClose={contextData.closeContextMenu}
             />
             {/* Actual results */}
             {realItems}

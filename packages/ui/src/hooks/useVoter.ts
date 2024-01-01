@@ -7,7 +7,7 @@ import { useLazyFetch } from "./useLazyFetch";
 
 type UseVoterProps = {
     objectId: string | null | undefined;
-    objectType: `${GqlModelType}`
+    objectType: `${GqlModelType}` | undefined;
     onActionComplete: (action: ObjectActionComplete.VoteDown | ObjectActionComplete.VoteUp, data: Success) => unknown;
 }
 
@@ -21,11 +21,11 @@ export const useVoter = ({
 }: UseVoterProps) => {
     const [fetch] = useLazyFetch<ReactInput, Success>(endpointPostReact);
 
-    const hasVotingSupport = objectType in ReactionFor;
+    const hasVotingSupport = objectType && objectType in ReactionFor;
 
     const handleVote = useCallback((emoji: string | null) => {
         // Validate objectId and objectType
-        if (!objectId) {
+        if (!objectType || !objectId) {
             PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }

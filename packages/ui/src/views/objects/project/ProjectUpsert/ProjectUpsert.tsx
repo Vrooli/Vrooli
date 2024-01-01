@@ -6,7 +6,7 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
-import { DirectoryListHorizontal } from "components/lists/directory";
+import { DirectoryList } from "components/lists/directory";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
@@ -77,17 +77,6 @@ type ViewMode = "card" | "list";
 
 const transformProjectVersionValues = (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) =>
     isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
-
-const DirectoryViewModeToggle = ({ onViewModeChange }) => (
-    <Box sx={{ marginBottom: "10px", display: "flex", gap: 2 }}>
-        <Button variant="contained" color="primary" onClick={() => onViewModeChange("card")}>
-            Card View
-        </Button>
-        <Button variant="outlined" color="primary" onClick={() => onViewModeChange("list")}>
-            List View
-        </Button>
-    </Box>
-);
 
 const ProjectForm = ({
     disabled,
@@ -210,15 +199,14 @@ const ProjectForm = ({
                             languages={languages}
                         />
                     </FormSection>
-                    <DirectoryViewModeToggle onViewModeChange={handleViewModeChange} />
-                    {viewMode === "card" ? <DirectoryListHorizontal
+                    <DirectoryList
                         canUpdate={true}
                         directory={directoryField.value}
                         handleUpdate={directoryHelpers.setValue}
                         loading={isLoading}
                         mutate={false}
                         sortBy={"NameDesc"}
-                    /> : <>TODO</>}
+                    />
                     <VersionInput
                         fullWidth
                         versions={versions}

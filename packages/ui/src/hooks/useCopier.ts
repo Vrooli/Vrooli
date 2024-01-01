@@ -8,7 +8,7 @@ import { useLazyFetch } from "./useLazyFetch";
 type UseCopierProps = {
     objectId: string | null | undefined;
     objectName: string | null | undefined;
-    objectType: `${GqlModelType}`
+    objectType: `${GqlModelType}` | undefined;
     onActionComplete: (action: ObjectActionComplete.Fork, data: CopyResult) => unknown;
 }
 
@@ -23,11 +23,11 @@ export const useCopier = ({
 }: UseCopierProps) => {
     const [copy] = useLazyFetch<CopyInput, CopyResult>(endpointPostCopy);
 
-    const hasCopyingSupport = objectType in CopyType;
+    const hasCopyingSupport = objectType && objectType in CopyType;
 
     const handleCopy = useCallback(() => {
         // Validate objectId and objectType
-        if (!objectId) {
+        if (!objectType || !objectId) {
             PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
