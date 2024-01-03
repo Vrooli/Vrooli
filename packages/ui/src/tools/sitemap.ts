@@ -66,7 +66,7 @@ const main = async () => {
     const componentName = "NavRoute"; // Name can change if using a wrapper component. This is typically "Route"
     console.info(`Checking for ${componentName} in ${routesLocation}...`);
     try {
-        // Read Routes.tsx as a string, since loading it as a module from ts-node 
+        // Read Routes.tsx as a string, since loading it as a module from ts-node or tsx
         // is a massive pain
         const data = await fs.promises.readFile(routesLocation, "utf8");
         // Find every route component opening tag which may span multiple lines

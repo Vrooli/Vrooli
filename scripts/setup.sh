@@ -313,7 +313,7 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
     }
     toInstall=""
     check_and_add_to_install_list "typescript" ""
-    check_and_add_to_install_list "ts-node" ""
+    # check_and_add_to_install_list "ts-node" "4.7.0"
     check_and_add_to_install_list "nodemon" ""
     check_and_add_to_install_list "prisma" "4.14.0"
     check_and_add_to_install_list "vite" "4.4.4"

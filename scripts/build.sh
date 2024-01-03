@@ -180,7 +180,7 @@ trap "rm ${HERE}/../packages/ui/.env" EXIT
 # Generate query/mutation selectors
 if [[ "$API_GENERATE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
-    NODE_OPTIONS="--max-old-space-size=4096" && ts-node --esm --experimental-specifier-resolution node ./src/tools/api/gqlSelects.ts
+    NODE_OPTIONS="--max-old-space-size=4096" npx tsx ./src/tools/api/gqlSelects.ts
     if [ $? -ne 0 ]; then
         error "Failed to generate query/mutation selectors"
         echo "${HERE}/../packages/ui/src/tools/api/gqlSelects.ts"
@@ -189,7 +189,7 @@ if [[ "$API_GENERATE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     fi
     info "Generating OpenAPI schema..."
     cd ${HERE}/../packages/shared
-    NODE_OPTIONS="--max-old-space-size=4096" && ts-node --esm --experimental-specifier-resolution node ./src/tools/gqlToJson.ts
+    NODE_OPTIONS="--max-old-space-size=4096" && npx tsx ./src/tools/gqlToJson.ts
     if [ $? -ne 0 ]; then
         error "Failed to generate OpenAPI schema"
         echo "${HERE}/../packages/shared/src/tools/gqlToJson.ts"
@@ -212,7 +212,7 @@ DOMAIN=$(echo "${UI_URL%/}" | sed -E 's|https?://([^/]+)|\1|')
 echo "Got domain ${DOMAIN} from UI_URL ${UI_URL}"
 
 # Generate sitemap.xml
-ts-node --esm --experimental-specifier-resolution node ./src/tools/sitemap.ts
+npx tsx node ./src/tools/sitemap.ts
 if [ $? -ne 0 ]; then
     error "Failed to generate sitemap.xml using ${HERE}/../packages/ui/src/tools/sitemap.ts"
     # This is not a critical error, so we won't exit

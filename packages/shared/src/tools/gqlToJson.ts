@@ -9,7 +9,7 @@
  * - The auto-generated GraphQL types
  * - Our generated endpoint pairs, used by the UI to make requests to the REST API
  * 
- * To run this script, run `ts-node --esm --experimental-specifier-resolution node ./src/tools/gqlToJson.ts` from the `packages/shared` directory.
+ * To run this script, run `npx tsx ./src/tools/gqlToJson.ts` from the `packages/shared` directory.
  */
 import * as fs from "fs";
 import * as path from "path";
