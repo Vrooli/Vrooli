@@ -31,11 +31,13 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     // Handle base case}
     const type = partial.__typename;
     const format = ModelMap.get(type, false)?.format;
-    if (type && format) {
+    if (type) {
         result = removeSupplementalFields(type, result);
-        result = deconstructUnions(result, format.gqlRelMap);
-        result = addJoinTables(result, format.joinMap as any);
-        result = addCountFields(result, format.countFields);
+        if (format) {
+            result = deconstructUnions(result, format.gqlRelMap);
+            result = addJoinTables(result, format.joinMap as any);
+            result = addCountFields(result, format.countFields);
+        }
     }
     return result;
 };
