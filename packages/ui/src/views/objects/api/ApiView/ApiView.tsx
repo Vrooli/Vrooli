@@ -1,11 +1,11 @@
-import { ApiVersion, BookmarkFor, endpointGetApiVersion, ResourceList } from "@local/shared";
+import { ApiVersion, BookmarkFor, endpointGetApiVersion, ResourceList as ResourceListType } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { ResourceListVertical } from "components/lists/resource";
+import { ResourceList } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
@@ -46,7 +46,7 @@ export const ApiView = ({
 
     const { canBookmark, details, name, resourceList, summary } = useMemo(() => {
         const { canBookmark } = apiVersion?.root?.you ?? {};
-        const resourceList: ResourceList | null | undefined = apiVersion?.resourceList;
+        const resourceList: ResourceListType | null | undefined = apiVersion?.resourceList;
         const { details, name, summary } = getTranslation(apiVersion, [language]);
         return {
             details,
@@ -58,7 +58,8 @@ export const ApiView = ({
     }, [language, apiVersion]);
 
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
-        <ResourceListVertical
+        <ResourceList
+            horizontal={false}
             list={resourceList as any}
             canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {

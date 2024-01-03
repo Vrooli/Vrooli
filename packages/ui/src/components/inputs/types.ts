@@ -250,8 +250,9 @@ export interface IntegerInputProps extends BoxProps {
     tooltip?: string;
 }
 
-export interface ResourceListHorizontalInputProps {
+export interface ResourceListInputProps {
     disabled?: boolean;
+    horizontal: boolean;
     isCreate: boolean;
     isLoading?: boolean;
     parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };

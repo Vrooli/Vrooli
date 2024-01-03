@@ -3,7 +3,7 @@ import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { ResourceListInput } from "components/inputs/ResourceListInput/ResourceListInput";
 import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
@@ -191,7 +191,8 @@ const StandardForm = ({
                         />
                     </FormSection>
                     <StandardInput fieldName="preview" />
-                    <ResourceListHorizontalInput
+                    <ResourceListInput
+                        horizontal
                         isCreate={true}
                         parent={{ __typename: "StandardVersion", id: values.id }}
                     />

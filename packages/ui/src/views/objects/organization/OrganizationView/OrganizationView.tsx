@@ -1,11 +1,11 @@
-import { BookmarkFor, endpointGetOrganization, LINKS, Organization, ResourceList, uuidValidate } from "@local/shared";
+import { BookmarkFor, endpointGetOrganization, LINKS, Organization, ResourceList as ResourceListType, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { ResourceListVertical } from "components/lists/resource";
+import { ResourceList } from "components/lists/resource";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -53,7 +53,7 @@ export const OrganizationView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { bannerImageUrl, bio, handle, name, resourceList } = useMemo(() => {
-        const resourceList: ResourceList | null | undefined = organization?.resourceList;
+        const resourceList: ResourceListType | null | undefined = organization?.resourceList;
         const { bio, name } = getTranslation(organization, [language]);
         return {
             bannerImageUrl: extractImageUrl(organization?.bannerImage, organization?.updated_at, 1000),
@@ -65,7 +65,8 @@ export const OrganizationView = ({
     }, [language, organization]);
 
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
-        <ResourceListVertical
+        <ResourceList
+            horizontal={false}
             list={resourceList}
             canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {

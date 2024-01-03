@@ -1,4 +1,4 @@
-import { CommentFor, exists, noop, ResourceList, RoutineVersion, Tag } from "@local/shared";
+import { CommentFor, exists, noop, ResourceList as ResourceListType, RoutineVersion, Tag } from "@local/shared";
 import { Box, Button, LinearProgress, Palette, Stack, Typography, useTheme } from "@mui/material";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -7,7 +7,7 @@ import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/Select
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListHorizontal } from "components/lists/resource";
+import { ResourceList } from "components/lists/resource";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
@@ -251,9 +251,10 @@ export const SubroutineView = ({
                     />}
                 </Stack>
                 {/* Resources */}
-                {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceList
+                    horizontal
                     title={"Resources"}
-                    list={resourceList as unknown as ResourceList}
+                    list={resourceList as unknown as ResourceListType}
                     canUpdate={false}
                     handleUpdate={noop}
                     loading={loading}

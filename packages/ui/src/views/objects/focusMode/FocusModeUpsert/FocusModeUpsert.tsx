@@ -4,7 +4,7 @@ import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { ResourceListInput } from "components/inputs/ResourceListInput/ResourceListInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -240,7 +240,8 @@ const FocusModeForm = ({
                             </ListItem>
                         )}
                     </ListContainer>}
-                    <ResourceListHorizontalInput
+                    <ResourceListInput
+                        horizontal
                         isCreate={true}
                         parent={{ __typename: "FocusMode", id: values.id }}
                     />

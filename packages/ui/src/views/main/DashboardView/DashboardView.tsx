@@ -1,4 +1,4 @@
-import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode, socket } from "api";
 import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
@@ -6,7 +6,7 @@ import { ListTitleContainer } from "components/containers/ListTitleContainer/Lis
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ResourceListHorizontal } from "components/lists/resource";
+import { ResourceList } from "components/lists/resource";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -178,14 +178,14 @@ export const DashboardView = ({
     }, [activeFocusMode, refetch]);
 
     // Converts resources to a resource list
-    const [resourceList, setResourceList] = useState<ResourceList>({
+    const [resourceList, setResourceList] = useState<ResourceListType>({
         __typename: "ResourceList",
         created_at: 0,
         updated_at: 0,
         id: DUMMY_ID,
         resources: [],
         translations: [],
-    } as unknown as ResourceList);
+    } as unknown as ResourceListType);
     useEffect(() => {
         if (data?.resources) {
             setResourceList(r => ({ ...r, resources: data.resources }));
@@ -200,7 +200,7 @@ export const DashboardView = ({
                 listFor: {
                     __typename: "FocusMode",
                     id: activeFocusMode.mode.id,
-                } as ResourceList["listFor"],
+                } as ResourceListType["listFor"],
             });
         }
     }, [activeFocusMode]);
@@ -500,13 +500,13 @@ export const DashboardView = ({
             }}>
                 {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
                 {!showChat && <>
-                    {/* Resources */}
                     <Box p={1}>
-                        <ResourceListHorizontal
+                        <ResourceList
                             id="main-resource-list"
                             list={resourceList}
                             canUpdate={true}
                             handleUpdate={setResourceList}
+                            horizontal
                             loading={isFeedLoading}
                             mutate={true}
                             parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}

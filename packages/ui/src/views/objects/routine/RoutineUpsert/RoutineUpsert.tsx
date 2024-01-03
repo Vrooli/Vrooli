@@ -4,7 +4,7 @@ import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { ResourceListInput } from "components/inputs/ResourceListInput/ResourceListInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
@@ -236,7 +236,8 @@ const RoutineForm = ({
                         isEditing={true}
                         objectType={"Routine"}
                     />
-                    <ResourceListHorizontalInput
+                    <ResourceListInput
+                        horizontal
                         isCreate={true}
                         parent={{ __typename: "RoutineVersion", id: values.id }}
                     />

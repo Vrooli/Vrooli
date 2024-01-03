@@ -5,7 +5,7 @@ import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/Bo
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { ResourceListInput } from "components/inputs/ResourceListInput/ResourceListInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
@@ -262,7 +262,8 @@ const ApiForm = ({
                             )
                         }
                     </FormSection>
-                    <ResourceListHorizontalInput
+                    <ResourceListInput
+                        horizontal
                         isCreate={true}
                         parent={{ __typename: "ApiVersion", id: values.id }}
                     />

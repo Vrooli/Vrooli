@@ -1,10 +1,11 @@
-import { Count, DeleteManyInput, DeleteType, GqlModelType, ProjectVersionDirectory, endpointPostDeleteMany } from "@local/shared";
-import { Box, Button, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { ApiVersion, Count, DeleteManyInput, DeleteType, GqlModelType, NoteVersion, Organization, ProjectVersion, ProjectVersionDirectory, RoutineVersion, SmartContractVersion, StandardVersion, endpointPostDeleteMany, isOfType } from "@local/shared";
+import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectOrCreateObject } from "components/dialogs/types";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
+import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { ObjectListActions } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
@@ -34,7 +35,6 @@ import { DirectoryCardProps, DirectoryItem, DirectoryListHorizontalProps, Direct
 export const DirectoryCard = ({
     canUpdate,
     data,
-    index,
     onContextMenu,
     onDelete,
 }: DirectoryCardProps) => {
@@ -49,17 +49,17 @@ export const DirectoryCard = ({
 
     const Icon = useMemo(() => {
         if (!data || !data.__typename) return HelpIcon;
-        if (data.__typename === "ApiVersion") return ApiIcon;
-        if (data.__typename === "NoteVersion") return NoteIcon;
-        if (data.__typename === "Organization") return OrganizationIcon;
-        if (data.__typename === "ProjectVersion") return ProjectIcon;
-        if (data.__typename === "RoutineVersion") return RoutineIcon;
-        if (data.__typename === "SmartContractVersion") return SmartContractIcon;
-        if (data.__typename === "StandardVersion") return StandardIcon;
+        if (isOfType(data, "ApiVersion")) return ApiIcon;
+        if (isOfType(data, "NoteVersion")) return NoteIcon;
+        if (isOfType(data, "Organization")) return OrganizationIcon;
+        if (isOfType(data, "ProjectVersion")) return ProjectIcon;
+        if (isOfType(data, "RoutineVersion")) return RoutineIcon;
+        if (isOfType(data, "SmartContractVersion")) return SmartContractIcon;
+        if (isOfType(data, "StandardVersion")) return StandardIcon;
         return HelpIcon;
     }, [data]);
 
-    const href = useMemo(() => data ? getObjectUrl(data as any) : "#", [data]);
+    const href = useMemo(() => data ? getObjectUrl(data) : "#", [data]);
     const handleClick = useCallback((target: EventTarget) => {
         // Check if delete button was clicked
         const targetId: string | undefined = target.id;
@@ -73,7 +73,7 @@ export const DirectoryCard = ({
     }, [data, href, onDelete, setLocation]);
     const handleContextMenu = useCallback((target: EventTarget) => {
         onContextMenu(target, data);
-    }, [onContextMenu, index]);
+    }, [onContextMenu, data]);
 
     const handleHover = useCallback(() => {
         if (canUpdate) {
@@ -143,15 +143,30 @@ export const DirectoryCard = ({
     );
 };
 
+const LoadingCard = () => {
+    return (
+        <CardBox>
+            <Stack
+                direction="column"
+                justifyContent="center"
+                alignItems="center"
+                sx={{
+                    height: "100%",
+                    overflow: "hidden",
+                }}
+            >
+                <TextLoading size="subheader" lines={2} sx={{ width: "70%", opacity: "0.5" }} />
+            </Stack>
+        </CardBox>
+    );
+};
+
 export const DirectoryListHorizontal = ({
     canUpdate = true,
-    closeAddDialog,
-    isAddDialogOpen,
     isEditing,
     list,
     loading,
     onAction,
-    onAdd,
     onDelete,
     openAddDialog,
     title,
@@ -172,14 +187,6 @@ export const DirectoryListHorizontal = ({
 
     return (
         <>
-            {/* Add item dialog */}
-            <FindObjectDialog
-                find="List"
-                isOpen={isAddDialogOpen}
-                handleCancel={closeAddDialog}
-                handleComplete={onAdd as any}
-            />
-            {/* Context menus */}
             <ObjectActionMenu
                 actionData={actionData}
                 anchorEl={contextData.anchorEl}
@@ -198,30 +205,24 @@ export const DirectoryListHorizontal = ({
                 overflowX: "auto",
                 // ...sxs?.list,
             }}>
-                {/* Directory items */}
+                {/* Items */}
                 {list.map((c: DirectoryItem, index) => (
                     <DirectoryCard
                         canUpdate={canUpdate}
                         key={`directory-item-card-${index}`}
-                        index={index}
                         data={c}
                         onContextMenu={contextData.handleContextMenu}
                         onDelete={onDelete}
                         aria-owns={contextData.object?.id}
                     />
-                )) as any}
+                ))}
+                {/* Dummy cards when loading */}
                 {
-                    loading && (
-                        <CircularProgress sx={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                            color: palette.mode === "light" ? palette.secondary.light : "white",
-                        }} />
-                    )
+                    loading && !Array.isArray(list) && Array.from(Array(3).keys()).map((i) => (
+                        <LoadingCard key={`directory-item-card-${i}`} />
+                    ))
                 }
-                {/* Add item button */}
+                {/* Add button */}
                 {(canUpdate ? <Tooltip placement="top" title={t("AddItem")}>
                     <CardBox
                         onClick={openAddDialog}
@@ -234,7 +235,7 @@ export const DirectoryListHorizontal = ({
                     >
                         <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
                     </CardBox>
-                </Tooltip> : null) as any}
+                </Tooltip> : null)}
             </Box>
         </>
     );
@@ -242,15 +243,12 @@ export const DirectoryListHorizontal = ({
 
 export const DirectoryListVertical = ({
     canUpdate = true,
-    closeAddDialog,
     handleToggleSelect,
-    isAddDialogOpen,
     isEditing,
     isSelecting,
     list,
     loading,
     onAction,
-    onAdd,
     onClick,
     openAddDialog,
     selectedData,
@@ -259,15 +257,9 @@ export const DirectoryListVertical = ({
 
     return (
         <>
-            {/* Add item dialog */}
-            <FindObjectDialog
-                find="List"
-                isOpen={isAddDialogOpen}
-                handleCancel={closeAddDialog}
-                handleComplete={onAdd as (item: SelectOrCreateObject) => unknown}
-            />
             <ObjectList
                 canNavigate={() => !isEditing}
+                dummyItems={new Array(5).fill("Project")}
                 handleToggleSelect={handleToggleSelect as (item: ListObject) => unknown}
                 hideUpdateButton={isEditing}
                 isSelecting={isSelecting}
@@ -278,7 +270,7 @@ export const DirectoryListVertical = ({
                 onClick={onClick as (item: ListObject) => unknown}
                 selectedItems={selectedData}
             />
-            {/* Add item button */}
+            {/* Add button */}
             {canUpdate && <Box sx={{
                 maxWidth: "400px",
                 margin: "auto",
@@ -331,32 +323,29 @@ export const DirectoryList = (props: DirectoryListProps) => {
         setViewMode(mode);
     }, []);
 
-    // Add item dialog
+    // Add dialog
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const openAddDialog = useCallback(() => { setIsAddDialogOpen(true); }, []);
     const closeAddDialog = useCallback(() => { setIsAddDialogOpen(false); }, []);
 
     const onAdd = useCallback((item: DirectoryItem) => {
-        console.log("directoryyy onAdd", item);
+        closeAddDialog();
         if (!directory) return;
         // Dont add duplicates
         if (list.some(r => r.id === item.id)) {
             PubSub.get().publish("snack", { message: "Item already added", severity: "Warning" });
             return;
         }
-        if (handleUpdate) {
-            handleUpdate({
-                ...directory,
-                childApiVersions: item.__typename === "ApiVersion" ? [...directory.childApiVersions, item] : directory.childApiVersions as any[],
-                childNoteVersions: item.__typename === "NoteVersion" ? [...directory.childNoteVersions, item] : directory.childNoteVersions as any[],
-                childOrganizations: item.__typename === "Organization" ? [...directory.childOrganizations, item] : directory.childOrganizations as any[],
-                childProjectVersions: item.__typename === "ProjectVersion" ? [...directory.childProjectVersions, item] : directory.childProjectVersions as any[],
-                childRoutineVersions: item.__typename === "RoutineVersion" ? [...directory.childRoutineVersions, item] : directory.childRoutineVersions as any[],
-                childSmartContractVersions: item.__typename === "SmartContractVersion" ? [...directory.childSmartContractVersions, item] : directory.childSmartContractVersions as any[],
-                childStandardVersions: item.__typename === "StandardVersion" ? [...directory.childStandardVersions, item] : directory.childStandardVersions as any[],
-            });
-        }
-        closeAddDialog();
+        handleUpdate?.({
+            ...directory,
+            childApiVersions: (isOfType(item, "ApiVersion") ? [...directory.childApiVersions, item] : directory.childApiVersions) as ApiVersion[],
+            childNoteVersions: (isOfType(item, "NoteVersion") ? [...directory.childNoteVersions, item] : directory.childNoteVersions) as NoteVersion[],
+            childOrganizations: (isOfType(item, "Organization") ? [...directory.childOrganizations, item] : directory.childOrganizations) as Organization[],
+            childProjectVersions: (isOfType(item, "ProjectVersion") ? [...directory.childProjectVersions, item] : directory.childProjectVersions) as ProjectVersion[],
+            childRoutineVersions: (isOfType(item, "RoutineVersion") ? [...directory.childRoutineVersions, item] : directory.childRoutineVersions) as RoutineVersion[],
+            childSmartContractVersions: (isOfType(item, "SmartContractVersion") ? [...directory.childSmartContractVersions, item] : directory.childSmartContractVersions) as SmartContractVersion[],
+            childStandardVersions: (isOfType(item, "StandardVersion") ? [...directory.childStandardVersions, item] : directory.childStandardVersions) as StandardVersion[],
+        });
     }, [closeAddDialog, directory, handleUpdate, list]);
 
     const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
@@ -369,13 +358,13 @@ export const DirectoryList = (props: DirectoryListProps) => {
                 onSuccess: () => {
                     handleUpdate?.({
                         ...directory,
-                        childApiVersions: item.__typename === "ApiVersion" ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions,
-                        childNoteVersions: item.__typename === "NoteVersion" ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions,
-                        childOrganizations: item.__typename === "Organization" ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations,
-                        childProjectVersions: item.__typename === "ProjectVersion" ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions,
-                        childRoutineVersions: item.__typename === "RoutineVersion" ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions,
-                        childSmartContractVersions: item.__typename === "SmartContractVersion" ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions,
-                        childStandardVersions: item.__typename === "StandardVersion" ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions,
+                        childApiVersions: isOfType(item, "ApiVersion") ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions,
+                        childNoteVersions: isOfType(item, "NoteVersion") ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions,
+                        childOrganizations: isOfType(item, "Organization") ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations,
+                        childProjectVersions: isOfType(item, "ProjectVersion") ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions,
+                        childRoutineVersions: isOfType(item, "RoutineVersion") ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions,
+                        childSmartContractVersions: isOfType(item, "SmartContractVersion") ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions,
+                        childStandardVersions: isOfType(item, "StandardVersion") ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions,
                     });
                 },
             });
@@ -383,16 +372,16 @@ export const DirectoryList = (props: DirectoryListProps) => {
         else {
             handleUpdate?.({
                 ...directory,
-                childApiVersions: item.__typename === "ApiVersion" ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions,
-                childNoteVersions: item.__typename === "NoteVersion" ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions,
-                childOrganizations: item.__typename === "Organization" ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations,
-                childProjectVersions: item.__typename === "ProjectVersion" ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions,
-                childRoutineVersions: item.__typename === "RoutineVersion" ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions,
-                childSmartContractVersions: item.__typename === "SmartContractVersion" ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions,
-                childStandardVersions: item.__typename === "StandardVersion" ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions,
+                childApiVersions: isOfType(item, "ApiVersion") ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions,
+                childNoteVersions: isOfType(item, "NoteVersion") ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions,
+                childOrganizations: isOfType(item, "Organization") ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations,
+                childProjectVersions: isOfType(item, "ProjectVersion") ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions,
+                childRoutineVersions: isOfType(item, "RoutineVersion") ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions,
+                childSmartContractVersions: isOfType(item, "SmartContractVersion") ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions,
+                childStandardVersions: isOfType(item, "StandardVersion") ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions,
             });
         }
-    }, [deleteMutation, directory, handleUpdate, list, mutate]);
+    }, [deleteMutation, directory, handleUpdate, mutate]);
 
     const {
         isSelecting,
@@ -409,13 +398,13 @@ export const DirectoryList = (props: DirectoryListProps) => {
             if (!directory) return;
             handleUpdate?.({
                 ...directory,
-                childApiVersions: data.filter(i => i.__typename === "ApiVersion"),
-                childNoteVersions: data.filter(i => i.__typename === "NoteVersion"),
-                childOrganizations: data.filter(i => i.__typename === "Organization"),
-                childProjectVersions: data.filter(i => i.__typename === "ProjectVersion"),
-                childRoutineVersions: data.filter(i => i.__typename === "RoutineVersion"),
-                childSmartContractVersions: data.filter(i => i.__typename === "SmartContractVersion"),
-                childStandardVersions: data.filter(i => i.__typename === "StandardVersion"),
+                childApiVersions: data.filter(i => isOfType(i, "ApiVersion")),
+                childNoteVersions: data.filter(i => isOfType(i, "NoteVersion")),
+                childOrganizations: data.filter(i => isOfType(i, "Organization")),
+                childProjectVersions: data.filter(i => isOfType(i, "ProjectVersion")),
+                childRoutineVersions: data.filter(i => isOfType(i, "RoutineVersion")),
+                childSmartContractVersions: data.filter(i => isOfType(i, "SmartContractVersion")),
+                childStandardVersions: data.filter(i => isOfType(i, "StandardVersion")),
             } as ProjectVersionDirectory);
         },
         setSelectedData: (data) => {
@@ -427,13 +416,23 @@ export const DirectoryList = (props: DirectoryListProps) => {
     const onAction = useCallback((action: keyof ObjectListActions<DirectoryItem>, ...data: unknown[]) => {
         switch (action) {
             case "Deleted": {
+                if (!directory) return;
                 const [id] = data as ArgsType<ObjectListActions<DirectoryItem>["Deleted"]>;
                 const item = list.find(r => r.id === id);
                 if (!item) {
-                    PubSub.get().publish("snack", { message: "Item not found", severity: "Error" });
+                    PubSub.get().publish("snack", { message: "Item not found", severity: "Warning" });
                     return;
                 }
-                onDelete(item);
+                handleUpdate?.({
+                    ...directory,
+                    childApiVersions: isOfType(item, "ApiVersion") ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions,
+                    childNoteVersions: isOfType(item, "NoteVersion") ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions,
+                    childOrganizations: isOfType(item, "Organization") ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations,
+                    childProjectVersions: isOfType(item, "ProjectVersion") ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions,
+                    childRoutineVersions: isOfType(item, "RoutineVersion") ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions,
+                    childSmartContractVersions: isOfType(item, "SmartContractVersion") ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions,
+                    childStandardVersions: isOfType(item, "StandardVersion") ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions,
+                } as ProjectVersionDirectory);
                 break;
             }
             case "Updated": {
@@ -441,32 +440,29 @@ export const DirectoryList = (props: DirectoryListProps) => {
                 const [updatedItem] = data as ArgsType<ObjectListActions<DirectoryItem>["Updated"]>;
                 handleUpdate?.({
                     ...directory,
-                    childApiVersions: updatedItem.__typename === "ApiVersion" ? directory.childApiVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childApiVersions,
-                    childNoteVersions: updatedItem.__typename === "NoteVersion" ? directory.childNoteVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childNoteVersions,
-                    childOrganizations: updatedItem.__typename === "Organization" ? directory.childOrganizations.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childOrganizations,
-                    childProjectVersions: updatedItem.__typename === "ProjectVersion" ? directory.childProjectVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childProjectVersions,
-                    childRoutineVersions: updatedItem.__typename === "RoutineVersion" ? directory.childRoutineVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childRoutineVersions,
-                    childSmartContractVersions: updatedItem.__typename === "SmartContractVersion" ? directory.childSmartContractVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childSmartContractVersions,
-                    childStandardVersions: updatedItem.__typename === "StandardVersion" ? directory.childStandardVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childStandardVersions,
+                    childApiVersions: isOfType(updatedItem, "ApiVersion") ? directory.childApiVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childApiVersions,
+                    childNoteVersions: isOfType(updatedItem, "NoteVersion") ? directory.childNoteVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childNoteVersions,
+                    childOrganizations: isOfType(updatedItem, "Organization") ? directory.childOrganizations.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childOrganizations,
+                    childProjectVersions: isOfType(updatedItem, "ProjectVersion") ? directory.childProjectVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childProjectVersions,
+                    childRoutineVersions: isOfType(updatedItem, "RoutineVersion") ? directory.childRoutineVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childRoutineVersions,
+                    childSmartContractVersions: isOfType(updatedItem, "SmartContractVersion") ? directory.childSmartContractVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childSmartContractVersions,
+                    childStandardVersions: isOfType(updatedItem, "StandardVersion") ? directory.childStandardVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childStandardVersions,
                 } as ProjectVersionDirectory);
                 break;
             }
         }
-    }, [directory, handleUpdate, list, onDelete]);
+    }, [directory, handleUpdate, list]);
     const onClick = useCallback((data: ListObject) => {
         //TODO
     }, []);
 
     const childProps: DirectoryListHorizontalProps & DirectoryListVerticalProps = {
         ...props,
-        closeAddDialog,
         handleToggleSelect,
-        isAddDialogOpen,
         isEditing,
         isSelecting,
         list,
         onAction,
-        onAdd,
         onClick,
         onDelete,
         openAddDialog,
@@ -475,6 +471,13 @@ export const DirectoryList = (props: DirectoryListProps) => {
 
     return (
         <>
+            <FindObjectDialog
+                find="List"
+                isOpen={isAddDialogOpen}
+                handleCancel={closeAddDialog}
+                handleComplete={onAdd as (item: SelectOrCreateObject) => unknown}
+            />
+            {BulkDeleteDialogComponent}
             <DirectoryViewModeToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
             {title && <Box display="flex" flexDirection="row" alignItems="center">
                 <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>

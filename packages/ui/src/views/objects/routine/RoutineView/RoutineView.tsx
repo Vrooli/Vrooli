@@ -1,4 +1,4 @@
-import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
+import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, ResourceList as ResourceListType, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
 import { Box, Button, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { RunButton } from "components/buttons/RunButton/RunButton";
@@ -10,7 +10,7 @@ import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/Select
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListHorizontal } from "components/lists/resource";
+import { ResourceList } from "components/lists/resource";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
@@ -237,8 +237,9 @@ export const RoutineView = ({
                         objectType={"Routine"}
                     />
                     {/* Resources */}
-                    {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                        list={resourceList as unknown as ResourceList}
+                    {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceList
+                        horizontal
+                        list={resourceList as unknown as ResourceListType}
                         canUpdate={false}
                         // eslint-disable-next-line @typescript-eslint/no-empty-function
                         handleUpdate={() => { }}

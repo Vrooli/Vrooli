@@ -1,6 +1,7 @@
 import { Resource, ResourceList, ResourceListFor } from "@local/shared";
 import { DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps } from "react-beautiful-dnd";
 import { SxType } from "types";
+import { ObjectListActions } from "../types";
 
 export interface ResourceCardProps {
     data: Resource;
@@ -10,32 +11,23 @@ export interface ResourceCardProps {
      * Hides edit and delete icons when in edit mode, 
      * making only drag'n'drop and the context menu available.
      **/
-    index: number;
     isEditing: boolean;
-    onContextMenu: (target: EventTarget, index: number) => unknown;
-    onEdit: (index: number) => unknown;
-    onDelete: (index: number) => unknown;
+    onContextMenu: (target: EventTarget, data: Resource) => unknown;
+    onEdit: (data: Resource) => unknown;
+    onDelete: (data: Resource) => unknown;
 }
 
-export interface ResourceListHorizontalProps {
+export interface ResourceListProps {
     title?: string;
     canUpdate?: boolean;
     handleUpdate?: (updatedList: ResourceList) => unknown;
+    horizontal?: boolean;
     id?: string;
     list: ResourceList | null | undefined;
     loading?: boolean;
     mutate?: boolean;
     parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
     sxs?: { list?: SxType };
-}
-
-export interface ResourceListVerticalProps {
-    canUpdate?: boolean;
-    handleUpdate?: (updatedList: ResourceList) => unknown;
-    list: ResourceList | null | undefined;
-    loading: boolean;
-    mutate: boolean;
-    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
 }
 
 export interface ResourceListItemProps {
@@ -48,16 +40,16 @@ export interface ResourceListItemProps {
     loading: boolean;
 }
 
-export interface ResourceListItemContextMenuProps {
-    canUpdate: boolean;
-    id: string;
-    anchorEl: HTMLElement | null;
-    index: number | null;
-    onClose: () => unknown;
-    onAddBefore: (index: number) => unknown;
-    onAddAfter: (index: number) => unknown;
-    onEdit: (index: number) => unknown;
-    onDelete: (index: number) => unknown;
-    onMove: (index: number) => unknown;
-    resource: Resource | null;
+export type ResourceListHorizontalProps = ResourceListProps & {
+    handleToggleSelect: (data: Resource) => unknown;
+    isEditing: boolean;
+    isSelecting: boolean;
+    onAction: (action: keyof ObjectListActions<Resource>, ...data: unknown[]) => unknown;
+    onClick: (data: Resource) => unknown;
+    onDelete: (data: Resource) => unknown;
+    openAddDialog: () => unknown;
+    openUpdateDialog: (data: Resource) => unknown;
+    selectedData: Resource[];
 }
+
+export type ResourceListVerticalProps = ResourceListHorizontalProps

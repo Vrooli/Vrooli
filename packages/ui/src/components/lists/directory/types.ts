@@ -21,7 +21,6 @@ export type DirectoryItem = ApiVersionShape |
 export interface DirectoryCardProps {
     canUpdate: boolean;
     data: DirectoryItem;
-    index: number;
     onContextMenu: (target: EventTarget, data: DirectoryItem) => unknown;
     onDelete: (data: DirectoryItem) => unknown;
 }
@@ -37,14 +36,11 @@ export interface DirectoryListProps {
 }
 
 export type DirectoryListHorizontalProps = DirectoryListProps & {
-    closeAddDialog: () => unknown;
     handleToggleSelect: (data: DirectoryItem) => unknown;
-    isAddDialogOpen: boolean;
     isEditing: boolean;
     isSelecting: boolean;
     list: DirectoryItem[];
     onAction: (action: keyof ObjectListActions<DirectoryItem>, ...data: unknown[]) => unknown;
-    onAdd: (data: DirectoryItem) => unknown;
     onClick: (data: DirectoryItem) => unknown;
     onDelete: (data: DirectoryItem) => unknown;
     openAddDialog: () => unknown;

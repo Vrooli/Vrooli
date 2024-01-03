@@ -1,5 +1,3 @@
-export * from "./ResourceListHorizontal/ResourceListHorizontal";
+export * from "./ResourceList/ResourceList";
 export * from "./ResourceListItem/ResourceListItem";
-export * from "./ResourceListItemContextMenu/ResourceListItemContextMenu";
-export * from "./ResourceListVertical/ResourceListVertical";
 

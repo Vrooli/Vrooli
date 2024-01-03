@@ -1,23 +1,25 @@
-import { ResourceList } from "@local/shared";
-import { ResourceListHorizontal } from "components/lists/resource";
+import { ResourceList as ResourceListType } from "@local/shared";
+import { ResourceList } from "components/lists/resource";
 import { useField } from "formik";
 import { useCallback } from "react";
-import { ResourceListHorizontalInputProps } from "../types";
+import { ResourceListInputProps } from "../types";
 
-export const ResourceListHorizontalInput = ({
+export const ResourceListInput = ({
     disabled = false,
+    horizontal,
     isCreate,
     isLoading = false,
     parent,
-}: ResourceListHorizontalInputProps) => {
+}: ResourceListInputProps) => {
     const [field, , helpers] = useField("resourceList");
 
-    const handleUpdate = useCallback((newList: ResourceList) => {
+    const handleUpdate = useCallback((newList: ResourceListType) => {
         helpers.setValue(newList);
     }, [helpers]);
 
     return (
-        <ResourceListHorizontal
+        <ResourceList
+            horizontal={horizontal}
             list={field.value}
             canUpdate={!disabled}
             handleUpdate={handleUpdate}

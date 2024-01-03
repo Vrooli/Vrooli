@@ -5,7 +5,7 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { ResourceListInput } from "components/inputs/ResourceListInput/ResourceListInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
@@ -191,7 +191,8 @@ const SmartContractForm = ({
                         limitTo={[StandardLanguage.Solidity, StandardLanguage.Haskell]}
                         name="content"
                     />
-                    <ResourceListHorizontalInput
+                    <ResourceListInput
+                        horizontal
                         isCreate={true}
                         parent={{ __typename: "SmartContractVersion", id: values.id }}
                     />
