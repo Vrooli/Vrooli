@@ -165,6 +165,11 @@ export const schedule_create = {
         "id": true,
         "name": true,
         "description": true,
+        "you": {
+          "canDelete": true,
+          "canRead": true,
+          "canUpdate": true
+        },
         "__typename": "FocusMode"
       },
       "__typename": "FocusModeFilter"
@@ -228,6 +233,11 @@ export const schedule_create = {
     "id": true,
     "name": true,
     "description": true,
+    "you": {
+      "canDelete": true,
+      "canRead": true,
+      "canUpdate": true
+    },
     "__typename": "FocusMode"
   },
   "meetings": {

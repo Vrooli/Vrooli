@@ -60,6 +60,11 @@ export const reminderList_update = {
     "id": true,
     "name": true,
     "description": true,
+    "you": {
+      "canDelete": true,
+      "canRead": true,
+      "canUpdate": true
+    },
     "__typename": "FocusMode"
   },
   "reminders": {

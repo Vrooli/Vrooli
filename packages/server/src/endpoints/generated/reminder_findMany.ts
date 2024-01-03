@@ -77,7 +77,12 @@ export const reminder_findMany = {
           },
           "id": true,
           "name": true,
-          "description": true
+          "description": true,
+          "you": {
+            "canDelete": true,
+            "canRead": true,
+            "canUpdate": true
+          }
         }
       }
     }

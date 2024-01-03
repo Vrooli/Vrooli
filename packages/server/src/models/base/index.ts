@@ -54,6 +54,8 @@ export class ModelMap {
             try {
                 this.map[modelName] = (await import(`./${lowercaseFirstLetter(modelName)}`))[`${modelName}Model`];
             } catch (error) {
+                // NOTE: If you can't figure out why a module isn't found, it's likely a secret circular dependency. 
+                // Try chaning all imports to be relative.
                 logger.warning(`Failed to load model ${modelName}Model at ${modelPath}`, { trace: "0202", error });
                 this.map[modelName] = {};
             }

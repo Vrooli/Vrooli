@@ -525,6 +525,11 @@ export const notificationSubscription_create = {
           "id": true,
           "name": true,
           "description": true,
+          "you": {
+            "canDelete": true,
+            "canRead": true,
+            "canUpdate": true
+          },
           "__typename": "FocusMode"
         },
         "runProjects": {

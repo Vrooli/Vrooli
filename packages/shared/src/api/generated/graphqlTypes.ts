@@ -1225,6 +1225,7 @@ export type FocusMode = {
   resourceList?: Maybe<ResourceList>;
   schedule?: Maybe<Schedule>;
   updated_at: Scalars['Date'];
+  you: FocusModeYou;
 };
 
 export type FocusModeCreateInput = {
@@ -1317,6 +1318,13 @@ export type FocusModeUpdateInput = {
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
+};
+
+export type FocusModeYou = {
+  __typename: 'FocusModeYou';
+  canDelete: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export enum GqlModelType {
@@ -10038,6 +10046,7 @@ export type ResolversTypes = {
   FocusModeSortBy: FocusModeSortBy;
   FocusModeStopCondition: FocusModeStopCondition;
   FocusModeUpdateInput: FocusModeUpdateInput;
+  FocusModeYou: ResolverTypeWrapper<FocusModeYou>;
   GqlModelType: GqlModelType;
   HomeInput: HomeInput;
   HomeResult: ResolverTypeWrapper<HomeResult>;
@@ -10791,6 +10800,7 @@ export type ResolversParentTypes = {
   FocusModeSearchInput: FocusModeSearchInput;
   FocusModeSearchResult: FocusModeSearchResult;
   FocusModeUpdateInput: FocusModeUpdateInput;
+  FocusModeYou: FocusModeYou;
   HomeInput: HomeInput;
   HomeResult: HomeResult;
   ID: Scalars['ID'];
@@ -11791,6 +11801,7 @@ export type FocusModeResolvers<ContextType = any, ParentType extends ResolversPa
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   schedule?: Resolver<Maybe<ResolversTypes['Schedule']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['FocusModeYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11811,6 +11822,13 @@ export type FocusModeFilterResolvers<ContextType = any, ParentType extends Resol
 export type FocusModeSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['FocusModeSearchResult'] = ResolversParentTypes['FocusModeSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['FocusModeEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type FocusModeYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['FocusModeYou'] = ResolversParentTypes['FocusModeYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14986,6 +15004,7 @@ export type Resolvers<ContextType = any> = {
   FocusModeEdge?: FocusModeEdgeResolvers<ContextType>;
   FocusModeFilter?: FocusModeFilterResolvers<ContextType>;
   FocusModeSearchResult?: FocusModeSearchResultResolvers<ContextType>;
+  FocusModeYou?: FocusModeYouResolvers<ContextType>;
   HomeResult?: HomeResultResolvers<ContextType>;
   Issue?: IssueResolvers<ContextType>;
   IssueEdge?: IssueEdgeResolvers<ContextType>;

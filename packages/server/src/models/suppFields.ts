@@ -11,7 +11,7 @@ export const SuppFields = {
     ChatParticipant: [],
     Comment: ["you"],
     Email: [],
-    FocusMode: [],
+    FocusMode: ["you"],
     FocusModeFilter: [],
     Issue: ["you"],
     Label: ["you"],

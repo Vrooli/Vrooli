@@ -1,6 +1,15 @@
-import { FocusMode } from "@local/shared";
+import { FocusMode, FocusModeYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
+
+export const focusModeYou: GqlPartial<FocusModeYou> = {
+    __typename: "FocusModeYou",
+    full: {
+        canDelete: true,
+        canRead: true,
+        canUpdate: true,
+    },
+};
 
 export const focusMode: GqlPartial<FocusMode> = {
     __typename: "FocusMode",
@@ -8,6 +17,7 @@ export const focusMode: GqlPartial<FocusMode> = {
         id: true,
         name: true,
         description: true,
+        you: () => rel(focusModeYou, "full"),
     },
     full: {
         __define: {

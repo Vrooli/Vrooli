@@ -6542,6 +6542,25 @@
             "title": "BookmarkSearchInput.userId",
             "nullable": true,
             "type": "string"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "enum": [
+                  "All",
+                  "Own",
+                  "Private",
+                  "Public"
+                ],
+                "title": "BookmarkSearchInput.visibility",
+                "type": "string"
+              },
+              {
+                "title": "BookmarkSearchInput.visibility",
+                "nullable": true
+              }
+            ],
+            "title": "BookmarkSearchInput.visibility"
           }
         },
         "additionalProperties": false,
@@ -7306,6 +7325,28 @@
               }
             ],
             "title": "ChatInviteSearchInput.status"
+          },
+          "statuses": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "Accepted",
+                    "Declined",
+                    "Pending"
+                  ],
+                  "title": "ChatInviteSearchInput.statuses",
+                  "type": "string"
+                },
+                "title": "ChatInviteSearchInput.statuses",
+                "type": "array"
+              },
+              {
+                "title": "ChatInviteSearchInput.statuses",
+                "nullable": true
+              }
+            ],
+            "title": "ChatInviteSearchInput.statuses"
           },
           "take": {
             "title": "ChatInviteSearchInput.take",
@@ -8336,6 +8377,11 @@
               }
             ],
             "title": "ChatSearchInput.createdTimeFrame"
+          },
+          "creatorId": {
+            "title": "ChatSearchInput.creatorId",
+            "nullable": true,
+            "type": "string"
           },
           "ids": {
             "anyOf": [
@@ -9711,68 +9757,16 @@
       },
       "DeleteManyInput": {
         "properties": {
-          "ids": {
+          "objects": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/DeleteOneInput"
             },
-            "title": "DeleteManyInput.ids",
+            "title": "DeleteManyInput.objects",
             "type": "array"
-          },
-          "objectType": {
-            "enum": [
-              "Api",
-              "ApiVersion",
-              "Bookmark",
-              "BookmarkList",
-              "Chat",
-              "ChatInvite",
-              "ChatMessage",
-              "ChatParticipant",
-              "Comment",
-              "Email",
-              "FocusMode",
-              "Issue",
-              "Meeting",
-              "MeetingInvite",
-              "Member",
-              "MemberInvite",
-              "Node",
-              "Note",
-              "NoteVersion",
-              "Notification",
-              "Organization",
-              "Post",
-              "Project",
-              "ProjectVersion",
-              "PullRequest",
-              "PushDevice",
-              "Question",
-              "QuestionAnswer",
-              "Quiz",
-              "Reminder",
-              "ReminderList",
-              "Report",
-              "Resource",
-              "Routine",
-              "RoutineVersion",
-              "RunProject",
-              "RunRoutine",
-              "Schedule",
-              "SmartContract",
-              "SmartContractVersion",
-              "Standard",
-              "StandardVersion",
-              "Transfer",
-              "User",
-              "Wallet"
-            ],
-            "title": "DeleteManyInput.objectType",
-            "type": "string"
           }
         },
         "required": [
-          "ids",
-          "objectType"
+          "objects"
         ],
         "additionalProperties": false,
         "title": "DeleteManyInput",
@@ -9787,6 +9781,7 @@
           "objectType": {
             "enum": [
               "Api",
+              "ApiKey",
               "ApiVersion",
               "Bookmark",
               "BookmarkList",
@@ -10124,6 +10119,10 @@
           "updated_at": {
             "title": "FocusMode.updated_at",
             "type": "string"
+          },
+          "you": {
+            "$ref": "#/components/schemas/FocusModeYou",
+            "title": "FocusMode.you"
           }
         },
         "required": [
@@ -10133,7 +10132,8 @@
           "id",
           "labels",
           "name",
-          "updated_at"
+          "updated_at",
+          "you"
         ],
         "additionalProperties": false,
         "title": "FocusMode",
@@ -10719,6 +10719,38 @@
         ],
         "additionalProperties": false,
         "title": "FocusModeUpdateInput",
+        "type": "object"
+      },
+      "FocusModeYou": {
+        "properties": {
+          "__typename": {
+            "title": "FocusModeYou.__typename",
+            "enum": [
+              "FocusModeYou"
+            ],
+            "type": "string"
+          },
+          "canDelete": {
+            "title": "FocusModeYou.canDelete",
+            "type": "boolean"
+          },
+          "canRead": {
+            "title": "FocusModeYou.canRead",
+            "type": "boolean"
+          },
+          "canUpdate": {
+            "title": "FocusModeYou.canUpdate",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "__typename",
+          "canDelete",
+          "canRead",
+          "canUpdate"
+        ],
+        "additionalProperties": false,
+        "title": "FocusModeYou",
         "type": "object"
       },
       "HomeInput": {
@@ -13148,6 +13180,28 @@
               }
             ],
             "title": "MeetingInviteSearchInput.status"
+          },
+          "statuses": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "Accepted",
+                    "Declined",
+                    "Pending"
+                  ],
+                  "title": "MeetingInviteSearchInput.statuses",
+                  "type": "string"
+                },
+                "title": "MeetingInviteSearchInput.statuses",
+                "type": "array"
+              },
+              {
+                "title": "MeetingInviteSearchInput.statuses",
+                "nullable": true
+              }
+            ],
+            "title": "MeetingInviteSearchInput.statuses"
           },
           "take": {
             "title": "MeetingInviteSearchInput.take",
@@ -18217,6 +18271,11 @@
             "nullable": true,
             "type": "number"
           },
+          "userId": {
+            "title": "NotificationSearchInput.userId",
+            "nullable": true,
+            "type": "string"
+          },
           "visibility": {
             "anyOf": [
               {
@@ -21481,6 +21540,10 @@
             ],
             "type": "string"
           },
+          "credits": {
+            "title": "Premium.credits",
+            "type": "number"
+          },
           "customPlan": {
             "title": "Premium.customPlan",
             "nullable": true,
@@ -21507,6 +21570,7 @@
         },
         "required": [
           "__typename",
+          "credits",
           "id",
           "isActive"
         ],
@@ -39428,6 +39492,10 @@
             "nullable": true,
             "type": "number"
           },
+          "duration": {
+            "title": "ScheduleRecurrence.duration",
+            "type": "number"
+          },
           "endDate": {
             "title": "ScheduleRecurrence.endDate",
             "nullable": true,
@@ -39463,6 +39531,7 @@
         },
         "required": [
           "__typename",
+          "duration",
           "id",
           "interval",
           "recurrenceType",
@@ -39482,6 +39551,10 @@
           "dayOfWeek": {
             "title": "ScheduleRecurrenceCreateInput.dayOfWeek",
             "nullable": true,
+            "type": "number"
+          },
+          "duration": {
+            "title": "ScheduleRecurrenceCreateInput.duration",
             "type": "number"
           },
           "endDate": {
@@ -39532,6 +39605,7 @@
           }
         },
         "required": [
+          "duration",
           "id",
           "interval",
           "recurrenceType"
@@ -39719,6 +39793,11 @@
           },
           "dayOfWeek": {
             "title": "ScheduleRecurrenceUpdateInput.dayOfWeek",
+            "nullable": true,
+            "type": "number"
+          },
+          "duration": {
+            "title": "ScheduleRecurrenceUpdateInput.duration",
             "nullable": true,
             "type": "number"
           },
@@ -40250,6 +40329,10 @@
             "title": "SessionUser.bookmarkLists",
             "type": "array"
           },
+          "credits": {
+            "title": "SessionUser.credits",
+            "type": "number"
+          },
           "focusModes": {
             "items": {
               "$ref": "#/components/schemas/FocusMode"
@@ -40329,6 +40412,7 @@
           "__typename",
           "apisCount",
           "bookmarkLists",
+          "credits",
           "focusModes",
           "hasPremium",
           "id",

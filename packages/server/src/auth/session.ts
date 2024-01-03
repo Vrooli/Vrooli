@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FocusMode, getActiveFocusMode, Session, SessionUser } from "@local/shared";
+import { ActiveFocusMode, getActiveFocusMode, Session, SessionUser } from "@local/shared";
 import { Request } from "express";
 import { CustomError } from "../events/error";
 import { scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events/schedule";
@@ -186,14 +186,23 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     if (!userData)
         throw new CustomError("0510", "NotFound", req.session?.languages ?? ["en"]);
     // Find active focus mode
+    const focusModesWithSupp = (userData.focusModes as object[])?.map((fm: any) => ({
+        ...fm,
+        you: {
+            __typename: "FocusModeYou" as const,
+            canDelete: true,
+            canRead: true,
+            canUpdate: true,
+        },
+    })) as SessionUser["focusModes"];
     const currentActiveFocusMode = getUser(req.session as SessionData)?.activeFocusMode;
-    const currentModeData = (userData.focusModes as any).find((fm: any) => fm.id === currentActiveFocusMode?.mode?.id);
+    const currentModeData = focusModesWithSupp.find((fm) => fm.id === currentActiveFocusMode?.mode?.id);
     const activeFocusMode = getActiveFocusMode(
         currentModeData ? {
             ...currentActiveFocusMode,
             mode: currentModeData,
         } as ActiveFocusMode : undefined,
-        (userData.focusModes as unknown as FocusMode[]) ?? [],
+        focusModesWithSupp ?? [],
     );
     // Calculate langugages, by combining user's languages with languages 
     // in request. Make sure to remove duplicates
@@ -210,7 +219,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             bookmarksCount: _count?.bookmarks ?? 0,
         })) as SessionUser["bookmarkLists"],
         credits: userData.premium?.credits ?? 0,
-        focusModes: userData.focusModes as unknown as SessionUser["focusModes"],
+        focusModes: focusModesWithSupp,
         handle: userData.handle ?? undefined,
         hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
         id: user.id,
@@ -263,6 +272,12 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
             reminderList: undefined,
             resourceList: undefined,
             schedule: undefined,
+            you: {
+                __typename: "FocusModeYou" as const,
+                canDelete: true,
+                canRead: true,
+                canUpdate: true,
+            },
             ...user.activeFocusMode.mode,
         },
     } : undefined,

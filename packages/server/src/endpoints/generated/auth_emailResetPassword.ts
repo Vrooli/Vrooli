@@ -1333,27 +1333,104 @@ export const auth_emailResetPassword = {
                                             "start": 3241,
                                             "end": 3252
                                           }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "you",
+                                            "loc": {
+                                              "start": 3277,
+                                              "end": 3280
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canDelete",
+                                                  "loc": {
+                                                    "start": 3311,
+                                                    "end": 3320
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3311,
+                                                  "end": 3320
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canRead",
+                                                  "loc": {
+                                                    "start": 3349,
+                                                    "end": 3356
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3349,
+                                                  "end": 3356
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canUpdate",
+                                                  "loc": {
+                                                    "start": 3385,
+                                                    "end": 3394
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3385,
+                                                  "end": 3394
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 3281,
+                                              "end": 3420
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 3277,
+                                            "end": 3420
+                                          }
                                         }
                                       ],
                                       "loc": {
                                         "start": 1050,
-                                        "end": 3274
+                                        "end": 3442
                                       }
                                     },
                                     "loc": {
                                       "start": 1040,
-                                      "end": 3274
+                                      "end": 3442
                                     }
                                   }
                                 ],
                                 "loc": {
                                   "start": 488,
-                                  "end": 3292
+                                  "end": 3460
                                 }
                               },
                               "loc": {
                                 "start": 480,
-                                "end": 3292
+                                "end": 3460
                               }
                             },
                             {
@@ -1362,8 +1439,8 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "labels",
                                 "loc": {
-                                  "start": 3309,
-                                  "end": 3315
+                                  "start": 3477,
+                                  "end": 3483
                                 }
                               },
                               "arguments": [],
@@ -1377,15 +1454,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3338,
-                                        "end": 3340
+                                        "start": 3506,
+                                        "end": 3508
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3338,
-                                      "end": 3340
+                                      "start": 3506,
+                                      "end": 3508
                                     }
                                   },
                                   {
@@ -1394,15 +1471,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "color",
                                       "loc": {
-                                        "start": 3361,
-                                        "end": 3366
+                                        "start": 3529,
+                                        "end": 3534
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3361,
-                                      "end": 3366
+                                      "start": 3529,
+                                      "end": 3534
                                     }
                                   },
                                   {
@@ -1411,26 +1488,26 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "label",
                                       "loc": {
-                                        "start": 3387,
-                                        "end": 3392
+                                        "start": 3555,
+                                        "end": 3560
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3387,
-                                      "end": 3392
+                                      "start": 3555,
+                                      "end": 3560
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3316,
-                                  "end": 3410
+                                  "start": 3484,
+                                  "end": 3578
                                 }
                               },
                               "loc": {
-                                "start": 3309,
-                                "end": 3410
+                                "start": 3477,
+                                "end": 3578
                               }
                             },
                             {
@@ -1439,8 +1516,8 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "reminderList",
                                 "loc": {
-                                  "start": 3427,
-                                  "end": 3439
+                                  "start": 3595,
+                                  "end": 3607
                                 }
                               },
                               "arguments": [],
@@ -1454,15 +1531,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3462,
-                                        "end": 3464
+                                        "start": 3630,
+                                        "end": 3632
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3462,
-                                      "end": 3464
+                                      "start": 3630,
+                                      "end": 3632
                                     }
                                   },
                                   {
@@ -1471,15 +1548,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 3485,
-                                        "end": 3495
+                                        "start": 3653,
+                                        "end": 3663
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3485,
-                                      "end": 3495
+                                      "start": 3653,
+                                      "end": 3663
                                     }
                                   },
                                   {
@@ -1488,15 +1565,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 3516,
-                                        "end": 3526
+                                        "start": 3684,
+                                        "end": 3694
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3516,
-                                      "end": 3526
+                                      "start": 3684,
+                                      "end": 3694
                                     }
                                   },
                                   {
@@ -1505,8 +1582,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "reminders",
                                       "loc": {
-                                        "start": 3547,
-                                        "end": 3556
+                                        "start": 3715,
+                                        "end": 3724
                                       }
                                     },
                                     "arguments": [],
@@ -1520,15 +1597,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3583,
-                                              "end": 3585
+                                              "start": 3751,
+                                              "end": 3753
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3583,
-                                            "end": 3585
+                                            "start": 3751,
+                                            "end": 3753
                                           }
                                         },
                                         {
@@ -1537,15 +1614,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 3610,
-                                              "end": 3620
+                                              "start": 3778,
+                                              "end": 3788
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3610,
-                                            "end": 3620
+                                            "start": 3778,
+                                            "end": 3788
                                           }
                                         },
                                         {
@@ -1554,15 +1631,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 3645,
-                                              "end": 3655
+                                              "start": 3813,
+                                              "end": 3823
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3645,
-                                            "end": 3655
+                                            "start": 3813,
+                                            "end": 3823
                                           }
                                         },
                                         {
@@ -1571,15 +1648,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 3680,
-                                              "end": 3684
+                                              "start": 3848,
+                                              "end": 3852
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3680,
-                                            "end": 3684
+                                            "start": 3848,
+                                            "end": 3852
                                           }
                                         },
                                         {
@@ -1588,15 +1665,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 3709,
-                                              "end": 3720
+                                              "start": 3877,
+                                              "end": 3888
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3709,
-                                            "end": 3720
+                                            "start": 3877,
+                                            "end": 3888
                                           }
                                         },
                                         {
@@ -1605,15 +1682,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 3745,
-                                              "end": 3752
+                                              "start": 3913,
+                                              "end": 3920
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3745,
-                                            "end": 3752
+                                            "start": 3913,
+                                            "end": 3920
                                           }
                                         },
                                         {
@@ -1622,15 +1699,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 3777,
-                                              "end": 3782
+                                              "start": 3945,
+                                              "end": 3950
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3777,
-                                            "end": 3782
+                                            "start": 3945,
+                                            "end": 3950
                                           }
                                         },
                                         {
@@ -1639,15 +1716,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 3807,
-                                              "end": 3817
+                                              "start": 3975,
+                                              "end": 3985
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3807,
-                                            "end": 3817
+                                            "start": 3975,
+                                            "end": 3985
                                           }
                                         },
                                         {
@@ -1656,8 +1733,8 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "reminderItems",
                                             "loc": {
-                                              "start": 3842,
-                                              "end": 3855
+                                              "start": 4010,
+                                              "end": 4023
                                             }
                                           },
                                           "arguments": [],
@@ -1671,15 +1748,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 3886,
-                                                    "end": 3888
+                                                    "start": 4054,
+                                                    "end": 4056
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3886,
-                                                  "end": 3888
+                                                  "start": 4054,
+                                                  "end": 4056
                                                 }
                                               },
                                               {
@@ -1688,15 +1765,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 3917,
-                                                    "end": 3927
+                                                    "start": 4085,
+                                                    "end": 4095
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3917,
-                                                  "end": 3927
+                                                  "start": 4085,
+                                                  "end": 4095
                                                 }
                                               },
                                               {
@@ -1705,15 +1782,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 3956,
-                                                    "end": 3966
+                                                    "start": 4124,
+                                                    "end": 4134
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3956,
-                                                  "end": 3966
+                                                  "start": 4124,
+                                                  "end": 4134
                                                 }
                                               },
                                               {
@@ -1722,15 +1799,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 3995,
-                                                    "end": 3999
+                                                    "start": 4163,
+                                                    "end": 4167
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3995,
-                                                  "end": 3999
+                                                  "start": 4163,
+                                                  "end": 4167
                                                 }
                                               },
                                               {
@@ -1739,15 +1816,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 4028,
-                                                    "end": 4039
+                                                    "start": 4196,
+                                                    "end": 4207
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4028,
-                                                  "end": 4039
+                                                  "start": 4196,
+                                                  "end": 4207
                                                 }
                                               },
                                               {
@@ -1756,15 +1833,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 4068,
-                                                    "end": 4075
+                                                    "start": 4236,
+                                                    "end": 4243
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4068,
-                                                  "end": 4075
+                                                  "start": 4236,
+                                                  "end": 4243
                                                 }
                                               },
                                               {
@@ -1773,15 +1850,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 4104,
-                                                    "end": 4109
+                                                    "start": 4272,
+                                                    "end": 4277
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4104,
-                                                  "end": 4109
+                                                  "start": 4272,
+                                                  "end": 4277
                                                 }
                                               },
                                               {
@@ -1790,48 +1867,48 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 4138,
-                                                    "end": 4148
+                                                    "start": 4306,
+                                                    "end": 4316
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4138,
-                                                  "end": 4148
+                                                  "start": 4306,
+                                                  "end": 4316
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 3856,
-                                              "end": 4174
+                                              "start": 4024,
+                                              "end": 4342
                                             }
                                           },
                                           "loc": {
-                                            "start": 3842,
-                                            "end": 4174
+                                            "start": 4010,
+                                            "end": 4342
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3557,
-                                        "end": 4196
+                                        "start": 3725,
+                                        "end": 4364
                                       }
                                     },
                                     "loc": {
-                                      "start": 3547,
-                                      "end": 4196
+                                      "start": 3715,
+                                      "end": 4364
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3440,
-                                  "end": 4214
+                                  "start": 3608,
+                                  "end": 4382
                                 }
                               },
                               "loc": {
-                                "start": 3427,
-                                "end": 4214
+                                "start": 3595,
+                                "end": 4382
                               }
                             },
                             {
@@ -1840,8 +1917,8 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "resourceList",
                                 "loc": {
-                                  "start": 4231,
-                                  "end": 4243
+                                  "start": 4399,
+                                  "end": 4411
                                 }
                               },
                               "arguments": [],
@@ -1855,15 +1932,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 4266,
-                                        "end": 4268
+                                        "start": 4434,
+                                        "end": 4436
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4266,
-                                      "end": 4268
+                                      "start": 4434,
+                                      "end": 4436
                                     }
                                   },
                                   {
@@ -1872,15 +1949,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 4289,
-                                        "end": 4299
+                                        "start": 4457,
+                                        "end": 4467
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4289,
-                                      "end": 4299
+                                      "start": 4457,
+                                      "end": 4467
                                     }
                                   },
                                   {
@@ -1889,8 +1966,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 4320,
-                                        "end": 4332
+                                        "start": 4488,
+                                        "end": 4500
                                       }
                                     },
                                     "arguments": [],
@@ -1904,15 +1981,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4359,
-                                              "end": 4361
+                                              "start": 4527,
+                                              "end": 4529
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4359,
-                                            "end": 4361
+                                            "start": 4527,
+                                            "end": 4529
                                           }
                                         },
                                         {
@@ -1921,15 +1998,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 4386,
-                                              "end": 4394
+                                              "start": 4554,
+                                              "end": 4562
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4386,
-                                            "end": 4394
+                                            "start": 4554,
+                                            "end": 4562
                                           }
                                         },
                                         {
@@ -1938,15 +2015,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 4419,
-                                              "end": 4430
+                                              "start": 4587,
+                                              "end": 4598
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4419,
-                                            "end": 4430
+                                            "start": 4587,
+                                            "end": 4598
                                           }
                                         },
                                         {
@@ -1955,26 +2032,26 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 4455,
-                                              "end": 4459
+                                              "start": 4623,
+                                              "end": 4627
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4455,
-                                            "end": 4459
+                                            "start": 4623,
+                                            "end": 4627
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4333,
-                                        "end": 4481
+                                        "start": 4501,
+                                        "end": 4649
                                       }
                                     },
                                     "loc": {
-                                      "start": 4320,
-                                      "end": 4481
+                                      "start": 4488,
+                                      "end": 4649
                                     }
                                   },
                                   {
@@ -1983,8 +2060,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "resources",
                                       "loc": {
-                                        "start": 4502,
-                                        "end": 4511
+                                        "start": 4670,
+                                        "end": 4679
                                       }
                                     },
                                     "arguments": [],
@@ -1998,15 +2075,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4538,
-                                              "end": 4540
+                                              "start": 4706,
+                                              "end": 4708
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4538,
-                                            "end": 4540
+                                            "start": 4706,
+                                            "end": 4708
                                           }
                                         },
                                         {
@@ -2015,15 +2092,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 4565,
-                                              "end": 4570
+                                              "start": 4733,
+                                              "end": 4738
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4565,
-                                            "end": 4570
+                                            "start": 4733,
+                                            "end": 4738
                                           }
                                         },
                                         {
@@ -2032,15 +2109,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "link",
                                             "loc": {
-                                              "start": 4595,
-                                              "end": 4599
+                                              "start": 4763,
+                                              "end": 4767
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4595,
-                                            "end": 4599
+                                            "start": 4763,
+                                            "end": 4767
                                           }
                                         },
                                         {
@@ -2049,15 +2126,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "usedFor",
                                             "loc": {
-                                              "start": 4624,
-                                              "end": 4631
+                                              "start": 4792,
+                                              "end": 4799
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4624,
-                                            "end": 4631
+                                            "start": 4792,
+                                            "end": 4799
                                           }
                                         },
                                         {
@@ -2066,8 +2143,8 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 4656,
-                                              "end": 4668
+                                              "start": 4824,
+                                              "end": 4836
                                             }
                                           },
                                           "arguments": [],
@@ -2081,15 +2158,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 4699,
-                                                    "end": 4701
+                                                    "start": 4867,
+                                                    "end": 4869
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4699,
-                                                  "end": 4701
+                                                  "start": 4867,
+                                                  "end": 4869
                                                 }
                                               },
                                               {
@@ -2098,15 +2175,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 4730,
-                                                    "end": 4738
+                                                    "start": 4898,
+                                                    "end": 4906
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4730,
-                                                  "end": 4738
+                                                  "start": 4898,
+                                                  "end": 4906
                                                 }
                                               },
                                               {
@@ -2115,15 +2192,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 4767,
-                                                    "end": 4778
+                                                    "start": 4935,
+                                                    "end": 4946
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4767,
-                                                  "end": 4778
+                                                  "start": 4935,
+                                                  "end": 4946
                                                 }
                                               },
                                               {
@@ -2132,48 +2209,48 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 4807,
-                                                    "end": 4811
+                                                    "start": 4975,
+                                                    "end": 4979
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4807,
-                                                  "end": 4811
+                                                  "start": 4975,
+                                                  "end": 4979
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 4669,
-                                              "end": 4837
+                                              "start": 4837,
+                                              "end": 5005
                                             }
                                           },
                                           "loc": {
-                                            "start": 4656,
-                                            "end": 4837
+                                            "start": 4824,
+                                            "end": 5005
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4512,
-                                        "end": 4859
+                                        "start": 4680,
+                                        "end": 5027
                                       }
                                     },
                                     "loc": {
-                                      "start": 4502,
-                                      "end": 4859
+                                      "start": 4670,
+                                      "end": 5027
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4244,
-                                  "end": 4877
+                                  "start": 4412,
+                                  "end": 5045
                                 }
                               },
                               "loc": {
-                                "start": 4231,
-                                "end": 4877
+                                "start": 4399,
+                                "end": 5045
                               }
                             },
                             {
@@ -2182,8 +2259,8 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "schedule",
                                 "loc": {
-                                  "start": 4894,
-                                  "end": 4902
+                                  "start": 5062,
+                                  "end": 5070
                                 }
                               },
                               "arguments": [],
@@ -2197,25 +2274,25 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "Schedule_common",
                                       "loc": {
-                                        "start": 4928,
-                                        "end": 4943
+                                        "start": 5096,
+                                        "end": 5111
                                       }
                                     },
                                     "directives": [],
                                     "loc": {
-                                      "start": 4925,
-                                      "end": 4943
+                                      "start": 5093,
+                                      "end": 5111
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4903,
-                                  "end": 4961
+                                  "start": 5071,
+                                  "end": 5129
                                 }
                               },
                               "loc": {
-                                "start": 4894,
-                                "end": 4961
+                                "start": 5062,
+                                "end": 5129
                               }
                             },
                             {
@@ -2224,15 +2301,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 4978,
-                                  "end": 4980
+                                  "start": 5146,
+                                  "end": 5148
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4978,
-                                "end": 4980
+                                "start": 5146,
+                                "end": 5148
                               }
                             },
                             {
@@ -2241,15 +2318,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "name",
                                 "loc": {
-                                  "start": 4997,
-                                  "end": 5001
+                                  "start": 5165,
+                                  "end": 5169
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4997,
-                                "end": 5001
+                                "start": 5165,
+                                "end": 5169
                               }
                             },
                             {
@@ -2258,26 +2335,103 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "description",
                                 "loc": {
-                                  "start": 5018,
-                                  "end": 5029
+                                  "start": 5186,
+                                  "end": 5197
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5018,
-                                "end": 5029
+                                "start": 5186,
+                                "end": 5197
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "you",
+                                "loc": {
+                                  "start": 5214,
+                                  "end": 5217
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "selectionSet": {
+                                "kind": "SelectionSet",
+                                "selections": [
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canDelete",
+                                      "loc": {
+                                        "start": 5240,
+                                        "end": 5249
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5240,
+                                      "end": 5249
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canRead",
+                                      "loc": {
+                                        "start": 5270,
+                                        "end": 5277
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5270,
+                                      "end": 5277
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canUpdate",
+                                      "loc": {
+                                        "start": 5298,
+                                        "end": 5307
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5298,
+                                      "end": 5307
+                                    }
+                                  }
+                                ],
+                                "loc": {
+                                  "start": 5218,
+                                  "end": 5325
+                                }
+                              },
+                              "loc": {
+                                "start": 5214,
+                                "end": 5325
                               }
                             }
                           ],
                           "loc": {
                             "start": 462,
-                            "end": 5043
+                            "end": 5339
                           }
                         },
                         "loc": {
                           "start": 457,
-                          "end": 5043
+                          "end": 5339
                         }
                       },
                       {
@@ -2286,15 +2440,15 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "stopCondition",
                           "loc": {
-                            "start": 5056,
-                            "end": 5069
+                            "start": 5352,
+                            "end": 5365
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5056,
-                          "end": 5069
+                          "start": 5352,
+                          "end": 5365
                         }
                       },
                       {
@@ -2303,26 +2457,26 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "stopTime",
                           "loc": {
-                            "start": 5082,
-                            "end": 5090
+                            "start": 5378,
+                            "end": 5386
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5082,
-                          "end": 5090
+                          "start": 5378,
+                          "end": 5386
                         }
                       }
                     ],
                     "loc": {
                       "start": 443,
-                      "end": 5100
+                      "end": 5396
                     }
                   },
                   "loc": {
                     "start": 427,
-                    "end": 5100
+                    "end": 5396
                   }
                 },
                 {
@@ -2331,15 +2485,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "apisCount",
                     "loc": {
-                      "start": 5109,
-                      "end": 5118
+                      "start": 5405,
+                      "end": 5414
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5109,
-                    "end": 5118
+                    "start": 5405,
+                    "end": 5414
                   }
                 },
                 {
@@ -2348,8 +2502,8 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "bookmarkLists",
                     "loc": {
-                      "start": 5127,
-                      "end": 5140
+                      "start": 5423,
+                      "end": 5436
                     }
                   },
                   "arguments": [],
@@ -2363,15 +2517,15 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 5155,
-                            "end": 5157
+                            "start": 5451,
+                            "end": 5453
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5155,
-                          "end": 5157
+                          "start": 5451,
+                          "end": 5453
                         }
                       },
                       {
@@ -2380,15 +2534,15 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "created_at",
                           "loc": {
-                            "start": 5170,
-                            "end": 5180
+                            "start": 5466,
+                            "end": 5476
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5170,
-                          "end": 5180
+                          "start": 5466,
+                          "end": 5476
                         }
                       },
                       {
@@ -2397,15 +2551,15 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "updated_at",
                           "loc": {
-                            "start": 5193,
-                            "end": 5203
+                            "start": 5489,
+                            "end": 5499
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5193,
-                          "end": 5203
+                          "start": 5489,
+                          "end": 5499
                         }
                       },
                       {
@@ -2414,15 +2568,15 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "label",
                           "loc": {
-                            "start": 5216,
-                            "end": 5221
+                            "start": 5512,
+                            "end": 5517
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5216,
-                          "end": 5221
+                          "start": 5512,
+                          "end": 5517
                         }
                       },
                       {
@@ -2431,26 +2585,26 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "bookmarksCount",
                           "loc": {
-                            "start": 5234,
-                            "end": 5248
+                            "start": 5530,
+                            "end": 5544
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5234,
-                          "end": 5248
+                          "start": 5530,
+                          "end": 5544
                         }
                       }
                     ],
                     "loc": {
-                      "start": 5141,
-                      "end": 5258
+                      "start": 5437,
+                      "end": 5554
                     }
                   },
                   "loc": {
-                    "start": 5127,
-                    "end": 5258
+                    "start": 5423,
+                    "end": 5554
                   }
                 },
                 {
@@ -2459,8 +2613,8 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "focusModes",
                     "loc": {
-                      "start": 5267,
-                      "end": 5277
+                      "start": 5563,
+                      "end": 5573
                     }
                   },
                   "arguments": [],
@@ -2474,8 +2628,8 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "filters",
                           "loc": {
-                            "start": 5292,
-                            "end": 5299
+                            "start": 5588,
+                            "end": 5595
                           }
                         },
                         "arguments": [],
@@ -2489,15 +2643,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 5318,
-                                  "end": 5320
+                                  "start": 5614,
+                                  "end": 5616
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5318,
-                                "end": 5320
+                                "start": 5614,
+                                "end": 5616
                               }
                             },
                             {
@@ -2506,15 +2660,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "filterType",
                                 "loc": {
-                                  "start": 5337,
-                                  "end": 5347
+                                  "start": 5633,
+                                  "end": 5643
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5337,
-                                "end": 5347
+                                "start": 5633,
+                                "end": 5643
                               }
                             },
                             {
@@ -2523,8 +2677,8 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "tag",
                                 "loc": {
-                                  "start": 5364,
-                                  "end": 5367
+                                  "start": 5660,
+                                  "end": 5663
                                 }
                               },
                               "arguments": [],
@@ -2538,15 +2692,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 5390,
-                                        "end": 5392
+                                        "start": 5686,
+                                        "end": 5688
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5390,
-                                      "end": 5392
+                                      "start": 5686,
+                                      "end": 5688
                                     }
                                   },
                                   {
@@ -2555,15 +2709,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 5413,
-                                        "end": 5423
+                                        "start": 5709,
+                                        "end": 5719
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5413,
-                                      "end": 5423
+                                      "start": 5709,
+                                      "end": 5719
                                     }
                                   },
                                   {
@@ -2572,15 +2726,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "tag",
                                       "loc": {
-                                        "start": 5444,
-                                        "end": 5447
+                                        "start": 5740,
+                                        "end": 5743
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5444,
-                                      "end": 5447
+                                      "start": 5740,
+                                      "end": 5743
                                     }
                                   },
                                   {
@@ -2589,15 +2743,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "bookmarks",
                                       "loc": {
-                                        "start": 5468,
-                                        "end": 5477
+                                        "start": 5764,
+                                        "end": 5773
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5468,
-                                      "end": 5477
+                                      "start": 5764,
+                                      "end": 5773
                                     }
                                   },
                                   {
@@ -2606,8 +2760,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 5498,
-                                        "end": 5510
+                                        "start": 5794,
+                                        "end": 5806
                                       }
                                     },
                                     "arguments": [],
@@ -2621,15 +2775,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5537,
-                                              "end": 5539
+                                              "start": 5833,
+                                              "end": 5835
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5537,
-                                            "end": 5539
+                                            "start": 5833,
+                                            "end": 5835
                                           }
                                         },
                                         {
@@ -2638,15 +2792,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 5564,
-                                              "end": 5572
+                                              "start": 5860,
+                                              "end": 5868
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5564,
-                                            "end": 5572
+                                            "start": 5860,
+                                            "end": 5868
                                           }
                                         },
                                         {
@@ -2655,26 +2809,26 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 5597,
-                                              "end": 5608
+                                              "start": 5893,
+                                              "end": 5904
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5597,
-                                            "end": 5608
+                                            "start": 5893,
+                                            "end": 5904
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5511,
-                                        "end": 5630
+                                        "start": 5807,
+                                        "end": 5926
                                       }
                                     },
                                     "loc": {
-                                      "start": 5498,
-                                      "end": 5630
+                                      "start": 5794,
+                                      "end": 5926
                                     }
                                   },
                                   {
@@ -2683,8 +2837,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "you",
                                       "loc": {
-                                        "start": 5651,
-                                        "end": 5654
+                                        "start": 5947,
+                                        "end": 5950
                                       }
                                     },
                                     "arguments": [],
@@ -2698,15 +2852,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "isOwn",
                                             "loc": {
-                                              "start": 5681,
-                                              "end": 5686
+                                              "start": 5977,
+                                              "end": 5982
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5681,
-                                            "end": 5686
+                                            "start": 5977,
+                                            "end": 5982
                                           }
                                         },
                                         {
@@ -2715,37 +2869,37 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "isBookmarked",
                                             "loc": {
-                                              "start": 5711,
-                                              "end": 5723
+                                              "start": 6007,
+                                              "end": 6019
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5711,
-                                            "end": 5723
+                                            "start": 6007,
+                                            "end": 6019
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5655,
-                                        "end": 5745
+                                        "start": 5951,
+                                        "end": 6041
                                       }
                                     },
                                     "loc": {
-                                      "start": 5651,
-                                      "end": 5745
+                                      "start": 5947,
+                                      "end": 6041
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5368,
-                                  "end": 5763
+                                  "start": 5664,
+                                  "end": 6059
                                 }
                               },
                               "loc": {
-                                "start": 5364,
-                                "end": 5763
+                                "start": 5660,
+                                "end": 6059
                               }
                             },
                             {
@@ -2754,8 +2908,8 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "focusMode",
                                 "loc": {
-                                  "start": 5780,
-                                  "end": 5789
+                                  "start": 6076,
+                                  "end": 6085
                                 }
                               },
                               "arguments": [],
@@ -2769,8 +2923,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "labels",
                                       "loc": {
-                                        "start": 5812,
-                                        "end": 5818
+                                        "start": 6108,
+                                        "end": 6114
                                       }
                                     },
                                     "arguments": [],
@@ -2784,15 +2938,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5845,
-                                              "end": 5847
+                                              "start": 6141,
+                                              "end": 6143
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5845,
-                                            "end": 5847
+                                            "start": 6141,
+                                            "end": 6143
                                           }
                                         },
                                         {
@@ -2801,15 +2955,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "color",
                                             "loc": {
-                                              "start": 5872,
-                                              "end": 5877
+                                              "start": 6168,
+                                              "end": 6173
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5872,
-                                            "end": 5877
+                                            "start": 6168,
+                                            "end": 6173
                                           }
                                         },
                                         {
@@ -2818,26 +2972,26 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "label",
                                             "loc": {
-                                              "start": 5902,
-                                              "end": 5907
+                                              "start": 6198,
+                                              "end": 6203
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5902,
-                                            "end": 5907
+                                            "start": 6198,
+                                            "end": 6203
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5819,
-                                        "end": 5929
+                                        "start": 6115,
+                                        "end": 6225
                                       }
                                     },
                                     "loc": {
-                                      "start": 5812,
-                                      "end": 5929
+                                      "start": 6108,
+                                      "end": 6225
                                     }
                                   },
                                   {
@@ -2846,8 +3000,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "reminderList",
                                       "loc": {
-                                        "start": 5950,
-                                        "end": 5962
+                                        "start": 6246,
+                                        "end": 6258
                                       }
                                     },
                                     "arguments": [],
@@ -2861,15 +3015,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5989,
-                                              "end": 5991
+                                              "start": 6285,
+                                              "end": 6287
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5989,
-                                            "end": 5991
+                                            "start": 6285,
+                                            "end": 6287
                                           }
                                         },
                                         {
@@ -2878,15 +3032,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 6016,
-                                              "end": 6026
+                                              "start": 6312,
+                                              "end": 6322
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6016,
-                                            "end": 6026
+                                            "start": 6312,
+                                            "end": 6322
                                           }
                                         },
                                         {
@@ -2895,15 +3049,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 6051,
-                                              "end": 6061
+                                              "start": 6347,
+                                              "end": 6357
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6051,
-                                            "end": 6061
+                                            "start": 6347,
+                                            "end": 6357
                                           }
                                         },
                                         {
@@ -2912,8 +3066,8 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "reminders",
                                             "loc": {
-                                              "start": 6086,
-                                              "end": 6095
+                                              "start": 6382,
+                                              "end": 6391
                                             }
                                           },
                                           "arguments": [],
@@ -2927,15 +3081,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6126,
-                                                    "end": 6128
+                                                    "start": 6422,
+                                                    "end": 6424
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6126,
-                                                  "end": 6128
+                                                  "start": 6422,
+                                                  "end": 6424
                                                 }
                                               },
                                               {
@@ -2944,15 +3098,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 6157,
-                                                    "end": 6167
+                                                    "start": 6453,
+                                                    "end": 6463
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6157,
-                                                  "end": 6167
+                                                  "start": 6453,
+                                                  "end": 6463
                                                 }
                                               },
                                               {
@@ -2961,15 +3115,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 6196,
-                                                    "end": 6206
+                                                    "start": 6492,
+                                                    "end": 6502
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6196,
-                                                  "end": 6206
+                                                  "start": 6492,
+                                                  "end": 6502
                                                 }
                                               },
                                               {
@@ -2978,15 +3132,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 6235,
-                                                    "end": 6239
+                                                    "start": 6531,
+                                                    "end": 6535
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6235,
-                                                  "end": 6239
+                                                  "start": 6531,
+                                                  "end": 6535
                                                 }
                                               },
                                               {
@@ -2995,15 +3149,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 6268,
-                                                    "end": 6279
+                                                    "start": 6564,
+                                                    "end": 6575
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6268,
-                                                  "end": 6279
+                                                  "start": 6564,
+                                                  "end": 6575
                                                 }
                                               },
                                               {
@@ -3012,15 +3166,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 6308,
-                                                    "end": 6315
+                                                    "start": 6604,
+                                                    "end": 6611
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6308,
-                                                  "end": 6315
+                                                  "start": 6604,
+                                                  "end": 6611
                                                 }
                                               },
                                               {
@@ -3029,15 +3183,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 6344,
-                                                    "end": 6349
+                                                    "start": 6640,
+                                                    "end": 6645
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6344,
-                                                  "end": 6349
+                                                  "start": 6640,
+                                                  "end": 6645
                                                 }
                                               },
                                               {
@@ -3046,15 +3200,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 6378,
-                                                    "end": 6388
+                                                    "start": 6674,
+                                                    "end": 6684
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6378,
-                                                  "end": 6388
+                                                  "start": 6674,
+                                                  "end": 6684
                                                 }
                                               },
                                               {
@@ -3063,8 +3217,8 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "reminderItems",
                                                   "loc": {
-                                                    "start": 6417,
-                                                    "end": 6430
+                                                    "start": 6713,
+                                                    "end": 6726
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3078,15 +3232,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 6465,
-                                                          "end": 6467
+                                                          "start": 6761,
+                                                          "end": 6763
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6465,
-                                                        "end": 6467
+                                                        "start": 6761,
+                                                        "end": 6763
                                                       }
                                                     },
                                                     {
@@ -3095,15 +3249,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "created_at",
                                                         "loc": {
-                                                          "start": 6500,
-                                                          "end": 6510
+                                                          "start": 6796,
+                                                          "end": 6806
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6500,
-                                                        "end": 6510
+                                                        "start": 6796,
+                                                        "end": 6806
                                                       }
                                                     },
                                                     {
@@ -3112,15 +3266,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "updated_at",
                                                         "loc": {
-                                                          "start": 6543,
-                                                          "end": 6553
+                                                          "start": 6839,
+                                                          "end": 6849
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6543,
-                                                        "end": 6553
+                                                        "start": 6839,
+                                                        "end": 6849
                                                       }
                                                     },
                                                     {
@@ -3129,15 +3283,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 6586,
-                                                          "end": 6590
+                                                          "start": 6882,
+                                                          "end": 6886
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6586,
-                                                        "end": 6590
+                                                        "start": 6882,
+                                                        "end": 6886
                                                       }
                                                     },
                                                     {
@@ -3146,15 +3300,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 6623,
-                                                          "end": 6634
+                                                          "start": 6919,
+                                                          "end": 6930
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6623,
-                                                        "end": 6634
+                                                        "start": 6919,
+                                                        "end": 6930
                                                       }
                                                     },
                                                     {
@@ -3163,15 +3317,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "dueDate",
                                                         "loc": {
-                                                          "start": 6667,
-                                                          "end": 6674
+                                                          "start": 6963,
+                                                          "end": 6970
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6667,
-                                                        "end": 6674
+                                                        "start": 6963,
+                                                        "end": 6970
                                                       }
                                                     },
                                                     {
@@ -3180,15 +3334,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "index",
                                                         "loc": {
-                                                          "start": 6707,
-                                                          "end": 6712
+                                                          "start": 7003,
+                                                          "end": 7008
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6707,
-                                                        "end": 6712
+                                                        "start": 7003,
+                                                        "end": 7008
                                                       }
                                                     },
                                                     {
@@ -3197,48 +3351,48 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "isComplete",
                                                         "loc": {
-                                                          "start": 6745,
-                                                          "end": 6755
+                                                          "start": 7041,
+                                                          "end": 7051
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6745,
-                                                        "end": 6755
+                                                        "start": 7041,
+                                                        "end": 7051
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 6431,
-                                                    "end": 6785
+                                                    "start": 6727,
+                                                    "end": 7081
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 6417,
-                                                  "end": 6785
+                                                  "start": 6713,
+                                                  "end": 7081
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6096,
-                                              "end": 6811
+                                              "start": 6392,
+                                              "end": 7107
                                             }
                                           },
                                           "loc": {
-                                            "start": 6086,
-                                            "end": 6811
+                                            "start": 6382,
+                                            "end": 7107
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5963,
-                                        "end": 6833
+                                        "start": 6259,
+                                        "end": 7129
                                       }
                                     },
                                     "loc": {
-                                      "start": 5950,
-                                      "end": 6833
+                                      "start": 6246,
+                                      "end": 7129
                                     }
                                   },
                                   {
@@ -3247,8 +3401,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "resourceList",
                                       "loc": {
-                                        "start": 6854,
-                                        "end": 6866
+                                        "start": 7150,
+                                        "end": 7162
                                       }
                                     },
                                     "arguments": [],
@@ -3262,15 +3416,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 6893,
-                                              "end": 6895
+                                              "start": 7189,
+                                              "end": 7191
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6893,
-                                            "end": 6895
+                                            "start": 7189,
+                                            "end": 7191
                                           }
                                         },
                                         {
@@ -3279,15 +3433,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 6920,
-                                              "end": 6930
+                                              "start": 7216,
+                                              "end": 7226
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6920,
-                                            "end": 6930
+                                            "start": 7216,
+                                            "end": 7226
                                           }
                                         },
                                         {
@@ -3296,8 +3450,8 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 6955,
-                                              "end": 6967
+                                              "start": 7251,
+                                              "end": 7263
                                             }
                                           },
                                           "arguments": [],
@@ -3311,15 +3465,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6998,
-                                                    "end": 7000
+                                                    "start": 7294,
+                                                    "end": 7296
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6998,
-                                                  "end": 7000
+                                                  "start": 7294,
+                                                  "end": 7296
                                                 }
                                               },
                                               {
@@ -3328,15 +3482,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 7029,
-                                                    "end": 7037
+                                                    "start": 7325,
+                                                    "end": 7333
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7029,
-                                                  "end": 7037
+                                                  "start": 7325,
+                                                  "end": 7333
                                                 }
                                               },
                                               {
@@ -3345,15 +3499,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 7066,
-                                                    "end": 7077
+                                                    "start": 7362,
+                                                    "end": 7373
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7066,
-                                                  "end": 7077
+                                                  "start": 7362,
+                                                  "end": 7373
                                                 }
                                               },
                                               {
@@ -3362,26 +3516,26 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 7106,
-                                                    "end": 7110
+                                                    "start": 7402,
+                                                    "end": 7406
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7106,
-                                                  "end": 7110
+                                                  "start": 7402,
+                                                  "end": 7406
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6968,
-                                              "end": 7136
+                                              "start": 7264,
+                                              "end": 7432
                                             }
                                           },
                                           "loc": {
-                                            "start": 6955,
-                                            "end": 7136
+                                            "start": 7251,
+                                            "end": 7432
                                           }
                                         },
                                         {
@@ -3390,8 +3544,8 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "resources",
                                             "loc": {
-                                              "start": 7161,
-                                              "end": 7170
+                                              "start": 7457,
+                                              "end": 7466
                                             }
                                           },
                                           "arguments": [],
@@ -3405,15 +3559,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 7201,
-                                                    "end": 7203
+                                                    "start": 7497,
+                                                    "end": 7499
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7201,
-                                                  "end": 7203
+                                                  "start": 7497,
+                                                  "end": 7499
                                                 }
                                               },
                                               {
@@ -3422,15 +3576,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 7232,
-                                                    "end": 7237
+                                                    "start": 7528,
+                                                    "end": 7533
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7232,
-                                                  "end": 7237
+                                                  "start": 7528,
+                                                  "end": 7533
                                                 }
                                               },
                                               {
@@ -3439,15 +3593,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "link",
                                                   "loc": {
-                                                    "start": 7266,
-                                                    "end": 7270
+                                                    "start": 7562,
+                                                    "end": 7566
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7266,
-                                                  "end": 7270
+                                                  "start": 7562,
+                                                  "end": 7566
                                                 }
                                               },
                                               {
@@ -3456,15 +3610,15 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "usedFor",
                                                   "loc": {
-                                                    "start": 7299,
-                                                    "end": 7306
+                                                    "start": 7595,
+                                                    "end": 7602
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7299,
-                                                  "end": 7306
+                                                  "start": 7595,
+                                                  "end": 7602
                                                 }
                                               },
                                               {
@@ -3473,8 +3627,8 @@ export const auth_emailResetPassword = {
                                                   "kind": "Name",
                                                   "value": "translations",
                                                   "loc": {
-                                                    "start": 7335,
-                                                    "end": 7347
+                                                    "start": 7631,
+                                                    "end": 7643
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3488,15 +3642,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 7382,
-                                                          "end": 7384
+                                                          "start": 7678,
+                                                          "end": 7680
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7382,
-                                                        "end": 7384
+                                                        "start": 7678,
+                                                        "end": 7680
                                                       }
                                                     },
                                                     {
@@ -3505,15 +3659,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "language",
                                                         "loc": {
-                                                          "start": 7417,
-                                                          "end": 7425
+                                                          "start": 7713,
+                                                          "end": 7721
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7417,
-                                                        "end": 7425
+                                                        "start": 7713,
+                                                        "end": 7721
                                                       }
                                                     },
                                                     {
@@ -3522,15 +3676,15 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 7458,
-                                                          "end": 7469
+                                                          "start": 7754,
+                                                          "end": 7765
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7458,
-                                                        "end": 7469
+                                                        "start": 7754,
+                                                        "end": 7765
                                                       }
                                                     },
                                                     {
@@ -3539,48 +3693,48 @@ export const auth_emailResetPassword = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 7502,
-                                                          "end": 7506
+                                                          "start": 7798,
+                                                          "end": 7802
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7502,
-                                                        "end": 7506
+                                                        "start": 7798,
+                                                        "end": 7802
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 7348,
-                                                    "end": 7536
+                                                    "start": 7644,
+                                                    "end": 7832
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 7335,
-                                                  "end": 7536
+                                                  "start": 7631,
+                                                  "end": 7832
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 7171,
-                                              "end": 7562
+                                              "start": 7467,
+                                              "end": 7858
                                             }
                                           },
                                           "loc": {
-                                            "start": 7161,
-                                            "end": 7562
+                                            "start": 7457,
+                                            "end": 7858
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 6867,
-                                        "end": 7584
+                                        "start": 7163,
+                                        "end": 7880
                                       }
                                     },
                                     "loc": {
-                                      "start": 6854,
-                                      "end": 7584
+                                      "start": 7150,
+                                      "end": 7880
                                     }
                                   },
                                   {
@@ -3589,8 +3743,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "schedule",
                                       "loc": {
-                                        "start": 7605,
-                                        "end": 7613
+                                        "start": 7901,
+                                        "end": 7909
                                       }
                                     },
                                     "arguments": [],
@@ -3604,25 +3758,25 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "Schedule_common",
                                             "loc": {
-                                              "start": 7643,
-                                              "end": 7658
+                                              "start": 7939,
+                                              "end": 7954
                                             }
                                           },
                                           "directives": [],
                                           "loc": {
-                                            "start": 7640,
-                                            "end": 7658
+                                            "start": 7936,
+                                            "end": 7954
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 7614,
-                                        "end": 7680
+                                        "start": 7910,
+                                        "end": 7976
                                       }
                                     },
                                     "loc": {
-                                      "start": 7605,
-                                      "end": 7680
+                                      "start": 7901,
+                                      "end": 7976
                                     }
                                   },
                                   {
@@ -3631,15 +3785,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7701,
-                                        "end": 7703
+                                        "start": 7997,
+                                        "end": 7999
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7701,
-                                      "end": 7703
+                                      "start": 7997,
+                                      "end": 7999
                                     }
                                   },
                                   {
@@ -3648,15 +3802,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 7724,
-                                        "end": 7728
+                                        "start": 8020,
+                                        "end": 8024
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7724,
-                                      "end": 7728
+                                      "start": 8020,
+                                      "end": 8024
                                     }
                                   },
                                   {
@@ -3665,37 +3819,114 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 7749,
-                                        "end": 7760
+                                        "start": 8045,
+                                        "end": 8056
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7749,
-                                      "end": 7760
+                                      "start": 8045,
+                                      "end": 8056
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "you",
+                                      "loc": {
+                                        "start": 8077,
+                                        "end": 8080
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "selectionSet": {
+                                      "kind": "SelectionSet",
+                                      "selections": [
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canDelete",
+                                            "loc": {
+                                              "start": 8107,
+                                              "end": 8116
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8107,
+                                            "end": 8116
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canRead",
+                                            "loc": {
+                                              "start": 8141,
+                                              "end": 8148
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8141,
+                                            "end": 8148
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canUpdate",
+                                            "loc": {
+                                              "start": 8173,
+                                              "end": 8182
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8173,
+                                            "end": 8182
+                                          }
+                                        }
+                                      ],
+                                      "loc": {
+                                        "start": 8081,
+                                        "end": 8204
+                                      }
+                                    },
+                                    "loc": {
+                                      "start": 8077,
+                                      "end": 8204
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5790,
-                                  "end": 7778
+                                  "start": 6086,
+                                  "end": 8222
                                 }
                               },
                               "loc": {
-                                "start": 5780,
-                                "end": 7778
+                                "start": 6076,
+                                "end": 8222
                               }
                             }
                           ],
                           "loc": {
-                            "start": 5300,
-                            "end": 7792
+                            "start": 5596,
+                            "end": 8236
                           }
                         },
                         "loc": {
-                          "start": 5292,
-                          "end": 7792
+                          "start": 5588,
+                          "end": 8236
                         }
                       },
                       {
@@ -3704,8 +3935,8 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "labels",
                           "loc": {
-                            "start": 7805,
-                            "end": 7811
+                            "start": 8249,
+                            "end": 8255
                           }
                         },
                         "arguments": [],
@@ -3719,15 +3950,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7830,
-                                  "end": 7832
+                                  "start": 8274,
+                                  "end": 8276
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7830,
-                                "end": 7832
+                                "start": 8274,
+                                "end": 8276
                               }
                             },
                             {
@@ -3736,15 +3967,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "color",
                                 "loc": {
-                                  "start": 7849,
-                                  "end": 7854
+                                  "start": 8293,
+                                  "end": 8298
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7849,
-                                "end": 7854
+                                "start": 8293,
+                                "end": 8298
                               }
                             },
                             {
@@ -3753,26 +3984,26 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "label",
                                 "loc": {
-                                  "start": 7871,
-                                  "end": 7876
+                                  "start": 8315,
+                                  "end": 8320
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7871,
-                                "end": 7876
+                                "start": 8315,
+                                "end": 8320
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7812,
-                            "end": 7890
+                            "start": 8256,
+                            "end": 8334
                           }
                         },
                         "loc": {
-                          "start": 7805,
-                          "end": 7890
+                          "start": 8249,
+                          "end": 8334
                         }
                       },
                       {
@@ -3781,8 +4012,8 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "reminderList",
                           "loc": {
-                            "start": 7903,
-                            "end": 7915
+                            "start": 8347,
+                            "end": 8359
                           }
                         },
                         "arguments": [],
@@ -3796,15 +4027,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7934,
-                                  "end": 7936
+                                  "start": 8378,
+                                  "end": 8380
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7934,
-                                "end": 7936
+                                "start": 8378,
+                                "end": 8380
                               }
                             },
                             {
@@ -3813,15 +4044,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 7953,
-                                  "end": 7963
+                                  "start": 8397,
+                                  "end": 8407
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7953,
-                                "end": 7963
+                                "start": 8397,
+                                "end": 8407
                               }
                             },
                             {
@@ -3830,15 +4061,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "updated_at",
                                 "loc": {
-                                  "start": 7980,
-                                  "end": 7990
+                                  "start": 8424,
+                                  "end": 8434
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7980,
-                                "end": 7990
+                                "start": 8424,
+                                "end": 8434
                               }
                             },
                             {
@@ -3847,8 +4078,8 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "reminders",
                                 "loc": {
-                                  "start": 8007,
-                                  "end": 8016
+                                  "start": 8451,
+                                  "end": 8460
                                 }
                               },
                               "arguments": [],
@@ -3862,15 +4093,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8039,
-                                        "end": 8041
+                                        "start": 8483,
+                                        "end": 8485
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8039,
-                                      "end": 8041
+                                      "start": 8483,
+                                      "end": 8485
                                     }
                                   },
                                   {
@@ -3879,15 +4110,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 8062,
-                                        "end": 8072
+                                        "start": 8506,
+                                        "end": 8516
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8062,
-                                      "end": 8072
+                                      "start": 8506,
+                                      "end": 8516
                                     }
                                   },
                                   {
@@ -3896,15 +4127,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 8093,
-                                        "end": 8103
+                                        "start": 8537,
+                                        "end": 8547
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8093,
-                                      "end": 8103
+                                      "start": 8537,
+                                      "end": 8547
                                     }
                                   },
                                   {
@@ -3913,15 +4144,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 8124,
-                                        "end": 8128
+                                        "start": 8568,
+                                        "end": 8572
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8124,
-                                      "end": 8128
+                                      "start": 8568,
+                                      "end": 8572
                                     }
                                   },
                                   {
@@ -3930,15 +4161,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8149,
-                                        "end": 8160
+                                        "start": 8593,
+                                        "end": 8604
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8149,
-                                      "end": 8160
+                                      "start": 8593,
+                                      "end": 8604
                                     }
                                   },
                                   {
@@ -3947,15 +4178,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "dueDate",
                                       "loc": {
-                                        "start": 8181,
-                                        "end": 8188
+                                        "start": 8625,
+                                        "end": 8632
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8181,
-                                      "end": 8188
+                                      "start": 8625,
+                                      "end": 8632
                                     }
                                   },
                                   {
@@ -3964,15 +4195,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 8209,
-                                        "end": 8214
+                                        "start": 8653,
+                                        "end": 8658
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8209,
-                                      "end": 8214
+                                      "start": 8653,
+                                      "end": 8658
                                     }
                                   },
                                   {
@@ -3981,15 +4212,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "isComplete",
                                       "loc": {
-                                        "start": 8235,
-                                        "end": 8245
+                                        "start": 8679,
+                                        "end": 8689
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8235,
-                                      "end": 8245
+                                      "start": 8679,
+                                      "end": 8689
                                     }
                                   },
                                   {
@@ -3998,8 +4229,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "reminderItems",
                                       "loc": {
-                                        "start": 8266,
-                                        "end": 8279
+                                        "start": 8710,
+                                        "end": 8723
                                       }
                                     },
                                     "arguments": [],
@@ -4013,15 +4244,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 8306,
-                                              "end": 8308
+                                              "start": 8750,
+                                              "end": 8752
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8306,
-                                            "end": 8308
+                                            "start": 8750,
+                                            "end": 8752
                                           }
                                         },
                                         {
@@ -4030,15 +4261,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 8333,
-                                              "end": 8343
+                                              "start": 8777,
+                                              "end": 8787
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8333,
-                                            "end": 8343
+                                            "start": 8777,
+                                            "end": 8787
                                           }
                                         },
                                         {
@@ -4047,15 +4278,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 8368,
-                                              "end": 8378
+                                              "start": 8812,
+                                              "end": 8822
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8368,
-                                            "end": 8378
+                                            "start": 8812,
+                                            "end": 8822
                                           }
                                         },
                                         {
@@ -4064,15 +4295,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 8403,
-                                              "end": 8407
+                                              "start": 8847,
+                                              "end": 8851
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8403,
-                                            "end": 8407
+                                            "start": 8847,
+                                            "end": 8851
                                           }
                                         },
                                         {
@@ -4081,15 +4312,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 8432,
-                                              "end": 8443
+                                              "start": 8876,
+                                              "end": 8887
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8432,
-                                            "end": 8443
+                                            "start": 8876,
+                                            "end": 8887
                                           }
                                         },
                                         {
@@ -4098,15 +4329,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 8468,
-                                              "end": 8475
+                                              "start": 8912,
+                                              "end": 8919
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8468,
-                                            "end": 8475
+                                            "start": 8912,
+                                            "end": 8919
                                           }
                                         },
                                         {
@@ -4115,15 +4346,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 8500,
-                                              "end": 8505
+                                              "start": 8944,
+                                              "end": 8949
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8500,
-                                            "end": 8505
+                                            "start": 8944,
+                                            "end": 8949
                                           }
                                         },
                                         {
@@ -4132,48 +4363,48 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 8530,
-                                              "end": 8540
+                                              "start": 8974,
+                                              "end": 8984
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8530,
-                                            "end": 8540
+                                            "start": 8974,
+                                            "end": 8984
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8280,
-                                        "end": 8562
+                                        "start": 8724,
+                                        "end": 9006
                                       }
                                     },
                                     "loc": {
-                                      "start": 8266,
-                                      "end": 8562
+                                      "start": 8710,
+                                      "end": 9006
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8017,
-                                  "end": 8580
+                                  "start": 8461,
+                                  "end": 9024
                                 }
                               },
                               "loc": {
-                                "start": 8007,
-                                "end": 8580
+                                "start": 8451,
+                                "end": 9024
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7916,
-                            "end": 8594
+                            "start": 8360,
+                            "end": 9038
                           }
                         },
                         "loc": {
-                          "start": 7903,
-                          "end": 8594
+                          "start": 8347,
+                          "end": 9038
                         }
                       },
                       {
@@ -4182,8 +4413,8 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "resourceList",
                           "loc": {
-                            "start": 8607,
-                            "end": 8619
+                            "start": 9051,
+                            "end": 9063
                           }
                         },
                         "arguments": [],
@@ -4197,15 +4428,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 8638,
-                                  "end": 8640
+                                  "start": 9082,
+                                  "end": 9084
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8638,
-                                "end": 8640
+                                "start": 9082,
+                                "end": 9084
                               }
                             },
                             {
@@ -4214,15 +4445,15 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 8657,
-                                  "end": 8667
+                                  "start": 9101,
+                                  "end": 9111
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8657,
-                                "end": 8667
+                                "start": 9101,
+                                "end": 9111
                               }
                             },
                             {
@@ -4231,8 +4462,8 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 8684,
-                                  "end": 8696
+                                  "start": 9128,
+                                  "end": 9140
                                 }
                               },
                               "arguments": [],
@@ -4246,15 +4477,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8719,
-                                        "end": 8721
+                                        "start": 9163,
+                                        "end": 9165
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8719,
-                                      "end": 8721
+                                      "start": 9163,
+                                      "end": 9165
                                     }
                                   },
                                   {
@@ -4263,15 +4494,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 8742,
-                                        "end": 8750
+                                        "start": 9186,
+                                        "end": 9194
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8742,
-                                      "end": 8750
+                                      "start": 9186,
+                                      "end": 9194
                                     }
                                   },
                                   {
@@ -4280,15 +4511,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8771,
-                                        "end": 8782
+                                        "start": 9215,
+                                        "end": 9226
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8771,
-                                      "end": 8782
+                                      "start": 9215,
+                                      "end": 9226
                                     }
                                   },
                                   {
@@ -4297,26 +4528,26 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 8803,
-                                        "end": 8807
+                                        "start": 9247,
+                                        "end": 9251
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8803,
-                                      "end": 8807
+                                      "start": 9247,
+                                      "end": 9251
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8697,
-                                  "end": 8825
+                                  "start": 9141,
+                                  "end": 9269
                                 }
                               },
                               "loc": {
-                                "start": 8684,
-                                "end": 8825
+                                "start": 9128,
+                                "end": 9269
                               }
                             },
                             {
@@ -4325,8 +4556,8 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "resources",
                                 "loc": {
-                                  "start": 8842,
-                                  "end": 8851
+                                  "start": 9286,
+                                  "end": 9295
                                 }
                               },
                               "arguments": [],
@@ -4340,15 +4571,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8874,
-                                        "end": 8876
+                                        "start": 9318,
+                                        "end": 9320
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8874,
-                                      "end": 8876
+                                      "start": 9318,
+                                      "end": 9320
                                     }
                                   },
                                   {
@@ -4357,15 +4588,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 8897,
-                                        "end": 8902
+                                        "start": 9341,
+                                        "end": 9346
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8897,
-                                      "end": 8902
+                                      "start": 9341,
+                                      "end": 9346
                                     }
                                   },
                                   {
@@ -4374,15 +4605,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "link",
                                       "loc": {
-                                        "start": 8923,
-                                        "end": 8927
+                                        "start": 9367,
+                                        "end": 9371
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8923,
-                                      "end": 8927
+                                      "start": 9367,
+                                      "end": 9371
                                     }
                                   },
                                   {
@@ -4391,15 +4622,15 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "usedFor",
                                       "loc": {
-                                        "start": 8948,
-                                        "end": 8955
+                                        "start": 9392,
+                                        "end": 9399
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8948,
-                                      "end": 8955
+                                      "start": 9392,
+                                      "end": 9399
                                     }
                                   },
                                   {
@@ -4408,8 +4639,8 @@ export const auth_emailResetPassword = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 8976,
-                                        "end": 8988
+                                        "start": 9420,
+                                        "end": 9432
                                       }
                                     },
                                     "arguments": [],
@@ -4423,15 +4654,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 9015,
-                                              "end": 9017
+                                              "start": 9459,
+                                              "end": 9461
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9015,
-                                            "end": 9017
+                                            "start": 9459,
+                                            "end": 9461
                                           }
                                         },
                                         {
@@ -4440,15 +4671,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 9042,
-                                              "end": 9050
+                                              "start": 9486,
+                                              "end": 9494
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9042,
-                                            "end": 9050
+                                            "start": 9486,
+                                            "end": 9494
                                           }
                                         },
                                         {
@@ -4457,15 +4688,15 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 9075,
-                                              "end": 9086
+                                              "start": 9519,
+                                              "end": 9530
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9075,
-                                            "end": 9086
+                                            "start": 9519,
+                                            "end": 9530
                                           }
                                         },
                                         {
@@ -4474,48 +4705,48 @@ export const auth_emailResetPassword = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 9111,
-                                              "end": 9115
+                                              "start": 9555,
+                                              "end": 9559
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9111,
-                                            "end": 9115
+                                            "start": 9555,
+                                            "end": 9559
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8989,
-                                        "end": 9137
+                                        "start": 9433,
+                                        "end": 9581
                                       }
                                     },
                                     "loc": {
-                                      "start": 8976,
-                                      "end": 9137
+                                      "start": 9420,
+                                      "end": 9581
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8852,
-                                  "end": 9155
+                                  "start": 9296,
+                                  "end": 9599
                                 }
                               },
                               "loc": {
-                                "start": 8842,
-                                "end": 9155
+                                "start": 9286,
+                                "end": 9599
                               }
                             }
                           ],
                           "loc": {
-                            "start": 8620,
-                            "end": 9169
+                            "start": 9064,
+                            "end": 9613
                           }
                         },
                         "loc": {
-                          "start": 8607,
-                          "end": 9169
+                          "start": 9051,
+                          "end": 9613
                         }
                       },
                       {
@@ -4524,8 +4755,8 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "schedule",
                           "loc": {
-                            "start": 9182,
-                            "end": 9190
+                            "start": 9626,
+                            "end": 9634
                           }
                         },
                         "arguments": [],
@@ -4539,25 +4770,25 @@ export const auth_emailResetPassword = {
                                 "kind": "Name",
                                 "value": "Schedule_common",
                                 "loc": {
-                                  "start": 9212,
-                                  "end": 9227
+                                  "start": 9656,
+                                  "end": 9671
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 9209,
-                                "end": 9227
+                                "start": 9653,
+                                "end": 9671
                               }
                             }
                           ],
                           "loc": {
-                            "start": 9191,
-                            "end": 9241
+                            "start": 9635,
+                            "end": 9685
                           }
                         },
                         "loc": {
-                          "start": 9182,
-                          "end": 9241
+                          "start": 9626,
+                          "end": 9685
                         }
                       },
                       {
@@ -4566,15 +4797,15 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 9254,
-                            "end": 9256
+                            "start": 9698,
+                            "end": 9700
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9254,
-                          "end": 9256
+                          "start": 9698,
+                          "end": 9700
                         }
                       },
                       {
@@ -4583,15 +4814,15 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "name",
                           "loc": {
-                            "start": 9269,
-                            "end": 9273
+                            "start": 9713,
+                            "end": 9717
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9269,
-                          "end": 9273
+                          "start": 9713,
+                          "end": 9717
                         }
                       },
                       {
@@ -4600,26 +4831,103 @@ export const auth_emailResetPassword = {
                           "kind": "Name",
                           "value": "description",
                           "loc": {
-                            "start": 9286,
-                            "end": 9297
+                            "start": 9730,
+                            "end": 9741
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9286,
-                          "end": 9297
+                          "start": 9730,
+                          "end": 9741
+                        }
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "you",
+                          "loc": {
+                            "start": 9754,
+                            "end": 9757
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "selectionSet": {
+                          "kind": "SelectionSet",
+                          "selections": [
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canDelete",
+                                "loc": {
+                                  "start": 9776,
+                                  "end": 9785
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9776,
+                                "end": 9785
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canRead",
+                                "loc": {
+                                  "start": 9802,
+                                  "end": 9809
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9802,
+                                "end": 9809
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canUpdate",
+                                "loc": {
+                                  "start": 9826,
+                                  "end": 9835
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9826,
+                                "end": 9835
+                              }
+                            }
+                          ],
+                          "loc": {
+                            "start": 9758,
+                            "end": 9849
+                          }
+                        },
+                        "loc": {
+                          "start": 9754,
+                          "end": 9849
                         }
                       }
                     ],
                     "loc": {
-                      "start": 5278,
-                      "end": 9307
+                      "start": 5574,
+                      "end": 9859
                     }
                   },
                   "loc": {
-                    "start": 5267,
-                    "end": 9307
+                    "start": 5563,
+                    "end": 9859
                   }
                 },
                 {
@@ -4628,15 +4936,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "handle",
                     "loc": {
-                      "start": 9316,
-                      "end": 9322
+                      "start": 9868,
+                      "end": 9874
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9316,
-                    "end": 9322
+                    "start": 9868,
+                    "end": 9874
                   }
                 },
                 {
@@ -4645,15 +4953,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "hasPremium",
                     "loc": {
-                      "start": 9331,
-                      "end": 9341
+                      "start": 9883,
+                      "end": 9893
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9331,
-                    "end": 9341
+                    "start": 9883,
+                    "end": 9893
                   }
                 },
                 {
@@ -4662,15 +4970,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 9350,
-                      "end": 9352
+                      "start": 9902,
+                      "end": 9904
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9350,
-                    "end": 9352
+                    "start": 9902,
+                    "end": 9904
                   }
                 },
                 {
@@ -4679,15 +4987,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "languages",
                     "loc": {
-                      "start": 9361,
-                      "end": 9370
+                      "start": 9913,
+                      "end": 9922
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9361,
-                    "end": 9370
+                    "start": 9913,
+                    "end": 9922
                   }
                 },
                 {
@@ -4696,15 +5004,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "membershipsCount",
                     "loc": {
-                      "start": 9379,
-                      "end": 9395
+                      "start": 9931,
+                      "end": 9947
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9379,
-                    "end": 9395
+                    "start": 9931,
+                    "end": 9947
                   }
                 },
                 {
@@ -4713,15 +5021,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "name",
                     "loc": {
-                      "start": 9404,
-                      "end": 9408
+                      "start": 9956,
+                      "end": 9960
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9404,
-                    "end": 9408
+                    "start": 9956,
+                    "end": 9960
                   }
                 },
                 {
@@ -4730,15 +5038,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "notesCount",
                     "loc": {
-                      "start": 9417,
-                      "end": 9427
+                      "start": 9969,
+                      "end": 9979
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9417,
-                    "end": 9427
+                    "start": 9969,
+                    "end": 9979
                   }
                 },
                 {
@@ -4747,15 +5055,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "projectsCount",
                     "loc": {
-                      "start": 9436,
-                      "end": 9449
+                      "start": 9988,
+                      "end": 10001
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9436,
-                    "end": 9449
+                    "start": 9988,
+                    "end": 10001
                   }
                 },
                 {
@@ -4764,15 +5072,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "questionsAskedCount",
                     "loc": {
-                      "start": 9458,
-                      "end": 9477
+                      "start": 10010,
+                      "end": 10029
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9458,
-                    "end": 9477
+                    "start": 10010,
+                    "end": 10029
                   }
                 },
                 {
@@ -4781,15 +5089,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "routinesCount",
                     "loc": {
-                      "start": 9486,
-                      "end": 9499
+                      "start": 10038,
+                      "end": 10051
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9486,
-                    "end": 9499
+                    "start": 10038,
+                    "end": 10051
                   }
                 },
                 {
@@ -4798,15 +5106,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "smartContractsCount",
                     "loc": {
-                      "start": 9508,
-                      "end": 9527
+                      "start": 10060,
+                      "end": 10079
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9508,
-                    "end": 9527
+                    "start": 10060,
+                    "end": 10079
                   }
                 },
                 {
@@ -4815,15 +5123,15 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "standardsCount",
                     "loc": {
-                      "start": 9536,
-                      "end": 9550
+                      "start": 10088,
+                      "end": 10102
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9536,
-                    "end": 9550
+                    "start": 10088,
+                    "end": 10102
                   }
                 },
                 {
@@ -4832,37 +5140,37 @@ export const auth_emailResetPassword = {
                     "kind": "Name",
                     "value": "theme",
                     "loc": {
-                      "start": 9559,
-                      "end": 9564
+                      "start": 10111,
+                      "end": 10116
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9559,
-                    "end": 9564
+                    "start": 10111,
+                    "end": 10116
                   }
                 }
               ],
               "loc": {
                 "start": 417,
-                "end": 9570
+                "end": 10122
               }
             },
             "loc": {
               "start": 411,
-              "end": 9570
+              "end": 10122
             }
           }
         ],
         "loc": {
           "start": 377,
-          "end": 9574
+          "end": 10126
         }
       },
       "loc": {
         "start": 343,
-        "end": 9574
+        "end": 10126
       }
     },
     {
@@ -6988,27 +7296,104 @@ export const auth_emailResetPassword = {
                                                 "start": 3241,
                                                 "end": 3252
                                               }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "you",
+                                                "loc": {
+                                                  "start": 3277,
+                                                  "end": 3280
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "selectionSet": {
+                                                "kind": "SelectionSet",
+                                                "selections": [
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canDelete",
+                                                      "loc": {
+                                                        "start": 3311,
+                                                        "end": 3320
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3311,
+                                                      "end": 3320
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canRead",
+                                                      "loc": {
+                                                        "start": 3349,
+                                                        "end": 3356
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3349,
+                                                      "end": 3356
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canUpdate",
+                                                      "loc": {
+                                                        "start": 3385,
+                                                        "end": 3394
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3385,
+                                                      "end": 3394
+                                                    }
+                                                  }
+                                                ],
+                                                "loc": {
+                                                  "start": 3281,
+                                                  "end": 3420
+                                                }
+                                              },
+                                              "loc": {
+                                                "start": 3277,
+                                                "end": 3420
+                                              }
                                             }
                                           ],
                                           "loc": {
                                             "start": 1050,
-                                            "end": 3274
+                                            "end": 3442
                                           }
                                         },
                                         "loc": {
                                           "start": 1040,
-                                          "end": 3274
+                                          "end": 3442
                                         }
                                       }
                                     ],
                                     "loc": {
                                       "start": 488,
-                                      "end": 3292
+                                      "end": 3460
                                     }
                                   },
                                   "loc": {
                                     "start": 480,
-                                    "end": 3292
+                                    "end": 3460
                                   }
                                 },
                                 {
@@ -7017,8 +7402,8 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "labels",
                                     "loc": {
-                                      "start": 3309,
-                                      "end": 3315
+                                      "start": 3477,
+                                      "end": 3483
                                     }
                                   },
                                   "arguments": [],
@@ -7032,15 +7417,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 3338,
-                                            "end": 3340
+                                            "start": 3506,
+                                            "end": 3508
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3338,
-                                          "end": 3340
+                                          "start": 3506,
+                                          "end": 3508
                                         }
                                       },
                                       {
@@ -7049,15 +7434,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "color",
                                           "loc": {
-                                            "start": 3361,
-                                            "end": 3366
+                                            "start": 3529,
+                                            "end": 3534
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3361,
-                                          "end": 3366
+                                          "start": 3529,
+                                          "end": 3534
                                         }
                                       },
                                       {
@@ -7066,26 +7451,26 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "label",
                                           "loc": {
-                                            "start": 3387,
-                                            "end": 3392
+                                            "start": 3555,
+                                            "end": 3560
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3387,
-                                          "end": 3392
+                                          "start": 3555,
+                                          "end": 3560
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3316,
-                                      "end": 3410
+                                      "start": 3484,
+                                      "end": 3578
                                     }
                                   },
                                   "loc": {
-                                    "start": 3309,
-                                    "end": 3410
+                                    "start": 3477,
+                                    "end": 3578
                                   }
                                 },
                                 {
@@ -7094,8 +7479,8 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "reminderList",
                                     "loc": {
-                                      "start": 3427,
-                                      "end": 3439
+                                      "start": 3595,
+                                      "end": 3607
                                     }
                                   },
                                   "arguments": [],
@@ -7109,15 +7494,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 3462,
-                                            "end": 3464
+                                            "start": 3630,
+                                            "end": 3632
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3462,
-                                          "end": 3464
+                                          "start": 3630,
+                                          "end": 3632
                                         }
                                       },
                                       {
@@ -7126,15 +7511,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 3485,
-                                            "end": 3495
+                                            "start": 3653,
+                                            "end": 3663
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3485,
-                                          "end": 3495
+                                          "start": 3653,
+                                          "end": 3663
                                         }
                                       },
                                       {
@@ -7143,15 +7528,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 3516,
-                                            "end": 3526
+                                            "start": 3684,
+                                            "end": 3694
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3516,
-                                          "end": 3526
+                                          "start": 3684,
+                                          "end": 3694
                                         }
                                       },
                                       {
@@ -7160,8 +7545,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "reminders",
                                           "loc": {
-                                            "start": 3547,
-                                            "end": 3556
+                                            "start": 3715,
+                                            "end": 3724
                                           }
                                         },
                                         "arguments": [],
@@ -7175,15 +7560,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 3583,
-                                                  "end": 3585
+                                                  "start": 3751,
+                                                  "end": 3753
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3583,
-                                                "end": 3585
+                                                "start": 3751,
+                                                "end": 3753
                                               }
                                             },
                                             {
@@ -7192,15 +7577,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 3610,
-                                                  "end": 3620
+                                                  "start": 3778,
+                                                  "end": 3788
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3610,
-                                                "end": 3620
+                                                "start": 3778,
+                                                "end": 3788
                                               }
                                             },
                                             {
@@ -7209,15 +7594,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 3645,
-                                                  "end": 3655
+                                                  "start": 3813,
+                                                  "end": 3823
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3645,
-                                                "end": 3655
+                                                "start": 3813,
+                                                "end": 3823
                                               }
                                             },
                                             {
@@ -7226,15 +7611,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 3680,
-                                                  "end": 3684
+                                                  "start": 3848,
+                                                  "end": 3852
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3680,
-                                                "end": 3684
+                                                "start": 3848,
+                                                "end": 3852
                                               }
                                             },
                                             {
@@ -7243,15 +7628,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 3709,
-                                                  "end": 3720
+                                                  "start": 3877,
+                                                  "end": 3888
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3709,
-                                                "end": 3720
+                                                "start": 3877,
+                                                "end": 3888
                                               }
                                             },
                                             {
@@ -7260,15 +7645,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 3745,
-                                                  "end": 3752
+                                                  "start": 3913,
+                                                  "end": 3920
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3745,
-                                                "end": 3752
+                                                "start": 3913,
+                                                "end": 3920
                                               }
                                             },
                                             {
@@ -7277,15 +7662,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 3777,
-                                                  "end": 3782
+                                                  "start": 3945,
+                                                  "end": 3950
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3777,
-                                                "end": 3782
+                                                "start": 3945,
+                                                "end": 3950
                                               }
                                             },
                                             {
@@ -7294,15 +7679,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 3807,
-                                                  "end": 3817
+                                                  "start": 3975,
+                                                  "end": 3985
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3807,
-                                                "end": 3817
+                                                "start": 3975,
+                                                "end": 3985
                                               }
                                             },
                                             {
@@ -7311,8 +7696,8 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "reminderItems",
                                                 "loc": {
-                                                  "start": 3842,
-                                                  "end": 3855
+                                                  "start": 4010,
+                                                  "end": 4023
                                                 }
                                               },
                                               "arguments": [],
@@ -7326,15 +7711,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 3886,
-                                                        "end": 3888
+                                                        "start": 4054,
+                                                        "end": 4056
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3886,
-                                                      "end": 3888
+                                                      "start": 4054,
+                                                      "end": 4056
                                                     }
                                                   },
                                                   {
@@ -7343,15 +7728,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 3917,
-                                                        "end": 3927
+                                                        "start": 4085,
+                                                        "end": 4095
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3917,
-                                                      "end": 3927
+                                                      "start": 4085,
+                                                      "end": 4095
                                                     }
                                                   },
                                                   {
@@ -7360,15 +7745,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 3956,
-                                                        "end": 3966
+                                                        "start": 4124,
+                                                        "end": 4134
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3956,
-                                                      "end": 3966
+                                                      "start": 4124,
+                                                      "end": 4134
                                                     }
                                                   },
                                                   {
@@ -7377,15 +7762,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 3995,
-                                                        "end": 3999
+                                                        "start": 4163,
+                                                        "end": 4167
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3995,
-                                                      "end": 3999
+                                                      "start": 4163,
+                                                      "end": 4167
                                                     }
                                                   },
                                                   {
@@ -7394,15 +7779,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 4028,
-                                                        "end": 4039
+                                                        "start": 4196,
+                                                        "end": 4207
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4028,
-                                                      "end": 4039
+                                                      "start": 4196,
+                                                      "end": 4207
                                                     }
                                                   },
                                                   {
@@ -7411,15 +7796,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 4068,
-                                                        "end": 4075
+                                                        "start": 4236,
+                                                        "end": 4243
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4068,
-                                                      "end": 4075
+                                                      "start": 4236,
+                                                      "end": 4243
                                                     }
                                                   },
                                                   {
@@ -7428,15 +7813,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 4104,
-                                                        "end": 4109
+                                                        "start": 4272,
+                                                        "end": 4277
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4104,
-                                                      "end": 4109
+                                                      "start": 4272,
+                                                      "end": 4277
                                                     }
                                                   },
                                                   {
@@ -7445,48 +7830,48 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 4138,
-                                                        "end": 4148
+                                                        "start": 4306,
+                                                        "end": 4316
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4138,
-                                                      "end": 4148
+                                                      "start": 4306,
+                                                      "end": 4316
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 3856,
-                                                  "end": 4174
+                                                  "start": 4024,
+                                                  "end": 4342
                                                 }
                                               },
                                               "loc": {
-                                                "start": 3842,
-                                                "end": 4174
+                                                "start": 4010,
+                                                "end": 4342
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 3557,
-                                            "end": 4196
+                                            "start": 3725,
+                                            "end": 4364
                                           }
                                         },
                                         "loc": {
-                                          "start": 3547,
-                                          "end": 4196
+                                          "start": 3715,
+                                          "end": 4364
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3440,
-                                      "end": 4214
+                                      "start": 3608,
+                                      "end": 4382
                                     }
                                   },
                                   "loc": {
-                                    "start": 3427,
-                                    "end": 4214
+                                    "start": 3595,
+                                    "end": 4382
                                   }
                                 },
                                 {
@@ -7495,8 +7880,8 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "resourceList",
                                     "loc": {
-                                      "start": 4231,
-                                      "end": 4243
+                                      "start": 4399,
+                                      "end": 4411
                                     }
                                   },
                                   "arguments": [],
@@ -7510,15 +7895,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 4266,
-                                            "end": 4268
+                                            "start": 4434,
+                                            "end": 4436
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4266,
-                                          "end": 4268
+                                          "start": 4434,
+                                          "end": 4436
                                         }
                                       },
                                       {
@@ -7527,15 +7912,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 4289,
-                                            "end": 4299
+                                            "start": 4457,
+                                            "end": 4467
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4289,
-                                          "end": 4299
+                                          "start": 4457,
+                                          "end": 4467
                                         }
                                       },
                                       {
@@ -7544,8 +7929,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 4320,
-                                            "end": 4332
+                                            "start": 4488,
+                                            "end": 4500
                                           }
                                         },
                                         "arguments": [],
@@ -7559,15 +7944,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 4359,
-                                                  "end": 4361
+                                                  "start": 4527,
+                                                  "end": 4529
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4359,
-                                                "end": 4361
+                                                "start": 4527,
+                                                "end": 4529
                                               }
                                             },
                                             {
@@ -7576,15 +7961,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 4386,
-                                                  "end": 4394
+                                                  "start": 4554,
+                                                  "end": 4562
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4386,
-                                                "end": 4394
+                                                "start": 4554,
+                                                "end": 4562
                                               }
                                             },
                                             {
@@ -7593,15 +7978,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 4419,
-                                                  "end": 4430
+                                                  "start": 4587,
+                                                  "end": 4598
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4419,
-                                                "end": 4430
+                                                "start": 4587,
+                                                "end": 4598
                                               }
                                             },
                                             {
@@ -7610,26 +7995,26 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 4455,
-                                                  "end": 4459
+                                                  "start": 4623,
+                                                  "end": 4627
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4455,
-                                                "end": 4459
+                                                "start": 4623,
+                                                "end": 4627
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4333,
-                                            "end": 4481
+                                            "start": 4501,
+                                            "end": 4649
                                           }
                                         },
                                         "loc": {
-                                          "start": 4320,
-                                          "end": 4481
+                                          "start": 4488,
+                                          "end": 4649
                                         }
                                       },
                                       {
@@ -7638,8 +8023,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "resources",
                                           "loc": {
-                                            "start": 4502,
-                                            "end": 4511
+                                            "start": 4670,
+                                            "end": 4679
                                           }
                                         },
                                         "arguments": [],
@@ -7653,15 +8038,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 4538,
-                                                  "end": 4540
+                                                  "start": 4706,
+                                                  "end": 4708
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4538,
-                                                "end": 4540
+                                                "start": 4706,
+                                                "end": 4708
                                               }
                                             },
                                             {
@@ -7670,15 +8055,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 4565,
-                                                  "end": 4570
+                                                  "start": 4733,
+                                                  "end": 4738
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4565,
-                                                "end": 4570
+                                                "start": 4733,
+                                                "end": 4738
                                               }
                                             },
                                             {
@@ -7687,15 +8072,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "link",
                                                 "loc": {
-                                                  "start": 4595,
-                                                  "end": 4599
+                                                  "start": 4763,
+                                                  "end": 4767
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4595,
-                                                "end": 4599
+                                                "start": 4763,
+                                                "end": 4767
                                               }
                                             },
                                             {
@@ -7704,15 +8089,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "usedFor",
                                                 "loc": {
-                                                  "start": 4624,
-                                                  "end": 4631
+                                                  "start": 4792,
+                                                  "end": 4799
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4624,
-                                                "end": 4631
+                                                "start": 4792,
+                                                "end": 4799
                                               }
                                             },
                                             {
@@ -7721,8 +8106,8 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 4656,
-                                                  "end": 4668
+                                                  "start": 4824,
+                                                  "end": 4836
                                                 }
                                               },
                                               "arguments": [],
@@ -7736,15 +8121,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 4699,
-                                                        "end": 4701
+                                                        "start": 4867,
+                                                        "end": 4869
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4699,
-                                                      "end": 4701
+                                                      "start": 4867,
+                                                      "end": 4869
                                                     }
                                                   },
                                                   {
@@ -7753,15 +8138,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 4730,
-                                                        "end": 4738
+                                                        "start": 4898,
+                                                        "end": 4906
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4730,
-                                                      "end": 4738
+                                                      "start": 4898,
+                                                      "end": 4906
                                                     }
                                                   },
                                                   {
@@ -7770,15 +8155,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 4767,
-                                                        "end": 4778
+                                                        "start": 4935,
+                                                        "end": 4946
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4767,
-                                                      "end": 4778
+                                                      "start": 4935,
+                                                      "end": 4946
                                                     }
                                                   },
                                                   {
@@ -7787,48 +8172,48 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 4807,
-                                                        "end": 4811
+                                                        "start": 4975,
+                                                        "end": 4979
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4807,
-                                                      "end": 4811
+                                                      "start": 4975,
+                                                      "end": 4979
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 4669,
-                                                  "end": 4837
+                                                  "start": 4837,
+                                                  "end": 5005
                                                 }
                                               },
                                               "loc": {
-                                                "start": 4656,
-                                                "end": 4837
+                                                "start": 4824,
+                                                "end": 5005
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4512,
-                                            "end": 4859
+                                            "start": 4680,
+                                            "end": 5027
                                           }
                                         },
                                         "loc": {
-                                          "start": 4502,
-                                          "end": 4859
+                                          "start": 4670,
+                                          "end": 5027
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 4244,
-                                      "end": 4877
+                                      "start": 4412,
+                                      "end": 5045
                                     }
                                   },
                                   "loc": {
-                                    "start": 4231,
-                                    "end": 4877
+                                    "start": 4399,
+                                    "end": 5045
                                   }
                                 },
                                 {
@@ -7837,8 +8222,8 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "schedule",
                                     "loc": {
-                                      "start": 4894,
-                                      "end": 4902
+                                      "start": 5062,
+                                      "end": 5070
                                     }
                                   },
                                   "arguments": [],
@@ -7852,25 +8237,25 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "Schedule_common",
                                           "loc": {
-                                            "start": 4928,
-                                            "end": 4943
+                                            "start": 5096,
+                                            "end": 5111
                                           }
                                         },
                                         "directives": [],
                                         "loc": {
-                                          "start": 4925,
-                                          "end": 4943
+                                          "start": 5093,
+                                          "end": 5111
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 4903,
-                                      "end": 4961
+                                      "start": 5071,
+                                      "end": 5129
                                     }
                                   },
                                   "loc": {
-                                    "start": 4894,
-                                    "end": 4961
+                                    "start": 5062,
+                                    "end": 5129
                                   }
                                 },
                                 {
@@ -7879,15 +8264,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 4978,
-                                      "end": 4980
+                                      "start": 5146,
+                                      "end": 5148
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4978,
-                                    "end": 4980
+                                    "start": 5146,
+                                    "end": 5148
                                   }
                                 },
                                 {
@@ -7896,15 +8281,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "name",
                                     "loc": {
-                                      "start": 4997,
-                                      "end": 5001
+                                      "start": 5165,
+                                      "end": 5169
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4997,
-                                    "end": 5001
+                                    "start": 5165,
+                                    "end": 5169
                                   }
                                 },
                                 {
@@ -7913,26 +8298,103 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "description",
                                     "loc": {
-                                      "start": 5018,
-                                      "end": 5029
+                                      "start": 5186,
+                                      "end": 5197
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5018,
-                                    "end": 5029
+                                    "start": 5186,
+                                    "end": 5197
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "you",
+                                    "loc": {
+                                      "start": 5214,
+                                      "end": 5217
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "selectionSet": {
+                                    "kind": "SelectionSet",
+                                    "selections": [
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canDelete",
+                                          "loc": {
+                                            "start": 5240,
+                                            "end": 5249
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5240,
+                                          "end": 5249
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canRead",
+                                          "loc": {
+                                            "start": 5270,
+                                            "end": 5277
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5270,
+                                          "end": 5277
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canUpdate",
+                                          "loc": {
+                                            "start": 5298,
+                                            "end": 5307
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5298,
+                                          "end": 5307
+                                        }
+                                      }
+                                    ],
+                                    "loc": {
+                                      "start": 5218,
+                                      "end": 5325
+                                    }
+                                  },
+                                  "loc": {
+                                    "start": 5214,
+                                    "end": 5325
                                   }
                                 }
                               ],
                               "loc": {
                                 "start": 462,
-                                "end": 5043
+                                "end": 5339
                               }
                             },
                             "loc": {
                               "start": 457,
-                              "end": 5043
+                              "end": 5339
                             }
                           },
                           {
@@ -7941,15 +8403,15 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "stopCondition",
                               "loc": {
-                                "start": 5056,
-                                "end": 5069
+                                "start": 5352,
+                                "end": 5365
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5056,
-                              "end": 5069
+                              "start": 5352,
+                              "end": 5365
                             }
                           },
                           {
@@ -7958,26 +8420,26 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "stopTime",
                               "loc": {
-                                "start": 5082,
-                                "end": 5090
+                                "start": 5378,
+                                "end": 5386
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5082,
-                              "end": 5090
+                              "start": 5378,
+                              "end": 5386
                             }
                           }
                         ],
                         "loc": {
                           "start": 443,
-                          "end": 5100
+                          "end": 5396
                         }
                       },
                       "loc": {
                         "start": 427,
-                        "end": 5100
+                        "end": 5396
                       }
                     },
                     {
@@ -7986,15 +8448,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "apisCount",
                         "loc": {
-                          "start": 5109,
-                          "end": 5118
+                          "start": 5405,
+                          "end": 5414
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5109,
-                        "end": 5118
+                        "start": 5405,
+                        "end": 5414
                       }
                     },
                     {
@@ -8003,8 +8465,8 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "bookmarkLists",
                         "loc": {
-                          "start": 5127,
-                          "end": 5140
+                          "start": 5423,
+                          "end": 5436
                         }
                       },
                       "arguments": [],
@@ -8018,15 +8480,15 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 5155,
-                                "end": 5157
+                                "start": 5451,
+                                "end": 5453
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5155,
-                              "end": 5157
+                              "start": 5451,
+                              "end": 5453
                             }
                           },
                           {
@@ -8035,15 +8497,15 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "created_at",
                               "loc": {
-                                "start": 5170,
-                                "end": 5180
+                                "start": 5466,
+                                "end": 5476
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5170,
-                              "end": 5180
+                              "start": 5466,
+                              "end": 5476
                             }
                           },
                           {
@@ -8052,15 +8514,15 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "updated_at",
                               "loc": {
-                                "start": 5193,
-                                "end": 5203
+                                "start": 5489,
+                                "end": 5499
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5193,
-                              "end": 5203
+                              "start": 5489,
+                              "end": 5499
                             }
                           },
                           {
@@ -8069,15 +8531,15 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "label",
                               "loc": {
-                                "start": 5216,
-                                "end": 5221
+                                "start": 5512,
+                                "end": 5517
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5216,
-                              "end": 5221
+                              "start": 5512,
+                              "end": 5517
                             }
                           },
                           {
@@ -8086,26 +8548,26 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "bookmarksCount",
                               "loc": {
-                                "start": 5234,
-                                "end": 5248
+                                "start": 5530,
+                                "end": 5544
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5234,
-                              "end": 5248
+                              "start": 5530,
+                              "end": 5544
                             }
                           }
                         ],
                         "loc": {
-                          "start": 5141,
-                          "end": 5258
+                          "start": 5437,
+                          "end": 5554
                         }
                       },
                       "loc": {
-                        "start": 5127,
-                        "end": 5258
+                        "start": 5423,
+                        "end": 5554
                       }
                     },
                     {
@@ -8114,8 +8576,8 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "focusModes",
                         "loc": {
-                          "start": 5267,
-                          "end": 5277
+                          "start": 5563,
+                          "end": 5573
                         }
                       },
                       "arguments": [],
@@ -8129,8 +8591,8 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "filters",
                               "loc": {
-                                "start": 5292,
-                                "end": 5299
+                                "start": 5588,
+                                "end": 5595
                               }
                             },
                             "arguments": [],
@@ -8144,15 +8606,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 5318,
-                                      "end": 5320
+                                      "start": 5614,
+                                      "end": 5616
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5318,
-                                    "end": 5320
+                                    "start": 5614,
+                                    "end": 5616
                                   }
                                 },
                                 {
@@ -8161,15 +8623,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "filterType",
                                     "loc": {
-                                      "start": 5337,
-                                      "end": 5347
+                                      "start": 5633,
+                                      "end": 5643
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5337,
-                                    "end": 5347
+                                    "start": 5633,
+                                    "end": 5643
                                   }
                                 },
                                 {
@@ -8178,8 +8640,8 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "tag",
                                     "loc": {
-                                      "start": 5364,
-                                      "end": 5367
+                                      "start": 5660,
+                                      "end": 5663
                                     }
                                   },
                                   "arguments": [],
@@ -8193,15 +8655,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 5390,
-                                            "end": 5392
+                                            "start": 5686,
+                                            "end": 5688
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5390,
-                                          "end": 5392
+                                          "start": 5686,
+                                          "end": 5688
                                         }
                                       },
                                       {
@@ -8210,15 +8672,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 5413,
-                                            "end": 5423
+                                            "start": 5709,
+                                            "end": 5719
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5413,
-                                          "end": 5423
+                                          "start": 5709,
+                                          "end": 5719
                                         }
                                       },
                                       {
@@ -8227,15 +8689,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "tag",
                                           "loc": {
-                                            "start": 5444,
-                                            "end": 5447
+                                            "start": 5740,
+                                            "end": 5743
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5444,
-                                          "end": 5447
+                                          "start": 5740,
+                                          "end": 5743
                                         }
                                       },
                                       {
@@ -8244,15 +8706,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "bookmarks",
                                           "loc": {
-                                            "start": 5468,
-                                            "end": 5477
+                                            "start": 5764,
+                                            "end": 5773
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5468,
-                                          "end": 5477
+                                          "start": 5764,
+                                          "end": 5773
                                         }
                                       },
                                       {
@@ -8261,8 +8723,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 5498,
-                                            "end": 5510
+                                            "start": 5794,
+                                            "end": 5806
                                           }
                                         },
                                         "arguments": [],
@@ -8276,15 +8738,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5537,
-                                                  "end": 5539
+                                                  "start": 5833,
+                                                  "end": 5835
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5537,
-                                                "end": 5539
+                                                "start": 5833,
+                                                "end": 5835
                                               }
                                             },
                                             {
@@ -8293,15 +8755,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 5564,
-                                                  "end": 5572
+                                                  "start": 5860,
+                                                  "end": 5868
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5564,
-                                                "end": 5572
+                                                "start": 5860,
+                                                "end": 5868
                                               }
                                             },
                                             {
@@ -8310,26 +8772,26 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 5597,
-                                                  "end": 5608
+                                                  "start": 5893,
+                                                  "end": 5904
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5597,
-                                                "end": 5608
+                                                "start": 5893,
+                                                "end": 5904
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5511,
-                                            "end": 5630
+                                            "start": 5807,
+                                            "end": 5926
                                           }
                                         },
                                         "loc": {
-                                          "start": 5498,
-                                          "end": 5630
+                                          "start": 5794,
+                                          "end": 5926
                                         }
                                       },
                                       {
@@ -8338,8 +8800,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "you",
                                           "loc": {
-                                            "start": 5651,
-                                            "end": 5654
+                                            "start": 5947,
+                                            "end": 5950
                                           }
                                         },
                                         "arguments": [],
@@ -8353,15 +8815,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "isOwn",
                                                 "loc": {
-                                                  "start": 5681,
-                                                  "end": 5686
+                                                  "start": 5977,
+                                                  "end": 5982
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5681,
-                                                "end": 5686
+                                                "start": 5977,
+                                                "end": 5982
                                               }
                                             },
                                             {
@@ -8370,37 +8832,37 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "isBookmarked",
                                                 "loc": {
-                                                  "start": 5711,
-                                                  "end": 5723
+                                                  "start": 6007,
+                                                  "end": 6019
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5711,
-                                                "end": 5723
+                                                "start": 6007,
+                                                "end": 6019
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5655,
-                                            "end": 5745
+                                            "start": 5951,
+                                            "end": 6041
                                           }
                                         },
                                         "loc": {
-                                          "start": 5651,
-                                          "end": 5745
+                                          "start": 5947,
+                                          "end": 6041
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5368,
-                                      "end": 5763
+                                      "start": 5664,
+                                      "end": 6059
                                     }
                                   },
                                   "loc": {
-                                    "start": 5364,
-                                    "end": 5763
+                                    "start": 5660,
+                                    "end": 6059
                                   }
                                 },
                                 {
@@ -8409,8 +8871,8 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "focusMode",
                                     "loc": {
-                                      "start": 5780,
-                                      "end": 5789
+                                      "start": 6076,
+                                      "end": 6085
                                     }
                                   },
                                   "arguments": [],
@@ -8424,8 +8886,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "labels",
                                           "loc": {
-                                            "start": 5812,
-                                            "end": 5818
+                                            "start": 6108,
+                                            "end": 6114
                                           }
                                         },
                                         "arguments": [],
@@ -8439,15 +8901,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5845,
-                                                  "end": 5847
+                                                  "start": 6141,
+                                                  "end": 6143
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5845,
-                                                "end": 5847
+                                                "start": 6141,
+                                                "end": 6143
                                               }
                                             },
                                             {
@@ -8456,15 +8918,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "color",
                                                 "loc": {
-                                                  "start": 5872,
-                                                  "end": 5877
+                                                  "start": 6168,
+                                                  "end": 6173
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5872,
-                                                "end": 5877
+                                                "start": 6168,
+                                                "end": 6173
                                               }
                                             },
                                             {
@@ -8473,26 +8935,26 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "label",
                                                 "loc": {
-                                                  "start": 5902,
-                                                  "end": 5907
+                                                  "start": 6198,
+                                                  "end": 6203
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5902,
-                                                "end": 5907
+                                                "start": 6198,
+                                                "end": 6203
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5819,
-                                            "end": 5929
+                                            "start": 6115,
+                                            "end": 6225
                                           }
                                         },
                                         "loc": {
-                                          "start": 5812,
-                                          "end": 5929
+                                          "start": 6108,
+                                          "end": 6225
                                         }
                                       },
                                       {
@@ -8501,8 +8963,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "reminderList",
                                           "loc": {
-                                            "start": 5950,
-                                            "end": 5962
+                                            "start": 6246,
+                                            "end": 6258
                                           }
                                         },
                                         "arguments": [],
@@ -8516,15 +8978,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5989,
-                                                  "end": 5991
+                                                  "start": 6285,
+                                                  "end": 6287
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5989,
-                                                "end": 5991
+                                                "start": 6285,
+                                                "end": 6287
                                               }
                                             },
                                             {
@@ -8533,15 +8995,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 6016,
-                                                  "end": 6026
+                                                  "start": 6312,
+                                                  "end": 6322
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6016,
-                                                "end": 6026
+                                                "start": 6312,
+                                                "end": 6322
                                               }
                                             },
                                             {
@@ -8550,15 +9012,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 6051,
-                                                  "end": 6061
+                                                  "start": 6347,
+                                                  "end": 6357
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6051,
-                                                "end": 6061
+                                                "start": 6347,
+                                                "end": 6357
                                               }
                                             },
                                             {
@@ -8567,8 +9029,8 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "reminders",
                                                 "loc": {
-                                                  "start": 6086,
-                                                  "end": 6095
+                                                  "start": 6382,
+                                                  "end": 6391
                                                 }
                                               },
                                               "arguments": [],
@@ -8582,15 +9044,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 6126,
-                                                        "end": 6128
+                                                        "start": 6422,
+                                                        "end": 6424
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6126,
-                                                      "end": 6128
+                                                      "start": 6422,
+                                                      "end": 6424
                                                     }
                                                   },
                                                   {
@@ -8599,15 +9061,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 6157,
-                                                        "end": 6167
+                                                        "start": 6453,
+                                                        "end": 6463
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6157,
-                                                      "end": 6167
+                                                      "start": 6453,
+                                                      "end": 6463
                                                     }
                                                   },
                                                   {
@@ -8616,15 +9078,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 6196,
-                                                        "end": 6206
+                                                        "start": 6492,
+                                                        "end": 6502
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6196,
-                                                      "end": 6206
+                                                      "start": 6492,
+                                                      "end": 6502
                                                     }
                                                   },
                                                   {
@@ -8633,15 +9095,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 6235,
-                                                        "end": 6239
+                                                        "start": 6531,
+                                                        "end": 6535
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6235,
-                                                      "end": 6239
+                                                      "start": 6531,
+                                                      "end": 6535
                                                     }
                                                   },
                                                   {
@@ -8650,15 +9112,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 6268,
-                                                        "end": 6279
+                                                        "start": 6564,
+                                                        "end": 6575
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6268,
-                                                      "end": 6279
+                                                      "start": 6564,
+                                                      "end": 6575
                                                     }
                                                   },
                                                   {
@@ -8667,15 +9129,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 6308,
-                                                        "end": 6315
+                                                        "start": 6604,
+                                                        "end": 6611
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6308,
-                                                      "end": 6315
+                                                      "start": 6604,
+                                                      "end": 6611
                                                     }
                                                   },
                                                   {
@@ -8684,15 +9146,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 6344,
-                                                        "end": 6349
+                                                        "start": 6640,
+                                                        "end": 6645
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6344,
-                                                      "end": 6349
+                                                      "start": 6640,
+                                                      "end": 6645
                                                     }
                                                   },
                                                   {
@@ -8701,15 +9163,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 6378,
-                                                        "end": 6388
+                                                        "start": 6674,
+                                                        "end": 6684
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6378,
-                                                      "end": 6388
+                                                      "start": 6674,
+                                                      "end": 6684
                                                     }
                                                   },
                                                   {
@@ -8718,8 +9180,8 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "reminderItems",
                                                       "loc": {
-                                                        "start": 6417,
-                                                        "end": 6430
+                                                        "start": 6713,
+                                                        "end": 6726
                                                       }
                                                     },
                                                     "arguments": [],
@@ -8733,15 +9195,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 6465,
-                                                              "end": 6467
+                                                              "start": 6761,
+                                                              "end": 6763
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6465,
-                                                            "end": 6467
+                                                            "start": 6761,
+                                                            "end": 6763
                                                           }
                                                         },
                                                         {
@@ -8750,15 +9212,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "created_at",
                                                             "loc": {
-                                                              "start": 6500,
-                                                              "end": 6510
+                                                              "start": 6796,
+                                                              "end": 6806
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6500,
-                                                            "end": 6510
+                                                            "start": 6796,
+                                                            "end": 6806
                                                           }
                                                         },
                                                         {
@@ -8767,15 +9229,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "updated_at",
                                                             "loc": {
-                                                              "start": 6543,
-                                                              "end": 6553
+                                                              "start": 6839,
+                                                              "end": 6849
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6543,
-                                                            "end": 6553
+                                                            "start": 6839,
+                                                            "end": 6849
                                                           }
                                                         },
                                                         {
@@ -8784,15 +9246,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 6586,
-                                                              "end": 6590
+                                                              "start": 6882,
+                                                              "end": 6886
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6586,
-                                                            "end": 6590
+                                                            "start": 6882,
+                                                            "end": 6886
                                                           }
                                                         },
                                                         {
@@ -8801,15 +9263,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 6623,
-                                                              "end": 6634
+                                                              "start": 6919,
+                                                              "end": 6930
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6623,
-                                                            "end": 6634
+                                                            "start": 6919,
+                                                            "end": 6930
                                                           }
                                                         },
                                                         {
@@ -8818,15 +9280,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "dueDate",
                                                             "loc": {
-                                                              "start": 6667,
-                                                              "end": 6674
+                                                              "start": 6963,
+                                                              "end": 6970
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6667,
-                                                            "end": 6674
+                                                            "start": 6963,
+                                                            "end": 6970
                                                           }
                                                         },
                                                         {
@@ -8835,15 +9297,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "index",
                                                             "loc": {
-                                                              "start": 6707,
-                                                              "end": 6712
+                                                              "start": 7003,
+                                                              "end": 7008
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6707,
-                                                            "end": 6712
+                                                            "start": 7003,
+                                                            "end": 7008
                                                           }
                                                         },
                                                         {
@@ -8852,48 +9314,48 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "isComplete",
                                                             "loc": {
-                                                              "start": 6745,
-                                                              "end": 6755
+                                                              "start": 7041,
+                                                              "end": 7051
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6745,
-                                                            "end": 6755
+                                                            "start": 7041,
+                                                            "end": 7051
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 6431,
-                                                        "end": 6785
+                                                        "start": 6727,
+                                                        "end": 7081
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 6417,
-                                                      "end": 6785
+                                                      "start": 6713,
+                                                      "end": 7081
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 6096,
-                                                  "end": 6811
+                                                  "start": 6392,
+                                                  "end": 7107
                                                 }
                                               },
                                               "loc": {
-                                                "start": 6086,
-                                                "end": 6811
+                                                "start": 6382,
+                                                "end": 7107
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5963,
-                                            "end": 6833
+                                            "start": 6259,
+                                            "end": 7129
                                           }
                                         },
                                         "loc": {
-                                          "start": 5950,
-                                          "end": 6833
+                                          "start": 6246,
+                                          "end": 7129
                                         }
                                       },
                                       {
@@ -8902,8 +9364,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "resourceList",
                                           "loc": {
-                                            "start": 6854,
-                                            "end": 6866
+                                            "start": 7150,
+                                            "end": 7162
                                           }
                                         },
                                         "arguments": [],
@@ -8917,15 +9379,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 6893,
-                                                  "end": 6895
+                                                  "start": 7189,
+                                                  "end": 7191
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6893,
-                                                "end": 6895
+                                                "start": 7189,
+                                                "end": 7191
                                               }
                                             },
                                             {
@@ -8934,15 +9396,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 6920,
-                                                  "end": 6930
+                                                  "start": 7216,
+                                                  "end": 7226
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6920,
-                                                "end": 6930
+                                                "start": 7216,
+                                                "end": 7226
                                               }
                                             },
                                             {
@@ -8951,8 +9413,8 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 6955,
-                                                  "end": 6967
+                                                  "start": 7251,
+                                                  "end": 7263
                                                 }
                                               },
                                               "arguments": [],
@@ -8966,15 +9428,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 6998,
-                                                        "end": 7000
+                                                        "start": 7294,
+                                                        "end": 7296
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6998,
-                                                      "end": 7000
+                                                      "start": 7294,
+                                                      "end": 7296
                                                     }
                                                   },
                                                   {
@@ -8983,15 +9445,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 7029,
-                                                        "end": 7037
+                                                        "start": 7325,
+                                                        "end": 7333
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7029,
-                                                      "end": 7037
+                                                      "start": 7325,
+                                                      "end": 7333
                                                     }
                                                   },
                                                   {
@@ -9000,15 +9462,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 7066,
-                                                        "end": 7077
+                                                        "start": 7362,
+                                                        "end": 7373
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7066,
-                                                      "end": 7077
+                                                      "start": 7362,
+                                                      "end": 7373
                                                     }
                                                   },
                                                   {
@@ -9017,26 +9479,26 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 7106,
-                                                        "end": 7110
+                                                        "start": 7402,
+                                                        "end": 7406
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7106,
-                                                      "end": 7110
+                                                      "start": 7402,
+                                                      "end": 7406
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 6968,
-                                                  "end": 7136
+                                                  "start": 7264,
+                                                  "end": 7432
                                                 }
                                               },
                                               "loc": {
-                                                "start": 6955,
-                                                "end": 7136
+                                                "start": 7251,
+                                                "end": 7432
                                               }
                                             },
                                             {
@@ -9045,8 +9507,8 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "resources",
                                                 "loc": {
-                                                  "start": 7161,
-                                                  "end": 7170
+                                                  "start": 7457,
+                                                  "end": 7466
                                                 }
                                               },
                                               "arguments": [],
@@ -9060,15 +9522,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 7201,
-                                                        "end": 7203
+                                                        "start": 7497,
+                                                        "end": 7499
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7201,
-                                                      "end": 7203
+                                                      "start": 7497,
+                                                      "end": 7499
                                                     }
                                                   },
                                                   {
@@ -9077,15 +9539,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 7232,
-                                                        "end": 7237
+                                                        "start": 7528,
+                                                        "end": 7533
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7232,
-                                                      "end": 7237
+                                                      "start": 7528,
+                                                      "end": 7533
                                                     }
                                                   },
                                                   {
@@ -9094,15 +9556,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "link",
                                                       "loc": {
-                                                        "start": 7266,
-                                                        "end": 7270
+                                                        "start": 7562,
+                                                        "end": 7566
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7266,
-                                                      "end": 7270
+                                                      "start": 7562,
+                                                      "end": 7566
                                                     }
                                                   },
                                                   {
@@ -9111,15 +9573,15 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "usedFor",
                                                       "loc": {
-                                                        "start": 7299,
-                                                        "end": 7306
+                                                        "start": 7595,
+                                                        "end": 7602
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7299,
-                                                      "end": 7306
+                                                      "start": 7595,
+                                                      "end": 7602
                                                     }
                                                   },
                                                   {
@@ -9128,8 +9590,8 @@ export const auth_emailResetPassword = {
                                                       "kind": "Name",
                                                       "value": "translations",
                                                       "loc": {
-                                                        "start": 7335,
-                                                        "end": 7347
+                                                        "start": 7631,
+                                                        "end": 7643
                                                       }
                                                     },
                                                     "arguments": [],
@@ -9143,15 +9605,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 7382,
-                                                              "end": 7384
+                                                              "start": 7678,
+                                                              "end": 7680
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7382,
-                                                            "end": 7384
+                                                            "start": 7678,
+                                                            "end": 7680
                                                           }
                                                         },
                                                         {
@@ -9160,15 +9622,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "language",
                                                             "loc": {
-                                                              "start": 7417,
-                                                              "end": 7425
+                                                              "start": 7713,
+                                                              "end": 7721
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7417,
-                                                            "end": 7425
+                                                            "start": 7713,
+                                                            "end": 7721
                                                           }
                                                         },
                                                         {
@@ -9177,15 +9639,15 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 7458,
-                                                              "end": 7469
+                                                              "start": 7754,
+                                                              "end": 7765
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7458,
-                                                            "end": 7469
+                                                            "start": 7754,
+                                                            "end": 7765
                                                           }
                                                         },
                                                         {
@@ -9194,48 +9656,48 @@ export const auth_emailResetPassword = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 7502,
-                                                              "end": 7506
+                                                              "start": 7798,
+                                                              "end": 7802
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7502,
-                                                            "end": 7506
+                                                            "start": 7798,
+                                                            "end": 7802
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 7348,
-                                                        "end": 7536
+                                                        "start": 7644,
+                                                        "end": 7832
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 7335,
-                                                      "end": 7536
+                                                      "start": 7631,
+                                                      "end": 7832
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 7171,
-                                                  "end": 7562
+                                                  "start": 7467,
+                                                  "end": 7858
                                                 }
                                               },
                                               "loc": {
-                                                "start": 7161,
-                                                "end": 7562
+                                                "start": 7457,
+                                                "end": 7858
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 6867,
-                                            "end": 7584
+                                            "start": 7163,
+                                            "end": 7880
                                           }
                                         },
                                         "loc": {
-                                          "start": 6854,
-                                          "end": 7584
+                                          "start": 7150,
+                                          "end": 7880
                                         }
                                       },
                                       {
@@ -9244,8 +9706,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "schedule",
                                           "loc": {
-                                            "start": 7605,
-                                            "end": 7613
+                                            "start": 7901,
+                                            "end": 7909
                                           }
                                         },
                                         "arguments": [],
@@ -9259,25 +9721,25 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "Schedule_common",
                                                 "loc": {
-                                                  "start": 7643,
-                                                  "end": 7658
+                                                  "start": 7939,
+                                                  "end": 7954
                                                 }
                                               },
                                               "directives": [],
                                               "loc": {
-                                                "start": 7640,
-                                                "end": 7658
+                                                "start": 7936,
+                                                "end": 7954
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 7614,
-                                            "end": 7680
+                                            "start": 7910,
+                                            "end": 7976
                                           }
                                         },
                                         "loc": {
-                                          "start": 7605,
-                                          "end": 7680
+                                          "start": 7901,
+                                          "end": 7976
                                         }
                                       },
                                       {
@@ -9286,15 +9748,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 7701,
-                                            "end": 7703
+                                            "start": 7997,
+                                            "end": 7999
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7701,
-                                          "end": 7703
+                                          "start": 7997,
+                                          "end": 7999
                                         }
                                       },
                                       {
@@ -9303,15 +9765,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 7724,
-                                            "end": 7728
+                                            "start": 8020,
+                                            "end": 8024
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7724,
-                                          "end": 7728
+                                          "start": 8020,
+                                          "end": 8024
                                         }
                                       },
                                       {
@@ -9320,37 +9782,114 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 7749,
-                                            "end": 7760
+                                            "start": 8045,
+                                            "end": 8056
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7749,
-                                          "end": 7760
+                                          "start": 8045,
+                                          "end": 8056
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "you",
+                                          "loc": {
+                                            "start": 8077,
+                                            "end": 8080
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "selectionSet": {
+                                          "kind": "SelectionSet",
+                                          "selections": [
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canDelete",
+                                                "loc": {
+                                                  "start": 8107,
+                                                  "end": 8116
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8107,
+                                                "end": 8116
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canRead",
+                                                "loc": {
+                                                  "start": 8141,
+                                                  "end": 8148
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8141,
+                                                "end": 8148
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canUpdate",
+                                                "loc": {
+                                                  "start": 8173,
+                                                  "end": 8182
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8173,
+                                                "end": 8182
+                                              }
+                                            }
+                                          ],
+                                          "loc": {
+                                            "start": 8081,
+                                            "end": 8204
+                                          }
+                                        },
+                                        "loc": {
+                                          "start": 8077,
+                                          "end": 8204
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5790,
-                                      "end": 7778
+                                      "start": 6086,
+                                      "end": 8222
                                     }
                                   },
                                   "loc": {
-                                    "start": 5780,
-                                    "end": 7778
+                                    "start": 6076,
+                                    "end": 8222
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 5300,
-                                "end": 7792
+                                "start": 5596,
+                                "end": 8236
                               }
                             },
                             "loc": {
-                              "start": 5292,
-                              "end": 7792
+                              "start": 5588,
+                              "end": 8236
                             }
                           },
                           {
@@ -9359,8 +9898,8 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "labels",
                               "loc": {
-                                "start": 7805,
-                                "end": 7811
+                                "start": 8249,
+                                "end": 8255
                               }
                             },
                             "arguments": [],
@@ -9374,15 +9913,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 7830,
-                                      "end": 7832
+                                      "start": 8274,
+                                      "end": 8276
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7830,
-                                    "end": 7832
+                                    "start": 8274,
+                                    "end": 8276
                                   }
                                 },
                                 {
@@ -9391,15 +9930,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "color",
                                     "loc": {
-                                      "start": 7849,
-                                      "end": 7854
+                                      "start": 8293,
+                                      "end": 8298
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7849,
-                                    "end": 7854
+                                    "start": 8293,
+                                    "end": 8298
                                   }
                                 },
                                 {
@@ -9408,26 +9947,26 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "label",
                                     "loc": {
-                                      "start": 7871,
-                                      "end": 7876
+                                      "start": 8315,
+                                      "end": 8320
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7871,
-                                    "end": 7876
+                                    "start": 8315,
+                                    "end": 8320
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 7812,
-                                "end": 7890
+                                "start": 8256,
+                                "end": 8334
                               }
                             },
                             "loc": {
-                              "start": 7805,
-                              "end": 7890
+                              "start": 8249,
+                              "end": 8334
                             }
                           },
                           {
@@ -9436,8 +9975,8 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "reminderList",
                               "loc": {
-                                "start": 7903,
-                                "end": 7915
+                                "start": 8347,
+                                "end": 8359
                               }
                             },
                             "arguments": [],
@@ -9451,15 +9990,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 7934,
-                                      "end": 7936
+                                      "start": 8378,
+                                      "end": 8380
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7934,
-                                    "end": 7936
+                                    "start": 8378,
+                                    "end": 8380
                                   }
                                 },
                                 {
@@ -9468,15 +10007,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 7953,
-                                      "end": 7963
+                                      "start": 8397,
+                                      "end": 8407
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7953,
-                                    "end": 7963
+                                    "start": 8397,
+                                    "end": 8407
                                   }
                                 },
                                 {
@@ -9485,15 +10024,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "updated_at",
                                     "loc": {
-                                      "start": 7980,
-                                      "end": 7990
+                                      "start": 8424,
+                                      "end": 8434
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7980,
-                                    "end": 7990
+                                    "start": 8424,
+                                    "end": 8434
                                   }
                                 },
                                 {
@@ -9502,8 +10041,8 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "reminders",
                                     "loc": {
-                                      "start": 8007,
-                                      "end": 8016
+                                      "start": 8451,
+                                      "end": 8460
                                     }
                                   },
                                   "arguments": [],
@@ -9517,15 +10056,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8039,
-                                            "end": 8041
+                                            "start": 8483,
+                                            "end": 8485
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8039,
-                                          "end": 8041
+                                          "start": 8483,
+                                          "end": 8485
                                         }
                                       },
                                       {
@@ -9534,15 +10073,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 8062,
-                                            "end": 8072
+                                            "start": 8506,
+                                            "end": 8516
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8062,
-                                          "end": 8072
+                                          "start": 8506,
+                                          "end": 8516
                                         }
                                       },
                                       {
@@ -9551,15 +10090,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 8093,
-                                            "end": 8103
+                                            "start": 8537,
+                                            "end": 8547
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8093,
-                                          "end": 8103
+                                          "start": 8537,
+                                          "end": 8547
                                         }
                                       },
                                       {
@@ -9568,15 +10107,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 8124,
-                                            "end": 8128
+                                            "start": 8568,
+                                            "end": 8572
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8124,
-                                          "end": 8128
+                                          "start": 8568,
+                                          "end": 8572
                                         }
                                       },
                                       {
@@ -9585,15 +10124,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8149,
-                                            "end": 8160
+                                            "start": 8593,
+                                            "end": 8604
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8149,
-                                          "end": 8160
+                                          "start": 8593,
+                                          "end": 8604
                                         }
                                       },
                                       {
@@ -9602,15 +10141,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "dueDate",
                                           "loc": {
-                                            "start": 8181,
-                                            "end": 8188
+                                            "start": 8625,
+                                            "end": 8632
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8181,
-                                          "end": 8188
+                                          "start": 8625,
+                                          "end": 8632
                                         }
                                       },
                                       {
@@ -9619,15 +10158,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 8209,
-                                            "end": 8214
+                                            "start": 8653,
+                                            "end": 8658
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8209,
-                                          "end": 8214
+                                          "start": 8653,
+                                          "end": 8658
                                         }
                                       },
                                       {
@@ -9636,15 +10175,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "isComplete",
                                           "loc": {
-                                            "start": 8235,
-                                            "end": 8245
+                                            "start": 8679,
+                                            "end": 8689
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8235,
-                                          "end": 8245
+                                          "start": 8679,
+                                          "end": 8689
                                         }
                                       },
                                       {
@@ -9653,8 +10192,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "reminderItems",
                                           "loc": {
-                                            "start": 8266,
-                                            "end": 8279
+                                            "start": 8710,
+                                            "end": 8723
                                           }
                                         },
                                         "arguments": [],
@@ -9668,15 +10207,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 8306,
-                                                  "end": 8308
+                                                  "start": 8750,
+                                                  "end": 8752
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8306,
-                                                "end": 8308
+                                                "start": 8750,
+                                                "end": 8752
                                               }
                                             },
                                             {
@@ -9685,15 +10224,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 8333,
-                                                  "end": 8343
+                                                  "start": 8777,
+                                                  "end": 8787
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8333,
-                                                "end": 8343
+                                                "start": 8777,
+                                                "end": 8787
                                               }
                                             },
                                             {
@@ -9702,15 +10241,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 8368,
-                                                  "end": 8378
+                                                  "start": 8812,
+                                                  "end": 8822
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8368,
-                                                "end": 8378
+                                                "start": 8812,
+                                                "end": 8822
                                               }
                                             },
                                             {
@@ -9719,15 +10258,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 8403,
-                                                  "end": 8407
+                                                  "start": 8847,
+                                                  "end": 8851
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8403,
-                                                "end": 8407
+                                                "start": 8847,
+                                                "end": 8851
                                               }
                                             },
                                             {
@@ -9736,15 +10275,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 8432,
-                                                  "end": 8443
+                                                  "start": 8876,
+                                                  "end": 8887
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8432,
-                                                "end": 8443
+                                                "start": 8876,
+                                                "end": 8887
                                               }
                                             },
                                             {
@@ -9753,15 +10292,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 8468,
-                                                  "end": 8475
+                                                  "start": 8912,
+                                                  "end": 8919
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8468,
-                                                "end": 8475
+                                                "start": 8912,
+                                                "end": 8919
                                               }
                                             },
                                             {
@@ -9770,15 +10309,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 8500,
-                                                  "end": 8505
+                                                  "start": 8944,
+                                                  "end": 8949
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8500,
-                                                "end": 8505
+                                                "start": 8944,
+                                                "end": 8949
                                               }
                                             },
                                             {
@@ -9787,48 +10326,48 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 8530,
-                                                  "end": 8540
+                                                  "start": 8974,
+                                                  "end": 8984
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8530,
-                                                "end": 8540
+                                                "start": 8974,
+                                                "end": 8984
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8280,
-                                            "end": 8562
+                                            "start": 8724,
+                                            "end": 9006
                                           }
                                         },
                                         "loc": {
-                                          "start": 8266,
-                                          "end": 8562
+                                          "start": 8710,
+                                          "end": 9006
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8017,
-                                      "end": 8580
+                                      "start": 8461,
+                                      "end": 9024
                                     }
                                   },
                                   "loc": {
-                                    "start": 8007,
-                                    "end": 8580
+                                    "start": 8451,
+                                    "end": 9024
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 7916,
-                                "end": 8594
+                                "start": 8360,
+                                "end": 9038
                               }
                             },
                             "loc": {
-                              "start": 7903,
-                              "end": 8594
+                              "start": 8347,
+                              "end": 9038
                             }
                           },
                           {
@@ -9837,8 +10376,8 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "resourceList",
                               "loc": {
-                                "start": 8607,
-                                "end": 8619
+                                "start": 9051,
+                                "end": 9063
                               }
                             },
                             "arguments": [],
@@ -9852,15 +10391,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 8638,
-                                      "end": 8640
+                                      "start": 9082,
+                                      "end": 9084
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8638,
-                                    "end": 8640
+                                    "start": 9082,
+                                    "end": 9084
                                   }
                                 },
                                 {
@@ -9869,15 +10408,15 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 8657,
-                                      "end": 8667
+                                      "start": 9101,
+                                      "end": 9111
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8657,
-                                    "end": 8667
+                                    "start": 9101,
+                                    "end": 9111
                                   }
                                 },
                                 {
@@ -9886,8 +10425,8 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "translations",
                                     "loc": {
-                                      "start": 8684,
-                                      "end": 8696
+                                      "start": 9128,
+                                      "end": 9140
                                     }
                                   },
                                   "arguments": [],
@@ -9901,15 +10440,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8719,
-                                            "end": 8721
+                                            "start": 9163,
+                                            "end": 9165
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8719,
-                                          "end": 8721
+                                          "start": 9163,
+                                          "end": 9165
                                         }
                                       },
                                       {
@@ -9918,15 +10457,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "language",
                                           "loc": {
-                                            "start": 8742,
-                                            "end": 8750
+                                            "start": 9186,
+                                            "end": 9194
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8742,
-                                          "end": 8750
+                                          "start": 9186,
+                                          "end": 9194
                                         }
                                       },
                                       {
@@ -9935,15 +10474,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8771,
-                                            "end": 8782
+                                            "start": 9215,
+                                            "end": 9226
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8771,
-                                          "end": 8782
+                                          "start": 9215,
+                                          "end": 9226
                                         }
                                       },
                                       {
@@ -9952,26 +10491,26 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 8803,
-                                            "end": 8807
+                                            "start": 9247,
+                                            "end": 9251
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8803,
-                                          "end": 8807
+                                          "start": 9247,
+                                          "end": 9251
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8697,
-                                      "end": 8825
+                                      "start": 9141,
+                                      "end": 9269
                                     }
                                   },
                                   "loc": {
-                                    "start": 8684,
-                                    "end": 8825
+                                    "start": 9128,
+                                    "end": 9269
                                   }
                                 },
                                 {
@@ -9980,8 +10519,8 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "resources",
                                     "loc": {
-                                      "start": 8842,
-                                      "end": 8851
+                                      "start": 9286,
+                                      "end": 9295
                                     }
                                   },
                                   "arguments": [],
@@ -9995,15 +10534,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8874,
-                                            "end": 8876
+                                            "start": 9318,
+                                            "end": 9320
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8874,
-                                          "end": 8876
+                                          "start": 9318,
+                                          "end": 9320
                                         }
                                       },
                                       {
@@ -10012,15 +10551,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 8897,
-                                            "end": 8902
+                                            "start": 9341,
+                                            "end": 9346
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8897,
-                                          "end": 8902
+                                          "start": 9341,
+                                          "end": 9346
                                         }
                                       },
                                       {
@@ -10029,15 +10568,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "link",
                                           "loc": {
-                                            "start": 8923,
-                                            "end": 8927
+                                            "start": 9367,
+                                            "end": 9371
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8923,
-                                          "end": 8927
+                                          "start": 9367,
+                                          "end": 9371
                                         }
                                       },
                                       {
@@ -10046,15 +10585,15 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "usedFor",
                                           "loc": {
-                                            "start": 8948,
-                                            "end": 8955
+                                            "start": 9392,
+                                            "end": 9399
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8948,
-                                          "end": 8955
+                                          "start": 9392,
+                                          "end": 9399
                                         }
                                       },
                                       {
@@ -10063,8 +10602,8 @@ export const auth_emailResetPassword = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 8976,
-                                            "end": 8988
+                                            "start": 9420,
+                                            "end": 9432
                                           }
                                         },
                                         "arguments": [],
@@ -10078,15 +10617,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 9015,
-                                                  "end": 9017
+                                                  "start": 9459,
+                                                  "end": 9461
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9015,
-                                                "end": 9017
+                                                "start": 9459,
+                                                "end": 9461
                                               }
                                             },
                                             {
@@ -10095,15 +10634,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 9042,
-                                                  "end": 9050
+                                                  "start": 9486,
+                                                  "end": 9494
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9042,
-                                                "end": 9050
+                                                "start": 9486,
+                                                "end": 9494
                                               }
                                             },
                                             {
@@ -10112,15 +10651,15 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 9075,
-                                                  "end": 9086
+                                                  "start": 9519,
+                                                  "end": 9530
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9075,
-                                                "end": 9086
+                                                "start": 9519,
+                                                "end": 9530
                                               }
                                             },
                                             {
@@ -10129,48 +10668,48 @@ export const auth_emailResetPassword = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 9111,
-                                                  "end": 9115
+                                                  "start": 9555,
+                                                  "end": 9559
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9111,
-                                                "end": 9115
+                                                "start": 9555,
+                                                "end": 9559
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8989,
-                                            "end": 9137
+                                            "start": 9433,
+                                            "end": 9581
                                           }
                                         },
                                         "loc": {
-                                          "start": 8976,
-                                          "end": 9137
+                                          "start": 9420,
+                                          "end": 9581
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8852,
-                                      "end": 9155
+                                      "start": 9296,
+                                      "end": 9599
                                     }
                                   },
                                   "loc": {
-                                    "start": 8842,
-                                    "end": 9155
+                                    "start": 9286,
+                                    "end": 9599
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 8620,
-                                "end": 9169
+                                "start": 9064,
+                                "end": 9613
                               }
                             },
                             "loc": {
-                              "start": 8607,
-                              "end": 9169
+                              "start": 9051,
+                              "end": 9613
                             }
                           },
                           {
@@ -10179,8 +10718,8 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "schedule",
                               "loc": {
-                                "start": 9182,
-                                "end": 9190
+                                "start": 9626,
+                                "end": 9634
                               }
                             },
                             "arguments": [],
@@ -10194,25 +10733,25 @@ export const auth_emailResetPassword = {
                                     "kind": "Name",
                                     "value": "Schedule_common",
                                     "loc": {
-                                      "start": 9212,
-                                      "end": 9227
+                                      "start": 9656,
+                                      "end": 9671
                                     }
                                   },
                                   "directives": [],
                                   "loc": {
-                                    "start": 9209,
-                                    "end": 9227
+                                    "start": 9653,
+                                    "end": 9671
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 9191,
-                                "end": 9241
+                                "start": 9635,
+                                "end": 9685
                               }
                             },
                             "loc": {
-                              "start": 9182,
-                              "end": 9241
+                              "start": 9626,
+                              "end": 9685
                             }
                           },
                           {
@@ -10221,15 +10760,15 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 9254,
-                                "end": 9256
+                                "start": 9698,
+                                "end": 9700
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9254,
-                              "end": 9256
+                              "start": 9698,
+                              "end": 9700
                             }
                           },
                           {
@@ -10238,15 +10777,15 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "name",
                               "loc": {
-                                "start": 9269,
-                                "end": 9273
+                                "start": 9713,
+                                "end": 9717
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9269,
-                              "end": 9273
+                              "start": 9713,
+                              "end": 9717
                             }
                           },
                           {
@@ -10255,26 +10794,103 @@ export const auth_emailResetPassword = {
                               "kind": "Name",
                               "value": "description",
                               "loc": {
-                                "start": 9286,
-                                "end": 9297
+                                "start": 9730,
+                                "end": 9741
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9286,
-                              "end": 9297
+                              "start": 9730,
+                              "end": 9741
+                            }
+                          },
+                          {
+                            "kind": "Field",
+                            "name": {
+                              "kind": "Name",
+                              "value": "you",
+                              "loc": {
+                                "start": 9754,
+                                "end": 9757
+                              }
+                            },
+                            "arguments": [],
+                            "directives": [],
+                            "selectionSet": {
+                              "kind": "SelectionSet",
+                              "selections": [
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canDelete",
+                                    "loc": {
+                                      "start": 9776,
+                                      "end": 9785
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9776,
+                                    "end": 9785
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canRead",
+                                    "loc": {
+                                      "start": 9802,
+                                      "end": 9809
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9802,
+                                    "end": 9809
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canUpdate",
+                                    "loc": {
+                                      "start": 9826,
+                                      "end": 9835
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9826,
+                                    "end": 9835
+                                  }
+                                }
+                              ],
+                              "loc": {
+                                "start": 9758,
+                                "end": 9849
+                              }
+                            },
+                            "loc": {
+                              "start": 9754,
+                              "end": 9849
                             }
                           }
                         ],
                         "loc": {
-                          "start": 5278,
-                          "end": 9307
+                          "start": 5574,
+                          "end": 9859
                         }
                       },
                       "loc": {
-                        "start": 5267,
-                        "end": 9307
+                        "start": 5563,
+                        "end": 9859
                       }
                     },
                     {
@@ -10283,15 +10899,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "handle",
                         "loc": {
-                          "start": 9316,
-                          "end": 9322
+                          "start": 9868,
+                          "end": 9874
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9316,
-                        "end": 9322
+                        "start": 9868,
+                        "end": 9874
                       }
                     },
                     {
@@ -10300,15 +10916,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "hasPremium",
                         "loc": {
-                          "start": 9331,
-                          "end": 9341
+                          "start": 9883,
+                          "end": 9893
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9331,
-                        "end": 9341
+                        "start": 9883,
+                        "end": 9893
                       }
                     },
                     {
@@ -10317,15 +10933,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "id",
                         "loc": {
-                          "start": 9350,
-                          "end": 9352
+                          "start": 9902,
+                          "end": 9904
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9350,
-                        "end": 9352
+                        "start": 9902,
+                        "end": 9904
                       }
                     },
                     {
@@ -10334,15 +10950,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "languages",
                         "loc": {
-                          "start": 9361,
-                          "end": 9370
+                          "start": 9913,
+                          "end": 9922
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9361,
-                        "end": 9370
+                        "start": 9913,
+                        "end": 9922
                       }
                     },
                     {
@@ -10351,15 +10967,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "membershipsCount",
                         "loc": {
-                          "start": 9379,
-                          "end": 9395
+                          "start": 9931,
+                          "end": 9947
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9379,
-                        "end": 9395
+                        "start": 9931,
+                        "end": 9947
                       }
                     },
                     {
@@ -10368,15 +10984,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "name",
                         "loc": {
-                          "start": 9404,
-                          "end": 9408
+                          "start": 9956,
+                          "end": 9960
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9404,
-                        "end": 9408
+                        "start": 9956,
+                        "end": 9960
                       }
                     },
                     {
@@ -10385,15 +11001,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "notesCount",
                         "loc": {
-                          "start": 9417,
-                          "end": 9427
+                          "start": 9969,
+                          "end": 9979
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9417,
-                        "end": 9427
+                        "start": 9969,
+                        "end": 9979
                       }
                     },
                     {
@@ -10402,15 +11018,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "projectsCount",
                         "loc": {
-                          "start": 9436,
-                          "end": 9449
+                          "start": 9988,
+                          "end": 10001
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9436,
-                        "end": 9449
+                        "start": 9988,
+                        "end": 10001
                       }
                     },
                     {
@@ -10419,15 +11035,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "questionsAskedCount",
                         "loc": {
-                          "start": 9458,
-                          "end": 9477
+                          "start": 10010,
+                          "end": 10029
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9458,
-                        "end": 9477
+                        "start": 10010,
+                        "end": 10029
                       }
                     },
                     {
@@ -10436,15 +11052,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "routinesCount",
                         "loc": {
-                          "start": 9486,
-                          "end": 9499
+                          "start": 10038,
+                          "end": 10051
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9486,
-                        "end": 9499
+                        "start": 10038,
+                        "end": 10051
                       }
                     },
                     {
@@ -10453,15 +11069,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "smartContractsCount",
                         "loc": {
-                          "start": 9508,
-                          "end": 9527
+                          "start": 10060,
+                          "end": 10079
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9508,
-                        "end": 9527
+                        "start": 10060,
+                        "end": 10079
                       }
                     },
                     {
@@ -10470,15 +11086,15 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "standardsCount",
                         "loc": {
-                          "start": 9536,
-                          "end": 9550
+                          "start": 10088,
+                          "end": 10102
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9536,
-                        "end": 9550
+                        "start": 10088,
+                        "end": 10102
                       }
                     },
                     {
@@ -10487,48 +11103,48 @@ export const auth_emailResetPassword = {
                         "kind": "Name",
                         "value": "theme",
                         "loc": {
-                          "start": 9559,
-                          "end": 9564
+                          "start": 10111,
+                          "end": 10116
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9559,
-                        "end": 9564
+                        "start": 10111,
+                        "end": 10116
                       }
                     }
                   ],
                   "loc": {
                     "start": 417,
-                    "end": 9570
+                    "end": 10122
                   }
                 },
                 "loc": {
                   "start": 411,
-                  "end": 9570
+                  "end": 10122
                 }
               }
             ],
             "loc": {
               "start": 377,
-              "end": 9574
+              "end": 10126
             }
           },
           "loc": {
             "start": 343,
-            "end": 9574
+            "end": 10126
           }
         }
       ],
       "loc": {
         "start": 339,
-        "end": 9576
+        "end": 10128
       }
     },
     "loc": {
       "start": 277,
-      "end": 9576
+      "end": 10128
     }
   },
   "variableValues": {},

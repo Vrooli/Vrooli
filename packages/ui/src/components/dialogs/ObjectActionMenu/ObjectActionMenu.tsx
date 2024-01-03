@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { getActionsDisplayData, ObjectAction } from "utils/actions/objectActions";
+import { ObjectAction, getActionsDisplayData } from "utils/actions/objectActions";
 import { ListMenu } from "../ListMenu/ListMenu";
 import { ObjectActionDialogs } from "../ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenuProps } from "../types";
@@ -11,6 +11,7 @@ export const ObjectActionMenu = ({
     object,
     onClose,
 }: ObjectActionMenuProps) => {
+    console.log('on objectactionmenu', object);
     const displayedActions = useMemo(() => getActionsDisplayData(actionData.availableActions.filter(action => !exclude?.includes(action))), [actionData.availableActions, exclude]);
 
     const onSelect = useCallback((action: ObjectAction) => {

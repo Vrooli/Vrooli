@@ -196,11 +196,12 @@ export const DashboardView = ({
         if (activeFocusMode?.mode?.resourceList?.id && activeFocusMode.mode?.resourceList.id !== DUMMY_ID) {
             setResourceList({
                 ...activeFocusMode.mode.resourceList,
-                __typename: "ResourceList",
+                __typename: "ResourceList" as const,
                 listFor: {
-                    __typename: "FocusMode",
-                    id: activeFocusMode.mode.id,
-                } as ResourceListType["listFor"],
+                    ...activeFocusMode.mode,
+                    __typename: "FocusMode" as const,
+                    resourceList: undefined, // Avoid circular reference
+                },
             });
         }
     }, [activeFocusMode]);
@@ -509,7 +510,14 @@ export const DashboardView = ({
                             horizontal
                             loading={isFeedLoading}
                             mutate={true}
-                            parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
+                            parent={activeFocusMode?.mode ?
+                                {
+                                    ...activeFocusMode.mode,
+                                    __typename: "FocusMode" as const,
+                                    resourceList: undefined,
+                                } as FocusMode : // Avoid circular reference
+                                { __typename: "FocusMode", id: DUMMY_ID }
+                            }
                             title={t("Resource", { count: 2 })}
                             sxs={{ list: { justifyContent: "flex-start" } }}
                         />

@@ -3,7 +3,9 @@ import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { labelShapeHelper } from "../../utils/shapes";
+import { getSingleTypePermissions } from "../../validators";
 import { FocusModeFormat } from "../formats";
+import { SuppFields } from "../suppFields";
 import { FocusModeModelLogic } from "./types";
 
 const __typename = "FocusMode" as const;
@@ -55,6 +57,16 @@ export const FocusModeModel: FocusModeModelLogic = ({
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({ OR: ["descriptionWrapped", "nameWrapped"] }),
+        supplemental: {
+            graphqlFields: SuppFields[__typename],
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: () => ({
         isDeleted: () => false,

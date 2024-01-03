@@ -104,6 +104,11 @@ export const focusMode_update = {
       "id": true,
       "name": true,
       "description": true,
+      "you": {
+        "canDelete": true,
+        "canRead": true,
+        "canUpdate": true
+      },
       "__typename": "FocusMode"
     },
     "__typename": "FocusModeFilter"
@@ -193,5 +198,10 @@ export const focusMode_update = {
   "id": true,
   "name": true,
   "description": true,
+  "you": {
+    "canDelete": true,
+    "canRead": true,
+    "canUpdate": true
+  },
   "__typename": "FocusMode"
 } as const;

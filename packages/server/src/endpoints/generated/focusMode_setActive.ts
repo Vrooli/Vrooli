@@ -96,7 +96,12 @@ export const focusMode_setActive = {
         },
         "id": true,
         "name": true,
-        "description": true
+        "description": true,
+        "you": {
+          "canDelete": true,
+          "canRead": true,
+          "canUpdate": true
+        }
       }
     },
     "labels": {
@@ -176,7 +181,12 @@ export const focusMode_setActive = {
     },
     "id": true,
     "name": true,
-    "description": true
+    "description": true,
+    "you": {
+      "canDelete": true,
+      "canRead": true,
+      "canUpdate": true
+    }
   },
   "stopCondition": true,
   "stopTime": true,

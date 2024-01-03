@@ -1302,27 +1302,104 @@ export const auth_guestLogIn = {
                                             "start": 3176,
                                             "end": 3187
                                           }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "you",
+                                            "loc": {
+                                              "start": 3212,
+                                              "end": 3215
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canDelete",
+                                                  "loc": {
+                                                    "start": 3246,
+                                                    "end": 3255
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3246,
+                                                  "end": 3255
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canRead",
+                                                  "loc": {
+                                                    "start": 3284,
+                                                    "end": 3291
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3284,
+                                                  "end": 3291
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canUpdate",
+                                                  "loc": {
+                                                    "start": 3320,
+                                                    "end": 3329
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3320,
+                                                  "end": 3329
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 3216,
+                                              "end": 3355
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 3212,
+                                            "end": 3355
+                                          }
                                         }
                                       ],
                                       "loc": {
                                         "start": 985,
-                                        "end": 3209
+                                        "end": 3377
                                       }
                                     },
                                     "loc": {
                                       "start": 975,
-                                      "end": 3209
+                                      "end": 3377
                                     }
                                   }
                                 ],
                                 "loc": {
                                   "start": 423,
-                                  "end": 3227
+                                  "end": 3395
                                 }
                               },
                               "loc": {
                                 "start": 415,
-                                "end": 3227
+                                "end": 3395
                               }
                             },
                             {
@@ -1331,8 +1408,8 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "labels",
                                 "loc": {
-                                  "start": 3244,
-                                  "end": 3250
+                                  "start": 3412,
+                                  "end": 3418
                                 }
                               },
                               "arguments": [],
@@ -1346,15 +1423,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3273,
-                                        "end": 3275
+                                        "start": 3441,
+                                        "end": 3443
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3273,
-                                      "end": 3275
+                                      "start": 3441,
+                                      "end": 3443
                                     }
                                   },
                                   {
@@ -1363,15 +1440,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "color",
                                       "loc": {
-                                        "start": 3296,
-                                        "end": 3301
+                                        "start": 3464,
+                                        "end": 3469
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3296,
-                                      "end": 3301
+                                      "start": 3464,
+                                      "end": 3469
                                     }
                                   },
                                   {
@@ -1380,26 +1457,26 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "label",
                                       "loc": {
-                                        "start": 3322,
-                                        "end": 3327
+                                        "start": 3490,
+                                        "end": 3495
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3322,
-                                      "end": 3327
+                                      "start": 3490,
+                                      "end": 3495
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3251,
-                                  "end": 3345
+                                  "start": 3419,
+                                  "end": 3513
                                 }
                               },
                               "loc": {
-                                "start": 3244,
-                                "end": 3345
+                                "start": 3412,
+                                "end": 3513
                               }
                             },
                             {
@@ -1408,8 +1485,8 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "reminderList",
                                 "loc": {
-                                  "start": 3362,
-                                  "end": 3374
+                                  "start": 3530,
+                                  "end": 3542
                                 }
                               },
                               "arguments": [],
@@ -1423,15 +1500,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3397,
-                                        "end": 3399
+                                        "start": 3565,
+                                        "end": 3567
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3397,
-                                      "end": 3399
+                                      "start": 3565,
+                                      "end": 3567
                                     }
                                   },
                                   {
@@ -1440,15 +1517,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 3420,
-                                        "end": 3430
+                                        "start": 3588,
+                                        "end": 3598
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3420,
-                                      "end": 3430
+                                      "start": 3588,
+                                      "end": 3598
                                     }
                                   },
                                   {
@@ -1457,15 +1534,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 3451,
-                                        "end": 3461
+                                        "start": 3619,
+                                        "end": 3629
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3451,
-                                      "end": 3461
+                                      "start": 3619,
+                                      "end": 3629
                                     }
                                   },
                                   {
@@ -1474,8 +1551,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "reminders",
                                       "loc": {
-                                        "start": 3482,
-                                        "end": 3491
+                                        "start": 3650,
+                                        "end": 3659
                                       }
                                     },
                                     "arguments": [],
@@ -1489,15 +1566,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3518,
-                                              "end": 3520
+                                              "start": 3686,
+                                              "end": 3688
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3518,
-                                            "end": 3520
+                                            "start": 3686,
+                                            "end": 3688
                                           }
                                         },
                                         {
@@ -1506,15 +1583,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 3545,
-                                              "end": 3555
+                                              "start": 3713,
+                                              "end": 3723
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3545,
-                                            "end": 3555
+                                            "start": 3713,
+                                            "end": 3723
                                           }
                                         },
                                         {
@@ -1523,15 +1600,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 3580,
-                                              "end": 3590
+                                              "start": 3748,
+                                              "end": 3758
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3580,
-                                            "end": 3590
+                                            "start": 3748,
+                                            "end": 3758
                                           }
                                         },
                                         {
@@ -1540,15 +1617,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 3615,
-                                              "end": 3619
+                                              "start": 3783,
+                                              "end": 3787
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3615,
-                                            "end": 3619
+                                            "start": 3783,
+                                            "end": 3787
                                           }
                                         },
                                         {
@@ -1557,15 +1634,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 3644,
-                                              "end": 3655
+                                              "start": 3812,
+                                              "end": 3823
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3644,
-                                            "end": 3655
+                                            "start": 3812,
+                                            "end": 3823
                                           }
                                         },
                                         {
@@ -1574,15 +1651,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 3680,
-                                              "end": 3687
+                                              "start": 3848,
+                                              "end": 3855
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3680,
-                                            "end": 3687
+                                            "start": 3848,
+                                            "end": 3855
                                           }
                                         },
                                         {
@@ -1591,15 +1668,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 3712,
-                                              "end": 3717
+                                              "start": 3880,
+                                              "end": 3885
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3712,
-                                            "end": 3717
+                                            "start": 3880,
+                                            "end": 3885
                                           }
                                         },
                                         {
@@ -1608,15 +1685,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 3742,
-                                              "end": 3752
+                                              "start": 3910,
+                                              "end": 3920
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3742,
-                                            "end": 3752
+                                            "start": 3910,
+                                            "end": 3920
                                           }
                                         },
                                         {
@@ -1625,8 +1702,8 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "reminderItems",
                                             "loc": {
-                                              "start": 3777,
-                                              "end": 3790
+                                              "start": 3945,
+                                              "end": 3958
                                             }
                                           },
                                           "arguments": [],
@@ -1640,15 +1717,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 3821,
-                                                    "end": 3823
+                                                    "start": 3989,
+                                                    "end": 3991
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3821,
-                                                  "end": 3823
+                                                  "start": 3989,
+                                                  "end": 3991
                                                 }
                                               },
                                               {
@@ -1657,15 +1734,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 3852,
-                                                    "end": 3862
+                                                    "start": 4020,
+                                                    "end": 4030
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3852,
-                                                  "end": 3862
+                                                  "start": 4020,
+                                                  "end": 4030
                                                 }
                                               },
                                               {
@@ -1674,15 +1751,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 3891,
-                                                    "end": 3901
+                                                    "start": 4059,
+                                                    "end": 4069
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3891,
-                                                  "end": 3901
+                                                  "start": 4059,
+                                                  "end": 4069
                                                 }
                                               },
                                               {
@@ -1691,15 +1768,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 3930,
-                                                    "end": 3934
+                                                    "start": 4098,
+                                                    "end": 4102
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3930,
-                                                  "end": 3934
+                                                  "start": 4098,
+                                                  "end": 4102
                                                 }
                                               },
                                               {
@@ -1708,15 +1785,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 3963,
-                                                    "end": 3974
+                                                    "start": 4131,
+                                                    "end": 4142
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3963,
-                                                  "end": 3974
+                                                  "start": 4131,
+                                                  "end": 4142
                                                 }
                                               },
                                               {
@@ -1725,15 +1802,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 4003,
-                                                    "end": 4010
+                                                    "start": 4171,
+                                                    "end": 4178
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4003,
-                                                  "end": 4010
+                                                  "start": 4171,
+                                                  "end": 4178
                                                 }
                                               },
                                               {
@@ -1742,15 +1819,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 4039,
-                                                    "end": 4044
+                                                    "start": 4207,
+                                                    "end": 4212
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4039,
-                                                  "end": 4044
+                                                  "start": 4207,
+                                                  "end": 4212
                                                 }
                                               },
                                               {
@@ -1759,48 +1836,48 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 4073,
-                                                    "end": 4083
+                                                    "start": 4241,
+                                                    "end": 4251
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4073,
-                                                  "end": 4083
+                                                  "start": 4241,
+                                                  "end": 4251
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 3791,
-                                              "end": 4109
+                                              "start": 3959,
+                                              "end": 4277
                                             }
                                           },
                                           "loc": {
-                                            "start": 3777,
-                                            "end": 4109
+                                            "start": 3945,
+                                            "end": 4277
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3492,
-                                        "end": 4131
+                                        "start": 3660,
+                                        "end": 4299
                                       }
                                     },
                                     "loc": {
-                                      "start": 3482,
-                                      "end": 4131
+                                      "start": 3650,
+                                      "end": 4299
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3375,
-                                  "end": 4149
+                                  "start": 3543,
+                                  "end": 4317
                                 }
                               },
                               "loc": {
-                                "start": 3362,
-                                "end": 4149
+                                "start": 3530,
+                                "end": 4317
                               }
                             },
                             {
@@ -1809,8 +1886,8 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "resourceList",
                                 "loc": {
-                                  "start": 4166,
-                                  "end": 4178
+                                  "start": 4334,
+                                  "end": 4346
                                 }
                               },
                               "arguments": [],
@@ -1824,15 +1901,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 4201,
-                                        "end": 4203
+                                        "start": 4369,
+                                        "end": 4371
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4201,
-                                      "end": 4203
+                                      "start": 4369,
+                                      "end": 4371
                                     }
                                   },
                                   {
@@ -1841,15 +1918,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 4224,
-                                        "end": 4234
+                                        "start": 4392,
+                                        "end": 4402
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4224,
-                                      "end": 4234
+                                      "start": 4392,
+                                      "end": 4402
                                     }
                                   },
                                   {
@@ -1858,8 +1935,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 4255,
-                                        "end": 4267
+                                        "start": 4423,
+                                        "end": 4435
                                       }
                                     },
                                     "arguments": [],
@@ -1873,15 +1950,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4294,
-                                              "end": 4296
+                                              "start": 4462,
+                                              "end": 4464
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4294,
-                                            "end": 4296
+                                            "start": 4462,
+                                            "end": 4464
                                           }
                                         },
                                         {
@@ -1890,15 +1967,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 4321,
-                                              "end": 4329
+                                              "start": 4489,
+                                              "end": 4497
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4321,
-                                            "end": 4329
+                                            "start": 4489,
+                                            "end": 4497
                                           }
                                         },
                                         {
@@ -1907,15 +1984,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 4354,
-                                              "end": 4365
+                                              "start": 4522,
+                                              "end": 4533
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4354,
-                                            "end": 4365
+                                            "start": 4522,
+                                            "end": 4533
                                           }
                                         },
                                         {
@@ -1924,26 +2001,26 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 4390,
-                                              "end": 4394
+                                              "start": 4558,
+                                              "end": 4562
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4390,
-                                            "end": 4394
+                                            "start": 4558,
+                                            "end": 4562
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4268,
-                                        "end": 4416
+                                        "start": 4436,
+                                        "end": 4584
                                       }
                                     },
                                     "loc": {
-                                      "start": 4255,
-                                      "end": 4416
+                                      "start": 4423,
+                                      "end": 4584
                                     }
                                   },
                                   {
@@ -1952,8 +2029,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "resources",
                                       "loc": {
-                                        "start": 4437,
-                                        "end": 4446
+                                        "start": 4605,
+                                        "end": 4614
                                       }
                                     },
                                     "arguments": [],
@@ -1967,15 +2044,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4473,
-                                              "end": 4475
+                                              "start": 4641,
+                                              "end": 4643
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4473,
-                                            "end": 4475
+                                            "start": 4641,
+                                            "end": 4643
                                           }
                                         },
                                         {
@@ -1984,15 +2061,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 4500,
-                                              "end": 4505
+                                              "start": 4668,
+                                              "end": 4673
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4500,
-                                            "end": 4505
+                                            "start": 4668,
+                                            "end": 4673
                                           }
                                         },
                                         {
@@ -2001,15 +2078,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "link",
                                             "loc": {
-                                              "start": 4530,
-                                              "end": 4534
+                                              "start": 4698,
+                                              "end": 4702
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4530,
-                                            "end": 4534
+                                            "start": 4698,
+                                            "end": 4702
                                           }
                                         },
                                         {
@@ -2018,15 +2095,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "usedFor",
                                             "loc": {
-                                              "start": 4559,
-                                              "end": 4566
+                                              "start": 4727,
+                                              "end": 4734
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4559,
-                                            "end": 4566
+                                            "start": 4727,
+                                            "end": 4734
                                           }
                                         },
                                         {
@@ -2035,8 +2112,8 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 4591,
-                                              "end": 4603
+                                              "start": 4759,
+                                              "end": 4771
                                             }
                                           },
                                           "arguments": [],
@@ -2050,15 +2127,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 4634,
-                                                    "end": 4636
+                                                    "start": 4802,
+                                                    "end": 4804
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4634,
-                                                  "end": 4636
+                                                  "start": 4802,
+                                                  "end": 4804
                                                 }
                                               },
                                               {
@@ -2067,15 +2144,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 4665,
-                                                    "end": 4673
+                                                    "start": 4833,
+                                                    "end": 4841
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4665,
-                                                  "end": 4673
+                                                  "start": 4833,
+                                                  "end": 4841
                                                 }
                                               },
                                               {
@@ -2084,15 +2161,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 4702,
-                                                    "end": 4713
+                                                    "start": 4870,
+                                                    "end": 4881
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4702,
-                                                  "end": 4713
+                                                  "start": 4870,
+                                                  "end": 4881
                                                 }
                                               },
                                               {
@@ -2101,48 +2178,48 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 4742,
-                                                    "end": 4746
+                                                    "start": 4910,
+                                                    "end": 4914
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4742,
-                                                  "end": 4746
+                                                  "start": 4910,
+                                                  "end": 4914
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 4604,
-                                              "end": 4772
+                                              "start": 4772,
+                                              "end": 4940
                                             }
                                           },
                                           "loc": {
-                                            "start": 4591,
-                                            "end": 4772
+                                            "start": 4759,
+                                            "end": 4940
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4447,
-                                        "end": 4794
+                                        "start": 4615,
+                                        "end": 4962
                                       }
                                     },
                                     "loc": {
-                                      "start": 4437,
-                                      "end": 4794
+                                      "start": 4605,
+                                      "end": 4962
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4179,
-                                  "end": 4812
+                                  "start": 4347,
+                                  "end": 4980
                                 }
                               },
                               "loc": {
-                                "start": 4166,
-                                "end": 4812
+                                "start": 4334,
+                                "end": 4980
                               }
                             },
                             {
@@ -2151,8 +2228,8 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "schedule",
                                 "loc": {
-                                  "start": 4829,
-                                  "end": 4837
+                                  "start": 4997,
+                                  "end": 5005
                                 }
                               },
                               "arguments": [],
@@ -2166,25 +2243,25 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "Schedule_common",
                                       "loc": {
-                                        "start": 4863,
-                                        "end": 4878
+                                        "start": 5031,
+                                        "end": 5046
                                       }
                                     },
                                     "directives": [],
                                     "loc": {
-                                      "start": 4860,
-                                      "end": 4878
+                                      "start": 5028,
+                                      "end": 5046
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4838,
-                                  "end": 4896
+                                  "start": 5006,
+                                  "end": 5064
                                 }
                               },
                               "loc": {
-                                "start": 4829,
-                                "end": 4896
+                                "start": 4997,
+                                "end": 5064
                               }
                             },
                             {
@@ -2193,15 +2270,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 4913,
-                                  "end": 4915
+                                  "start": 5081,
+                                  "end": 5083
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4913,
-                                "end": 4915
+                                "start": 5081,
+                                "end": 5083
                               }
                             },
                             {
@@ -2210,15 +2287,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "name",
                                 "loc": {
-                                  "start": 4932,
-                                  "end": 4936
+                                  "start": 5100,
+                                  "end": 5104
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4932,
-                                "end": 4936
+                                "start": 5100,
+                                "end": 5104
                               }
                             },
                             {
@@ -2227,26 +2304,103 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "description",
                                 "loc": {
-                                  "start": 4953,
-                                  "end": 4964
+                                  "start": 5121,
+                                  "end": 5132
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4953,
-                                "end": 4964
+                                "start": 5121,
+                                "end": 5132
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "you",
+                                "loc": {
+                                  "start": 5149,
+                                  "end": 5152
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "selectionSet": {
+                                "kind": "SelectionSet",
+                                "selections": [
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canDelete",
+                                      "loc": {
+                                        "start": 5175,
+                                        "end": 5184
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5175,
+                                      "end": 5184
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canRead",
+                                      "loc": {
+                                        "start": 5205,
+                                        "end": 5212
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5205,
+                                      "end": 5212
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canUpdate",
+                                      "loc": {
+                                        "start": 5233,
+                                        "end": 5242
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5233,
+                                      "end": 5242
+                                    }
+                                  }
+                                ],
+                                "loc": {
+                                  "start": 5153,
+                                  "end": 5260
+                                }
+                              },
+                              "loc": {
+                                "start": 5149,
+                                "end": 5260
                               }
                             }
                           ],
                           "loc": {
                             "start": 397,
-                            "end": 4978
+                            "end": 5274
                           }
                         },
                         "loc": {
                           "start": 392,
-                          "end": 4978
+                          "end": 5274
                         }
                       },
                       {
@@ -2255,15 +2409,15 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "stopCondition",
                           "loc": {
-                            "start": 4991,
-                            "end": 5004
+                            "start": 5287,
+                            "end": 5300
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4991,
-                          "end": 5004
+                          "start": 5287,
+                          "end": 5300
                         }
                       },
                       {
@@ -2272,26 +2426,26 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "stopTime",
                           "loc": {
-                            "start": 5017,
-                            "end": 5025
+                            "start": 5313,
+                            "end": 5321
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5017,
-                          "end": 5025
+                          "start": 5313,
+                          "end": 5321
                         }
                       }
                     ],
                     "loc": {
                       "start": 378,
-                      "end": 5035
+                      "end": 5331
                     }
                   },
                   "loc": {
                     "start": 362,
-                    "end": 5035
+                    "end": 5331
                   }
                 },
                 {
@@ -2300,15 +2454,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "apisCount",
                     "loc": {
-                      "start": 5044,
-                      "end": 5053
+                      "start": 5340,
+                      "end": 5349
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5044,
-                    "end": 5053
+                    "start": 5340,
+                    "end": 5349
                   }
                 },
                 {
@@ -2317,8 +2471,8 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "bookmarkLists",
                     "loc": {
-                      "start": 5062,
-                      "end": 5075
+                      "start": 5358,
+                      "end": 5371
                     }
                   },
                   "arguments": [],
@@ -2332,15 +2486,15 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 5090,
-                            "end": 5092
+                            "start": 5386,
+                            "end": 5388
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5090,
-                          "end": 5092
+                          "start": 5386,
+                          "end": 5388
                         }
                       },
                       {
@@ -2349,15 +2503,15 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "created_at",
                           "loc": {
-                            "start": 5105,
-                            "end": 5115
+                            "start": 5401,
+                            "end": 5411
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5105,
-                          "end": 5115
+                          "start": 5401,
+                          "end": 5411
                         }
                       },
                       {
@@ -2366,15 +2520,15 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "updated_at",
                           "loc": {
-                            "start": 5128,
-                            "end": 5138
+                            "start": 5424,
+                            "end": 5434
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5128,
-                          "end": 5138
+                          "start": 5424,
+                          "end": 5434
                         }
                       },
                       {
@@ -2383,15 +2537,15 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "label",
                           "loc": {
-                            "start": 5151,
-                            "end": 5156
+                            "start": 5447,
+                            "end": 5452
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5151,
-                          "end": 5156
+                          "start": 5447,
+                          "end": 5452
                         }
                       },
                       {
@@ -2400,26 +2554,26 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "bookmarksCount",
                           "loc": {
-                            "start": 5169,
-                            "end": 5183
+                            "start": 5465,
+                            "end": 5479
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5169,
-                          "end": 5183
+                          "start": 5465,
+                          "end": 5479
                         }
                       }
                     ],
                     "loc": {
-                      "start": 5076,
-                      "end": 5193
+                      "start": 5372,
+                      "end": 5489
                     }
                   },
                   "loc": {
-                    "start": 5062,
-                    "end": 5193
+                    "start": 5358,
+                    "end": 5489
                   }
                 },
                 {
@@ -2428,8 +2582,8 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "focusModes",
                     "loc": {
-                      "start": 5202,
-                      "end": 5212
+                      "start": 5498,
+                      "end": 5508
                     }
                   },
                   "arguments": [],
@@ -2443,8 +2597,8 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "filters",
                           "loc": {
-                            "start": 5227,
-                            "end": 5234
+                            "start": 5523,
+                            "end": 5530
                           }
                         },
                         "arguments": [],
@@ -2458,15 +2612,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 5253,
-                                  "end": 5255
+                                  "start": 5549,
+                                  "end": 5551
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5253,
-                                "end": 5255
+                                "start": 5549,
+                                "end": 5551
                               }
                             },
                             {
@@ -2475,15 +2629,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "filterType",
                                 "loc": {
-                                  "start": 5272,
-                                  "end": 5282
+                                  "start": 5568,
+                                  "end": 5578
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5272,
-                                "end": 5282
+                                "start": 5568,
+                                "end": 5578
                               }
                             },
                             {
@@ -2492,8 +2646,8 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "tag",
                                 "loc": {
-                                  "start": 5299,
-                                  "end": 5302
+                                  "start": 5595,
+                                  "end": 5598
                                 }
                               },
                               "arguments": [],
@@ -2507,15 +2661,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 5325,
-                                        "end": 5327
+                                        "start": 5621,
+                                        "end": 5623
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5325,
-                                      "end": 5327
+                                      "start": 5621,
+                                      "end": 5623
                                     }
                                   },
                                   {
@@ -2524,15 +2678,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 5348,
-                                        "end": 5358
+                                        "start": 5644,
+                                        "end": 5654
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5348,
-                                      "end": 5358
+                                      "start": 5644,
+                                      "end": 5654
                                     }
                                   },
                                   {
@@ -2541,15 +2695,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "tag",
                                       "loc": {
-                                        "start": 5379,
-                                        "end": 5382
+                                        "start": 5675,
+                                        "end": 5678
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5379,
-                                      "end": 5382
+                                      "start": 5675,
+                                      "end": 5678
                                     }
                                   },
                                   {
@@ -2558,15 +2712,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "bookmarks",
                                       "loc": {
-                                        "start": 5403,
-                                        "end": 5412
+                                        "start": 5699,
+                                        "end": 5708
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5403,
-                                      "end": 5412
+                                      "start": 5699,
+                                      "end": 5708
                                     }
                                   },
                                   {
@@ -2575,8 +2729,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 5433,
-                                        "end": 5445
+                                        "start": 5729,
+                                        "end": 5741
                                       }
                                     },
                                     "arguments": [],
@@ -2590,15 +2744,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5472,
-                                              "end": 5474
+                                              "start": 5768,
+                                              "end": 5770
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5472,
-                                            "end": 5474
+                                            "start": 5768,
+                                            "end": 5770
                                           }
                                         },
                                         {
@@ -2607,15 +2761,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 5499,
-                                              "end": 5507
+                                              "start": 5795,
+                                              "end": 5803
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5499,
-                                            "end": 5507
+                                            "start": 5795,
+                                            "end": 5803
                                           }
                                         },
                                         {
@@ -2624,26 +2778,26 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 5532,
-                                              "end": 5543
+                                              "start": 5828,
+                                              "end": 5839
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5532,
-                                            "end": 5543
+                                            "start": 5828,
+                                            "end": 5839
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5446,
-                                        "end": 5565
+                                        "start": 5742,
+                                        "end": 5861
                                       }
                                     },
                                     "loc": {
-                                      "start": 5433,
-                                      "end": 5565
+                                      "start": 5729,
+                                      "end": 5861
                                     }
                                   },
                                   {
@@ -2652,8 +2806,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "you",
                                       "loc": {
-                                        "start": 5586,
-                                        "end": 5589
+                                        "start": 5882,
+                                        "end": 5885
                                       }
                                     },
                                     "arguments": [],
@@ -2667,15 +2821,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "isOwn",
                                             "loc": {
-                                              "start": 5616,
-                                              "end": 5621
+                                              "start": 5912,
+                                              "end": 5917
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5616,
-                                            "end": 5621
+                                            "start": 5912,
+                                            "end": 5917
                                           }
                                         },
                                         {
@@ -2684,37 +2838,37 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "isBookmarked",
                                             "loc": {
-                                              "start": 5646,
-                                              "end": 5658
+                                              "start": 5942,
+                                              "end": 5954
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5646,
-                                            "end": 5658
+                                            "start": 5942,
+                                            "end": 5954
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5590,
-                                        "end": 5680
+                                        "start": 5886,
+                                        "end": 5976
                                       }
                                     },
                                     "loc": {
-                                      "start": 5586,
-                                      "end": 5680
+                                      "start": 5882,
+                                      "end": 5976
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5303,
-                                  "end": 5698
+                                  "start": 5599,
+                                  "end": 5994
                                 }
                               },
                               "loc": {
-                                "start": 5299,
-                                "end": 5698
+                                "start": 5595,
+                                "end": 5994
                               }
                             },
                             {
@@ -2723,8 +2877,8 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "focusMode",
                                 "loc": {
-                                  "start": 5715,
-                                  "end": 5724
+                                  "start": 6011,
+                                  "end": 6020
                                 }
                               },
                               "arguments": [],
@@ -2738,8 +2892,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "labels",
                                       "loc": {
-                                        "start": 5747,
-                                        "end": 5753
+                                        "start": 6043,
+                                        "end": 6049
                                       }
                                     },
                                     "arguments": [],
@@ -2753,15 +2907,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5780,
-                                              "end": 5782
+                                              "start": 6076,
+                                              "end": 6078
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5780,
-                                            "end": 5782
+                                            "start": 6076,
+                                            "end": 6078
                                           }
                                         },
                                         {
@@ -2770,15 +2924,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "color",
                                             "loc": {
-                                              "start": 5807,
-                                              "end": 5812
+                                              "start": 6103,
+                                              "end": 6108
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5807,
-                                            "end": 5812
+                                            "start": 6103,
+                                            "end": 6108
                                           }
                                         },
                                         {
@@ -2787,26 +2941,26 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "label",
                                             "loc": {
-                                              "start": 5837,
-                                              "end": 5842
+                                              "start": 6133,
+                                              "end": 6138
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5837,
-                                            "end": 5842
+                                            "start": 6133,
+                                            "end": 6138
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5754,
-                                        "end": 5864
+                                        "start": 6050,
+                                        "end": 6160
                                       }
                                     },
                                     "loc": {
-                                      "start": 5747,
-                                      "end": 5864
+                                      "start": 6043,
+                                      "end": 6160
                                     }
                                   },
                                   {
@@ -2815,8 +2969,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "reminderList",
                                       "loc": {
-                                        "start": 5885,
-                                        "end": 5897
+                                        "start": 6181,
+                                        "end": 6193
                                       }
                                     },
                                     "arguments": [],
@@ -2830,15 +2984,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5924,
-                                              "end": 5926
+                                              "start": 6220,
+                                              "end": 6222
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5924,
-                                            "end": 5926
+                                            "start": 6220,
+                                            "end": 6222
                                           }
                                         },
                                         {
@@ -2847,15 +3001,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 5951,
-                                              "end": 5961
+                                              "start": 6247,
+                                              "end": 6257
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5951,
-                                            "end": 5961
+                                            "start": 6247,
+                                            "end": 6257
                                           }
                                         },
                                         {
@@ -2864,15 +3018,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 5986,
-                                              "end": 5996
+                                              "start": 6282,
+                                              "end": 6292
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5986,
-                                            "end": 5996
+                                            "start": 6282,
+                                            "end": 6292
                                           }
                                         },
                                         {
@@ -2881,8 +3035,8 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "reminders",
                                             "loc": {
-                                              "start": 6021,
-                                              "end": 6030
+                                              "start": 6317,
+                                              "end": 6326
                                             }
                                           },
                                           "arguments": [],
@@ -2896,15 +3050,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6061,
-                                                    "end": 6063
+                                                    "start": 6357,
+                                                    "end": 6359
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6061,
-                                                  "end": 6063
+                                                  "start": 6357,
+                                                  "end": 6359
                                                 }
                                               },
                                               {
@@ -2913,15 +3067,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 6092,
-                                                    "end": 6102
+                                                    "start": 6388,
+                                                    "end": 6398
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6092,
-                                                  "end": 6102
+                                                  "start": 6388,
+                                                  "end": 6398
                                                 }
                                               },
                                               {
@@ -2930,15 +3084,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 6131,
-                                                    "end": 6141
+                                                    "start": 6427,
+                                                    "end": 6437
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6131,
-                                                  "end": 6141
+                                                  "start": 6427,
+                                                  "end": 6437
                                                 }
                                               },
                                               {
@@ -2947,15 +3101,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 6170,
-                                                    "end": 6174
+                                                    "start": 6466,
+                                                    "end": 6470
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6170,
-                                                  "end": 6174
+                                                  "start": 6466,
+                                                  "end": 6470
                                                 }
                                               },
                                               {
@@ -2964,15 +3118,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 6203,
-                                                    "end": 6214
+                                                    "start": 6499,
+                                                    "end": 6510
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6203,
-                                                  "end": 6214
+                                                  "start": 6499,
+                                                  "end": 6510
                                                 }
                                               },
                                               {
@@ -2981,15 +3135,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 6243,
-                                                    "end": 6250
+                                                    "start": 6539,
+                                                    "end": 6546
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6243,
-                                                  "end": 6250
+                                                  "start": 6539,
+                                                  "end": 6546
                                                 }
                                               },
                                               {
@@ -2998,15 +3152,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 6279,
-                                                    "end": 6284
+                                                    "start": 6575,
+                                                    "end": 6580
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6279,
-                                                  "end": 6284
+                                                  "start": 6575,
+                                                  "end": 6580
                                                 }
                                               },
                                               {
@@ -3015,15 +3169,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 6313,
-                                                    "end": 6323
+                                                    "start": 6609,
+                                                    "end": 6619
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6313,
-                                                  "end": 6323
+                                                  "start": 6609,
+                                                  "end": 6619
                                                 }
                                               },
                                               {
@@ -3032,8 +3186,8 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "reminderItems",
                                                   "loc": {
-                                                    "start": 6352,
-                                                    "end": 6365
+                                                    "start": 6648,
+                                                    "end": 6661
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3047,15 +3201,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 6400,
-                                                          "end": 6402
+                                                          "start": 6696,
+                                                          "end": 6698
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6400,
-                                                        "end": 6402
+                                                        "start": 6696,
+                                                        "end": 6698
                                                       }
                                                     },
                                                     {
@@ -3064,15 +3218,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "created_at",
                                                         "loc": {
-                                                          "start": 6435,
-                                                          "end": 6445
+                                                          "start": 6731,
+                                                          "end": 6741
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6435,
-                                                        "end": 6445
+                                                        "start": 6731,
+                                                        "end": 6741
                                                       }
                                                     },
                                                     {
@@ -3081,15 +3235,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "updated_at",
                                                         "loc": {
-                                                          "start": 6478,
-                                                          "end": 6488
+                                                          "start": 6774,
+                                                          "end": 6784
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6478,
-                                                        "end": 6488
+                                                        "start": 6774,
+                                                        "end": 6784
                                                       }
                                                     },
                                                     {
@@ -3098,15 +3252,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 6521,
-                                                          "end": 6525
+                                                          "start": 6817,
+                                                          "end": 6821
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6521,
-                                                        "end": 6525
+                                                        "start": 6817,
+                                                        "end": 6821
                                                       }
                                                     },
                                                     {
@@ -3115,15 +3269,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 6558,
-                                                          "end": 6569
+                                                          "start": 6854,
+                                                          "end": 6865
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6558,
-                                                        "end": 6569
+                                                        "start": 6854,
+                                                        "end": 6865
                                                       }
                                                     },
                                                     {
@@ -3132,15 +3286,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "dueDate",
                                                         "loc": {
-                                                          "start": 6602,
-                                                          "end": 6609
+                                                          "start": 6898,
+                                                          "end": 6905
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6602,
-                                                        "end": 6609
+                                                        "start": 6898,
+                                                        "end": 6905
                                                       }
                                                     },
                                                     {
@@ -3149,15 +3303,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "index",
                                                         "loc": {
-                                                          "start": 6642,
-                                                          "end": 6647
+                                                          "start": 6938,
+                                                          "end": 6943
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6642,
-                                                        "end": 6647
+                                                        "start": 6938,
+                                                        "end": 6943
                                                       }
                                                     },
                                                     {
@@ -3166,48 +3320,48 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "isComplete",
                                                         "loc": {
-                                                          "start": 6680,
-                                                          "end": 6690
+                                                          "start": 6976,
+                                                          "end": 6986
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6680,
-                                                        "end": 6690
+                                                        "start": 6976,
+                                                        "end": 6986
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 6366,
-                                                    "end": 6720
+                                                    "start": 6662,
+                                                    "end": 7016
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 6352,
-                                                  "end": 6720
+                                                  "start": 6648,
+                                                  "end": 7016
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6031,
-                                              "end": 6746
+                                              "start": 6327,
+                                              "end": 7042
                                             }
                                           },
                                           "loc": {
-                                            "start": 6021,
-                                            "end": 6746
+                                            "start": 6317,
+                                            "end": 7042
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5898,
-                                        "end": 6768
+                                        "start": 6194,
+                                        "end": 7064
                                       }
                                     },
                                     "loc": {
-                                      "start": 5885,
-                                      "end": 6768
+                                      "start": 6181,
+                                      "end": 7064
                                     }
                                   },
                                   {
@@ -3216,8 +3370,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "resourceList",
                                       "loc": {
-                                        "start": 6789,
-                                        "end": 6801
+                                        "start": 7085,
+                                        "end": 7097
                                       }
                                     },
                                     "arguments": [],
@@ -3231,15 +3385,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 6828,
-                                              "end": 6830
+                                              "start": 7124,
+                                              "end": 7126
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6828,
-                                            "end": 6830
+                                            "start": 7124,
+                                            "end": 7126
                                           }
                                         },
                                         {
@@ -3248,15 +3402,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 6855,
-                                              "end": 6865
+                                              "start": 7151,
+                                              "end": 7161
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6855,
-                                            "end": 6865
+                                            "start": 7151,
+                                            "end": 7161
                                           }
                                         },
                                         {
@@ -3265,8 +3419,8 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 6890,
-                                              "end": 6902
+                                              "start": 7186,
+                                              "end": 7198
                                             }
                                           },
                                           "arguments": [],
@@ -3280,15 +3434,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6933,
-                                                    "end": 6935
+                                                    "start": 7229,
+                                                    "end": 7231
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6933,
-                                                  "end": 6935
+                                                  "start": 7229,
+                                                  "end": 7231
                                                 }
                                               },
                                               {
@@ -3297,15 +3451,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 6964,
-                                                    "end": 6972
+                                                    "start": 7260,
+                                                    "end": 7268
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6964,
-                                                  "end": 6972
+                                                  "start": 7260,
+                                                  "end": 7268
                                                 }
                                               },
                                               {
@@ -3314,15 +3468,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 7001,
-                                                    "end": 7012
+                                                    "start": 7297,
+                                                    "end": 7308
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7001,
-                                                  "end": 7012
+                                                  "start": 7297,
+                                                  "end": 7308
                                                 }
                                               },
                                               {
@@ -3331,26 +3485,26 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 7041,
-                                                    "end": 7045
+                                                    "start": 7337,
+                                                    "end": 7341
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7041,
-                                                  "end": 7045
+                                                  "start": 7337,
+                                                  "end": 7341
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6903,
-                                              "end": 7071
+                                              "start": 7199,
+                                              "end": 7367
                                             }
                                           },
                                           "loc": {
-                                            "start": 6890,
-                                            "end": 7071
+                                            "start": 7186,
+                                            "end": 7367
                                           }
                                         },
                                         {
@@ -3359,8 +3513,8 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "resources",
                                             "loc": {
-                                              "start": 7096,
-                                              "end": 7105
+                                              "start": 7392,
+                                              "end": 7401
                                             }
                                           },
                                           "arguments": [],
@@ -3374,15 +3528,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 7136,
-                                                    "end": 7138
+                                                    "start": 7432,
+                                                    "end": 7434
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7136,
-                                                  "end": 7138
+                                                  "start": 7432,
+                                                  "end": 7434
                                                 }
                                               },
                                               {
@@ -3391,15 +3545,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 7167,
-                                                    "end": 7172
+                                                    "start": 7463,
+                                                    "end": 7468
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7167,
-                                                  "end": 7172
+                                                  "start": 7463,
+                                                  "end": 7468
                                                 }
                                               },
                                               {
@@ -3408,15 +3562,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "link",
                                                   "loc": {
-                                                    "start": 7201,
-                                                    "end": 7205
+                                                    "start": 7497,
+                                                    "end": 7501
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7201,
-                                                  "end": 7205
+                                                  "start": 7497,
+                                                  "end": 7501
                                                 }
                                               },
                                               {
@@ -3425,15 +3579,15 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "usedFor",
                                                   "loc": {
-                                                    "start": 7234,
-                                                    "end": 7241
+                                                    "start": 7530,
+                                                    "end": 7537
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7234,
-                                                  "end": 7241
+                                                  "start": 7530,
+                                                  "end": 7537
                                                 }
                                               },
                                               {
@@ -3442,8 +3596,8 @@ export const auth_guestLogIn = {
                                                   "kind": "Name",
                                                   "value": "translations",
                                                   "loc": {
-                                                    "start": 7270,
-                                                    "end": 7282
+                                                    "start": 7566,
+                                                    "end": 7578
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3457,15 +3611,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 7317,
-                                                          "end": 7319
+                                                          "start": 7613,
+                                                          "end": 7615
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7317,
-                                                        "end": 7319
+                                                        "start": 7613,
+                                                        "end": 7615
                                                       }
                                                     },
                                                     {
@@ -3474,15 +3628,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "language",
                                                         "loc": {
-                                                          "start": 7352,
-                                                          "end": 7360
+                                                          "start": 7648,
+                                                          "end": 7656
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7352,
-                                                        "end": 7360
+                                                        "start": 7648,
+                                                        "end": 7656
                                                       }
                                                     },
                                                     {
@@ -3491,15 +3645,15 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 7393,
-                                                          "end": 7404
+                                                          "start": 7689,
+                                                          "end": 7700
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7393,
-                                                        "end": 7404
+                                                        "start": 7689,
+                                                        "end": 7700
                                                       }
                                                     },
                                                     {
@@ -3508,48 +3662,48 @@ export const auth_guestLogIn = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 7437,
-                                                          "end": 7441
+                                                          "start": 7733,
+                                                          "end": 7737
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7437,
-                                                        "end": 7441
+                                                        "start": 7733,
+                                                        "end": 7737
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 7283,
-                                                    "end": 7471
+                                                    "start": 7579,
+                                                    "end": 7767
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 7270,
-                                                  "end": 7471
+                                                  "start": 7566,
+                                                  "end": 7767
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 7106,
-                                              "end": 7497
+                                              "start": 7402,
+                                              "end": 7793
                                             }
                                           },
                                           "loc": {
-                                            "start": 7096,
-                                            "end": 7497
+                                            "start": 7392,
+                                            "end": 7793
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 6802,
-                                        "end": 7519
+                                        "start": 7098,
+                                        "end": 7815
                                       }
                                     },
                                     "loc": {
-                                      "start": 6789,
-                                      "end": 7519
+                                      "start": 7085,
+                                      "end": 7815
                                     }
                                   },
                                   {
@@ -3558,8 +3712,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "schedule",
                                       "loc": {
-                                        "start": 7540,
-                                        "end": 7548
+                                        "start": 7836,
+                                        "end": 7844
                                       }
                                     },
                                     "arguments": [],
@@ -3573,25 +3727,25 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "Schedule_common",
                                             "loc": {
-                                              "start": 7578,
-                                              "end": 7593
+                                              "start": 7874,
+                                              "end": 7889
                                             }
                                           },
                                           "directives": [],
                                           "loc": {
-                                            "start": 7575,
-                                            "end": 7593
+                                            "start": 7871,
+                                            "end": 7889
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 7549,
-                                        "end": 7615
+                                        "start": 7845,
+                                        "end": 7911
                                       }
                                     },
                                     "loc": {
-                                      "start": 7540,
-                                      "end": 7615
+                                      "start": 7836,
+                                      "end": 7911
                                     }
                                   },
                                   {
@@ -3600,15 +3754,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7636,
-                                        "end": 7638
+                                        "start": 7932,
+                                        "end": 7934
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7636,
-                                      "end": 7638
+                                      "start": 7932,
+                                      "end": 7934
                                     }
                                   },
                                   {
@@ -3617,15 +3771,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 7659,
-                                        "end": 7663
+                                        "start": 7955,
+                                        "end": 7959
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7659,
-                                      "end": 7663
+                                      "start": 7955,
+                                      "end": 7959
                                     }
                                   },
                                   {
@@ -3634,37 +3788,114 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 7684,
-                                        "end": 7695
+                                        "start": 7980,
+                                        "end": 7991
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7684,
-                                      "end": 7695
+                                      "start": 7980,
+                                      "end": 7991
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "you",
+                                      "loc": {
+                                        "start": 8012,
+                                        "end": 8015
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "selectionSet": {
+                                      "kind": "SelectionSet",
+                                      "selections": [
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canDelete",
+                                            "loc": {
+                                              "start": 8042,
+                                              "end": 8051
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8042,
+                                            "end": 8051
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canRead",
+                                            "loc": {
+                                              "start": 8076,
+                                              "end": 8083
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8076,
+                                            "end": 8083
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canUpdate",
+                                            "loc": {
+                                              "start": 8108,
+                                              "end": 8117
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8108,
+                                            "end": 8117
+                                          }
+                                        }
+                                      ],
+                                      "loc": {
+                                        "start": 8016,
+                                        "end": 8139
+                                      }
+                                    },
+                                    "loc": {
+                                      "start": 8012,
+                                      "end": 8139
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5725,
-                                  "end": 7713
+                                  "start": 6021,
+                                  "end": 8157
                                 }
                               },
                               "loc": {
-                                "start": 5715,
-                                "end": 7713
+                                "start": 6011,
+                                "end": 8157
                               }
                             }
                           ],
                           "loc": {
-                            "start": 5235,
-                            "end": 7727
+                            "start": 5531,
+                            "end": 8171
                           }
                         },
                         "loc": {
-                          "start": 5227,
-                          "end": 7727
+                          "start": 5523,
+                          "end": 8171
                         }
                       },
                       {
@@ -3673,8 +3904,8 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "labels",
                           "loc": {
-                            "start": 7740,
-                            "end": 7746
+                            "start": 8184,
+                            "end": 8190
                           }
                         },
                         "arguments": [],
@@ -3688,15 +3919,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7765,
-                                  "end": 7767
+                                  "start": 8209,
+                                  "end": 8211
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7765,
-                                "end": 7767
+                                "start": 8209,
+                                "end": 8211
                               }
                             },
                             {
@@ -3705,15 +3936,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "color",
                                 "loc": {
-                                  "start": 7784,
-                                  "end": 7789
+                                  "start": 8228,
+                                  "end": 8233
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7784,
-                                "end": 7789
+                                "start": 8228,
+                                "end": 8233
                               }
                             },
                             {
@@ -3722,26 +3953,26 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "label",
                                 "loc": {
-                                  "start": 7806,
-                                  "end": 7811
+                                  "start": 8250,
+                                  "end": 8255
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7806,
-                                "end": 7811
+                                "start": 8250,
+                                "end": 8255
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7747,
-                            "end": 7825
+                            "start": 8191,
+                            "end": 8269
                           }
                         },
                         "loc": {
-                          "start": 7740,
-                          "end": 7825
+                          "start": 8184,
+                          "end": 8269
                         }
                       },
                       {
@@ -3750,8 +3981,8 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "reminderList",
                           "loc": {
-                            "start": 7838,
-                            "end": 7850
+                            "start": 8282,
+                            "end": 8294
                           }
                         },
                         "arguments": [],
@@ -3765,15 +3996,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7869,
-                                  "end": 7871
+                                  "start": 8313,
+                                  "end": 8315
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7869,
-                                "end": 7871
+                                "start": 8313,
+                                "end": 8315
                               }
                             },
                             {
@@ -3782,15 +4013,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 7888,
-                                  "end": 7898
+                                  "start": 8332,
+                                  "end": 8342
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7888,
-                                "end": 7898
+                                "start": 8332,
+                                "end": 8342
                               }
                             },
                             {
@@ -3799,15 +4030,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "updated_at",
                                 "loc": {
-                                  "start": 7915,
-                                  "end": 7925
+                                  "start": 8359,
+                                  "end": 8369
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7915,
-                                "end": 7925
+                                "start": 8359,
+                                "end": 8369
                               }
                             },
                             {
@@ -3816,8 +4047,8 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "reminders",
                                 "loc": {
-                                  "start": 7942,
-                                  "end": 7951
+                                  "start": 8386,
+                                  "end": 8395
                                 }
                               },
                               "arguments": [],
@@ -3831,15 +4062,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7974,
-                                        "end": 7976
+                                        "start": 8418,
+                                        "end": 8420
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7974,
-                                      "end": 7976
+                                      "start": 8418,
+                                      "end": 8420
                                     }
                                   },
                                   {
@@ -3848,15 +4079,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 7997,
-                                        "end": 8007
+                                        "start": 8441,
+                                        "end": 8451
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7997,
-                                      "end": 8007
+                                      "start": 8441,
+                                      "end": 8451
                                     }
                                   },
                                   {
@@ -3865,15 +4096,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 8028,
-                                        "end": 8038
+                                        "start": 8472,
+                                        "end": 8482
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8028,
-                                      "end": 8038
+                                      "start": 8472,
+                                      "end": 8482
                                     }
                                   },
                                   {
@@ -3882,15 +4113,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 8059,
-                                        "end": 8063
+                                        "start": 8503,
+                                        "end": 8507
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8059,
-                                      "end": 8063
+                                      "start": 8503,
+                                      "end": 8507
                                     }
                                   },
                                   {
@@ -3899,15 +4130,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8084,
-                                        "end": 8095
+                                        "start": 8528,
+                                        "end": 8539
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8084,
-                                      "end": 8095
+                                      "start": 8528,
+                                      "end": 8539
                                     }
                                   },
                                   {
@@ -3916,15 +4147,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "dueDate",
                                       "loc": {
-                                        "start": 8116,
-                                        "end": 8123
+                                        "start": 8560,
+                                        "end": 8567
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8116,
-                                      "end": 8123
+                                      "start": 8560,
+                                      "end": 8567
                                     }
                                   },
                                   {
@@ -3933,15 +4164,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 8144,
-                                        "end": 8149
+                                        "start": 8588,
+                                        "end": 8593
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8144,
-                                      "end": 8149
+                                      "start": 8588,
+                                      "end": 8593
                                     }
                                   },
                                   {
@@ -3950,15 +4181,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "isComplete",
                                       "loc": {
-                                        "start": 8170,
-                                        "end": 8180
+                                        "start": 8614,
+                                        "end": 8624
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8170,
-                                      "end": 8180
+                                      "start": 8614,
+                                      "end": 8624
                                     }
                                   },
                                   {
@@ -3967,8 +4198,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "reminderItems",
                                       "loc": {
-                                        "start": 8201,
-                                        "end": 8214
+                                        "start": 8645,
+                                        "end": 8658
                                       }
                                     },
                                     "arguments": [],
@@ -3982,15 +4213,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 8241,
-                                              "end": 8243
+                                              "start": 8685,
+                                              "end": 8687
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8241,
-                                            "end": 8243
+                                            "start": 8685,
+                                            "end": 8687
                                           }
                                         },
                                         {
@@ -3999,15 +4230,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 8268,
-                                              "end": 8278
+                                              "start": 8712,
+                                              "end": 8722
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8268,
-                                            "end": 8278
+                                            "start": 8712,
+                                            "end": 8722
                                           }
                                         },
                                         {
@@ -4016,15 +4247,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 8303,
-                                              "end": 8313
+                                              "start": 8747,
+                                              "end": 8757
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8303,
-                                            "end": 8313
+                                            "start": 8747,
+                                            "end": 8757
                                           }
                                         },
                                         {
@@ -4033,15 +4264,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 8338,
-                                              "end": 8342
+                                              "start": 8782,
+                                              "end": 8786
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8338,
-                                            "end": 8342
+                                            "start": 8782,
+                                            "end": 8786
                                           }
                                         },
                                         {
@@ -4050,15 +4281,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 8367,
-                                              "end": 8378
+                                              "start": 8811,
+                                              "end": 8822
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8367,
-                                            "end": 8378
+                                            "start": 8811,
+                                            "end": 8822
                                           }
                                         },
                                         {
@@ -4067,15 +4298,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 8403,
-                                              "end": 8410
+                                              "start": 8847,
+                                              "end": 8854
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8403,
-                                            "end": 8410
+                                            "start": 8847,
+                                            "end": 8854
                                           }
                                         },
                                         {
@@ -4084,15 +4315,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 8435,
-                                              "end": 8440
+                                              "start": 8879,
+                                              "end": 8884
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8435,
-                                            "end": 8440
+                                            "start": 8879,
+                                            "end": 8884
                                           }
                                         },
                                         {
@@ -4101,48 +4332,48 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 8465,
-                                              "end": 8475
+                                              "start": 8909,
+                                              "end": 8919
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8465,
-                                            "end": 8475
+                                            "start": 8909,
+                                            "end": 8919
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8215,
-                                        "end": 8497
+                                        "start": 8659,
+                                        "end": 8941
                                       }
                                     },
                                     "loc": {
-                                      "start": 8201,
-                                      "end": 8497
+                                      "start": 8645,
+                                      "end": 8941
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 7952,
-                                  "end": 8515
+                                  "start": 8396,
+                                  "end": 8959
                                 }
                               },
                               "loc": {
-                                "start": 7942,
-                                "end": 8515
+                                "start": 8386,
+                                "end": 8959
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7851,
-                            "end": 8529
+                            "start": 8295,
+                            "end": 8973
                           }
                         },
                         "loc": {
-                          "start": 7838,
-                          "end": 8529
+                          "start": 8282,
+                          "end": 8973
                         }
                       },
                       {
@@ -4151,8 +4382,8 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "resourceList",
                           "loc": {
-                            "start": 8542,
-                            "end": 8554
+                            "start": 8986,
+                            "end": 8998
                           }
                         },
                         "arguments": [],
@@ -4166,15 +4397,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 8573,
-                                  "end": 8575
+                                  "start": 9017,
+                                  "end": 9019
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8573,
-                                "end": 8575
+                                "start": 9017,
+                                "end": 9019
                               }
                             },
                             {
@@ -4183,15 +4414,15 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 8592,
-                                  "end": 8602
+                                  "start": 9036,
+                                  "end": 9046
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8592,
-                                "end": 8602
+                                "start": 9036,
+                                "end": 9046
                               }
                             },
                             {
@@ -4200,8 +4431,8 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 8619,
-                                  "end": 8631
+                                  "start": 9063,
+                                  "end": 9075
                                 }
                               },
                               "arguments": [],
@@ -4215,15 +4446,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8654,
-                                        "end": 8656
+                                        "start": 9098,
+                                        "end": 9100
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8654,
-                                      "end": 8656
+                                      "start": 9098,
+                                      "end": 9100
                                     }
                                   },
                                   {
@@ -4232,15 +4463,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 8677,
-                                        "end": 8685
+                                        "start": 9121,
+                                        "end": 9129
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8677,
-                                      "end": 8685
+                                      "start": 9121,
+                                      "end": 9129
                                     }
                                   },
                                   {
@@ -4249,15 +4480,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8706,
-                                        "end": 8717
+                                        "start": 9150,
+                                        "end": 9161
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8706,
-                                      "end": 8717
+                                      "start": 9150,
+                                      "end": 9161
                                     }
                                   },
                                   {
@@ -4266,26 +4497,26 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 8738,
-                                        "end": 8742
+                                        "start": 9182,
+                                        "end": 9186
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8738,
-                                      "end": 8742
+                                      "start": 9182,
+                                      "end": 9186
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8632,
-                                  "end": 8760
+                                  "start": 9076,
+                                  "end": 9204
                                 }
                               },
                               "loc": {
-                                "start": 8619,
-                                "end": 8760
+                                "start": 9063,
+                                "end": 9204
                               }
                             },
                             {
@@ -4294,8 +4525,8 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "resources",
                                 "loc": {
-                                  "start": 8777,
-                                  "end": 8786
+                                  "start": 9221,
+                                  "end": 9230
                                 }
                               },
                               "arguments": [],
@@ -4309,15 +4540,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8809,
-                                        "end": 8811
+                                        "start": 9253,
+                                        "end": 9255
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8809,
-                                      "end": 8811
+                                      "start": 9253,
+                                      "end": 9255
                                     }
                                   },
                                   {
@@ -4326,15 +4557,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 8832,
-                                        "end": 8837
+                                        "start": 9276,
+                                        "end": 9281
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8832,
-                                      "end": 8837
+                                      "start": 9276,
+                                      "end": 9281
                                     }
                                   },
                                   {
@@ -4343,15 +4574,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "link",
                                       "loc": {
-                                        "start": 8858,
-                                        "end": 8862
+                                        "start": 9302,
+                                        "end": 9306
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8858,
-                                      "end": 8862
+                                      "start": 9302,
+                                      "end": 9306
                                     }
                                   },
                                   {
@@ -4360,15 +4591,15 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "usedFor",
                                       "loc": {
-                                        "start": 8883,
-                                        "end": 8890
+                                        "start": 9327,
+                                        "end": 9334
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8883,
-                                      "end": 8890
+                                      "start": 9327,
+                                      "end": 9334
                                     }
                                   },
                                   {
@@ -4377,8 +4608,8 @@ export const auth_guestLogIn = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 8911,
-                                        "end": 8923
+                                        "start": 9355,
+                                        "end": 9367
                                       }
                                     },
                                     "arguments": [],
@@ -4392,15 +4623,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 8950,
-                                              "end": 8952
+                                              "start": 9394,
+                                              "end": 9396
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8950,
-                                            "end": 8952
+                                            "start": 9394,
+                                            "end": 9396
                                           }
                                         },
                                         {
@@ -4409,15 +4640,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 8977,
-                                              "end": 8985
+                                              "start": 9421,
+                                              "end": 9429
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8977,
-                                            "end": 8985
+                                            "start": 9421,
+                                            "end": 9429
                                           }
                                         },
                                         {
@@ -4426,15 +4657,15 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 9010,
-                                              "end": 9021
+                                              "start": 9454,
+                                              "end": 9465
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9010,
-                                            "end": 9021
+                                            "start": 9454,
+                                            "end": 9465
                                           }
                                         },
                                         {
@@ -4443,48 +4674,48 @@ export const auth_guestLogIn = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 9046,
-                                              "end": 9050
+                                              "start": 9490,
+                                              "end": 9494
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9046,
-                                            "end": 9050
+                                            "start": 9490,
+                                            "end": 9494
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8924,
-                                        "end": 9072
+                                        "start": 9368,
+                                        "end": 9516
                                       }
                                     },
                                     "loc": {
-                                      "start": 8911,
-                                      "end": 9072
+                                      "start": 9355,
+                                      "end": 9516
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8787,
-                                  "end": 9090
+                                  "start": 9231,
+                                  "end": 9534
                                 }
                               },
                               "loc": {
-                                "start": 8777,
-                                "end": 9090
+                                "start": 9221,
+                                "end": 9534
                               }
                             }
                           ],
                           "loc": {
-                            "start": 8555,
-                            "end": 9104
+                            "start": 8999,
+                            "end": 9548
                           }
                         },
                         "loc": {
-                          "start": 8542,
-                          "end": 9104
+                          "start": 8986,
+                          "end": 9548
                         }
                       },
                       {
@@ -4493,8 +4724,8 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "schedule",
                           "loc": {
-                            "start": 9117,
-                            "end": 9125
+                            "start": 9561,
+                            "end": 9569
                           }
                         },
                         "arguments": [],
@@ -4508,25 +4739,25 @@ export const auth_guestLogIn = {
                                 "kind": "Name",
                                 "value": "Schedule_common",
                                 "loc": {
-                                  "start": 9147,
-                                  "end": 9162
+                                  "start": 9591,
+                                  "end": 9606
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 9144,
-                                "end": 9162
+                                "start": 9588,
+                                "end": 9606
                               }
                             }
                           ],
                           "loc": {
-                            "start": 9126,
-                            "end": 9176
+                            "start": 9570,
+                            "end": 9620
                           }
                         },
                         "loc": {
-                          "start": 9117,
-                          "end": 9176
+                          "start": 9561,
+                          "end": 9620
                         }
                       },
                       {
@@ -4535,15 +4766,15 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 9189,
-                            "end": 9191
+                            "start": 9633,
+                            "end": 9635
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9189,
-                          "end": 9191
+                          "start": 9633,
+                          "end": 9635
                         }
                       },
                       {
@@ -4552,15 +4783,15 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "name",
                           "loc": {
-                            "start": 9204,
-                            "end": 9208
+                            "start": 9648,
+                            "end": 9652
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9204,
-                          "end": 9208
+                          "start": 9648,
+                          "end": 9652
                         }
                       },
                       {
@@ -4569,26 +4800,103 @@ export const auth_guestLogIn = {
                           "kind": "Name",
                           "value": "description",
                           "loc": {
-                            "start": 9221,
-                            "end": 9232
+                            "start": 9665,
+                            "end": 9676
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9221,
-                          "end": 9232
+                          "start": 9665,
+                          "end": 9676
+                        }
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "you",
+                          "loc": {
+                            "start": 9689,
+                            "end": 9692
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "selectionSet": {
+                          "kind": "SelectionSet",
+                          "selections": [
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canDelete",
+                                "loc": {
+                                  "start": 9711,
+                                  "end": 9720
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9711,
+                                "end": 9720
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canRead",
+                                "loc": {
+                                  "start": 9737,
+                                  "end": 9744
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9737,
+                                "end": 9744
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canUpdate",
+                                "loc": {
+                                  "start": 9761,
+                                  "end": 9770
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9761,
+                                "end": 9770
+                              }
+                            }
+                          ],
+                          "loc": {
+                            "start": 9693,
+                            "end": 9784
+                          }
+                        },
+                        "loc": {
+                          "start": 9689,
+                          "end": 9784
                         }
                       }
                     ],
                     "loc": {
-                      "start": 5213,
-                      "end": 9242
+                      "start": 5509,
+                      "end": 9794
                     }
                   },
                   "loc": {
-                    "start": 5202,
-                    "end": 9242
+                    "start": 5498,
+                    "end": 9794
                   }
                 },
                 {
@@ -4597,15 +4905,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "handle",
                     "loc": {
-                      "start": 9251,
-                      "end": 9257
+                      "start": 9803,
+                      "end": 9809
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9251,
-                    "end": 9257
+                    "start": 9803,
+                    "end": 9809
                   }
                 },
                 {
@@ -4614,15 +4922,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "hasPremium",
                     "loc": {
-                      "start": 9266,
-                      "end": 9276
+                      "start": 9818,
+                      "end": 9828
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9266,
-                    "end": 9276
+                    "start": 9818,
+                    "end": 9828
                   }
                 },
                 {
@@ -4631,15 +4939,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 9285,
-                      "end": 9287
+                      "start": 9837,
+                      "end": 9839
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9285,
-                    "end": 9287
+                    "start": 9837,
+                    "end": 9839
                   }
                 },
                 {
@@ -4648,15 +4956,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "languages",
                     "loc": {
-                      "start": 9296,
-                      "end": 9305
+                      "start": 9848,
+                      "end": 9857
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9296,
-                    "end": 9305
+                    "start": 9848,
+                    "end": 9857
                   }
                 },
                 {
@@ -4665,15 +4973,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "membershipsCount",
                     "loc": {
-                      "start": 9314,
-                      "end": 9330
+                      "start": 9866,
+                      "end": 9882
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9314,
-                    "end": 9330
+                    "start": 9866,
+                    "end": 9882
                   }
                 },
                 {
@@ -4682,15 +4990,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "name",
                     "loc": {
-                      "start": 9339,
-                      "end": 9343
+                      "start": 9891,
+                      "end": 9895
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9339,
-                    "end": 9343
+                    "start": 9891,
+                    "end": 9895
                   }
                 },
                 {
@@ -4699,15 +5007,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "notesCount",
                     "loc": {
-                      "start": 9352,
-                      "end": 9362
+                      "start": 9904,
+                      "end": 9914
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9352,
-                    "end": 9362
+                    "start": 9904,
+                    "end": 9914
                   }
                 },
                 {
@@ -4716,15 +5024,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "projectsCount",
                     "loc": {
-                      "start": 9371,
-                      "end": 9384
+                      "start": 9923,
+                      "end": 9936
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9371,
-                    "end": 9384
+                    "start": 9923,
+                    "end": 9936
                   }
                 },
                 {
@@ -4733,15 +5041,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "questionsAskedCount",
                     "loc": {
-                      "start": 9393,
-                      "end": 9412
+                      "start": 9945,
+                      "end": 9964
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9393,
-                    "end": 9412
+                    "start": 9945,
+                    "end": 9964
                   }
                 },
                 {
@@ -4750,15 +5058,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "routinesCount",
                     "loc": {
-                      "start": 9421,
-                      "end": 9434
+                      "start": 9973,
+                      "end": 9986
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9421,
-                    "end": 9434
+                    "start": 9973,
+                    "end": 9986
                   }
                 },
                 {
@@ -4767,15 +5075,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "smartContractsCount",
                     "loc": {
-                      "start": 9443,
-                      "end": 9462
+                      "start": 9995,
+                      "end": 10014
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9443,
-                    "end": 9462
+                    "start": 9995,
+                    "end": 10014
                   }
                 },
                 {
@@ -4784,15 +5092,15 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "standardsCount",
                     "loc": {
-                      "start": 9471,
-                      "end": 9485
+                      "start": 10023,
+                      "end": 10037
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9471,
-                    "end": 9485
+                    "start": 10023,
+                    "end": 10037
                   }
                 },
                 {
@@ -4801,37 +5109,37 @@ export const auth_guestLogIn = {
                     "kind": "Name",
                     "value": "theme",
                     "loc": {
-                      "start": 9494,
-                      "end": 9499
+                      "start": 10046,
+                      "end": 10051
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9494,
-                    "end": 9499
+                    "start": 10046,
+                    "end": 10051
                   }
                 }
               ],
               "loc": {
                 "start": 352,
-                "end": 9505
+                "end": 10057
               }
             },
             "loc": {
               "start": 346,
-              "end": 9505
+              "end": 10057
             }
           }
         ],
         "loc": {
           "start": 312,
-          "end": 9509
+          "end": 10061
         }
       },
       "loc": {
         "start": 301,
-        "end": 9509
+        "end": 10061
       }
     },
     {
@@ -6880,27 +7188,104 @@ export const auth_guestLogIn = {
                                                 "start": 3176,
                                                 "end": 3187
                                               }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "you",
+                                                "loc": {
+                                                  "start": 3212,
+                                                  "end": 3215
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "selectionSet": {
+                                                "kind": "SelectionSet",
+                                                "selections": [
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canDelete",
+                                                      "loc": {
+                                                        "start": 3246,
+                                                        "end": 3255
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3246,
+                                                      "end": 3255
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canRead",
+                                                      "loc": {
+                                                        "start": 3284,
+                                                        "end": 3291
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3284,
+                                                      "end": 3291
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canUpdate",
+                                                      "loc": {
+                                                        "start": 3320,
+                                                        "end": 3329
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3320,
+                                                      "end": 3329
+                                                    }
+                                                  }
+                                                ],
+                                                "loc": {
+                                                  "start": 3216,
+                                                  "end": 3355
+                                                }
+                                              },
+                                              "loc": {
+                                                "start": 3212,
+                                                "end": 3355
+                                              }
                                             }
                                           ],
                                           "loc": {
                                             "start": 985,
-                                            "end": 3209
+                                            "end": 3377
                                           }
                                         },
                                         "loc": {
                                           "start": 975,
-                                          "end": 3209
+                                          "end": 3377
                                         }
                                       }
                                     ],
                                     "loc": {
                                       "start": 423,
-                                      "end": 3227
+                                      "end": 3395
                                     }
                                   },
                                   "loc": {
                                     "start": 415,
-                                    "end": 3227
+                                    "end": 3395
                                   }
                                 },
                                 {
@@ -6909,8 +7294,8 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "labels",
                                     "loc": {
-                                      "start": 3244,
-                                      "end": 3250
+                                      "start": 3412,
+                                      "end": 3418
                                     }
                                   },
                                   "arguments": [],
@@ -6924,15 +7309,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 3273,
-                                            "end": 3275
+                                            "start": 3441,
+                                            "end": 3443
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3273,
-                                          "end": 3275
+                                          "start": 3441,
+                                          "end": 3443
                                         }
                                       },
                                       {
@@ -6941,15 +7326,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "color",
                                           "loc": {
-                                            "start": 3296,
-                                            "end": 3301
+                                            "start": 3464,
+                                            "end": 3469
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3296,
-                                          "end": 3301
+                                          "start": 3464,
+                                          "end": 3469
                                         }
                                       },
                                       {
@@ -6958,26 +7343,26 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "label",
                                           "loc": {
-                                            "start": 3322,
-                                            "end": 3327
+                                            "start": 3490,
+                                            "end": 3495
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3322,
-                                          "end": 3327
+                                          "start": 3490,
+                                          "end": 3495
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3251,
-                                      "end": 3345
+                                      "start": 3419,
+                                      "end": 3513
                                     }
                                   },
                                   "loc": {
-                                    "start": 3244,
-                                    "end": 3345
+                                    "start": 3412,
+                                    "end": 3513
                                   }
                                 },
                                 {
@@ -6986,8 +7371,8 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "reminderList",
                                     "loc": {
-                                      "start": 3362,
-                                      "end": 3374
+                                      "start": 3530,
+                                      "end": 3542
                                     }
                                   },
                                   "arguments": [],
@@ -7001,15 +7386,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 3397,
-                                            "end": 3399
+                                            "start": 3565,
+                                            "end": 3567
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3397,
-                                          "end": 3399
+                                          "start": 3565,
+                                          "end": 3567
                                         }
                                       },
                                       {
@@ -7018,15 +7403,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 3420,
-                                            "end": 3430
+                                            "start": 3588,
+                                            "end": 3598
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3420,
-                                          "end": 3430
+                                          "start": 3588,
+                                          "end": 3598
                                         }
                                       },
                                       {
@@ -7035,15 +7420,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 3451,
-                                            "end": 3461
+                                            "start": 3619,
+                                            "end": 3629
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3451,
-                                          "end": 3461
+                                          "start": 3619,
+                                          "end": 3629
                                         }
                                       },
                                       {
@@ -7052,8 +7437,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "reminders",
                                           "loc": {
-                                            "start": 3482,
-                                            "end": 3491
+                                            "start": 3650,
+                                            "end": 3659
                                           }
                                         },
                                         "arguments": [],
@@ -7067,15 +7452,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 3518,
-                                                  "end": 3520
+                                                  "start": 3686,
+                                                  "end": 3688
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3518,
-                                                "end": 3520
+                                                "start": 3686,
+                                                "end": 3688
                                               }
                                             },
                                             {
@@ -7084,15 +7469,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 3545,
-                                                  "end": 3555
+                                                  "start": 3713,
+                                                  "end": 3723
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3545,
-                                                "end": 3555
+                                                "start": 3713,
+                                                "end": 3723
                                               }
                                             },
                                             {
@@ -7101,15 +7486,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 3580,
-                                                  "end": 3590
+                                                  "start": 3748,
+                                                  "end": 3758
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3580,
-                                                "end": 3590
+                                                "start": 3748,
+                                                "end": 3758
                                               }
                                             },
                                             {
@@ -7118,15 +7503,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 3615,
-                                                  "end": 3619
+                                                  "start": 3783,
+                                                  "end": 3787
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3615,
-                                                "end": 3619
+                                                "start": 3783,
+                                                "end": 3787
                                               }
                                             },
                                             {
@@ -7135,15 +7520,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 3644,
-                                                  "end": 3655
+                                                  "start": 3812,
+                                                  "end": 3823
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3644,
-                                                "end": 3655
+                                                "start": 3812,
+                                                "end": 3823
                                               }
                                             },
                                             {
@@ -7152,15 +7537,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 3680,
-                                                  "end": 3687
+                                                  "start": 3848,
+                                                  "end": 3855
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3680,
-                                                "end": 3687
+                                                "start": 3848,
+                                                "end": 3855
                                               }
                                             },
                                             {
@@ -7169,15 +7554,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 3712,
-                                                  "end": 3717
+                                                  "start": 3880,
+                                                  "end": 3885
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3712,
-                                                "end": 3717
+                                                "start": 3880,
+                                                "end": 3885
                                               }
                                             },
                                             {
@@ -7186,15 +7571,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 3742,
-                                                  "end": 3752
+                                                  "start": 3910,
+                                                  "end": 3920
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3742,
-                                                "end": 3752
+                                                "start": 3910,
+                                                "end": 3920
                                               }
                                             },
                                             {
@@ -7203,8 +7588,8 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "reminderItems",
                                                 "loc": {
-                                                  "start": 3777,
-                                                  "end": 3790
+                                                  "start": 3945,
+                                                  "end": 3958
                                                 }
                                               },
                                               "arguments": [],
@@ -7218,15 +7603,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 3821,
-                                                        "end": 3823
+                                                        "start": 3989,
+                                                        "end": 3991
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3821,
-                                                      "end": 3823
+                                                      "start": 3989,
+                                                      "end": 3991
                                                     }
                                                   },
                                                   {
@@ -7235,15 +7620,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 3852,
-                                                        "end": 3862
+                                                        "start": 4020,
+                                                        "end": 4030
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3852,
-                                                      "end": 3862
+                                                      "start": 4020,
+                                                      "end": 4030
                                                     }
                                                   },
                                                   {
@@ -7252,15 +7637,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 3891,
-                                                        "end": 3901
+                                                        "start": 4059,
+                                                        "end": 4069
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3891,
-                                                      "end": 3901
+                                                      "start": 4059,
+                                                      "end": 4069
                                                     }
                                                   },
                                                   {
@@ -7269,15 +7654,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 3930,
-                                                        "end": 3934
+                                                        "start": 4098,
+                                                        "end": 4102
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3930,
-                                                      "end": 3934
+                                                      "start": 4098,
+                                                      "end": 4102
                                                     }
                                                   },
                                                   {
@@ -7286,15 +7671,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 3963,
-                                                        "end": 3974
+                                                        "start": 4131,
+                                                        "end": 4142
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3963,
-                                                      "end": 3974
+                                                      "start": 4131,
+                                                      "end": 4142
                                                     }
                                                   },
                                                   {
@@ -7303,15 +7688,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 4003,
-                                                        "end": 4010
+                                                        "start": 4171,
+                                                        "end": 4178
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4003,
-                                                      "end": 4010
+                                                      "start": 4171,
+                                                      "end": 4178
                                                     }
                                                   },
                                                   {
@@ -7320,15 +7705,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 4039,
-                                                        "end": 4044
+                                                        "start": 4207,
+                                                        "end": 4212
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4039,
-                                                      "end": 4044
+                                                      "start": 4207,
+                                                      "end": 4212
                                                     }
                                                   },
                                                   {
@@ -7337,48 +7722,48 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 4073,
-                                                        "end": 4083
+                                                        "start": 4241,
+                                                        "end": 4251
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4073,
-                                                      "end": 4083
+                                                      "start": 4241,
+                                                      "end": 4251
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 3791,
-                                                  "end": 4109
+                                                  "start": 3959,
+                                                  "end": 4277
                                                 }
                                               },
                                               "loc": {
-                                                "start": 3777,
-                                                "end": 4109
+                                                "start": 3945,
+                                                "end": 4277
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 3492,
-                                            "end": 4131
+                                            "start": 3660,
+                                            "end": 4299
                                           }
                                         },
                                         "loc": {
-                                          "start": 3482,
-                                          "end": 4131
+                                          "start": 3650,
+                                          "end": 4299
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3375,
-                                      "end": 4149
+                                      "start": 3543,
+                                      "end": 4317
                                     }
                                   },
                                   "loc": {
-                                    "start": 3362,
-                                    "end": 4149
+                                    "start": 3530,
+                                    "end": 4317
                                   }
                                 },
                                 {
@@ -7387,8 +7772,8 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "resourceList",
                                     "loc": {
-                                      "start": 4166,
-                                      "end": 4178
+                                      "start": 4334,
+                                      "end": 4346
                                     }
                                   },
                                   "arguments": [],
@@ -7402,15 +7787,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 4201,
-                                            "end": 4203
+                                            "start": 4369,
+                                            "end": 4371
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4201,
-                                          "end": 4203
+                                          "start": 4369,
+                                          "end": 4371
                                         }
                                       },
                                       {
@@ -7419,15 +7804,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 4224,
-                                            "end": 4234
+                                            "start": 4392,
+                                            "end": 4402
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4224,
-                                          "end": 4234
+                                          "start": 4392,
+                                          "end": 4402
                                         }
                                       },
                                       {
@@ -7436,8 +7821,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 4255,
-                                            "end": 4267
+                                            "start": 4423,
+                                            "end": 4435
                                           }
                                         },
                                         "arguments": [],
@@ -7451,15 +7836,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 4294,
-                                                  "end": 4296
+                                                  "start": 4462,
+                                                  "end": 4464
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4294,
-                                                "end": 4296
+                                                "start": 4462,
+                                                "end": 4464
                                               }
                                             },
                                             {
@@ -7468,15 +7853,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 4321,
-                                                  "end": 4329
+                                                  "start": 4489,
+                                                  "end": 4497
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4321,
-                                                "end": 4329
+                                                "start": 4489,
+                                                "end": 4497
                                               }
                                             },
                                             {
@@ -7485,15 +7870,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 4354,
-                                                  "end": 4365
+                                                  "start": 4522,
+                                                  "end": 4533
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4354,
-                                                "end": 4365
+                                                "start": 4522,
+                                                "end": 4533
                                               }
                                             },
                                             {
@@ -7502,26 +7887,26 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 4390,
-                                                  "end": 4394
+                                                  "start": 4558,
+                                                  "end": 4562
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4390,
-                                                "end": 4394
+                                                "start": 4558,
+                                                "end": 4562
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4268,
-                                            "end": 4416
+                                            "start": 4436,
+                                            "end": 4584
                                           }
                                         },
                                         "loc": {
-                                          "start": 4255,
-                                          "end": 4416
+                                          "start": 4423,
+                                          "end": 4584
                                         }
                                       },
                                       {
@@ -7530,8 +7915,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "resources",
                                           "loc": {
-                                            "start": 4437,
-                                            "end": 4446
+                                            "start": 4605,
+                                            "end": 4614
                                           }
                                         },
                                         "arguments": [],
@@ -7545,15 +7930,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 4473,
-                                                  "end": 4475
+                                                  "start": 4641,
+                                                  "end": 4643
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4473,
-                                                "end": 4475
+                                                "start": 4641,
+                                                "end": 4643
                                               }
                                             },
                                             {
@@ -7562,15 +7947,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 4500,
-                                                  "end": 4505
+                                                  "start": 4668,
+                                                  "end": 4673
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4500,
-                                                "end": 4505
+                                                "start": 4668,
+                                                "end": 4673
                                               }
                                             },
                                             {
@@ -7579,15 +7964,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "link",
                                                 "loc": {
-                                                  "start": 4530,
-                                                  "end": 4534
+                                                  "start": 4698,
+                                                  "end": 4702
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4530,
-                                                "end": 4534
+                                                "start": 4698,
+                                                "end": 4702
                                               }
                                             },
                                             {
@@ -7596,15 +7981,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "usedFor",
                                                 "loc": {
-                                                  "start": 4559,
-                                                  "end": 4566
+                                                  "start": 4727,
+                                                  "end": 4734
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4559,
-                                                "end": 4566
+                                                "start": 4727,
+                                                "end": 4734
                                               }
                                             },
                                             {
@@ -7613,8 +7998,8 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 4591,
-                                                  "end": 4603
+                                                  "start": 4759,
+                                                  "end": 4771
                                                 }
                                               },
                                               "arguments": [],
@@ -7628,15 +8013,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 4634,
-                                                        "end": 4636
+                                                        "start": 4802,
+                                                        "end": 4804
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4634,
-                                                      "end": 4636
+                                                      "start": 4802,
+                                                      "end": 4804
                                                     }
                                                   },
                                                   {
@@ -7645,15 +8030,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 4665,
-                                                        "end": 4673
+                                                        "start": 4833,
+                                                        "end": 4841
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4665,
-                                                      "end": 4673
+                                                      "start": 4833,
+                                                      "end": 4841
                                                     }
                                                   },
                                                   {
@@ -7662,15 +8047,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 4702,
-                                                        "end": 4713
+                                                        "start": 4870,
+                                                        "end": 4881
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4702,
-                                                      "end": 4713
+                                                      "start": 4870,
+                                                      "end": 4881
                                                     }
                                                   },
                                                   {
@@ -7679,48 +8064,48 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 4742,
-                                                        "end": 4746
+                                                        "start": 4910,
+                                                        "end": 4914
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4742,
-                                                      "end": 4746
+                                                      "start": 4910,
+                                                      "end": 4914
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 4604,
-                                                  "end": 4772
+                                                  "start": 4772,
+                                                  "end": 4940
                                                 }
                                               },
                                               "loc": {
-                                                "start": 4591,
-                                                "end": 4772
+                                                "start": 4759,
+                                                "end": 4940
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4447,
-                                            "end": 4794
+                                            "start": 4615,
+                                            "end": 4962
                                           }
                                         },
                                         "loc": {
-                                          "start": 4437,
-                                          "end": 4794
+                                          "start": 4605,
+                                          "end": 4962
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 4179,
-                                      "end": 4812
+                                      "start": 4347,
+                                      "end": 4980
                                     }
                                   },
                                   "loc": {
-                                    "start": 4166,
-                                    "end": 4812
+                                    "start": 4334,
+                                    "end": 4980
                                   }
                                 },
                                 {
@@ -7729,8 +8114,8 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "schedule",
                                     "loc": {
-                                      "start": 4829,
-                                      "end": 4837
+                                      "start": 4997,
+                                      "end": 5005
                                     }
                                   },
                                   "arguments": [],
@@ -7744,25 +8129,25 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "Schedule_common",
                                           "loc": {
-                                            "start": 4863,
-                                            "end": 4878
+                                            "start": 5031,
+                                            "end": 5046
                                           }
                                         },
                                         "directives": [],
                                         "loc": {
-                                          "start": 4860,
-                                          "end": 4878
+                                          "start": 5028,
+                                          "end": 5046
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 4838,
-                                      "end": 4896
+                                      "start": 5006,
+                                      "end": 5064
                                     }
                                   },
                                   "loc": {
-                                    "start": 4829,
-                                    "end": 4896
+                                    "start": 4997,
+                                    "end": 5064
                                   }
                                 },
                                 {
@@ -7771,15 +8156,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 4913,
-                                      "end": 4915
+                                      "start": 5081,
+                                      "end": 5083
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4913,
-                                    "end": 4915
+                                    "start": 5081,
+                                    "end": 5083
                                   }
                                 },
                                 {
@@ -7788,15 +8173,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "name",
                                     "loc": {
-                                      "start": 4932,
-                                      "end": 4936
+                                      "start": 5100,
+                                      "end": 5104
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4932,
-                                    "end": 4936
+                                    "start": 5100,
+                                    "end": 5104
                                   }
                                 },
                                 {
@@ -7805,26 +8190,103 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "description",
                                     "loc": {
-                                      "start": 4953,
-                                      "end": 4964
+                                      "start": 5121,
+                                      "end": 5132
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4953,
-                                    "end": 4964
+                                    "start": 5121,
+                                    "end": 5132
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "you",
+                                    "loc": {
+                                      "start": 5149,
+                                      "end": 5152
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "selectionSet": {
+                                    "kind": "SelectionSet",
+                                    "selections": [
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canDelete",
+                                          "loc": {
+                                            "start": 5175,
+                                            "end": 5184
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5175,
+                                          "end": 5184
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canRead",
+                                          "loc": {
+                                            "start": 5205,
+                                            "end": 5212
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5205,
+                                          "end": 5212
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canUpdate",
+                                          "loc": {
+                                            "start": 5233,
+                                            "end": 5242
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5233,
+                                          "end": 5242
+                                        }
+                                      }
+                                    ],
+                                    "loc": {
+                                      "start": 5153,
+                                      "end": 5260
+                                    }
+                                  },
+                                  "loc": {
+                                    "start": 5149,
+                                    "end": 5260
                                   }
                                 }
                               ],
                               "loc": {
                                 "start": 397,
-                                "end": 4978
+                                "end": 5274
                               }
                             },
                             "loc": {
                               "start": 392,
-                              "end": 4978
+                              "end": 5274
                             }
                           },
                           {
@@ -7833,15 +8295,15 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "stopCondition",
                               "loc": {
-                                "start": 4991,
-                                "end": 5004
+                                "start": 5287,
+                                "end": 5300
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 4991,
-                              "end": 5004
+                              "start": 5287,
+                              "end": 5300
                             }
                           },
                           {
@@ -7850,26 +8312,26 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "stopTime",
                               "loc": {
-                                "start": 5017,
-                                "end": 5025
+                                "start": 5313,
+                                "end": 5321
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5017,
-                              "end": 5025
+                              "start": 5313,
+                              "end": 5321
                             }
                           }
                         ],
                         "loc": {
                           "start": 378,
-                          "end": 5035
+                          "end": 5331
                         }
                       },
                       "loc": {
                         "start": 362,
-                        "end": 5035
+                        "end": 5331
                       }
                     },
                     {
@@ -7878,15 +8340,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "apisCount",
                         "loc": {
-                          "start": 5044,
-                          "end": 5053
+                          "start": 5340,
+                          "end": 5349
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5044,
-                        "end": 5053
+                        "start": 5340,
+                        "end": 5349
                       }
                     },
                     {
@@ -7895,8 +8357,8 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "bookmarkLists",
                         "loc": {
-                          "start": 5062,
-                          "end": 5075
+                          "start": 5358,
+                          "end": 5371
                         }
                       },
                       "arguments": [],
@@ -7910,15 +8372,15 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 5090,
-                                "end": 5092
+                                "start": 5386,
+                                "end": 5388
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5090,
-                              "end": 5092
+                              "start": 5386,
+                              "end": 5388
                             }
                           },
                           {
@@ -7927,15 +8389,15 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "created_at",
                               "loc": {
-                                "start": 5105,
-                                "end": 5115
+                                "start": 5401,
+                                "end": 5411
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5105,
-                              "end": 5115
+                              "start": 5401,
+                              "end": 5411
                             }
                           },
                           {
@@ -7944,15 +8406,15 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "updated_at",
                               "loc": {
-                                "start": 5128,
-                                "end": 5138
+                                "start": 5424,
+                                "end": 5434
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5128,
-                              "end": 5138
+                              "start": 5424,
+                              "end": 5434
                             }
                           },
                           {
@@ -7961,15 +8423,15 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "label",
                               "loc": {
-                                "start": 5151,
-                                "end": 5156
+                                "start": 5447,
+                                "end": 5452
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5151,
-                              "end": 5156
+                              "start": 5447,
+                              "end": 5452
                             }
                           },
                           {
@@ -7978,26 +8440,26 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "bookmarksCount",
                               "loc": {
-                                "start": 5169,
-                                "end": 5183
+                                "start": 5465,
+                                "end": 5479
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5169,
-                              "end": 5183
+                              "start": 5465,
+                              "end": 5479
                             }
                           }
                         ],
                         "loc": {
-                          "start": 5076,
-                          "end": 5193
+                          "start": 5372,
+                          "end": 5489
                         }
                       },
                       "loc": {
-                        "start": 5062,
-                        "end": 5193
+                        "start": 5358,
+                        "end": 5489
                       }
                     },
                     {
@@ -8006,8 +8468,8 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "focusModes",
                         "loc": {
-                          "start": 5202,
-                          "end": 5212
+                          "start": 5498,
+                          "end": 5508
                         }
                       },
                       "arguments": [],
@@ -8021,8 +8483,8 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "filters",
                               "loc": {
-                                "start": 5227,
-                                "end": 5234
+                                "start": 5523,
+                                "end": 5530
                               }
                             },
                             "arguments": [],
@@ -8036,15 +8498,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 5253,
-                                      "end": 5255
+                                      "start": 5549,
+                                      "end": 5551
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5253,
-                                    "end": 5255
+                                    "start": 5549,
+                                    "end": 5551
                                   }
                                 },
                                 {
@@ -8053,15 +8515,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "filterType",
                                     "loc": {
-                                      "start": 5272,
-                                      "end": 5282
+                                      "start": 5568,
+                                      "end": 5578
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5272,
-                                    "end": 5282
+                                    "start": 5568,
+                                    "end": 5578
                                   }
                                 },
                                 {
@@ -8070,8 +8532,8 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "tag",
                                     "loc": {
-                                      "start": 5299,
-                                      "end": 5302
+                                      "start": 5595,
+                                      "end": 5598
                                     }
                                   },
                                   "arguments": [],
@@ -8085,15 +8547,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 5325,
-                                            "end": 5327
+                                            "start": 5621,
+                                            "end": 5623
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5325,
-                                          "end": 5327
+                                          "start": 5621,
+                                          "end": 5623
                                         }
                                       },
                                       {
@@ -8102,15 +8564,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 5348,
-                                            "end": 5358
+                                            "start": 5644,
+                                            "end": 5654
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5348,
-                                          "end": 5358
+                                          "start": 5644,
+                                          "end": 5654
                                         }
                                       },
                                       {
@@ -8119,15 +8581,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "tag",
                                           "loc": {
-                                            "start": 5379,
-                                            "end": 5382
+                                            "start": 5675,
+                                            "end": 5678
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5379,
-                                          "end": 5382
+                                          "start": 5675,
+                                          "end": 5678
                                         }
                                       },
                                       {
@@ -8136,15 +8598,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "bookmarks",
                                           "loc": {
-                                            "start": 5403,
-                                            "end": 5412
+                                            "start": 5699,
+                                            "end": 5708
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5403,
-                                          "end": 5412
+                                          "start": 5699,
+                                          "end": 5708
                                         }
                                       },
                                       {
@@ -8153,8 +8615,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 5433,
-                                            "end": 5445
+                                            "start": 5729,
+                                            "end": 5741
                                           }
                                         },
                                         "arguments": [],
@@ -8168,15 +8630,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5472,
-                                                  "end": 5474
+                                                  "start": 5768,
+                                                  "end": 5770
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5472,
-                                                "end": 5474
+                                                "start": 5768,
+                                                "end": 5770
                                               }
                                             },
                                             {
@@ -8185,15 +8647,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 5499,
-                                                  "end": 5507
+                                                  "start": 5795,
+                                                  "end": 5803
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5499,
-                                                "end": 5507
+                                                "start": 5795,
+                                                "end": 5803
                                               }
                                             },
                                             {
@@ -8202,26 +8664,26 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 5532,
-                                                  "end": 5543
+                                                  "start": 5828,
+                                                  "end": 5839
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5532,
-                                                "end": 5543
+                                                "start": 5828,
+                                                "end": 5839
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5446,
-                                            "end": 5565
+                                            "start": 5742,
+                                            "end": 5861
                                           }
                                         },
                                         "loc": {
-                                          "start": 5433,
-                                          "end": 5565
+                                          "start": 5729,
+                                          "end": 5861
                                         }
                                       },
                                       {
@@ -8230,8 +8692,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "you",
                                           "loc": {
-                                            "start": 5586,
-                                            "end": 5589
+                                            "start": 5882,
+                                            "end": 5885
                                           }
                                         },
                                         "arguments": [],
@@ -8245,15 +8707,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "isOwn",
                                                 "loc": {
-                                                  "start": 5616,
-                                                  "end": 5621
+                                                  "start": 5912,
+                                                  "end": 5917
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5616,
-                                                "end": 5621
+                                                "start": 5912,
+                                                "end": 5917
                                               }
                                             },
                                             {
@@ -8262,37 +8724,37 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "isBookmarked",
                                                 "loc": {
-                                                  "start": 5646,
-                                                  "end": 5658
+                                                  "start": 5942,
+                                                  "end": 5954
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5646,
-                                                "end": 5658
+                                                "start": 5942,
+                                                "end": 5954
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5590,
-                                            "end": 5680
+                                            "start": 5886,
+                                            "end": 5976
                                           }
                                         },
                                         "loc": {
-                                          "start": 5586,
-                                          "end": 5680
+                                          "start": 5882,
+                                          "end": 5976
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5303,
-                                      "end": 5698
+                                      "start": 5599,
+                                      "end": 5994
                                     }
                                   },
                                   "loc": {
-                                    "start": 5299,
-                                    "end": 5698
+                                    "start": 5595,
+                                    "end": 5994
                                   }
                                 },
                                 {
@@ -8301,8 +8763,8 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "focusMode",
                                     "loc": {
-                                      "start": 5715,
-                                      "end": 5724
+                                      "start": 6011,
+                                      "end": 6020
                                     }
                                   },
                                   "arguments": [],
@@ -8316,8 +8778,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "labels",
                                           "loc": {
-                                            "start": 5747,
-                                            "end": 5753
+                                            "start": 6043,
+                                            "end": 6049
                                           }
                                         },
                                         "arguments": [],
@@ -8331,15 +8793,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5780,
-                                                  "end": 5782
+                                                  "start": 6076,
+                                                  "end": 6078
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5780,
-                                                "end": 5782
+                                                "start": 6076,
+                                                "end": 6078
                                               }
                                             },
                                             {
@@ -8348,15 +8810,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "color",
                                                 "loc": {
-                                                  "start": 5807,
-                                                  "end": 5812
+                                                  "start": 6103,
+                                                  "end": 6108
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5807,
-                                                "end": 5812
+                                                "start": 6103,
+                                                "end": 6108
                                               }
                                             },
                                             {
@@ -8365,26 +8827,26 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "label",
                                                 "loc": {
-                                                  "start": 5837,
-                                                  "end": 5842
+                                                  "start": 6133,
+                                                  "end": 6138
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5837,
-                                                "end": 5842
+                                                "start": 6133,
+                                                "end": 6138
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5754,
-                                            "end": 5864
+                                            "start": 6050,
+                                            "end": 6160
                                           }
                                         },
                                         "loc": {
-                                          "start": 5747,
-                                          "end": 5864
+                                          "start": 6043,
+                                          "end": 6160
                                         }
                                       },
                                       {
@@ -8393,8 +8855,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "reminderList",
                                           "loc": {
-                                            "start": 5885,
-                                            "end": 5897
+                                            "start": 6181,
+                                            "end": 6193
                                           }
                                         },
                                         "arguments": [],
@@ -8408,15 +8870,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5924,
-                                                  "end": 5926
+                                                  "start": 6220,
+                                                  "end": 6222
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5924,
-                                                "end": 5926
+                                                "start": 6220,
+                                                "end": 6222
                                               }
                                             },
                                             {
@@ -8425,15 +8887,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 5951,
-                                                  "end": 5961
+                                                  "start": 6247,
+                                                  "end": 6257
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5951,
-                                                "end": 5961
+                                                "start": 6247,
+                                                "end": 6257
                                               }
                                             },
                                             {
@@ -8442,15 +8904,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 5986,
-                                                  "end": 5996
+                                                  "start": 6282,
+                                                  "end": 6292
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5986,
-                                                "end": 5996
+                                                "start": 6282,
+                                                "end": 6292
                                               }
                                             },
                                             {
@@ -8459,8 +8921,8 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "reminders",
                                                 "loc": {
-                                                  "start": 6021,
-                                                  "end": 6030
+                                                  "start": 6317,
+                                                  "end": 6326
                                                 }
                                               },
                                               "arguments": [],
@@ -8474,15 +8936,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 6061,
-                                                        "end": 6063
+                                                        "start": 6357,
+                                                        "end": 6359
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6061,
-                                                      "end": 6063
+                                                      "start": 6357,
+                                                      "end": 6359
                                                     }
                                                   },
                                                   {
@@ -8491,15 +8953,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 6092,
-                                                        "end": 6102
+                                                        "start": 6388,
+                                                        "end": 6398
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6092,
-                                                      "end": 6102
+                                                      "start": 6388,
+                                                      "end": 6398
                                                     }
                                                   },
                                                   {
@@ -8508,15 +8970,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 6131,
-                                                        "end": 6141
+                                                        "start": 6427,
+                                                        "end": 6437
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6131,
-                                                      "end": 6141
+                                                      "start": 6427,
+                                                      "end": 6437
                                                     }
                                                   },
                                                   {
@@ -8525,15 +8987,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 6170,
-                                                        "end": 6174
+                                                        "start": 6466,
+                                                        "end": 6470
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6170,
-                                                      "end": 6174
+                                                      "start": 6466,
+                                                      "end": 6470
                                                     }
                                                   },
                                                   {
@@ -8542,15 +9004,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 6203,
-                                                        "end": 6214
+                                                        "start": 6499,
+                                                        "end": 6510
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6203,
-                                                      "end": 6214
+                                                      "start": 6499,
+                                                      "end": 6510
                                                     }
                                                   },
                                                   {
@@ -8559,15 +9021,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 6243,
-                                                        "end": 6250
+                                                        "start": 6539,
+                                                        "end": 6546
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6243,
-                                                      "end": 6250
+                                                      "start": 6539,
+                                                      "end": 6546
                                                     }
                                                   },
                                                   {
@@ -8576,15 +9038,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 6279,
-                                                        "end": 6284
+                                                        "start": 6575,
+                                                        "end": 6580
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6279,
-                                                      "end": 6284
+                                                      "start": 6575,
+                                                      "end": 6580
                                                     }
                                                   },
                                                   {
@@ -8593,15 +9055,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 6313,
-                                                        "end": 6323
+                                                        "start": 6609,
+                                                        "end": 6619
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6313,
-                                                      "end": 6323
+                                                      "start": 6609,
+                                                      "end": 6619
                                                     }
                                                   },
                                                   {
@@ -8610,8 +9072,8 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "reminderItems",
                                                       "loc": {
-                                                        "start": 6352,
-                                                        "end": 6365
+                                                        "start": 6648,
+                                                        "end": 6661
                                                       }
                                                     },
                                                     "arguments": [],
@@ -8625,15 +9087,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 6400,
-                                                              "end": 6402
+                                                              "start": 6696,
+                                                              "end": 6698
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6400,
-                                                            "end": 6402
+                                                            "start": 6696,
+                                                            "end": 6698
                                                           }
                                                         },
                                                         {
@@ -8642,15 +9104,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "created_at",
                                                             "loc": {
-                                                              "start": 6435,
-                                                              "end": 6445
+                                                              "start": 6731,
+                                                              "end": 6741
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6435,
-                                                            "end": 6445
+                                                            "start": 6731,
+                                                            "end": 6741
                                                           }
                                                         },
                                                         {
@@ -8659,15 +9121,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "updated_at",
                                                             "loc": {
-                                                              "start": 6478,
-                                                              "end": 6488
+                                                              "start": 6774,
+                                                              "end": 6784
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6478,
-                                                            "end": 6488
+                                                            "start": 6774,
+                                                            "end": 6784
                                                           }
                                                         },
                                                         {
@@ -8676,15 +9138,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 6521,
-                                                              "end": 6525
+                                                              "start": 6817,
+                                                              "end": 6821
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6521,
-                                                            "end": 6525
+                                                            "start": 6817,
+                                                            "end": 6821
                                                           }
                                                         },
                                                         {
@@ -8693,15 +9155,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 6558,
-                                                              "end": 6569
+                                                              "start": 6854,
+                                                              "end": 6865
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6558,
-                                                            "end": 6569
+                                                            "start": 6854,
+                                                            "end": 6865
                                                           }
                                                         },
                                                         {
@@ -8710,15 +9172,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "dueDate",
                                                             "loc": {
-                                                              "start": 6602,
-                                                              "end": 6609
+                                                              "start": 6898,
+                                                              "end": 6905
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6602,
-                                                            "end": 6609
+                                                            "start": 6898,
+                                                            "end": 6905
                                                           }
                                                         },
                                                         {
@@ -8727,15 +9189,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "index",
                                                             "loc": {
-                                                              "start": 6642,
-                                                              "end": 6647
+                                                              "start": 6938,
+                                                              "end": 6943
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6642,
-                                                            "end": 6647
+                                                            "start": 6938,
+                                                            "end": 6943
                                                           }
                                                         },
                                                         {
@@ -8744,48 +9206,48 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "isComplete",
                                                             "loc": {
-                                                              "start": 6680,
-                                                              "end": 6690
+                                                              "start": 6976,
+                                                              "end": 6986
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6680,
-                                                            "end": 6690
+                                                            "start": 6976,
+                                                            "end": 6986
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 6366,
-                                                        "end": 6720
+                                                        "start": 6662,
+                                                        "end": 7016
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 6352,
-                                                      "end": 6720
+                                                      "start": 6648,
+                                                      "end": 7016
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 6031,
-                                                  "end": 6746
+                                                  "start": 6327,
+                                                  "end": 7042
                                                 }
                                               },
                                               "loc": {
-                                                "start": 6021,
-                                                "end": 6746
+                                                "start": 6317,
+                                                "end": 7042
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5898,
-                                            "end": 6768
+                                            "start": 6194,
+                                            "end": 7064
                                           }
                                         },
                                         "loc": {
-                                          "start": 5885,
-                                          "end": 6768
+                                          "start": 6181,
+                                          "end": 7064
                                         }
                                       },
                                       {
@@ -8794,8 +9256,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "resourceList",
                                           "loc": {
-                                            "start": 6789,
-                                            "end": 6801
+                                            "start": 7085,
+                                            "end": 7097
                                           }
                                         },
                                         "arguments": [],
@@ -8809,15 +9271,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 6828,
-                                                  "end": 6830
+                                                  "start": 7124,
+                                                  "end": 7126
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6828,
-                                                "end": 6830
+                                                "start": 7124,
+                                                "end": 7126
                                               }
                                             },
                                             {
@@ -8826,15 +9288,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 6855,
-                                                  "end": 6865
+                                                  "start": 7151,
+                                                  "end": 7161
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6855,
-                                                "end": 6865
+                                                "start": 7151,
+                                                "end": 7161
                                               }
                                             },
                                             {
@@ -8843,8 +9305,8 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 6890,
-                                                  "end": 6902
+                                                  "start": 7186,
+                                                  "end": 7198
                                                 }
                                               },
                                               "arguments": [],
@@ -8858,15 +9320,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 6933,
-                                                        "end": 6935
+                                                        "start": 7229,
+                                                        "end": 7231
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6933,
-                                                      "end": 6935
+                                                      "start": 7229,
+                                                      "end": 7231
                                                     }
                                                   },
                                                   {
@@ -8875,15 +9337,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 6964,
-                                                        "end": 6972
+                                                        "start": 7260,
+                                                        "end": 7268
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6964,
-                                                      "end": 6972
+                                                      "start": 7260,
+                                                      "end": 7268
                                                     }
                                                   },
                                                   {
@@ -8892,15 +9354,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 7001,
-                                                        "end": 7012
+                                                        "start": 7297,
+                                                        "end": 7308
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7001,
-                                                      "end": 7012
+                                                      "start": 7297,
+                                                      "end": 7308
                                                     }
                                                   },
                                                   {
@@ -8909,26 +9371,26 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 7041,
-                                                        "end": 7045
+                                                        "start": 7337,
+                                                        "end": 7341
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7041,
-                                                      "end": 7045
+                                                      "start": 7337,
+                                                      "end": 7341
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 6903,
-                                                  "end": 7071
+                                                  "start": 7199,
+                                                  "end": 7367
                                                 }
                                               },
                                               "loc": {
-                                                "start": 6890,
-                                                "end": 7071
+                                                "start": 7186,
+                                                "end": 7367
                                               }
                                             },
                                             {
@@ -8937,8 +9399,8 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "resources",
                                                 "loc": {
-                                                  "start": 7096,
-                                                  "end": 7105
+                                                  "start": 7392,
+                                                  "end": 7401
                                                 }
                                               },
                                               "arguments": [],
@@ -8952,15 +9414,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 7136,
-                                                        "end": 7138
+                                                        "start": 7432,
+                                                        "end": 7434
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7136,
-                                                      "end": 7138
+                                                      "start": 7432,
+                                                      "end": 7434
                                                     }
                                                   },
                                                   {
@@ -8969,15 +9431,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 7167,
-                                                        "end": 7172
+                                                        "start": 7463,
+                                                        "end": 7468
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7167,
-                                                      "end": 7172
+                                                      "start": 7463,
+                                                      "end": 7468
                                                     }
                                                   },
                                                   {
@@ -8986,15 +9448,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "link",
                                                       "loc": {
-                                                        "start": 7201,
-                                                        "end": 7205
+                                                        "start": 7497,
+                                                        "end": 7501
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7201,
-                                                      "end": 7205
+                                                      "start": 7497,
+                                                      "end": 7501
                                                     }
                                                   },
                                                   {
@@ -9003,15 +9465,15 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "usedFor",
                                                       "loc": {
-                                                        "start": 7234,
-                                                        "end": 7241
+                                                        "start": 7530,
+                                                        "end": 7537
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7234,
-                                                      "end": 7241
+                                                      "start": 7530,
+                                                      "end": 7537
                                                     }
                                                   },
                                                   {
@@ -9020,8 +9482,8 @@ export const auth_guestLogIn = {
                                                       "kind": "Name",
                                                       "value": "translations",
                                                       "loc": {
-                                                        "start": 7270,
-                                                        "end": 7282
+                                                        "start": 7566,
+                                                        "end": 7578
                                                       }
                                                     },
                                                     "arguments": [],
@@ -9035,15 +9497,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 7317,
-                                                              "end": 7319
+                                                              "start": 7613,
+                                                              "end": 7615
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7317,
-                                                            "end": 7319
+                                                            "start": 7613,
+                                                            "end": 7615
                                                           }
                                                         },
                                                         {
@@ -9052,15 +9514,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "language",
                                                             "loc": {
-                                                              "start": 7352,
-                                                              "end": 7360
+                                                              "start": 7648,
+                                                              "end": 7656
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7352,
-                                                            "end": 7360
+                                                            "start": 7648,
+                                                            "end": 7656
                                                           }
                                                         },
                                                         {
@@ -9069,15 +9531,15 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 7393,
-                                                              "end": 7404
+                                                              "start": 7689,
+                                                              "end": 7700
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7393,
-                                                            "end": 7404
+                                                            "start": 7689,
+                                                            "end": 7700
                                                           }
                                                         },
                                                         {
@@ -9086,48 +9548,48 @@ export const auth_guestLogIn = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 7437,
-                                                              "end": 7441
+                                                              "start": 7733,
+                                                              "end": 7737
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7437,
-                                                            "end": 7441
+                                                            "start": 7733,
+                                                            "end": 7737
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 7283,
-                                                        "end": 7471
+                                                        "start": 7579,
+                                                        "end": 7767
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 7270,
-                                                      "end": 7471
+                                                      "start": 7566,
+                                                      "end": 7767
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 7106,
-                                                  "end": 7497
+                                                  "start": 7402,
+                                                  "end": 7793
                                                 }
                                               },
                                               "loc": {
-                                                "start": 7096,
-                                                "end": 7497
+                                                "start": 7392,
+                                                "end": 7793
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 6802,
-                                            "end": 7519
+                                            "start": 7098,
+                                            "end": 7815
                                           }
                                         },
                                         "loc": {
-                                          "start": 6789,
-                                          "end": 7519
+                                          "start": 7085,
+                                          "end": 7815
                                         }
                                       },
                                       {
@@ -9136,8 +9598,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "schedule",
                                           "loc": {
-                                            "start": 7540,
-                                            "end": 7548
+                                            "start": 7836,
+                                            "end": 7844
                                           }
                                         },
                                         "arguments": [],
@@ -9151,25 +9613,25 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "Schedule_common",
                                                 "loc": {
-                                                  "start": 7578,
-                                                  "end": 7593
+                                                  "start": 7874,
+                                                  "end": 7889
                                                 }
                                               },
                                               "directives": [],
                                               "loc": {
-                                                "start": 7575,
-                                                "end": 7593
+                                                "start": 7871,
+                                                "end": 7889
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 7549,
-                                            "end": 7615
+                                            "start": 7845,
+                                            "end": 7911
                                           }
                                         },
                                         "loc": {
-                                          "start": 7540,
-                                          "end": 7615
+                                          "start": 7836,
+                                          "end": 7911
                                         }
                                       },
                                       {
@@ -9178,15 +9640,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 7636,
-                                            "end": 7638
+                                            "start": 7932,
+                                            "end": 7934
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7636,
-                                          "end": 7638
+                                          "start": 7932,
+                                          "end": 7934
                                         }
                                       },
                                       {
@@ -9195,15 +9657,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 7659,
-                                            "end": 7663
+                                            "start": 7955,
+                                            "end": 7959
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7659,
-                                          "end": 7663
+                                          "start": 7955,
+                                          "end": 7959
                                         }
                                       },
                                       {
@@ -9212,37 +9674,114 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 7684,
-                                            "end": 7695
+                                            "start": 7980,
+                                            "end": 7991
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7684,
-                                          "end": 7695
+                                          "start": 7980,
+                                          "end": 7991
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "you",
+                                          "loc": {
+                                            "start": 8012,
+                                            "end": 8015
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "selectionSet": {
+                                          "kind": "SelectionSet",
+                                          "selections": [
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canDelete",
+                                                "loc": {
+                                                  "start": 8042,
+                                                  "end": 8051
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8042,
+                                                "end": 8051
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canRead",
+                                                "loc": {
+                                                  "start": 8076,
+                                                  "end": 8083
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8076,
+                                                "end": 8083
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canUpdate",
+                                                "loc": {
+                                                  "start": 8108,
+                                                  "end": 8117
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8108,
+                                                "end": 8117
+                                              }
+                                            }
+                                          ],
+                                          "loc": {
+                                            "start": 8016,
+                                            "end": 8139
+                                          }
+                                        },
+                                        "loc": {
+                                          "start": 8012,
+                                          "end": 8139
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5725,
-                                      "end": 7713
+                                      "start": 6021,
+                                      "end": 8157
                                     }
                                   },
                                   "loc": {
-                                    "start": 5715,
-                                    "end": 7713
+                                    "start": 6011,
+                                    "end": 8157
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 5235,
-                                "end": 7727
+                                "start": 5531,
+                                "end": 8171
                               }
                             },
                             "loc": {
-                              "start": 5227,
-                              "end": 7727
+                              "start": 5523,
+                              "end": 8171
                             }
                           },
                           {
@@ -9251,8 +9790,8 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "labels",
                               "loc": {
-                                "start": 7740,
-                                "end": 7746
+                                "start": 8184,
+                                "end": 8190
                               }
                             },
                             "arguments": [],
@@ -9266,15 +9805,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 7765,
-                                      "end": 7767
+                                      "start": 8209,
+                                      "end": 8211
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7765,
-                                    "end": 7767
+                                    "start": 8209,
+                                    "end": 8211
                                   }
                                 },
                                 {
@@ -9283,15 +9822,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "color",
                                     "loc": {
-                                      "start": 7784,
-                                      "end": 7789
+                                      "start": 8228,
+                                      "end": 8233
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7784,
-                                    "end": 7789
+                                    "start": 8228,
+                                    "end": 8233
                                   }
                                 },
                                 {
@@ -9300,26 +9839,26 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "label",
                                     "loc": {
-                                      "start": 7806,
-                                      "end": 7811
+                                      "start": 8250,
+                                      "end": 8255
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7806,
-                                    "end": 7811
+                                    "start": 8250,
+                                    "end": 8255
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 7747,
-                                "end": 7825
+                                "start": 8191,
+                                "end": 8269
                               }
                             },
                             "loc": {
-                              "start": 7740,
-                              "end": 7825
+                              "start": 8184,
+                              "end": 8269
                             }
                           },
                           {
@@ -9328,8 +9867,8 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "reminderList",
                               "loc": {
-                                "start": 7838,
-                                "end": 7850
+                                "start": 8282,
+                                "end": 8294
                               }
                             },
                             "arguments": [],
@@ -9343,15 +9882,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 7869,
-                                      "end": 7871
+                                      "start": 8313,
+                                      "end": 8315
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7869,
-                                    "end": 7871
+                                    "start": 8313,
+                                    "end": 8315
                                   }
                                 },
                                 {
@@ -9360,15 +9899,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 7888,
-                                      "end": 7898
+                                      "start": 8332,
+                                      "end": 8342
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7888,
-                                    "end": 7898
+                                    "start": 8332,
+                                    "end": 8342
                                   }
                                 },
                                 {
@@ -9377,15 +9916,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "updated_at",
                                     "loc": {
-                                      "start": 7915,
-                                      "end": 7925
+                                      "start": 8359,
+                                      "end": 8369
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7915,
-                                    "end": 7925
+                                    "start": 8359,
+                                    "end": 8369
                                   }
                                 },
                                 {
@@ -9394,8 +9933,8 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "reminders",
                                     "loc": {
-                                      "start": 7942,
-                                      "end": 7951
+                                      "start": 8386,
+                                      "end": 8395
                                     }
                                   },
                                   "arguments": [],
@@ -9409,15 +9948,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 7974,
-                                            "end": 7976
+                                            "start": 8418,
+                                            "end": 8420
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7974,
-                                          "end": 7976
+                                          "start": 8418,
+                                          "end": 8420
                                         }
                                       },
                                       {
@@ -9426,15 +9965,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 7997,
-                                            "end": 8007
+                                            "start": 8441,
+                                            "end": 8451
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7997,
-                                          "end": 8007
+                                          "start": 8441,
+                                          "end": 8451
                                         }
                                       },
                                       {
@@ -9443,15 +9982,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 8028,
-                                            "end": 8038
+                                            "start": 8472,
+                                            "end": 8482
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8028,
-                                          "end": 8038
+                                          "start": 8472,
+                                          "end": 8482
                                         }
                                       },
                                       {
@@ -9460,15 +9999,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 8059,
-                                            "end": 8063
+                                            "start": 8503,
+                                            "end": 8507
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8059,
-                                          "end": 8063
+                                          "start": 8503,
+                                          "end": 8507
                                         }
                                       },
                                       {
@@ -9477,15 +10016,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8084,
-                                            "end": 8095
+                                            "start": 8528,
+                                            "end": 8539
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8084,
-                                          "end": 8095
+                                          "start": 8528,
+                                          "end": 8539
                                         }
                                       },
                                       {
@@ -9494,15 +10033,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "dueDate",
                                           "loc": {
-                                            "start": 8116,
-                                            "end": 8123
+                                            "start": 8560,
+                                            "end": 8567
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8116,
-                                          "end": 8123
+                                          "start": 8560,
+                                          "end": 8567
                                         }
                                       },
                                       {
@@ -9511,15 +10050,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 8144,
-                                            "end": 8149
+                                            "start": 8588,
+                                            "end": 8593
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8144,
-                                          "end": 8149
+                                          "start": 8588,
+                                          "end": 8593
                                         }
                                       },
                                       {
@@ -9528,15 +10067,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "isComplete",
                                           "loc": {
-                                            "start": 8170,
-                                            "end": 8180
+                                            "start": 8614,
+                                            "end": 8624
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8170,
-                                          "end": 8180
+                                          "start": 8614,
+                                          "end": 8624
                                         }
                                       },
                                       {
@@ -9545,8 +10084,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "reminderItems",
                                           "loc": {
-                                            "start": 8201,
-                                            "end": 8214
+                                            "start": 8645,
+                                            "end": 8658
                                           }
                                         },
                                         "arguments": [],
@@ -9560,15 +10099,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 8241,
-                                                  "end": 8243
+                                                  "start": 8685,
+                                                  "end": 8687
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8241,
-                                                "end": 8243
+                                                "start": 8685,
+                                                "end": 8687
                                               }
                                             },
                                             {
@@ -9577,15 +10116,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 8268,
-                                                  "end": 8278
+                                                  "start": 8712,
+                                                  "end": 8722
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8268,
-                                                "end": 8278
+                                                "start": 8712,
+                                                "end": 8722
                                               }
                                             },
                                             {
@@ -9594,15 +10133,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 8303,
-                                                  "end": 8313
+                                                  "start": 8747,
+                                                  "end": 8757
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8303,
-                                                "end": 8313
+                                                "start": 8747,
+                                                "end": 8757
                                               }
                                             },
                                             {
@@ -9611,15 +10150,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 8338,
-                                                  "end": 8342
+                                                  "start": 8782,
+                                                  "end": 8786
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8338,
-                                                "end": 8342
+                                                "start": 8782,
+                                                "end": 8786
                                               }
                                             },
                                             {
@@ -9628,15 +10167,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 8367,
-                                                  "end": 8378
+                                                  "start": 8811,
+                                                  "end": 8822
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8367,
-                                                "end": 8378
+                                                "start": 8811,
+                                                "end": 8822
                                               }
                                             },
                                             {
@@ -9645,15 +10184,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 8403,
-                                                  "end": 8410
+                                                  "start": 8847,
+                                                  "end": 8854
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8403,
-                                                "end": 8410
+                                                "start": 8847,
+                                                "end": 8854
                                               }
                                             },
                                             {
@@ -9662,15 +10201,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 8435,
-                                                  "end": 8440
+                                                  "start": 8879,
+                                                  "end": 8884
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8435,
-                                                "end": 8440
+                                                "start": 8879,
+                                                "end": 8884
                                               }
                                             },
                                             {
@@ -9679,48 +10218,48 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 8465,
-                                                  "end": 8475
+                                                  "start": 8909,
+                                                  "end": 8919
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8465,
-                                                "end": 8475
+                                                "start": 8909,
+                                                "end": 8919
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8215,
-                                            "end": 8497
+                                            "start": 8659,
+                                            "end": 8941
                                           }
                                         },
                                         "loc": {
-                                          "start": 8201,
-                                          "end": 8497
+                                          "start": 8645,
+                                          "end": 8941
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 7952,
-                                      "end": 8515
+                                      "start": 8396,
+                                      "end": 8959
                                     }
                                   },
                                   "loc": {
-                                    "start": 7942,
-                                    "end": 8515
+                                    "start": 8386,
+                                    "end": 8959
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 7851,
-                                "end": 8529
+                                "start": 8295,
+                                "end": 8973
                               }
                             },
                             "loc": {
-                              "start": 7838,
-                              "end": 8529
+                              "start": 8282,
+                              "end": 8973
                             }
                           },
                           {
@@ -9729,8 +10268,8 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "resourceList",
                               "loc": {
-                                "start": 8542,
-                                "end": 8554
+                                "start": 8986,
+                                "end": 8998
                               }
                             },
                             "arguments": [],
@@ -9744,15 +10283,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 8573,
-                                      "end": 8575
+                                      "start": 9017,
+                                      "end": 9019
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8573,
-                                    "end": 8575
+                                    "start": 9017,
+                                    "end": 9019
                                   }
                                 },
                                 {
@@ -9761,15 +10300,15 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 8592,
-                                      "end": 8602
+                                      "start": 9036,
+                                      "end": 9046
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8592,
-                                    "end": 8602
+                                    "start": 9036,
+                                    "end": 9046
                                   }
                                 },
                                 {
@@ -9778,8 +10317,8 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "translations",
                                     "loc": {
-                                      "start": 8619,
-                                      "end": 8631
+                                      "start": 9063,
+                                      "end": 9075
                                     }
                                   },
                                   "arguments": [],
@@ -9793,15 +10332,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8654,
-                                            "end": 8656
+                                            "start": 9098,
+                                            "end": 9100
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8654,
-                                          "end": 8656
+                                          "start": 9098,
+                                          "end": 9100
                                         }
                                       },
                                       {
@@ -9810,15 +10349,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "language",
                                           "loc": {
-                                            "start": 8677,
-                                            "end": 8685
+                                            "start": 9121,
+                                            "end": 9129
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8677,
-                                          "end": 8685
+                                          "start": 9121,
+                                          "end": 9129
                                         }
                                       },
                                       {
@@ -9827,15 +10366,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8706,
-                                            "end": 8717
+                                            "start": 9150,
+                                            "end": 9161
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8706,
-                                          "end": 8717
+                                          "start": 9150,
+                                          "end": 9161
                                         }
                                       },
                                       {
@@ -9844,26 +10383,26 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 8738,
-                                            "end": 8742
+                                            "start": 9182,
+                                            "end": 9186
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8738,
-                                          "end": 8742
+                                          "start": 9182,
+                                          "end": 9186
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8632,
-                                      "end": 8760
+                                      "start": 9076,
+                                      "end": 9204
                                     }
                                   },
                                   "loc": {
-                                    "start": 8619,
-                                    "end": 8760
+                                    "start": 9063,
+                                    "end": 9204
                                   }
                                 },
                                 {
@@ -9872,8 +10411,8 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "resources",
                                     "loc": {
-                                      "start": 8777,
-                                      "end": 8786
+                                      "start": 9221,
+                                      "end": 9230
                                     }
                                   },
                                   "arguments": [],
@@ -9887,15 +10426,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8809,
-                                            "end": 8811
+                                            "start": 9253,
+                                            "end": 9255
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8809,
-                                          "end": 8811
+                                          "start": 9253,
+                                          "end": 9255
                                         }
                                       },
                                       {
@@ -9904,15 +10443,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 8832,
-                                            "end": 8837
+                                            "start": 9276,
+                                            "end": 9281
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8832,
-                                          "end": 8837
+                                          "start": 9276,
+                                          "end": 9281
                                         }
                                       },
                                       {
@@ -9921,15 +10460,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "link",
                                           "loc": {
-                                            "start": 8858,
-                                            "end": 8862
+                                            "start": 9302,
+                                            "end": 9306
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8858,
-                                          "end": 8862
+                                          "start": 9302,
+                                          "end": 9306
                                         }
                                       },
                                       {
@@ -9938,15 +10477,15 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "usedFor",
                                           "loc": {
-                                            "start": 8883,
-                                            "end": 8890
+                                            "start": 9327,
+                                            "end": 9334
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8883,
-                                          "end": 8890
+                                          "start": 9327,
+                                          "end": 9334
                                         }
                                       },
                                       {
@@ -9955,8 +10494,8 @@ export const auth_guestLogIn = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 8911,
-                                            "end": 8923
+                                            "start": 9355,
+                                            "end": 9367
                                           }
                                         },
                                         "arguments": [],
@@ -9970,15 +10509,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 8950,
-                                                  "end": 8952
+                                                  "start": 9394,
+                                                  "end": 9396
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8950,
-                                                "end": 8952
+                                                "start": 9394,
+                                                "end": 9396
                                               }
                                             },
                                             {
@@ -9987,15 +10526,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 8977,
-                                                  "end": 8985
+                                                  "start": 9421,
+                                                  "end": 9429
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8977,
-                                                "end": 8985
+                                                "start": 9421,
+                                                "end": 9429
                                               }
                                             },
                                             {
@@ -10004,15 +10543,15 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 9010,
-                                                  "end": 9021
+                                                  "start": 9454,
+                                                  "end": 9465
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9010,
-                                                "end": 9021
+                                                "start": 9454,
+                                                "end": 9465
                                               }
                                             },
                                             {
@@ -10021,48 +10560,48 @@ export const auth_guestLogIn = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 9046,
-                                                  "end": 9050
+                                                  "start": 9490,
+                                                  "end": 9494
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9046,
-                                                "end": 9050
+                                                "start": 9490,
+                                                "end": 9494
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8924,
-                                            "end": 9072
+                                            "start": 9368,
+                                            "end": 9516
                                           }
                                         },
                                         "loc": {
-                                          "start": 8911,
-                                          "end": 9072
+                                          "start": 9355,
+                                          "end": 9516
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8787,
-                                      "end": 9090
+                                      "start": 9231,
+                                      "end": 9534
                                     }
                                   },
                                   "loc": {
-                                    "start": 8777,
-                                    "end": 9090
+                                    "start": 9221,
+                                    "end": 9534
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 8555,
-                                "end": 9104
+                                "start": 8999,
+                                "end": 9548
                               }
                             },
                             "loc": {
-                              "start": 8542,
-                              "end": 9104
+                              "start": 8986,
+                              "end": 9548
                             }
                           },
                           {
@@ -10071,8 +10610,8 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "schedule",
                               "loc": {
-                                "start": 9117,
-                                "end": 9125
+                                "start": 9561,
+                                "end": 9569
                               }
                             },
                             "arguments": [],
@@ -10086,25 +10625,25 @@ export const auth_guestLogIn = {
                                     "kind": "Name",
                                     "value": "Schedule_common",
                                     "loc": {
-                                      "start": 9147,
-                                      "end": 9162
+                                      "start": 9591,
+                                      "end": 9606
                                     }
                                   },
                                   "directives": [],
                                   "loc": {
-                                    "start": 9144,
-                                    "end": 9162
+                                    "start": 9588,
+                                    "end": 9606
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 9126,
-                                "end": 9176
+                                "start": 9570,
+                                "end": 9620
                               }
                             },
                             "loc": {
-                              "start": 9117,
-                              "end": 9176
+                              "start": 9561,
+                              "end": 9620
                             }
                           },
                           {
@@ -10113,15 +10652,15 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 9189,
-                                "end": 9191
+                                "start": 9633,
+                                "end": 9635
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9189,
-                              "end": 9191
+                              "start": 9633,
+                              "end": 9635
                             }
                           },
                           {
@@ -10130,15 +10669,15 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "name",
                               "loc": {
-                                "start": 9204,
-                                "end": 9208
+                                "start": 9648,
+                                "end": 9652
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9204,
-                              "end": 9208
+                              "start": 9648,
+                              "end": 9652
                             }
                           },
                           {
@@ -10147,26 +10686,103 @@ export const auth_guestLogIn = {
                               "kind": "Name",
                               "value": "description",
                               "loc": {
-                                "start": 9221,
-                                "end": 9232
+                                "start": 9665,
+                                "end": 9676
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9221,
-                              "end": 9232
+                              "start": 9665,
+                              "end": 9676
+                            }
+                          },
+                          {
+                            "kind": "Field",
+                            "name": {
+                              "kind": "Name",
+                              "value": "you",
+                              "loc": {
+                                "start": 9689,
+                                "end": 9692
+                              }
+                            },
+                            "arguments": [],
+                            "directives": [],
+                            "selectionSet": {
+                              "kind": "SelectionSet",
+                              "selections": [
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canDelete",
+                                    "loc": {
+                                      "start": 9711,
+                                      "end": 9720
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9711,
+                                    "end": 9720
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canRead",
+                                    "loc": {
+                                      "start": 9737,
+                                      "end": 9744
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9737,
+                                    "end": 9744
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canUpdate",
+                                    "loc": {
+                                      "start": 9761,
+                                      "end": 9770
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9761,
+                                    "end": 9770
+                                  }
+                                }
+                              ],
+                              "loc": {
+                                "start": 9693,
+                                "end": 9784
+                              }
+                            },
+                            "loc": {
+                              "start": 9689,
+                              "end": 9784
                             }
                           }
                         ],
                         "loc": {
-                          "start": 5213,
-                          "end": 9242
+                          "start": 5509,
+                          "end": 9794
                         }
                       },
                       "loc": {
-                        "start": 5202,
-                        "end": 9242
+                        "start": 5498,
+                        "end": 9794
                       }
                     },
                     {
@@ -10175,15 +10791,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "handle",
                         "loc": {
-                          "start": 9251,
-                          "end": 9257
+                          "start": 9803,
+                          "end": 9809
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9251,
-                        "end": 9257
+                        "start": 9803,
+                        "end": 9809
                       }
                     },
                     {
@@ -10192,15 +10808,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "hasPremium",
                         "loc": {
-                          "start": 9266,
-                          "end": 9276
+                          "start": 9818,
+                          "end": 9828
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9266,
-                        "end": 9276
+                        "start": 9818,
+                        "end": 9828
                       }
                     },
                     {
@@ -10209,15 +10825,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "id",
                         "loc": {
-                          "start": 9285,
-                          "end": 9287
+                          "start": 9837,
+                          "end": 9839
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9285,
-                        "end": 9287
+                        "start": 9837,
+                        "end": 9839
                       }
                     },
                     {
@@ -10226,15 +10842,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "languages",
                         "loc": {
-                          "start": 9296,
-                          "end": 9305
+                          "start": 9848,
+                          "end": 9857
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9296,
-                        "end": 9305
+                        "start": 9848,
+                        "end": 9857
                       }
                     },
                     {
@@ -10243,15 +10859,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "membershipsCount",
                         "loc": {
-                          "start": 9314,
-                          "end": 9330
+                          "start": 9866,
+                          "end": 9882
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9314,
-                        "end": 9330
+                        "start": 9866,
+                        "end": 9882
                       }
                     },
                     {
@@ -10260,15 +10876,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "name",
                         "loc": {
-                          "start": 9339,
-                          "end": 9343
+                          "start": 9891,
+                          "end": 9895
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9339,
-                        "end": 9343
+                        "start": 9891,
+                        "end": 9895
                       }
                     },
                     {
@@ -10277,15 +10893,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "notesCount",
                         "loc": {
-                          "start": 9352,
-                          "end": 9362
+                          "start": 9904,
+                          "end": 9914
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9352,
-                        "end": 9362
+                        "start": 9904,
+                        "end": 9914
                       }
                     },
                     {
@@ -10294,15 +10910,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "projectsCount",
                         "loc": {
-                          "start": 9371,
-                          "end": 9384
+                          "start": 9923,
+                          "end": 9936
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9371,
-                        "end": 9384
+                        "start": 9923,
+                        "end": 9936
                       }
                     },
                     {
@@ -10311,15 +10927,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "questionsAskedCount",
                         "loc": {
-                          "start": 9393,
-                          "end": 9412
+                          "start": 9945,
+                          "end": 9964
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9393,
-                        "end": 9412
+                        "start": 9945,
+                        "end": 9964
                       }
                     },
                     {
@@ -10328,15 +10944,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "routinesCount",
                         "loc": {
-                          "start": 9421,
-                          "end": 9434
+                          "start": 9973,
+                          "end": 9986
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9421,
-                        "end": 9434
+                        "start": 9973,
+                        "end": 9986
                       }
                     },
                     {
@@ -10345,15 +10961,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "smartContractsCount",
                         "loc": {
-                          "start": 9443,
-                          "end": 9462
+                          "start": 9995,
+                          "end": 10014
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9443,
-                        "end": 9462
+                        "start": 9995,
+                        "end": 10014
                       }
                     },
                     {
@@ -10362,15 +10978,15 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "standardsCount",
                         "loc": {
-                          "start": 9471,
-                          "end": 9485
+                          "start": 10023,
+                          "end": 10037
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9471,
-                        "end": 9485
+                        "start": 10023,
+                        "end": 10037
                       }
                     },
                     {
@@ -10379,48 +10995,48 @@ export const auth_guestLogIn = {
                         "kind": "Name",
                         "value": "theme",
                         "loc": {
-                          "start": 9494,
-                          "end": 9499
+                          "start": 10046,
+                          "end": 10051
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9494,
-                        "end": 9499
+                        "start": 10046,
+                        "end": 10051
                       }
                     }
                   ],
                   "loc": {
                     "start": 352,
-                    "end": 9505
+                    "end": 10057
                   }
                 },
                 "loc": {
                   "start": 346,
-                  "end": 9505
+                  "end": 10057
                 }
               }
             ],
             "loc": {
               "start": 312,
-              "end": 9509
+              "end": 10061
             }
           },
           "loc": {
             "start": 301,
-            "end": 9509
+            "end": 10061
           }
         }
       ],
       "loc": {
         "start": 297,
-        "end": 9511
+        "end": 10063
       }
     },
     "loc": {
       "start": 277,
-      "end": 9511
+      "end": 10063
     }
   },
   "variableValues": {},

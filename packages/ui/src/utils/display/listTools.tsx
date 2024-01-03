@@ -1,4 +1,4 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, exists, GqlModelType, isOfType, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
+import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, DUMMY_ID, exists, GqlModelType, isOfType, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
 import { BotIcon } from "icons";
 import { AutocompleteOption } from "types";
@@ -122,6 +122,11 @@ export const getYou = (
     // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
     const objectPermissions = { ...defaultYou };
     if (!object) return objectPermissions;
+    // Shortcut: If ID is DUMMY_ID, then it's a new object and you only delete it
+    if (object.id === DUMMY_ID) return {
+        ...Object.keys(defaultYou).reduce((acc, key) => ({ ...acc, [key]: typeof defaultYou[key] === "boolean" ? false : defaultYou[key] }), {}),
+        canDelete: true,
+    } as YouInflated;
     // Helper function to get permissions
     const getPermission = (key: keyof YouInflated): boolean => {
         // Check if the field is in the object
@@ -153,6 +158,8 @@ export const getYou = (
         canDelete: getPermission("canDelete"),
         canUpdate: getPermission("canUpdate"),
     };
+    if (isOfType(object, "Resource")) return getYou((object as Partial<Resource>).list);
+    if (isOfType(object, "ResourceList")) return getYou((object as Partial<ResourceList>).listFor);
     // Loop through all permission fields
     for (const key in objectPermissions) {
         objectPermissions[key] = getPermission(key as keyof YouInflated);

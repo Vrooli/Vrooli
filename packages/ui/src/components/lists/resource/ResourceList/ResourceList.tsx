@@ -475,7 +475,7 @@ export const ResourceList = (props: ResourceListProps) => {
                 break;
             }
         }
-    }, [handleUpdate, list]);
+    }, [handleUpdate, list, onDeleted]);
     const onClick = useCallback((data: ListObject) => {
         //TODO
     }, []);
