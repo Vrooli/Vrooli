@@ -1,11 +1,11 @@
-import { DUMMY_ID, LINKS, OrArray } from "@local/shared";
+import { DUMMY_ID, GqlModelType, LINKS, OrArray } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { FormProps } from "forms/types";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { NavigableObject } from "types";
-import { removeCookieFormData, removeCookiePartialData, setCookiePartialData } from "utils/cookies";
+import { removeCookieFormData, removeCookiePartialData, setCookieAllowFormCache, setCookiePartialData } from "utils/cookies";
 import { ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -36,8 +36,6 @@ export const useUpsertActions = <T extends TType>({
 }: UseUpsertActionsProps<T>) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-
-    const isCacheOn = useRef(true);
 
     /** Helper function to navigate back or to a specific URL */
     const goBack = useCallback((targetUrl?: string) => {
@@ -85,7 +83,7 @@ export const useUpsertActions = <T extends TType>({
             if (canStore) {
                 setCookiePartialData(item as NavigableObject, "full"); // Update cache to view object more quickly
                 removeCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : objectId}`); // Remove form backup data from cache
-                isCacheOn.current = false;
+                setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
             }
 
             if (display === "page") { setLocation(viewUrl ?? LINKS.Home, { replace: true }); }
@@ -101,10 +99,11 @@ export const useUpsertActions = <T extends TType>({
                 if (item && !Array.isArray(item)) handleAddOrUpdate("Created");
                 break;
             case ObjectDialogAction.Cancel:
+                console.log("in useupsertactions cancel", canStore, objectType, objectId);
                 // Remove form backup data from cache
                 if (canStore) {
                     removeCookieFormData(`${objectType}-${objectId}`);
-                    isCacheOn.current = false;
+                    setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
                 }
                 if (display === "page") goBack(isCreate ? undefined : viewUrl);
                 else onCancel?.();
@@ -119,7 +118,7 @@ export const useUpsertActions = <T extends TType>({
                 if (canStore) {
                     removeCookiePartialData(item as NavigableObject);
                     removeCookieFormData(`${objectType}-${objectId}`);
-                    isCacheOn.current = false;
+                    setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
                 }
                 if (display === "page") goBack();
                 else onDeleted?.(item);
@@ -143,6 +142,5 @@ export const useUpsertActions = <T extends TType>({
         handleDeleted,
         handleUpdated,
         handleCompleted,
-        isCacheOn,
     };
 };

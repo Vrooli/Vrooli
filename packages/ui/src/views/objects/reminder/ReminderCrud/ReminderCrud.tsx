@@ -99,7 +99,7 @@ const ReminderForm = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const { handleCancel, handleCreated, handleCompleted, handleDeleted, isCacheOn } = useUpsertActions<Reminder>({
+    const { handleCancel, handleCreated, handleCompleted, handleDeleted } = useUpsertActions<Reminder>({
         display,
         isCreate,
         objectId: values.id,
@@ -117,7 +117,7 @@ const ReminderForm = ({
         endpointCreate: endpointPostReminder,
         endpointUpdate: endpointPutReminder,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Reminder" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Reminder" });
 
     const onSubmit = useSubmitHelper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
         disabled,

@@ -97,7 +97,7 @@ const NoteForm = ({
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const { handleCancel, handleCompleted, handleDeleted, isCacheOn } = useUpsertActions<NoteVersion>({
+    const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<NoteVersion>({
         display,
         isCreate,
         objectId: values.id,
@@ -114,7 +114,7 @@ const NoteForm = ({
         endpointCreate: endpointPostNoteVersion,
         endpointUpdate: endpointPutNoteVersion,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "NoteVersion" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "NoteVersion" });
 
     const onSubmit = useSubmitHelper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
         disabled,

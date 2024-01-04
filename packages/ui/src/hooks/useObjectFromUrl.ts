@@ -75,7 +75,7 @@ export function useObjectFromUrl<
     }, [stableTransform]);
 
     // Fetch data
-    const [getData, { data, loading: isLoading }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
+    const [getData, { data: fetchedData, loading: isLoading }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
     const [object, setObject] = useState<ObjectReturnType<TData, TFunc>>(() => {
         // If overrideObject provided, use it. Also use transform if provided
         if (typeof overrideObject === "object") return applyTransform(overrideObject) as ObjectReturnType<TData, TFunc>;
@@ -131,15 +131,15 @@ export function useObjectFromUrl<
             return;
         }
         // If data was queried (i.e. object exists), store it in local state
-        if (data) setCookiePartialData(data, "full");
-        const knownData = data ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
+        if (fetchedData) setCookiePartialData(fetchedData, "full");
+        const knownData = fetchedData ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         if (knownData && typeof knownData === "object" && uuidValidate(knownData.id)) {
             // If transform provided, use it
             const changedData = applyTransform(knownData) as ObjectReturnType<TData, TFunc>;
             // Set object
             setObject(changedData as ObjectReturnType<TData, TFunc>);
         }
-    }, [applyTransform, data, objectType, overrideObject, urlParams]);
+    }, [applyTransform, fetchedData, objectType, overrideObject, urlParams]);
 
     // If object found, get permissions
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);

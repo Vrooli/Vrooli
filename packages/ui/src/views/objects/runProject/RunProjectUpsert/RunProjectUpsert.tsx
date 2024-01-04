@@ -81,7 +81,7 @@ const RunProjectForm = ({
         setIsScheduleDialogOpen(false);
     };
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<RunProject>({
+    const { handleCancel, handleCompleted } = useUpsertActions<RunProject>({
         display,
         isCreate,
         objectId: values.id,
@@ -98,7 +98,7 @@ const RunProjectForm = ({
         endpointCreate: endpointPostRunProject,
         endpointUpdate: endpointPutRunProject,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "RunProject" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RunProject" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

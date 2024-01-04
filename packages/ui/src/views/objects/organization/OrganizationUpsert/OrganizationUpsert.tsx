@@ -82,7 +82,7 @@ const OrganizationForm = ({
         validationSchema: organizationTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
     });
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Organization>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Organization>({
         display,
         isCreate,
         objectId: values.id,
@@ -99,7 +99,7 @@ const OrganizationForm = ({
         endpointCreate: endpointPostOrganization,
         endpointUpdate: endpointPutOrganization,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Organization" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Organization" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

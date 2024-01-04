@@ -39,7 +39,7 @@ export class LRUCache<KeyType, ValueType> {
     }
 
     private calculateValueSize(value: ValueType): number {
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
             return new Blob([value]).size;
         } else {
             // Might need a more complex calculation in the future

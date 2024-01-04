@@ -89,7 +89,6 @@ export const Celebration = () => {
     }, []);
 
     useEffect(() => {
-        console.log("is rewarding?", state.isActive, state);
         if (state.isActive && state.id !== lastIdRef.current) {
             lastIdRef.current = state.id;
             reward();

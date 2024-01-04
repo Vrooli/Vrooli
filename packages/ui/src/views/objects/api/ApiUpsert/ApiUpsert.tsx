@@ -114,7 +114,7 @@ const ApiForm = ({
 
     const [hasDocUrl, setHasDocUrl] = useState(false);
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<ApiVersion>({
+    const { handleCancel, handleCompleted } = useUpsertActions<ApiVersion>({
         display,
         isCreate,
         objectId: values.id,
@@ -131,7 +131,7 @@ const ApiForm = ({
         endpointCreate: endpointPostApiVersion,
         endpointUpdate: endpointPutApiVersion,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "ApiVersion" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ApiVersion" });
 
     const onSubmit = useSubmitHelper<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>({
         disabled,

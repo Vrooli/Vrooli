@@ -81,7 +81,7 @@ const RunRoutineForm = ({
         setIsScheduleDialogOpen(false);
     };
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<RunRoutine>({
+    const { handleCancel, handleCompleted } = useUpsertActions<RunRoutine>({
         display,
         isCreate,
         objectId: values.id,
@@ -98,7 +98,7 @@ const RunRoutineForm = ({
         endpointCreate: endpointPostRunRoutine,
         endpointUpdate: endpointPutRunRoutine,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "RunRoutine" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RunRoutine" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

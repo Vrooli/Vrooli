@@ -293,7 +293,7 @@ const DirectoryViewModeToggle = ({
     onViewModeChange,
 }: {
     viewMode: ViewMode;
-    onViewModeChange: (mode: ViewMode) => void;
+    onViewModeChange: (mode: ViewMode) => unknown;
 }) => (
     <Box sx={{ marginBottom: "10px", display: "flex", gap: 1 }}>
         <Button variant={viewMode === "card" ? "contained" : "outlined"} color="primary" onClick={() => onViewModeChange("card")}>

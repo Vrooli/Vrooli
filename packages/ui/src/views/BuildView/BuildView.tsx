@@ -18,10 +18,11 @@ import { useHotkeys } from "hooks/useHotkeys";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useStableObject } from "hooks/useStableObject";
 import { CloseIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
 import { BuildAction, Status } from "utils/consts";
+import { setCookieAllowFormCache } from "utils/cookies";
 import { getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -132,8 +133,7 @@ export const BuildView = ({
         { keys: ["z"], ctrlKey: true, callback: undo },
     ]);
 
-    const isCacheOn = useRef(true);
-    useSaveToCache({ disabled: !isEditing, isCacheOn, isCreate: changedRoutineVersion.id === DUMMY_ID, values: changedRoutineVersion, objectId: changedRoutineVersion.id, objectType: "Routine" });
+    useSaveToCache({ disabled: !isEditing, isCreate: changedRoutineVersion.id === DUMMY_ID, values: changedRoutineVersion, objectId: changedRoutineVersion.id, objectType: "Routine" });
 
     /** Updates a node's data */
     const handleNodeUpdate = useCallback((node: Node) => {
@@ -264,7 +264,7 @@ export const BuildView = ({
     const revertChanges = useCallback(() => {
         // Helper function to revert changes
         const revert = () => {
-            isCacheOn.current = false;
+            setCookieAllowFormCache("RoutineVersion", id, false);
             // If updating routineVersion, revert to original routineVersion
             if (id) {
                 clearChangeStack();

@@ -110,7 +110,7 @@ const ResourceForm = ({
         if (currDescription.length === 0) helpers.setValue(field.value.map((t) => t.language === language ? { ...t, description: subtitle } : t));
     }, [field, helpers, language]);
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Resource>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Resource>({
         display,
         isCreate,
         objectId: values.id,
@@ -130,7 +130,7 @@ const ResourceForm = ({
         endpointCreate: endpointPostResource,
         endpointUpdate: endpointPutResource,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Resource" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Resource" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

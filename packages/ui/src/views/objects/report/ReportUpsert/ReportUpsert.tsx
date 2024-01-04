@@ -100,7 +100,7 @@ const ReportForm = ({
 
     const [reasonField] = useField("reason");
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Report>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Report>({
         display,
         isCreate,
         objectId: values.id,
@@ -117,7 +117,7 @@ const ReportForm = ({
         endpointCreate: endpointPostReport,
         endpointUpdate: endpointPutReport,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Report" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Report" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

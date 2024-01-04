@@ -86,7 +86,7 @@ const BookmarkListForm = ({
         }
     }, [addNewBookmark]);
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<BookmarkList>({
+    const { handleCancel, handleCompleted } = useUpsertActions<BookmarkList>({
         display,
         isCreate,
         objectId: values.id,
@@ -103,7 +103,7 @@ const BookmarkListForm = ({
         endpointCreate: endpointPostBookmarkList,
         endpointUpdate: endpointPutBookmarkList,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "BookmarkList" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "BookmarkList" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

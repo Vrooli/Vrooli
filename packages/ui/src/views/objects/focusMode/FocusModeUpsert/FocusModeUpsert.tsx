@@ -93,7 +93,7 @@ const FocusModeForm = ({
         setIsScheduleDialogOpen(false);
     };
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<FocusMode>({
+    const { handleCancel, handleCompleted } = useUpsertActions<FocusMode>({
         display,
         isCreate,
         objectId: values.id,
@@ -110,7 +110,7 @@ const FocusModeForm = ({
         endpointCreate: endpointPostFocusMode,
         endpointUpdate: endpointPutFocusMode,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "FocusMode" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "FocusMode" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

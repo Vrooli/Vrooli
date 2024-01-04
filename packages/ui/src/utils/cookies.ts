@@ -5,10 +5,11 @@
  * unclear whether EU's Cookie Law applies to localStorage, but it is better to
  * be safe than sorry.
  */
-import { ActiveFocusMode, COOKIE, exists, FocusMode, ValueOf } from "@local/shared";
+import { ActiveFocusMode, COOKIE, exists, FocusMode, GqlModelType, ValueOf } from "@local/shared";
 import { AssistantTask, NavigableObject } from "types";
 import { getDeviceInfo } from "./display/device";
 import { chatMatchHash } from "./hash";
+import { LocalStorageLruCache } from "./localStorageLruCache";
 
 /**
  * Handles storing and retrieving cookies, which may or 
@@ -30,6 +31,7 @@ export const Cookies = {
     ChatMessageTree: "chatMessageTree",
     ChatParticipants: "chatParticipants",
     FormData: "formData",
+    AllowFormCaching: "allowFormCaching",
 };
 export type Cookies = ValueOf<typeof Cookies>;
 
@@ -203,73 +205,33 @@ export const setCookieLastTab = <T>(id: string, tabType: T) => ifAllowed("functi
 type FormCacheEntry = {
     [key: string]: any; // This would be the form data
 }
-
-type FormCache = {
-    formData: { [formId: string]: FormCacheEntry };
-    order: string[]; // Order of formIds in cache, for FIFO
-};
-
-const MAX_FORM_CACHE_SIZE = 100; // You can set this to an appropriate limit
-
-/** Get the form data cache */
-const getFormDataCache = (): FormCache => getOrSetCookie(
-    Cookies.FormData,
-    (value: unknown): value is FormCache =>
-        typeof value === "object" &&
-        typeof (value as Partial<FormCache>)?.formData === "object" &&
-        Array.isArray((value as Partial<FormCache>)?.order),
-    {
-        formData: {},
-        order: [],
-    }, // Default value
-) as FormCache;
-
-export const getCookieFormData = (formId: string): FormCacheEntry | undefined =>
-    ifAllowed("functional", () => {
-        const cache = getFormDataCache();
-        return cache.formData[formId];
-    });
-
+const formDataCache = new LocalStorageLruCache<FormCacheEntry>("formData", 100);
+export const getCookieFormData = (formId: string): FormCacheEntry | undefined => ifAllowed("functional", () => {
+    return formDataCache.get(formId);
+});
 export const setCookieFormData = (formId: string, data: FormCacheEntry) => ifAllowed("functional", () => {
-    const cache = getFormDataCache();
-
-    // If formId already exists, remove from order for reinsertion at end
-    const existingIndex = cache.order.indexOf(formId);
-    if (existingIndex !== -1) {
-        cache.order.splice(existingIndex, 1);
-    }
-
-    // If cache is full, remove the oldest form data
-    if (cache.order.length >= MAX_FORM_CACHE_SIZE) {
-        const oldestFormId = cache.order.shift();
-        if (oldestFormId) {
-            delete cache.formData[oldestFormId];
-        }
-    }
-
-    // Store the new/updated form data and update order
-    cache.formData[formId] = data;
-    cache.order.push(formId);
-
-    setCookie(Cookies.FormData, cache);
+    formDataCache.set(formId, data);
 });
-
 export const removeCookieFormData = (formId: string) => ifAllowed("functional", () => {
-    const cache = getFormDataCache();
-
-    // Remove form data from cache
-    const existingIndex = cache.order.indexOf(formId);
-    if (existingIndex !== -1) {
-        cache.order.splice(existingIndex, 1);
-        delete cache.formData[formId];
-
-        setCookie(Cookies.FormData, cache);
-    }
+    formDataCache.remove(formId);
 });
 
 
 
-
+/** Indicates if the form for this objectType/ID pair has disabled auto-save */
+type AllowFormCaching = boolean;
+const formCachingCache = new LocalStorageLruCache<AllowFormCaching>("allowFormCaching", 20);
+export const getCookieAllowFormCache = (objectType: GqlModelType | `${GqlModelType}`, objectId: string): AllowFormCaching => ifAllowed("functional", () => {
+    const result = formCachingCache.get(`${objectType}:${objectId}`);
+    if (typeof result === "boolean") return result;
+    return true; // Default to true
+});
+export const setCookieAllowFormCache = (objectType: GqlModelType | `${GqlModelType}`, objectId: string, data: AllowFormCaching) => ifAllowed("functional", () => {
+    formCachingCache.set(`${objectType}:${objectId}`, data);
+});
+export const removeCookieAllowFormCache = (objectType: GqlModelType | `${GqlModelType}`, objectId: string) => ifAllowed("functional", () => {
+    formCachingCache.remove(`${objectType}:${objectId}`);
+});
 
 
 /** Maps a chat message ID to the ID of the selected child branch */
@@ -279,56 +241,13 @@ type ChatMessageTreeCookie = {
     /** The message you viewed last */
     locationId: string;
 }
-type ChatMessageCache = {
-    chats: { [chatId: string]: ChatMessageTreeCookie };
-    order: string[]; // Order of chatIds in cache, for FIFO
-};
-
-const MAX_CHAT_CACHE_SIZE = 100;
-
-/** Get the chat message cache */
-const getChatMessageCache = (): ChatMessageCache => getOrSetCookie(
-    Cookies.ChatMessageTree,
-    (value: unknown): value is ChatMessageCache =>
-        typeof value === "object" &&
-        typeof (value as Partial<ChatMessageCache>)?.chats === "object" &&
-        Array.isArray((value as Partial<ChatMessageCache>)?.order),
-    {
-        chats: {},
-        order: [],
-    }, // Default value
-) as ChatMessageCache;
-
-export const getCookieMessageTree = (chatId: string): ChatMessageTreeCookie | undefined =>
-    ifAllowed("functional", () => {
-        const cache = getChatMessageCache();
-        return cache.chats[chatId];
-    });
-
-export const setCookieMessageTree = (chatId: string, data: ChatMessageTreeCookie) => ifAllowed("functional", () => {
-    const cache = getChatMessageCache();
-
-    // If chatId already exists, remove from order for reinsertion at end
-    const existingIndex = cache.order.indexOf(chatId);
-    if (existingIndex !== -1) {
-        cache.order.splice(existingIndex, 1);
-    }
-
-    // If cache is full, remove the oldest chat
-    if (cache.order.length >= MAX_CHAT_CACHE_SIZE) {
-        const oldestChatId = cache.order.shift();
-        if (oldestChatId) {
-            delete cache.chats[oldestChatId];
-        }
-    }
-
-    // Store the new/updated chat data and update order
-    cache.chats[chatId] = data;
-    cache.order.push(chatId);
-
-    setCookie(Cookies.ChatMessageTree, cache);
+const chatMessageTreeCache = new LocalStorageLruCache<ChatMessageTreeCookie>("chatMessageTree", 100);
+export const getCookieMessageTree = (chatId: string): ChatMessageTreeCookie | undefined => ifAllowed("functional", () => {
+    return chatMessageTreeCache.get(chatId);
 });
-
+export const setCookieMessageTree = (chatId: string, data: ChatMessageTreeCookie) => ifAllowed("functional", () => {
+    chatMessageTreeCache.set(chatId, data);
+});
 
 
 
@@ -337,66 +256,18 @@ type ChatGroupCookie = {
     /** The last chatId for the group of userIds */
     chatId: string;
 };
-
-type ChatMatchCache = {
-    chats: { [participantsHash: string]: ChatGroupCookie };
-    order: string[]; // Array of participantsHash in cache, for FIFO
-};
-
-const MAX_CHAT_MATCH_CACHE_SIZE = 100;
-
-const getChatMatchCache = (): ChatMatchCache => getOrSetCookie(
-    Cookies.ChatParticipants,
-    (value: unknown): value is ChatMatchCache =>
-        typeof value === "object" &&
-        typeof (value as Partial<ChatMatchCache>)?.chats === "object" &&
-        Array.isArray((value as Partial<ChatMatchCache>)?.order),
-    {
-        chats: {},
-        order: [], // Default value for order
-    }, // Default value
-) as ChatMatchCache;
-
+const chatGroupCache = new LocalStorageLruCache<ChatGroupCookie>("chatGroup", 100);
 export const getCookieMatchingChat = (userIds: string[], task?: AssistantTask): string | undefined => ifAllowed("functional", () => {
-    const cache = getChatMatchCache();
-    const participantsHash = chatMatchHash(userIds, task);
-    return cache.chats[participantsHash]?.chatId;
+    return chatGroupCache.get(chatMatchHash(userIds, task))?.chatId;
 });
-
 export const setCookieMatchingChat = (chatId: string, userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
-    const cache = getChatMatchCache();
-    const participantsHash = chatMatchHash(userIds, task);
-
-    // If participantsHash already exists, remove from order for reinsertion at end
-    const existingIndex = cache.order.indexOf(participantsHash);
-    if (existingIndex !== -1) {
-        cache.order.splice(existingIndex, 1);
-    } else if (cache.order.length >= MAX_CHAT_MATCH_CACHE_SIZE) {
-        // If cache is full, remove the oldest participants group
-        const oldestParticipantsHash = cache.order.shift();
-        if (oldestParticipantsHash) {
-            delete cache.chats[oldestParticipantsHash];
-        }
-    }
-    // Store the new/updated participants group chatId and update order
-    cache.chats[participantsHash] = { chatId };
-    cache.order.push(participantsHash);
-
-    setCookie(Cookies.ChatParticipants, cache);
+    chatGroupCache.set(chatMatchHash(userIds, task), { chatId });
 });
 export const removeCookieMatchingChat = (userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
-    const cache = getChatMatchCache();
-    const participantsHash = chatMatchHash(userIds, task);
-
-    // Remove participantsHash from cache
-    const existingIndex = cache.order.indexOf(participantsHash);
-    if (existingIndex !== -1) {
-        cache.order.splice(existingIndex, 1);
-        delete cache.chats[participantsHash];
-
-        setCookie(Cookies.ChatParticipants, cache);
-    }
+    chatGroupCache.remove(chatMatchHash(userIds, task));
 });
+
+
 
 /** Supports ID data from URL params, as well as partial object */
 export type CookiePartialData = {

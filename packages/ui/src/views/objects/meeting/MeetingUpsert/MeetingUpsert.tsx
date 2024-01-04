@@ -91,7 +91,7 @@ const MeetingForm = ({
         setIsScheduleDialogOpen(false);
     };
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Meeting>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Meeting>({
         display,
         isCreate,
         objectId: values.id,
@@ -108,7 +108,7 @@ const MeetingForm = ({
         endpointCreate: endpointPostMeeting,
         endpointUpdate: endpointPutMeeting,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Meeting" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Meeting" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

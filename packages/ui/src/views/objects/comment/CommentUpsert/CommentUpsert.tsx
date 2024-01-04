@@ -79,7 +79,7 @@ const CommentForm = ({
         validationSchema: commentTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
     });
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Comment>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Comment>({
         isCreate,
         objectType: "Comment",
         ...props,
@@ -94,7 +94,7 @@ const CommentForm = ({
         endpointCreate: endpointPostComment,
         endpointUpdate: endpointPutComment,
     });
-    useSaveToCache({ isCacheOn, isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
+    useSaveToCache({ isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<CommentCreateInput | CommentUpdateInput, Comment>({
@@ -182,7 +182,7 @@ export const CommentDialog = ({
 
     const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Comment>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Comment>({
         isCreate,
         objectType: "Comment",
         ...props,
@@ -197,7 +197,7 @@ export const CommentDialog = ({
         endpointCreate: endpointPostComment,
         endpointUpdate: endpointPutComment,
     });
-    useSaveToCache({ isCacheOn, isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
+    useSaveToCache({ isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<CommentCreateInput | CommentUpdateInput, Comment>({
