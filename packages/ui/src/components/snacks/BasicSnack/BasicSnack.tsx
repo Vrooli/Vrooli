@@ -44,6 +44,60 @@ export const BasicSnack = ({
 
     const [open, setOpen] = useState<boolean>(true);
 
+    // States to track touch positions
+    const [touchStart, setTouchStart] = useState<number | null>(null);
+    const [touchPosition, setTouchPosition] = useState<number | null>(null);
+
+    // Ref for the snack's container
+    const snackRef = useRef<HTMLDivElement>(null);
+
+    // Handle the start of a touch
+    const handleTouchStart = useCallback((e: TouchEvent) => {
+        setTouchStart(e.targetTouches[0].clientX);
+    }, []);
+
+    // Handle the touch movement
+    const handleTouchMove = useCallback((e: TouchEvent) => {
+        if (touchStart === null) return;
+        const moveDistance = e.targetTouches[0].clientX - touchStart;
+        if (Math.abs(moveDistance) > 10) {  // Threshold to determine a swipe
+            e.preventDefault();   // Prevent scrolling other elements, like the page
+        }
+        setTouchPosition(e.targetTouches[0].clientX - touchStart);
+    }, [touchStart]);
+
+    // Handle the end of a touch
+    const handleTouchEnd = useCallback(() => {
+        // Define the minimum swipe distance
+        const minSwipeDistance = 50;
+        if (touchPosition && Math.abs(touchPosition) > minSwipeDistance) {
+            // Close the snack if swiped far enough
+            setOpen(false);
+            setTimeout(() => handleClose(), 400);
+        } else {
+            // Reset if not swiped far enough
+            setTouchPosition(null);
+        }
+        setTouchStart(null);
+    }, [touchPosition, handleClose]);
+
+    // Side effects to handle the touch events
+    useEffect(() => {
+        const snackElement = snackRef.current;
+        if (snackElement) {
+            snackElement.addEventListener('touchstart', handleTouchStart);
+            snackElement.addEventListener('touchmove', handleTouchMove);
+            snackElement.addEventListener('touchend', handleTouchEnd);
+        }
+        return () => {
+            if (snackElement) {
+                snackElement.removeEventListener('touchstart', handleTouchStart);
+                snackElement.removeEventListener('touchmove', handleTouchMove);
+                snackElement.removeEventListener('touchend', handleTouchEnd);
+            }
+        };
+    }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+
     // Timout to close the snack, if not persistent
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const startAutoHideTimeout = useCallback(() => {
@@ -101,6 +155,7 @@ export const BasicSnack = ({
 
     return (
         <Box
+            ref={snackRef}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             sx={{
@@ -109,9 +164,12 @@ export const BasicSnack = ({
                 justifyContent: "space-between",
                 alignItems: "center",
                 maxWidth: { xs: "100%", sm: "600px" },
-                // Scrolls out of view when closed
-                transform: open ? "translateX(0)" : "translateX(-150%)",
-                transition: "transform 0.4s ease-in-out",
+                transform: open
+                    ? touchPosition !== null
+                        ? `translateX(${touchPosition}px)` // Swipe-to-close functionality
+                        : "translateX(0)" // Original position when open
+                    : "translateX(-150%)", // Slide out of view when closed
+                transition: touchPosition ? "none" : "transform 0.4s ease-in-out",
                 padding: 1,
                 borderRadius: 2,
                 boxShadow: 8,
