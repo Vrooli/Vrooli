@@ -29,7 +29,7 @@ export const apiCallData = yup.string().trim().removeEmptyString().max(8192, max
 export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(256, maxStrErr);
 export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).test(
     "handle",
-    "Must be 3-16 characters, and only contain letters and numbers",
+    "Must be 3-16 characters, and can only contain letters, numbers, and underscores",
     (value: string | undefined) => {
         return value !== undefined ? handleRegex.test(value) : true;
     },
