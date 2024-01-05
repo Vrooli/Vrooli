@@ -445,6 +445,8 @@
     "MicrophonePermissionDenied": "Permission denied. Please allow access to your microphone.",
     "Min": "Min",
     "MinRows": "Min rows",
+    "Model_one": "Model",
+    "Model_other": "Models",
     "Month": "Month",
     "Monthly": "Monthly",
     "MoreOptions": "More options",

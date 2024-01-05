@@ -1,16 +1,18 @@
 import { BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, noopSubmit, Session, User } from "@local/shared";
-import { InputAdornment, Slider, Stack, Typography } from "@mui/material";
+import { Box, InputAdornment, Slider, Stack, Typography } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
+import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -20,10 +22,10 @@ import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon } from "icons";
-import { useContext, useMemo } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { findBotData } from "utils/botUtils";
+import { AVAILABLE_MODELS, findBotData, LlmModel } from "utils/botUtils";
 import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -34,7 +36,7 @@ const botInitialValues = (
     session: Session | undefined,
     existing?: Partial<User> | BotShape | null | undefined,
 ): BotShape => {
-    const { creativity, verbosity, translations } = findBotData(getUserLanguages(session)[0], existing);
+    const { creativity, verbosity, model, translations } = findBotData(getUserLanguages(session)[0], existing);
 
     return {
         __typename: "User" as const,
@@ -42,6 +44,7 @@ const botInitialValues = (
         creativity,
         isBotDepictingPerson: false,
         isPrivate: false,
+        model,
         name: "",
         verbosity,
         ...existing,
@@ -59,6 +62,89 @@ const validateBotValues = async (session: Session | undefined, values: BotShape,
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
+
+const FeatureSlider = ({
+    id,
+    labelLeft,
+    labelRight,
+    setValue,
+    title,
+    value,
+}: {
+    id: string,
+    labelLeft: string,
+    labelRight: string,
+    setValue: (value: number) => unknown,
+    title: string,
+    value: number,
+}) => {
+    const min = 0.1;
+    const max = 1;
+    const step = 0.1;
+
+    return (
+        <Stack>
+            <Typography id={id} gutterBottom>
+                {title}
+            </Typography>
+            <Slider
+                aria-labelledby={id}
+                value={value}
+                onChange={(_, value) => {
+                    if (Array.isArray(value) && value.length > 0) {
+                        setValue(value[0]);
+                    } else if (typeof value === "number") {
+                        setValue(value);
+                    } else {
+                        setValue(min);
+                    }
+                }}
+                valueLabelDisplay="auto"
+                min={min}
+                max={max}
+                step={step}
+                marks={[
+                    { value: min, label: labelLeft },
+                    { value: max, label: labelRight },
+                ]}
+                sx={{
+                    "& .MuiSlider-markLabel": {
+                        "&[data-index=\"0\"]": {
+                            marginLeft: 2,
+                        },
+                        "&[data-index=\"1\"]": {
+                            marginLeft: -2,
+                        },
+                    },
+                }}
+            />
+        </Stack>
+    );
+};
+
+type InputMode = "default" | "custom";
+
+// const InputToggle = ({
+//     canChangeInputMode,
+//     inputMode,
+//     onInputModeChange,
+// }: {
+//     canChangeInputMode: boolean,
+//     inputMode: InputMode,
+//     onInputModeChange: (inputMode: InputMode) => unknown,
+// }) => {
+//     if (!canChangeInputMode) return null;
+//     return (
+//         <Box sx={{ marginBottom: "10px", display: "flex", gap: 1 }}>
+//             <Button variant={inputMode === "default" ? "contained" : "outlined"} color="primary" onClick={() => onInputModeChange("default")}>
+//                 Default View
+//             </Button>
+//             <Button variant={inputMode === "custom" ? "contained" : "outlined"} color="primary" onClick={() => onInputModeChange("custom")}>
+//                 Custom View
+//             </Button>
+//         </Box>
+//     )
+// };
 
 const BotForm = ({
     disabled,
@@ -79,8 +165,20 @@ const BotForm = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
-    const [creativityField, , creativityHelpers] = useField("creativity");
-    const [verbosityField, , verbosityHelpers] = useField("verbosity");
+    // const [inputMode, setInputMode] = useState<InputMode>("default");
+    // const changeInputMode = (inputMode: InputMode) => {
+    //     setInputMode(inputMode);
+    // }
+
+    const [modelField, , modelHelpers] = useField<string>("model");
+    const [model, setModel] = useState<LlmModel | null>(null);
+    useEffect(() => {
+        const availableModel = AVAILABLE_MODELS.find(m => m.value === modelField.value);
+        setModel(availableModel ?? null);
+    }, [modelField.value]);
+
+    const [creativityField, , creativityHelpers] = useField<number>("creativity");
+    const [verbosityField, , verbosityHelpers] = useField<number>("verbosity");
 
     // Handle translations
     const {
@@ -96,7 +194,7 @@ const BotForm = ({
         validationSchema: botTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
     });
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<User>({
+    const { handleCancel, handleCompleted } = useUpsertActions<User>({
         display,
         isCreate,
         objectId: values.id,
@@ -113,7 +211,7 @@ const BotForm = ({
         endpointCreate: endpointPostBot,
         endpointUpdate: endpointPutBot,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "User" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "User" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -145,241 +243,220 @@ const BotForm = ({
                 maxWidth={700}
             >
                 <FormContainer>
-                    <RelationshipList
-                        isEditing={true}
-                        objectType={"User"}
-                        sx={{ marginBottom: 4 }}
-                    />
                     <ProfilePictureInput
                         onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
                         onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
                         profile={{ ...values }}
                     />
-                    <FormSection sx={{
-                        overflowX: "hidden",
-                    }}>
-                        <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleDeleteLanguage}
-                            handleCurrent={setLanguage}
-                            languages={languages}
+                    <Box>
+                        <Title variant="subheader" title="Basic info" />
+                        <RelationshipList
+                            isEditing={true}
+                            objectType={"User"}
+                            sx={{ marginBottom: 4 }}
                         />
-                        <Field
-                            fullWidth
-                            autoComplete="name"
-                            autoFocus
-                            name="name"
-                            label={t("Name")}
-                            placeholder={t("NamePlaceholder")}
-                            as={TextInput}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <BotIcon />
-                                    </InputAdornment>
-                                ),
+                        <FormSection sx={{
+                            overflowX: "hidden",
+                        }}>
+                            <Field
+                                fullWidth
+                                autoComplete="name"
+                                autoFocus
+                                name="name"
+                                label={t("Name")}
+                                placeholder={t("NamePlaceholder")}
+                                as={TextInput}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <BotIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                error={props.touched.name && Boolean(props.errors.name)}
+                                helperText={props.touched.name && props.errors.name}
+                            />
+                            <Field
+                                name="isBotDepictingPerson"
+                                label={t("BotDepictPersonAsk")}
+                                component={CheckboxInput}
+                            />
+                            <Field
+                                fullWidth
+                                autoComplete="handle"
+                                name="handle"
+                                label={t("Handle")}
+                                placeholder={t("HandlePlaceholder")}
+                                as={TextInput}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <HandleIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                error={props.touched.handle && Boolean(props.errors.handle)}
+                                helperText={props.touched.handle && props.errors.handle}
+                            />
+                            <TranslatedRichInput
+                                language={language}
+                                maxChars={2048}
+                                minRows={4}
+                                name="bio"
+                                placeholder={t("Bio")}
+                            />
+                            <TranslatedTextInput
+                                fullWidth
+                                label={t("StartMessage")}
+                                placeholder={t("StartMessagePlaceholder")}
+                                language={language}
+                                name="startMessage"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <CommentIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <LanguageInput
+                                currentLanguage={language}
+                                handleAdd={handleAddLanguage}
+                                handleDelete={handleDeleteLanguage}
+                                handleCurrent={setLanguage}
+                                languages={languages}
+                            />
+                        </FormSection>
+                    </Box>
+                    <Box>
+                        <Title variant="subheader" title={t("Model", { count: 1 })} />
+                        <SelectorBase
+                            name="model"
+                            options={AVAILABLE_MODELS}
+                            getOptionLabel={(r) => r.name}
+                            getOptionDescription={(r) => r.description}
+                            fullWidth={true}
+                            inputAriaLabel="Mode"
+                            label={t("Model", { count: 1 })}
+                            onChange={(newModel) => {
+                                modelHelpers.setValue(newModel.value);
                             }}
-                            error={props.touched.name && Boolean(props.errors.name)}
-                            helperText={props.touched.name && props.errors.name}
+                            value={model}
                         />
-                        <Field
-                            name="isBotDepictingPerson"
-                            label={t("BotDepictPersonAsk")}
-                            component={CheckboxInput}
-                        />
-                        <Field
-                            fullWidth
-                            autoComplete="handle"
-                            name="handle"
-                            label={t("Handle")}
-                            placeholder={t("HandlePlaceholder")}
-                            as={TextInput}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <HandleIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                            error={props.touched.handle && Boolean(props.errors.handle)}
-                            helperText={props.touched.handle && props.errors.handle}
-                        />
-                        <TranslatedRichInput
-                            language={language}
-                            maxChars={2048}
-                            minRows={4}
-                            name="bio"
-                            placeholder={t("Bio")}
-                        />
-                        <TranslatedTextInput
-                            fullWidth
-                            label={t("Occupation")}
-                            placeholder={t("OccupationPlaceholderBot")}
-                            language={language}
-                            name="occupation"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <OrganizationIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <TranslatedTextInput
-                            fullWidth
-                            label={t("Persona")}
-                            placeholder={t("PersonaPlaceholderBot")}
-                            language={language}
-                            name="persona"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <PersonaIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <TranslatedTextInput
-                            fullWidth
-                            label={t("StartMessage")}
-                            placeholder={t("StartMessagePlaceholder")}
-                            language={language}
-                            name="startMessage"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <CommentIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <TranslatedTextInput
-                            fullWidth
-                            label={t("Tone")}
-                            placeholder={t("TonePlaceholderBot")}
-                            language={language}
-                            name="tone"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <RoutineValidIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <TranslatedTextInput
-                            fullWidth
-                            label={t("KeyPhrases")}
-                            placeholder={t("KeyPhrasesPlaceholderBot")}
-                            language={language}
-                            name="keyPhrases"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <KeyPhrasesIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <TranslatedTextInput
-                            fullWidth
-                            label={t("DomainKnowledge")}
-                            placeholder={t("DomainKnowledgePlaceholderBot")}
-                            language={language}
-                            name="domainKnowledge"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <LearnIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <TranslatedTextInput
-                            fullWidth
-                            label={t("Bias")}
-                            placeholder={t("BiasPlaceholderBot")}
-                            language={language}
-                            name="bias"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <HeartFilledIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <Stack>
-                            <Typography id="creativity-slider" gutterBottom>
-                                {t("CreativityPlaceholder")}
-                            </Typography>
-                            <Slider
-                                aria-labelledby="creativity-slider"
+                    </Box>
+                    <Box>
+                        <Title variant="subheader" title="Personality" />
+                        <FormSection sx={{
+                            overflowX: "hidden",
+                        }}>
+                            {/* <InputToggle
+                            canChangeInputMode={true}
+                            inputMode={inputMode}
+                            onInputModeChange={changeInputMode}
+                        /> */}
+                            <TranslatedTextInput
+                                fullWidth
+                                label={t("Occupation")}
+                                placeholder={t("OccupationPlaceholderBot")}
+                                language={language}
+                                name="occupation"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <OrganizationIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <TranslatedTextInput
+                                fullWidth
+                                label={t("Persona")}
+                                placeholder={t("PersonaPlaceholderBot")}
+                                language={language}
+                                name="persona"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <PersonaIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <TranslatedTextInput
+                                fullWidth
+                                label={t("Tone")}
+                                placeholder={t("TonePlaceholderBot")}
+                                language={language}
+                                name="tone"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <RoutineValidIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <TranslatedTextInput
+                                fullWidth
+                                label={t("KeyPhrases")}
+                                placeholder={t("KeyPhrasesPlaceholderBot")}
+                                language={language}
+                                name="keyPhrases"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <KeyPhrasesIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <TranslatedTextInput
+                                fullWidth
+                                label={t("DomainKnowledge")}
+                                placeholder={t("DomainKnowledgePlaceholderBot")}
+                                language={language}
+                                name="domainKnowledge"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <LearnIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <TranslatedTextInput
+                                fullWidth
+                                label={t("Bias")}
+                                placeholder={t("BiasPlaceholderBot")}
+                                language={language}
+                                name="bias"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <HeartFilledIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <FeatureSlider
+                                id="creativity-slider"
+                                labelLeft={t("Low")}
+                                labelRight={t("High")}
+                                setValue={creativityHelpers.setValue}
+                                title={t("CreativityPlaceholder")}
                                 value={creativityField.value}
-                                onChange={(_, value) => creativityHelpers.setValue(value)}
-                                valueLabelDisplay="auto"
-                                min={0.1}
-                                max={1}
-                                step={0.1}
-                                marks={[
-                                    {
-                                        value: 0.1,
-                                        label: t("Low"),
-                                    },
-                                    {
-                                        value: 1,
-                                        label: t("High"),
-                                    },
-                                ]}
-                                sx={{
-                                    "& .MuiSlider-markLabel": {
-                                        "&[data-index=\"0\"]": {
-                                            marginLeft: 2,
-                                        },
-                                        "&[data-index=\"1\"]": {
-                                            marginLeft: -2,
-                                        },
-                                    },
-                                }}
                             />
-                        </Stack>
-                        <Stack>
-                            <Typography id="verbosity-slider" gutterBottom>
-                                {t("VerbosityPlaceholder")}
-                            </Typography>
-                            <Slider
-                                aria-labelledby="verbosity-slider"
+                            <FeatureSlider
+                                id="verbosity-slider"
+                                labelLeft={t("Low")}
+                                labelRight={t("High")}
+                                setValue={verbosityHelpers.setValue}
+                                title={t("VerbosityPlaceholder")}
                                 value={verbosityField.value}
-                                onChange={(_, value) => verbosityHelpers.setValue(value)}
-                                valueLabelDisplay="auto"
-                                min={0.1}
-                                max={1}
-                                step={0.1}
-                                marks={[
-                                    {
-                                        value: 0.1,
-                                        label: t("Short"),
-                                    },
-                                    {
-                                        value: 1,
-                                        label: t("Long"),
-                                    },
-                                ]}
-                                sx={{
-                                    "& .MuiSlider-markLabel": {
-                                        "&[data-index=\"0\"]": {
-                                            marginLeft: 2,
-                                        },
-                                        "&[data-index=\"1\"]": {
-                                            marginLeft: -2,
-                                        },
-                                    },
-                                }}
                             />
-                        </Stack>
-                    </FormSection>
+                        </FormSection>
+                    </Box>
                 </FormContainer>
             </BaseForm>
             <BottomActionsButtons

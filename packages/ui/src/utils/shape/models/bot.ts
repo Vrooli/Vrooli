@@ -1,5 +1,6 @@
 import { BotCreateInput, BotUpdateInput, User } from "@local/shared";
 import { ShapeModel } from "types";
+import { LlmModel } from "utils/botUtils";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 import { shapeUserTranslation } from "./user";
 
@@ -22,6 +23,7 @@ export type BotShape = Pick<User, "id" | "handle" | "isBotDepictingPerson" | "is
     bannerImage?: string | File | null;
     creativity?: number | null;
     isBot?: true;
+    model: LlmModel["value"],
     profileImage?: string | File | null;
     translations?: BotTranslationShape[] | null;
     verbosity?: number | null;
@@ -47,6 +49,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
             isBot: true,
             botSettings: JSON.stringify({
                 translations: textSettings,
+                model: d.model,
                 creativity: d.creativity ?? undefined,
                 verbosity: d.verbosity ?? undefined,
             }),
@@ -58,7 +61,6 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         // Extract bot settings from translations. 
         // NOTE: We're using createRel again because we want to include every field
         const textData = createRel(u, "translations", ["Create"], "many", shapeBotTranslation);
-        console.log("SHAPE BOT GOT TEXT DATA", textData, o, u);
         // Convert created to object, where keys are language codes and values are the bot settings
         const textSettings = Object.fromEntries(textData.translationsCreate?.map(({ language, ...rest }) => [language, rest]) ?? []);
         // Since we set the original to empty array, we need to manually remove the deleted translations (i.e. translations in the original but not in the update)
@@ -69,6 +71,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         return shapeUpdate(u, {
             botSettings: JSON.stringify({
                 translations: textSettings,
+                model: u.model,
                 creativity: u.creativity ?? undefined,
                 verbosity: u.verbosity ?? undefined,
             }),

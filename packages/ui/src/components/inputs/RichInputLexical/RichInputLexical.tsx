@@ -771,21 +771,20 @@ const RichInputLexicalComponents = ({
                         overflow: "auto",
                     } as CSSProperties}
                 />}
-                placeholder={
-                    <div style={{
-                        color: palette.background.textSecondary,
-                        position: "absolute",
-                        padding: "16.5px 14px",
-                        pointerEvents: "none",
-                        top: 0,
-                        left: 0,
-                    }}
-                    >
-                        {placeholder ?? "Enter some text..."}
-                    </div>
-                }
+                placeholder={<></>} // Doesn't work for some reason, so we use our own placeholder
                 ErrorBoundary={LexicalErrorBoundary}
             />
+            {value.length === 0 && <div style={{
+                color: palette.background.textSecondary,
+                position: "absolute",
+                padding: "16.5px 14px",
+                pointerEvents: "none",
+                top: 0,
+                left: 0,
+            }}
+            >
+                {placeholder ?? "Enter some text..."}
+            </div>}
             <CheckListPlugin />
             <LinkPlugin />
             <ListPlugin />
