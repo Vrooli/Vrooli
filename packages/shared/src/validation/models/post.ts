@@ -2,7 +2,7 @@ import { bool, id, opt, req, YupModel, yupObj } from "../utils";
 import { resourceListValidation } from "./resourceList";
 import { tagValidation } from "./tag";
 
-export const postValidation: YupModel = {
+export const postValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isPinned: opt(bool),

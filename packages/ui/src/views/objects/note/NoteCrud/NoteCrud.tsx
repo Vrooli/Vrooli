@@ -135,8 +135,7 @@ const NoteForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name", "pages[0].text"],
-        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: noteVersionTranslationValidation.read({ env: process.env.NODE_ENV }),
     });
 
     const actionData = useObjectActions({

@@ -3,7 +3,7 @@ import { labelValidation } from "./label";
 import { projectVersionValidation } from "./projectVersion";
 import { tagValidation } from "./tag";
 
-export const projectValidation: YupModel = {
+export const projectValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         handle: opt(handle),

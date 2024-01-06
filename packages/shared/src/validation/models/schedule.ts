@@ -7,7 +7,7 @@ import { runRoutineValidation } from "./runRoutine";
 import { scheduleExceptionValidation } from "./scheduleException";
 import { scheduleRecurrenceValidation } from "./scheduleRecurrence";
 
-export const scheduleValidation: YupModel = {
+export const scheduleValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         startTime: opt(startTime),

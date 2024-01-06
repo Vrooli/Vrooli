@@ -2,7 +2,7 @@ import { bool, details, id, name, opt, req, summary, transRel, url, versionLabel
 import { apiValidation } from "./api";
 import { resourceListValidation } from "./resourceList";
 
-export const apiVersionTranslationValidation: YupModel = transRel({
+export const apiVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         name: req(name),
         details: opt(details),
@@ -15,7 +15,7 @@ export const apiVersionTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const apiVersionValidation: YupModel = {
+export const apiVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         callLink: opt(url(d)),

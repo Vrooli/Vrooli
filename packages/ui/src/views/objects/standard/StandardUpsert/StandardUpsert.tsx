@@ -108,8 +108,7 @@ const StandardForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description"],
-        validationSchema: standardVersionTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: standardVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const { handleCancel, handleCompleted } = useUpsertActions<StandardVersion>({

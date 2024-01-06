@@ -2,7 +2,7 @@ import { bool, description, id, name, opt, req, transRel, url, YupModel, yupObj 
 import { meetingInviteValidation } from "./meetingInvite";
 import { scheduleValidation } from "./schedule";
 
-export const meetingTranslationValidation: YupModel = transRel({
+export const meetingTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: (d) => ({
         name: opt(name),
         description: opt(description),
@@ -15,7 +15,7 @@ export const meetingTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const meetingValidation: YupModel = {
+export const meetingValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         openToAnyoneWithInvite: opt(bool),

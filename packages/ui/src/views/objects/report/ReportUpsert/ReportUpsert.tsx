@@ -95,7 +95,6 @@ const ReportForm = ({
         setLanguage,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: [],
     });
 
     const [reasonField] = useField("reason");

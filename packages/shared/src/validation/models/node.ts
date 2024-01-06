@@ -9,7 +9,7 @@ const columnIndex = yup.number().integer().min(0, minNumErr).nullable();
 const rowIndex = yup.number().integer().min(0, minNumErr).nullable();
 const nodeType = enumToYup(NodeType);
 
-export const nodeTranslationValidation: YupModel = transRel({
+export const nodeTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: req(name),
@@ -20,7 +20,7 @@ export const nodeTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const nodeValidation: YupModel = {
+export const nodeValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         columnIndex: opt(columnIndex),

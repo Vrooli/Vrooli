@@ -1,7 +1,7 @@
 import { bool, description, id, intPositiveOrOne, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { quizQuestionValidation } from "./quizQuestion";
 
-export const quizTranslationValidation: YupModel = transRel({
+export const quizTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: req(name),
@@ -12,7 +12,7 @@ export const quizTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const quizValidation: YupModel = {
+export const quizValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         maxAttempts: opt(intPositiveOrOne),

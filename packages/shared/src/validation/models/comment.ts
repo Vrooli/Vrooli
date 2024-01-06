@@ -5,7 +5,7 @@ import { enumToYup, id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupO
 const createdFor = enumToYup(CommentFor);
 const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(32768, maxStrErr);
 
-export const commentTranslationValidation: YupModel = transRel({
+export const commentTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         text: req(text),
     }),
@@ -14,7 +14,7 @@ export const commentTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const commentValidation: YupModel = {
+export const commentValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         createdFor: req(createdFor),

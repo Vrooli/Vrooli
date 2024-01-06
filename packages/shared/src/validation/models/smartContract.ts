@@ -3,7 +3,7 @@ import { labelValidation } from "./label";
 import { smartContractVersionValidation } from "./smartContractVersion";
 import { tagValidation } from "./tag";
 
-export const smartContractValidation: YupModel = {
+export const smartContractValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),

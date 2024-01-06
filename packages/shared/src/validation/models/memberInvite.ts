@@ -1,6 +1,6 @@
 import { bool, id, message, opt, permissions, req, YupModel, yupObj } from "../utils";
 
-export const memberInviteValidation: YupModel = {
+export const memberInviteValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         message: opt(message),

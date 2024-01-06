@@ -13,7 +13,7 @@ export const emailLogInSchema = yup.object().shape({
     verificationCode: opt(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
 });
 
-export const userTranslationValidation: YupModel = transRel({
+export const userTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         bio: opt(bio),
     }),
@@ -22,7 +22,7 @@ export const userTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const profileValidation: YupModel<false, true> = {
+export const profileValidation: YupModel<["update"]> = {
     // Can't create a non-bot user directly - must use sign up form(s)
     update: (d) => yupObj({
         bannerImage: opt(imageFile),
@@ -57,7 +57,7 @@ export const profileValidation: YupModel<false, true> = {
 
 // Since bots are a special case of users, we must create a combined validation model 
 // for the User ModelLogic object to use when creating/updating bots or updating your profile
-export const userValidation: YupModel<true, true> = {
+export const userValidation: YupModel<["create", "update"]> = {
     // You can only create bots, so we can take botValidation.create directly
     create: botValidation.create,
     // For update, we must combine both botValidation.update and profileValidation.update
@@ -122,7 +122,7 @@ export const emailResetPasswordSchema = yup.object().shape({
     confirmNewPassword: yup.string().oneOf([yup.ref("newPassword"), null], "Passwords must match"),
 });
 
-export const profileEmailUpdateValidation: YupModel<false, true> = {
+export const profileEmailUpdateValidation: YupModel<["update"]> = {
     update: (d) => yupObj({
         currentPassword: req(password),
         newPassword: opt(password),

@@ -95,8 +95,7 @@ const ResourceForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["bio"],
-        validationSchema: userTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: userTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const [field, meta, helpers] = useField("translations");

@@ -58,12 +58,13 @@ const transformBotValues = (session: Session | undefined, values: BotShape, exis
 
 const validateBotValues = async (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) => {
     const transformedValues = transformBotValues(session, values, existing, isCreate);
-    const validationSchema = botValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" });
+    const validationSchema = botValidation[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
 
-const FeatureSlider = ({
+export const FeatureSlider = ({
+    disabled,
     id,
     labelLeft,
     labelRight,
@@ -71,6 +72,7 @@ const FeatureSlider = ({
     title,
     value,
 }: {
+    disabled?: boolean,
     id: string,
     labelLeft: string,
     labelRight: string,
@@ -89,6 +91,7 @@ const FeatureSlider = ({
             </Typography>
             <Slider
                 aria-labelledby={id}
+                disabled={disabled}
                 value={value}
                 onChange={(_, value) => {
                     if (Array.isArray(value) && value.length > 0) {
@@ -190,8 +193,7 @@ const BotForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name"],
-        validationSchema: botTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: botTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const { handleCancel, handleCompleted } = useUpsertActions<User>({

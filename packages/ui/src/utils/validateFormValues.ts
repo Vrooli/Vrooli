@@ -9,11 +9,10 @@ export const validateFormValues = async <T, IsCreate extends boolean>(
     existing: T,
     isCreate: IsCreate,
     transformFunction: TransformFunction<T, T, IsCreate>,
-    validationMap: YupModel<true, true>,
+    validationMap: YupModel<["create", "update"]>,
 ): Promise<Record<string, string>> => {
     const transformedValues = transformFunction(values, existing, isCreate);
-    const env = process.env.PROD ? "production" : "development";
-    const validationSchema = validationMap[isCreate ? "create" : "update"]({ env });
+    const validationSchema = validationMap[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

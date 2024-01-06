@@ -1,7 +1,7 @@
 import { id, newEndTime, newStartTime, opt, originalStartTime, req, YupModel, yupObj } from "../utils";
 import { scheduleValidation } from "./schedule";
 
-export const scheduleExceptionValidation: YupModel = {
+export const scheduleExceptionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         originalStartTime: opt(originalStartTime),

@@ -1,6 +1,6 @@
 import { doublePositiveOrZero, id, name, opt, pushNotificationKeys, req, url, YupModel, yupObj } from "../utils";
 
-export const pushDeviceValidation: YupModel = {
+export const pushDeviceValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         endpoint: req(url(d)),
         expires: opt(doublePositiveOrZero),

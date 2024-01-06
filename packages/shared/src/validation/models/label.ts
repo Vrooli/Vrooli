@@ -3,7 +3,7 @@ import { description, hexColor, id, maxStrErr, opt, req, transRel, YupModel, yup
 
 const label = yup.string().trim().removeEmptyString().max(128, maxStrErr);
 
-export const labelTranslationValidation: YupModel = transRel({
+export const labelTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: req(description),
     }),
@@ -12,7 +12,7 @@ export const labelTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const labelValidation: YupModel = {
+export const labelValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         label: req(label),

@@ -2,7 +2,7 @@ import { bool, description, id, name, opt, req, transRel, versionLabel, versionN
 import { projectValidation } from "./project";
 import { projectVersionDirectoryValidation } from "./projectVersionDirectory";
 
-export const projectVersionTranslationValidation: YupModel = transRel({
+export const projectVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: req(name),
@@ -13,7 +13,7 @@ export const projectVersionTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const projectVersionValidation: YupModel = {
+export const projectVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),

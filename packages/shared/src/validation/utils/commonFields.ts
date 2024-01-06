@@ -47,7 +47,7 @@ export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
         "Must be a URL",
         (value: string | undefined) => {
             return value !== undefined ?
-                env !== "development" ?
+                !env.startsWith("dev") ?
                     urlRegex.test(value) :
                     urlRegexDev.test(value) :
                 true;

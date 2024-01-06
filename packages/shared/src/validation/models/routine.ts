@@ -3,7 +3,7 @@ import { labelValidation } from "./label";
 import { routineVersionValidation } from "./routineVersion";
 import { tagValidation } from "./tag";
 
-export const routineValidation: YupModel = {
+export const routineValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isInternal: opt(bool),

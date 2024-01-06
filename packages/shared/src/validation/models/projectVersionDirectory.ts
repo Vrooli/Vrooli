@@ -3,7 +3,7 @@ import { bool, description, id, maxStrErr, name, opt, req, transRel, YupModel, y
 
 export const childOrder = yup.string().trim().removeEmptyString().max(4096, maxStrErr);
 
-export const projectVersionDirectoryTranslationValidation: YupModel = transRel({
+export const projectVersionDirectoryTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: req(name),
@@ -14,7 +14,7 @@ export const projectVersionDirectoryTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const projectVersionDirectoryValidation: YupModel = {
+export const projectVersionDirectoryValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         childOrder: opt(childOrder),

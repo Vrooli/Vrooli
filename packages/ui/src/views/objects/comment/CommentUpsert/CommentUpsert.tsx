@@ -75,8 +75,7 @@ const CommentForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["text"],
-        validationSchema: commentTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: commentTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const { handleCancel, handleCompleted } = useUpsertActions<Comment>({
@@ -176,8 +175,7 @@ export const CommentDialog = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["text"],
-        validationSchema: commentTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: commentTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);

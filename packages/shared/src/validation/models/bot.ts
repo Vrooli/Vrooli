@@ -3,7 +3,7 @@ import { bio, bool, handle, id, imageFile, maxStrErr, name, opt, req, transRel, 
 
 export const botSettings = yup.string().trim().removeEmptyString().max(4096, maxStrErr);
 
-export const botTranslationValidation: YupModel = transRel({
+export const botTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         bio: opt(bio),
     }),
@@ -12,7 +12,7 @@ export const botTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const botValidation: YupModel = {
+export const botValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         bannerImage: opt(imageFile),

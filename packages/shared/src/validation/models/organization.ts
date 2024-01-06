@@ -4,7 +4,7 @@ import { resourceListValidation } from "./resourceList";
 import { roleValidation } from "./role";
 import { tagValidation } from "./tag";
 
-export const organizationTranslationValidation: YupModel = transRel({
+export const organizationTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         bio: opt(bio),
         name: req(name),
@@ -15,7 +15,7 @@ export const organizationTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const organizationValidation: YupModel = {
+export const organizationValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         bannerImage: opt(imageFile),

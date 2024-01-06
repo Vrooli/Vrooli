@@ -45,8 +45,7 @@ const SettingsProfileForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["bio"],
-        validationSchema: userTranslationValidation.update({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: userTranslationValidation.update({ env: process.env.NODE_ENV }),
     });
 
     return (
@@ -177,7 +176,7 @@ export const SettingsProfileView = ({
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={profileValidation.update({ env: process.env.PROD ? "production" : "development" })}
+                        validationSchema={profileValidation.update({ env: process.env.NODE_ENV })}
                     >
                         {(formik) => <SettingsProfileForm
                             display={display}

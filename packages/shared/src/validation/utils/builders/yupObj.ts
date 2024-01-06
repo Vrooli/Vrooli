@@ -1,6 +1,6 @@
 import * as yup from "yup";
-import { YupModel, YupMutateParams } from "../types";
-import { rel, RelationshipType } from "./rel";
+import { YupModel, YupModelOptions, YupMutateParams } from "../types";
+import { RelationshipType, rel } from "./rel";
 
 /**
  * Creates a yup object
@@ -11,7 +11,7 @@ import { rel, RelationshipType } from "./rel";
  */
 export const yupObj = <T extends { [key: string]: yup.AnySchema }>(
     fields: T,
-    rels: [string, readonly RelationshipType[], "one" | "many", "opt" | "req", YupModel<boolean, boolean>?, (string | string[])?][],
+    rels: [string, readonly RelationshipType[], "one" | "many", "opt" | "req", YupModel<YupModelOptions[]>?, (string | string[])?][],
     excludePairs: [string, string][],
     data: YupMutateParams,
 ) => {

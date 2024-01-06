@@ -85,8 +85,7 @@ const SubroutineForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "instructions", "name"],
-        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: routineVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const isLoading = useMemo(() => props.isSubmitting, [props.isSubmitting]);

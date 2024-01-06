@@ -1,6 +1,6 @@
 import { bool, id, opt, permissions, req, YupModel, yupObj } from "../utils";
 
-export const memberValidation: YupModel<false, true> = {
+export const memberValidation: YupModel<["update"]> = {
     // Can only be created through an invite
     update: (d) => yupObj({
         id: req(id),

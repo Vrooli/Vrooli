@@ -113,8 +113,7 @@ const ProjectForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name"],
-        validationSchema: projectVersionTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: projectVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     // For now, we'll only deal with one directory listing

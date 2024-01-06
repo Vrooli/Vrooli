@@ -7,7 +7,7 @@ const smartContractDefault = yup.string().trim().removeEmptyString().max(2048, m
 const contractType = yup.string().trim().removeEmptyString().max(256, maxStrErr);
 const content = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 
-export const smartContractVersionTranslationValidation: YupModel = transRel({
+export const smartContractVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         jsonVariable: opt(jsonVariable),
@@ -20,7 +20,7 @@ export const smartContractVersionTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const smartContractVersionValidation: YupModel = {
+export const smartContractVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isComplete: opt(bool),

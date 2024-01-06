@@ -9,7 +9,7 @@ const standardType = enumToYup(InputType);
 const standardProps = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 const standardYup = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 
-export const standardVersionTranslationValidation: YupModel = transRel({
+export const standardVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         jsonVariable: opt(jsonVariable),
@@ -22,7 +22,7 @@ export const standardVersionTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const standardVersionValidation: YupModel = {
+export const standardVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isComplete: opt(bool),

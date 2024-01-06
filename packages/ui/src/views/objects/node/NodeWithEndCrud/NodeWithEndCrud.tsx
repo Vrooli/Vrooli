@@ -53,8 +53,7 @@ const NodeWithEndForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name"],
-        validationSchema: nodeTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: nodeTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const [wasSuccessfulField] = useField<boolean>("end.wasSuccessful");

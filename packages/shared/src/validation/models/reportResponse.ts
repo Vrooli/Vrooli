@@ -3,7 +3,7 @@ import { details, enumToYup, id, language, opt, req, YupModel, yupObj } from "..
 
 const actionSuggested = enumToYup(ReportSuggestedAction);
 
-export const reportResponseValidation: YupModel = {
+export const reportResponseValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         actionSuggested: req(actionSuggested),

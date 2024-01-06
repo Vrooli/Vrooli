@@ -79,8 +79,7 @@ const QuestionForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name"],
-        validationSchema: questionTranslationValidation[isCreate ? "create" : "update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: questionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const { handleCancel, handleCompleted } = useUpsertActions<Question>({

@@ -1,7 +1,7 @@
 import { bool, id, opt, req, YupModel, yupObj } from "../utils";
 import { nodeRoutineListItemValidation } from "./nodeRoutineListItem";
 
-export const nodeRoutineListValidation: YupModel = {
+export const nodeRoutineListValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isOrdered: opt(bool),

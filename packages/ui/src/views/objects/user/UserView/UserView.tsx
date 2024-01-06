@@ -1,5 +1,5 @@
-import { BookmarkFor, ChatInvite, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
-import { Box, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, ChatInvite, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, noop, User, uuid } from "@local/shared";
+import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
@@ -35,6 +35,7 @@ import { getObjectUrl } from "utils/navigation/openObject";
 import { parseSingleItemUrl, UrlInfo } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
+import { FeatureSlider } from "views/objects/bot";
 import { UserViewProps } from "../types";
 
 export const UserView = ({
@@ -89,8 +90,8 @@ export const UserView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { adornments, bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
-        const { creativity, verbosity, translations } = findBotData(language, user);
-        const { bio, ...botTranslations } = getTranslation({ translations }, [language]);
+        const { model, creativity, verbosity, translations } = findBotData(language, user);
+        const { bio, ...botTranslations } = getTranslation({ translations }, [language], true);
         const { adornments } = getDisplay(user, [language], palette);
         let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, 1000);
         if (!bannerImageUrl) bannerImageUrl = user?.isBot ? BannerDefaultBot : BannerDefault;
@@ -98,7 +99,7 @@ export const UserView = ({
             adornments,
             bannerImageUrl,
             bio: bio && bio.trim().length > 0 ? bio : undefined,
-            botData: { ...botTranslations, creativity, verbosity },
+            botData: { ...botTranslations, model, creativity, verbosity },
             name: user?.name,
             handle: user?.handle,
         };
@@ -330,6 +331,12 @@ export const UserView = ({
                         marginTop: 0,
                         borderRadius: "0px",
                     }}>
+                        {botData.model && <TextInput
+                            disabled
+                            fullWidth
+                            label={t("Model", { count: 1 })}
+                            value={botData.model}
+                        />}
                         {botData.occupation && <TextInput
                             disabled
                             fullWidth
@@ -421,74 +428,24 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        <Stack>
-                            <Typography id="creativity-slider" gutterBottom>
-                                {t("CreativityPlaceholder")}
-                            </Typography>
-                            <Slider
-                                aria-labelledby="creativity-slider"
-                                disabled
-                                value={botData.creativity as number}
-                                valueLabelDisplay="auto"
-                                min={0.1}
-                                max={1}
-                                step={0.1}
-                                marks={[
-                                    {
-                                        value: 0.1,
-                                        label: t("Low"),
-                                    },
-                                    {
-                                        value: 1,
-                                        label: t("High"),
-                                    },
-                                ]}
-                                sx={{
-                                    "& .MuiSlider-markLabel": {
-                                        "&[data-index=\"0\"]": {
-                                            marginLeft: 2,
-                                        },
-                                        "&[data-index=\"1\"]": {
-                                            marginLeft: -2,
-                                        },
-                                    },
-                                }}
-                            />
-                        </Stack>
-                        <Stack>
-                            <Typography id="verbosity-slider" gutterBottom>
-                                {t("VerbosityPlaceholder")}
-                            </Typography>
-                            <Slider
-                                aria-labelledby="verbosity-slider"
-                                disabled
-                                value={botData.verbosity as number}
-                                valueLabelDisplay="auto"
-                                min={0.1}
-                                max={1}
-                                step={0.1}
-                                marks={[
-                                    {
-                                        value: 0.1,
-                                        label: t("Short"),
-                                    },
-                                    {
-                                        value: 1,
-                                        label: t("Long"),
-                                    },
-                                ]}
-                                sx={{
-                                    "& .MuiSlider-markLabel": {
-                                        "&[data-index=\"0\"]": {
-                                            marginLeft: 2,
-                                        },
-                                        "&[data-index=\"1\"]": {
-                                            marginLeft: -2,
-                                        },
-                                    },
-                                }}
-                            />
-                        </Stack>
+                        <FeatureSlider
+                            id="creativity-slider"
+                            disabled
+                            labelLeft={t("Low")}
+                            labelRight={t("High")}
+                            setValue={noop}
+                            title={t("CreativityPlaceholder")}
+                            value={botData.creativity ?? 0.5}
+                        />
+                        <FeatureSlider
+                            id="verbosity-slider"
+                            disabled
+                            labelLeft={t("Low")}
+                            labelRight={t("High")}
+                            setValue={noop}
+                            title={t("VerbosityPlaceholder")}
+                            value={botData.verbosity ?? 0.5}
+                        />
                     </FormSection>
                 )}
                 {currTab.tabType !== UserPageTabOption.Details && <Box>

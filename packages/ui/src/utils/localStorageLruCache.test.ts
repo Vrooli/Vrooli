@@ -16,9 +16,16 @@ describe("LocalStorageLruCache", () => {
         global.localStorage = mockLocalStorage as any;
         global.localStorage.clear();
     });
-
     afterEach(() => {
         global.localStorage = originalLocalStorage;
+    });
+
+    beforeAll(() => {
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        jest.spyOn(console, "warn").mockImplementation(() => { });
+    });
+    afterAll(() => {
+        jest.restoreAllMocks();
     });
 
     test("should store and retrieve an item", () => {

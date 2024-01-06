@@ -1,7 +1,7 @@
 import { id, req, YupModel, yupObj } from "../utils";
 import { reminderValidation } from "./reminder";
 
-export const reminderListValidation: YupModel = {
+export const reminderListValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
     }, [

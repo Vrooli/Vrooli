@@ -1,6 +1,6 @@
 import { description, id, name, opt, permissions, req, transRel, YupModel, yupObj } from "../utils";
 
-export const roleTranslationValidation: YupModel = transRel({
+export const roleTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: req(description),
     }),
@@ -9,7 +9,7 @@ export const roleTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const roleValidation: YupModel = {
+export const roleValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         name: req(name),

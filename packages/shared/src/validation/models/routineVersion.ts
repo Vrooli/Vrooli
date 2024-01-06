@@ -6,7 +6,7 @@ import { routineValidation } from "./routine";
 import { routineVersionInputValidation } from "./routineVersionInput";
 import { routineVersionOutputValidation } from "./routineVersionOutput";
 
-export const routineVersionTranslationValidation: YupModel = transRel({
+export const routineVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         instructions: opt(instructions),
@@ -19,7 +19,7 @@ export const routineVersionTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const routineVersionValidation: YupModel = {
+export const routineVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         apiCallData: opt(apiCallData),

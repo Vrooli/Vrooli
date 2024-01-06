@@ -4,7 +4,7 @@ import { resourceValidation } from "./resource";
 
 const listForType = enumToYup(ResourceListFor);
 
-export const resourceListTranslationValidation: YupModel = transRel({
+export const resourceListTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: opt(name),
@@ -15,7 +15,7 @@ export const resourceListTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const resourceListValidation: YupModel = {
+export const resourceListValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         listForType: req(listForType),

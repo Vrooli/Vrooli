@@ -1,6 +1,6 @@
 import { email, req, YupModel, yupObj } from "../utils";
 
-export const emailValidation: YupModel<true, false> = {
+export const emailValidation: YupModel<["create"]> = {
     create: (d) => yupObj({
         emailAddress: req(email),
     }, [], [], d),

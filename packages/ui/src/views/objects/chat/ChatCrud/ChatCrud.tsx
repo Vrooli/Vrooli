@@ -353,8 +353,7 @@ const ChatForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name"],
-        validationSchema: chatTranslationValidation["update"]({ env: process.env.PROD ? "production" : "development" }),
+        validationSchema: chatTranslationValidation["update"]({ env: process.env.NODE_ENV }),
     });
 
     const addMessage = useCallback((text: string) => {

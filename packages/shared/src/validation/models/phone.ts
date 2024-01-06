@@ -1,6 +1,6 @@
 import { phoneNumber, req, YupModel, yupObj } from "../utils";
 
-export const phoneValidation: YupModel<true, false> = {
+export const phoneValidation: YupModel<["create"]> = {
     create: (d) => yupObj({
         phoneNumber: req(phoneNumber),
     }, [], [], d),

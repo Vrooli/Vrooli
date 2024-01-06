@@ -4,7 +4,7 @@ import { labelValidation } from "./label";
 
 const issueFor = enumToYup(IssueFor);
 
-export const issueTranslationValidation: YupModel = transRel({
+export const issueTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         name: req(name),
         description: opt(description),
@@ -15,7 +15,7 @@ export const issueTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const issueValidation: YupModel = {
+export const issueValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         issueFor: req(issueFor),

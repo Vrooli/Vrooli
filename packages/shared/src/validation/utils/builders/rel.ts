@@ -1,4 +1,4 @@
-import { OrArray } from "@local/shared";
+import { OrArray, YupModelOptions } from "@local/shared";
 import * as yup from "yup";
 import { ObjectShape } from "yup/lib/object";
 import { id } from "../commonFields";
@@ -35,7 +35,7 @@ export const rel = <
     RelTypes extends readonly RelationshipType[],
     FieldName extends string,
     // Model only required when RelTypes includes 'Create' or 'Update'
-    Model extends YupModel<boolean, boolean>,
+    Model extends YupModel<YupModelOptions[]>,
     OmitField extends string,
 >(
     data: YupMutateParams,
@@ -69,8 +69,8 @@ export const rel = <
         }
         else if (t === "Create") {
             result[`${relation}${t}`] = isOneToOne === "one" ?
-                required ? req((model as YupModel<true, true>).create({ ...data, omitRels })) : opt((model as YupModel<true, true>).create({ ...data, omitRels })) :
-                required ? reqArr((model as YupModel<true, true>).create({ ...data, omitRels })) : optArr((model as YupModel<true, true>).create({ ...data, omitRels }));
+                required ? req((model as YupModel<["create", "update"]>).create({ ...data, omitRels })) : opt((model as YupModel<["create", "update"]>).create({ ...data, omitRels })) :
+                required ? reqArr((model as YupModel<["create", "update"]>).create({ ...data, omitRels })) : optArr((model as YupModel<["create", "update"]>).create({ ...data, omitRels }));
         }
         else if (t === "Delete") {
             result[`${relation}${t}`] = isOneToOne === "one" ? opt(yup.bool()) : optArr(id);
@@ -79,7 +79,7 @@ export const rel = <
             result[`${relation}${t}`] = isOneToOne === "one" ? opt(yup.bool()) : optArr(id);
         }
         else if (t === "Update") {
-            result[`${relation}${t}`] = isOneToOne === "one" ? opt((model as YupModel<true, true>).update({ ...data, omitRels })) : optArr((model as YupModel<true, true>).update({ ...data, omitRels }));
+            result[`${relation}${t}`] = isOneToOne === "one" ? opt((model as YupModel<["create", "update"]>).update({ ...data, omitRels })) : optArr((model as YupModel<["create", "update"]>).update({ ...data, omitRels }));
         }
     }
     return result;

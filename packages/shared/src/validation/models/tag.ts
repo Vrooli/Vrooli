@@ -1,6 +1,6 @@
 import { bool, description, opt, req, tag, transRel, YupModel, yupObj } from "../utils";
 
-export const tagTranslationValidation: YupModel = transRel({
+export const tagTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: req(description),
     }),
@@ -9,7 +9,7 @@ export const tagTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const tagValidation: YupModel = {
+export const tagValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         anonymous: opt(bool),
         tag: req(tag),

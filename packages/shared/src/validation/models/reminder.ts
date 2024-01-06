@@ -3,7 +3,7 @@ import { description, id, index, name, opt, req, YupModel, yupObj } from "../uti
 import { reminderItemValidation } from "./reminderItem";
 import { reminderListValidation } from "./reminderList";
 
-export const reminderValidation: YupModel = {
+export const reminderValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         name: req(name),

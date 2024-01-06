@@ -7,7 +7,7 @@ const recurrenceType = enumToYup(ScheduleRecurrenceType);
 const dayOfWeek = yup.number().min(1, minNumErr).max(7, maxNumErr).integer();
 const dayOfMonth = yup.number().min(1, minNumErr).max(31, maxNumErr).integer();
 
-export const scheduleRecurrenceValidation: YupModel = {
+export const scheduleRecurrenceValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         recurrenceType: req(recurrenceType),

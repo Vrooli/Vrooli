@@ -1,6 +1,6 @@
 import { bool, id, opt, req, YupModel, yupObj } from "../utils";
 
-export const nodeEndValidation: YupModel = {
+export const nodeEndValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         wasSuccessful: opt(bool),

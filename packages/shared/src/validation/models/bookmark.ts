@@ -4,7 +4,7 @@ import { bookmarkListValidation } from "./bookmarkList";
 
 const bookmarkFor = enumToYup(BookmarkFor);
 
-export const bookmarkValidation: YupModel = {
+export const bookmarkValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         bookmarkFor: req(bookmarkFor),

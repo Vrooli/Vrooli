@@ -1,10 +1,10 @@
 import * as yup from "yup";
-import { bool, description, id, intPositiveOrZero, language, maxStrErr, name, opt, req, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import { bool, description, id, intPositiveOrZero, language, maxStrErr, name, opt, req, reqArr, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { noteValidation } from "./note";
 
 const text = yup.string().trim().max(65536, maxStrErr);
 
-export const notePageValidation: YupModel = {
+export const notePageValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         pageIndex: req(intPositiveOrZero),
         text: text.defined().strict(true),
@@ -15,7 +15,10 @@ export const notePageValidation: YupModel = {
     }, [], [], d),
 };
 
-export const noteVersionTranslationValidation: YupModel = {
+// We define "read" for this validation so that we can use it for translation validations. 
+// Other translations don't need it because they don't have relations. In the UI, we need 
+// to validate a translation object with a "pages" relation, and not "pagesCreate" or "pagesUpdate"
+export const noteVersionTranslationValidation: YupModel<["create", "update", "read"]> = {
     create: (d) => yupObj({
         id: req(id),
         language: req(language),
@@ -32,9 +35,16 @@ export const noteVersionTranslationValidation: YupModel = {
     }, [
         ["pages", ["Create", "Update", "Delete"], "many", "opt", notePageValidation],
     ], [], d),
+    read: (d) => yupObj({
+        id: req(id),
+        language: req(language),
+        description: opt(description),
+        name: opt(name),
+        pages: reqArr(notePageValidation.create(d)),
+    }, [], [], d),
 };
 
-export const noteVersionValidation: YupModel = {
+export const noteVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),

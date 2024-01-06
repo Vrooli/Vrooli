@@ -5,7 +5,7 @@ import { scheduleValidation } from "./schedule";
 
 const runStatus = enumToYup(RunStatus);
 
-export const runProjectValidation: YupModel = {
+export const runProjectValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         completedComplexity: opt(intPositiveOrZero),

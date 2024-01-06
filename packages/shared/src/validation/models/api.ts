@@ -3,7 +3,7 @@ import { apiVersionValidation } from "./apiVersion";
 import { labelValidation } from "./label";
 import { tagValidation } from "./tag";
 
-export const apiValidation: YupModel = {
+export const apiValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
