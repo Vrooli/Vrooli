@@ -4,12 +4,12 @@
  * field with a duplicate name has the name format, so as long as 
  * that format matches the fields below, there should be no errors.
  */
-import { ReportFor, urlRegexDev, YupMutateParams } from "@local/shared";
+import { ReportFor, urlRegexDev, uuidValidate, YupMutateParams } from "@local/shared";
 import * as yup from "yup";
 import { enumToYup } from "./builders";
 import { toPosInt } from "./builders/toPosInt";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
-import { handleRegex, urlRegex } from "./regex";
+import { handleRegex, hexColorRegex, urlRegex } from "./regex";
 import { minVersionTest } from "./versions";
 
 
@@ -20,25 +20,28 @@ yup.addMethod(yup.string, "removeEmptyString", function () {
     });
 });
 
+yup.addMethod(yup.bool, "toBool", function () {
+    return this.transform((value: any) => {
+        if (typeof value === "boolean") return value;
+        if (typeof value === "string") return value.trim() === "true" || value.trim() === "yes" || value.trim() === "1";
+        if (typeof value === "number") return value === 1;
+        return false;
+    });
+});
+
 
 // db fields
-export const id = yup.string().trim().removeEmptyString().max(256, maxStrErr);
+export const id = yup.string().trim().removeEmptyString().test("uuid", "Must be a valid UUID", (value) => typeof value === "string" && uuidValidate(value));
 
 // protocol fields
 export const apiCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(256, maxStrErr);
-export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).test(
-    "handle",
-    "Must be 3-16 characters, and can only contain letters, numbers, and underscores",
-    (value: string | undefined) => {
-        return value !== undefined ? handleRegex.test(value) : true;
-    },
-);
-export const hexColor = yup.string().trim().removeEmptyString().max(16, maxStrErr);
-export const imageFile = yup.string().trim().removeEmptyString();
+export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
+export const hexColor = yup.string().trim().removeEmptyString().min(4, minStrErr).max(7, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");
+export const imageFile = yup.string().trim().removeEmptyString().max(256, maxStrErr);
 export const pushNotificationKeys = yup.object().shape({
-    p256dh: yup.string().trim().removeEmptyString().max(256, maxStrErr),
-    auth: yup.string().trim().removeEmptyString().max(256, maxStrErr),
+    p256dh: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
+    auth: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
 });
 export const smartContractCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
@@ -54,13 +57,13 @@ export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
         },
     );
 
-export const bool = yup.boolean();
+export const bool = yup.boolean().toBool();
 
 // numbers
-const MAX_INT = 2 ** 32 - 1;
-const MAX_DOUBLE = 2 ** 32 - 1;
-const MIN_INT = -(2 ** 32);
-const MIN_DOUBLE = -(2 ** 32);
+export const MAX_INT = 2 ** 32 - 1;
+export const MAX_DOUBLE = 2 ** 32 - 1;
+export const MIN_INT = -(2 ** 32);
+export const MIN_DOUBLE = -(2 ** 32);
 export const doublePositiveOrZero = yup.number().min(0, minNumErr).max(MAX_DOUBLE, maxNumErr);
 export const intPositiveOrZero = yup.number().min(0, minNumErr).max(MAX_INT, maxNumErr).integer();
 export const intPositiveOrOne = yup.number().min(1, minNumErr).max(MAX_INT, maxNumErr).integer();
@@ -71,10 +74,54 @@ export const index = intPositiveOrZero;
 // dates
 export const timezone = yup.string().trim().removeEmptyString().max(64, maxStrErr);
 export const startTime = yup.date();
-export const endTime = yup.date().min(yup.ref("startTime"), "End time must be after start date");
+export const endTime = yup.date()
+    .test(
+        "is-greater",
+        "End time must be at least a second after start time",
+        function (value) {
+            const startTime = this.resolve(yup.ref("startTime"));
+
+            if (!value || !startTime) {
+                console.log("One of the times is missing");
+                return false;
+            }
+
+            // Ensure both values are Date instances
+            const endDate = value instanceof Date ? value : new Date(value);
+            const startDate = startTime instanceof Date ? startTime : new Date(startTime as Date | string | number);
+
+            // Calculate the difference in milliseconds
+            const diff = endDate.getTime() - startDate.getTime();
+
+            // Check if the end time is at least a second
+            return diff >= 1000;
+        },
+    );
 export const originalStartTime = yup.date();
 export const newStartTime = yup.date();
-export const newEndTime = yup.date().min(yup.ref("newStartTime"), "End time must be after start date");
+export const newEndTime = yup.date()
+    .test(
+        "is-greater",
+        "End time must be at least a second after start time",
+        function (value) {
+            const startTime = this.resolve(yup.ref("newStartTime"));
+
+            if (!value || !startTime) {
+                console.log("One of the times is missing");
+                return false;
+            }
+
+            // Ensure both values are Date instances
+            const endDate = value instanceof Date ? value : new Date(value);
+            const startDate = startTime instanceof Date ? startTime : new Date(startTime as Date | string | number);
+
+            // Calculate the difference in milliseconds
+            const diff = endDate.getTime() - startDate.getTime();
+
+            // Check if the end time is at least a second
+            return diff >= 1000;
+        },
+    );
 export const endDate = yup.date();
 
 // strings

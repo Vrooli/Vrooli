@@ -254,7 +254,7 @@ export function App() {
             }
         });
         // Handle session updates
-        const sessionSub = PubSub.get().subscribe("session", (session) => {
+        const sessionSub = PubSub.get().subscribe("session", async (session) => {
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
@@ -266,7 +266,7 @@ export function App() {
             // Store user's focus modes in local storage
             const currentlyActiveFocusMode = getCurrentUser(session)?.activeFocusMode ?? null;
             const focusModes = getCurrentUser(session)?.focusModes ?? [];
-            setCookieActiveFocusMode(getActiveFocusMode(currentlyActiveFocusMode, focusModes));
+            setCookieActiveFocusMode(await getActiveFocusMode(currentlyActiveFocusMode, focusModes));
             setCookieAllFocusModes(focusModes);
         });
         // Handle theme updates

@@ -1,4 +1,4 @@
-import { calculateOccurrences, Schedule, ScheduleSearchResult } from "@local/shared";
+import { calculateOccurrences, Schedule } from "@local/shared";
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
@@ -187,7 +187,7 @@ export const CalendarView = ({
         allData: schedules,
         loading,
         loadMore,
-    } = useFindMany<ScheduleSearchResult>({
+    } = useFindMany<Schedule>({
         searchType,
         where: {
             // Only find schedules that hav not ended, 
@@ -213,29 +213,42 @@ export const CalendarView = ({
 
     // Handle events, which are created from schedule data.
     // Events represent each occurrence of a schedule within a date range
-    const events = useMemo<CalendarEvent[]>(() => {
-        console.log("calculating events...", schedules);
-        if (!dateRange.start || !dateRange.end) return [];
-        // Initialize result
-        const result: CalendarEvent[] = [];
-        // Loop through schedules
-        schedules.forEach((schedule: any) => {
-            // Get occurrences (i.e. start and end times)
-            const occurrences = calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
-            // Create events
-            const events: CalendarEvent[] = occurrences.map(occurrence => ({
-                __typename: "CalendarEvent",
-                id: `${schedule.id}|${occurrence.start.getTime()}|${occurrence.end.getTime()}`,
-                title: getDisplay(schedule, getUserLanguages(session)).title,
-                start: occurrence.start,
-                end: occurrence.end,
-                allDay: false,
-                schedule,
-            }));
-            // Add events to result
-            result.push(...events);
-        });
-        return result;
+    const [events, setEvents] = useState<CalendarEvent[]>([]);
+    useEffect(() => {
+        let isCancelled = false;
+
+        const fetchEvents = async () => {
+            if (!dateRange.start || !dateRange.end) {
+                setEvents([]);
+                return;
+            }
+
+            const result: CalendarEvent[] = [];
+            for (const schedule of schedules) {
+                const occurrences = await calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
+                const events: CalendarEvent[] = occurrences.map(occurrence => ({
+                    __typename: "CalendarEvent",
+                    id: `${schedule.id}|${occurrence.start.getTime()}|${occurrence.end.getTime()}`,
+                    title: getDisplay(schedule, getUserLanguages(session)).title,
+                    start: occurrence.start,
+                    end: occurrence.end,
+                    allDay: false,
+                    schedule,
+                }));
+                if (!isCancelled) {
+                    result.push(...events);
+                }
+            }
+            if (!isCancelled) {
+                setEvents(result);
+            }
+        };
+
+        fetchEvents();
+
+        return () => {
+            isCancelled = true; // Cleanup function to avoid setting state on unmounted component
+        };
     }, [dateRange.end, dateRange.start, schedules, session]);
 
 

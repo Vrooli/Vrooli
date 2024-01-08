@@ -122,7 +122,7 @@ export const scheduleNotify = async () => {
         processBatch: async (batch, prisma) => {
             Promise.all(batch.map(async (schedule) => {
                 // Find all occurrences of the schedule within the next 25 hours
-                const occurrences = calculateOccurrences(schedule, startDate, endDate);
+                const occurrences = await calculateOccurrences(schedule, startDate, endDate);
                 // For each occurrence, schedule notifications for subscribers of the schedule
                 await scheduleNotifications(prisma, schedule.id, occurrences);
             }));

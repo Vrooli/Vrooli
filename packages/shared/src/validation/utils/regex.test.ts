@@ -1,4 +1,4 @@
-import { handleRegex, urlRegex, urlRegexDev, walletAddressRegex } from "./regex";
+import { handleRegex, hexColorRegex, urlRegex, urlRegexDev, walletAddressRegex } from "./regex";
 
 describe("Regular Expressions Tests", () => {
     // Test suite for urlRegex
@@ -123,6 +123,39 @@ describe("Regular Expressions Tests", () => {
         });
     });
 
-    // Add more test suites for any other regular expressions you have
+    // Test suite for hexRegex
+    describe("hexColorRegex", () => {
+        // Valid hex colors
+        const validHexColors = [
+            "#FFFFFF",
+            "#000000",
+            "#123ABC",
+            "#abc",
+            "#123456",
+            "#123ABC",
+        ];
+
+        // Invalid hex colors
+        const invalidHexColors = [
+            "12345", // no # at the start
+            "ZZZZZZ", // not a valid hex character
+            "#1234567", // too many characters
+            "#12", // too few characters
+            "GHIJKL", // no # and not a valid hex
+            "#12345G", // G is not a valid character in the range 0-9, A-F
+            "123456", // no # at the start, valid length
+            "  #123456  ", // contains spaces
+        ];
+
+        // Test each valid hex color
+        test.each(validHexColors)("\"%s\" should be a valid hex color", (hex) => {
+            expect(hexColorRegex.test(hex)).toBeTruthy();
+        });
+
+        // Test each invalid hex color
+        test.each(invalidHexColors)("\"%s\" should be an invalid hex color", (hex) => {
+            expect(hexColorRegex.test(hex)).toBeFalsy();
+        });
+    });
 });
 

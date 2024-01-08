@@ -12,3 +12,6 @@ export const walletAddressRegex = /^addr1[a-zA-Z0-9]{98}$/;
 
 /** Handle (i.e. 3-16 characters, no special characters except underscores) */
 export const handleRegex = /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9_]{3,16}$/;
+
+/** Hex code */
+export const hexColorRegex = /^#([0-9A-F]{3}([0-9A-F]{3})?)$/i;

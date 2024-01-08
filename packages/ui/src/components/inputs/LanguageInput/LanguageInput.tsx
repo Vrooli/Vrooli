@@ -17,6 +17,7 @@ export const LanguageInput = ({
     languages,
 }: LanguageInputProps) => {
     const session = useContext(SessionContext);
+    // TODO for morning: improve look of this component, fix bugs with translations when creating/updating, then fix other bugs with creating/updating
 
     const selectLanguage = useCallback((language: string) => {
         // If language is not in languages, add it

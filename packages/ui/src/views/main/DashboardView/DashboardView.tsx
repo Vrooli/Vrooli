@@ -238,29 +238,43 @@ export const DashboardView = ({
             setSchedules(data.schedules);
         }
     }, [data]);
-    const upcomingEvents = useMemo(() => {
-        // Initialize result
-        const result: CalendarEvent[] = [];
-        // Loop through schedules
-        schedules.forEach((schedule) => {
-            // Get occurrences in the upcoming 30 days
-            const occurrences = calculateOccurrences(schedule, new Date(), new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-            // Create events
-            const events: CalendarEvent[] = occurrences.map(occurrence => ({
-                __typename: "CalendarEvent",
-                id: uuid(),
-                title: getDisplay(schedule, languages).title,
-                start: occurrence.start,
-                end: occurrence.end,
-                allDay: false,
-                schedule,
-            }));
-            // Add events to result
-            result.push(...events);
-        });
-        // Sort events by start date, and return the first 10
-        result.sort((a, b) => a.start.getTime() - b.start.getTime());
-        return result.slice(0, 10);
+    const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
+    useEffect(() => {
+        let isCancelled = false;
+
+        const fetchUpcomingEvents = async () => {
+            const result: CalendarEvent[] = [];
+            for (const schedule of schedules) {
+                const occurrences = await calculateOccurrences(
+                    schedule,
+                    new Date(),
+                    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+                );
+                const events: CalendarEvent[] = occurrences.map(occurrence => ({
+                    __typename: "CalendarEvent",
+                    id: uuid(),
+                    title: getDisplay(schedule, languages).title,
+                    start: occurrence.start,
+                    end: occurrence.end,
+                    allDay: false,
+                    schedule,
+                }));
+                if (!isCancelled) {
+                    result.push(...events);
+                }
+            }
+            if (!isCancelled) {
+                // Sort events by start date, and set the first 10
+                result.sort((a, b) => a.start.getTime() - b.start.getTime());
+                setUpcomingEvents(result.slice(0, 10));
+            }
+        };
+
+        fetchUpcomingEvents();
+
+        return () => {
+            isCancelled = true; // Cleanup function to avoid setting state on unmounted component
+        };
     }, [languages, schedules]);
     const onEventAction = useCallback((action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => {
         switch (action) {

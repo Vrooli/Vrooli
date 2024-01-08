@@ -28,10 +28,12 @@ declare module "i18next" {
 
 declare module "yup" {
     interface StringSchema {
-        /**
-         * Converts empty/whitespace strings to undefined
-         */
+        /** Converts empty/whitespace strings to undefined */
         removeEmptyString(): this;
+    }
+    interface BooleanSchema {
+        /** Converts data to boolean */
+        toBool(): this;
     }
 }
 

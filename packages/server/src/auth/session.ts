@@ -197,7 +197,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     })) as SessionUser["focusModes"];
     const currentActiveFocusMode = getUser(req.session as SessionData)?.activeFocusMode;
     const currentModeData = focusModesWithSupp.find((fm) => fm.id === currentActiveFocusMode?.mode?.id);
-    const activeFocusMode = getActiveFocusMode(
+    const activeFocusMode = await getActiveFocusMode(
         currentModeData ? {
             ...currentActiveFocusMode,
             mode: currentModeData,
