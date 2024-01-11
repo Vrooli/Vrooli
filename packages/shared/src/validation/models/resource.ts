@@ -32,7 +32,7 @@ export const resourceValidation: YupModel<["create", "update"]> = {
         link: req(link(d)),
         usedFor: opt(usedFor),
     }, [
-        ["list", ["Connect", "Create"], "one", "req", resourceListValidation, ["resources"]],
+        ["list", ["Connect", "Create"], "one", "opt", resourceListValidation, ["resources"]],
         ["translations", ["Create"], "many", "opt", resourceTranslationValidation],
     ], [["listConnect", "listCreate"]], d),
     update: (d) => yupObj({

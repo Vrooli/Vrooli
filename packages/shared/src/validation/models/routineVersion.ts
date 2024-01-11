@@ -30,7 +30,7 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
         versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
-        ["root", ["Connect", "Create"], "one", "req", routineValidation, ["versions"]],
+        ["root", ["Connect", "Create"], "one", "opt", routineValidation, ["versions"]],
         ["apiVersion", ["Connect"], "one", "opt"],
         ["smartContractVersion", ["Connect"], "one", "opt"],
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],

@@ -24,7 +24,7 @@ export const apiVersionValidation: YupModel<["create", "update"]> = {
         versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
-        ["root", ["Connect", "Create"], "one", "req", apiValidation, ["versions"]],
+        ["root", ["Connect", "Create"], "one", "opt", apiValidation, ["versions"]],
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
         ["directoryListings", ["Connect"], "many", "opt"],
         ["translations", ["Create"], "many", "opt", apiVersionTranslationValidation],

@@ -1,12 +1,12 @@
 import * as yup from "yup";
 import { uuid } from "../../id";
-import { req } from "./builders";
+import { opt, req } from "./builders";
 import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, apiCallData, bool, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, newEndTime, newStartTime, originalStartTime, pushNotificationKeys, smartContractCallData, startTime, timezone, url } from "./commonFields";
 
 type Case = string | number | boolean | Date | null | undefined | { [x: string]: Case } | Case[];
 type ValidatorSet = {
     schema: yup.AnySchema;
-    valid: Case[];
+    valid?: Case[];
     invalid?: Case[];
     transforms?: [Case, Case][];
     context?: [string, yup.AnySchema, Case][];
@@ -18,6 +18,43 @@ const twoHoursLater = new Date(now.getTime() + 7200000); // 2 hours later
 
 describe("Yup validation tests", () => {
     const validators: Record<string, ValidatorSet> = {
+        removeEmptyString: {
+            schema: yup.string().removeEmptyString(),
+            // Should leave strings the same, unless they are empty, whitespace, or invalid
+            transforms: [
+                ["", undefined],
+                [" ", undefined],
+                ["  ", undefined],
+                [null, undefined],
+                [undefined, undefined],
+                [1, "1"], // yup automatically converts numbers to strings, so we have no choice but to accept them
+                [true, "true"], // yup automatically converts booleans to strings, so we have no choice but to accept them
+                [{}, undefined],
+                ["a", "a"],
+                [" a", " a"],
+                ["a ", "a "],
+                [" a ", " a "],
+                [" a b ", " a b "],
+            ],
+        },
+        toBool: {
+            schema: yup.bool().toBool(),
+            transforms: [
+                ["true", true],
+                [" true ", true],
+                ["false", false],
+                [" false ", false],
+                [0, false],
+                [1, true],
+                ["0", false],
+                ["1", true],
+                ["", false],
+                [" ", false],
+                ["yes", true],
+                [" no ", false],
+                ["asdfsadf", false],
+            ],
+        },
         id: {
             schema: id,
             valid: [
@@ -130,37 +167,37 @@ describe("Yup validation tests", () => {
         doublePositiveOrZero: {
             schema: doublePositiveOrZero,
             valid: [0, 10.5, MAX_DOUBLE],
-            invalid: [-1, MAX_DOUBLE + 1, "string"],
+            invalid: [-1, MAX_DOUBLE + 1, "string", NaN, Infinity],
             transforms: [[" 100 ", 100]],
         },
         intPositiveOrZero: {
             schema: intPositiveOrZero,
             valid: [0, 10, MAX_INT],
-            invalid: [-1, MAX_INT + 1, 10.5, "string"],
+            invalid: [-1, MAX_INT + 1, 10.5, "string", NaN, Infinity],
             transforms: [[" 100 ", 100]],
         },
         intPositiveOrOne: {
             schema: intPositiveOrOne,
             valid: [1, 10, MAX_INT],
-            invalid: [0, -1, MAX_INT + 1, 10.5, "string"],
+            invalid: [0, -1, MAX_INT + 1, 10.5, "string", NaN, Infinity],
             transforms: [[" 100 ", 100]],
         },
         double: {
             schema: double,
             valid: [MIN_DOUBLE, 0, MAX_DOUBLE],
-            invalid: [MIN_DOUBLE - 1, MAX_DOUBLE + 1, "string"],
+            invalid: [MIN_DOUBLE - 1, MAX_DOUBLE + 1, "string", NaN, Infinity],
             transforms: [[" -100.5 ", -100.5]],
         },
         int: {
             schema: int,
             valid: [MIN_INT, 0, MAX_INT],
-            invalid: [MIN_INT - 1, MAX_INT + 1, 10.5, "string"],
+            invalid: [MIN_INT - 1, MAX_INT + 1, 10.5, "string", NaN, Infinity],
             transforms: [[" 100 ", 100]],
         },
         index: {
             schema: index,
             valid: [0, 10, MAX_INT],
-            invalid: [-1, MAX_INT + 1, 10.5, "string"],
+            invalid: [-1, MAX_INT + 1, 10.5, "string", NaN, Infinity],
             transforms: [[" 100 ", 100]],
         },
         timezone: {
@@ -205,45 +242,69 @@ describe("Yup validation tests", () => {
 
     Object.entries(validators).forEach(([key, { schema, valid, invalid, transforms, context }]) => {
         describe(`${key} validation`, () => {
-            let requiredSchema = req(schema); // Wrap the schema with the 'req' function
-            const contextValues: Record<string, unknown> = {};
+            const generateTestSchema = (isFieldRequired: boolean): {
+                testSchema: yup.AnySchema,
+                contextValues: Record<string, unknown>,
+            } => {
+                let testSchema = isFieldRequired ? req(schema) : opt(schema);
+                const contextValues: Record<string, unknown> = {};
 
-            // When there is context, we have to test a yup object instead of a single field
-            if (context) {
-                const contextSchema = {};
-                context.forEach(([fieldName, fieldSchema, fieldValue]) => {
-                    contextSchema[fieldName] = fieldSchema;
-                    contextValues[fieldName] = fieldValue;
-                });
-                requiredSchema = yup.object().shape({
-                    ...contextSchema, // Spread the context schema
-                    [key]: requiredSchema, // the target field
-                });
-            }
+                // When there is context, we have to test a yup object instead of a single field
+                if (context) {
+                    const contextSchema = {};
+                    context.forEach(([fieldName, fieldSchema, fieldValue]) => {
+                        contextSchema[fieldName] = fieldSchema;
+                        contextValues[fieldName] = fieldValue;
+                    });
+                    testSchema = yup.object().shape({
+                        ...contextSchema, // Spread the context schema
+                        [key]: testSchema, // the target field
+                    });
+                }
+                return { testSchema, contextValues };
+            };
 
             // Testing valid cases
-            valid.forEach(v => {
+            valid?.forEach(v => {
                 it(`should accept valid ${key}: ${JSON.stringify(v)}`, async () => {
+                    // Test the field as a required field
+                    const { testSchema, contextValues } = generateTestSchema(true);
                     const testData = context ? { ...contextValues, [key]: v } : v;
                     const expected = context ? testData : v;
-                    await expect(requiredSchema.validate(testData)).resolves.toEqual(expected);
+                    await expect(testSchema.validate(testData)).resolves.toEqual(expected);
+                });
+            });
+
+            // Testing that null and undefined are accepted when the field is optional
+            [null, undefined].forEach(v => {
+                it(`should accept null/undefined for optional ${key}`, async () => {
+                    // Test the field as an optional field
+                    const { testSchema, contextValues } = generateTestSchema(false);
+                    const testData = context ? { ...contextValues, [key]: v } : v;
+
+                    // Validate the testData and check the specific field in the result
+                    const validationResult = await testSchema.validate(testData);
+                    const fieldResult = context ? validationResult[key] : validationResult;
+                    expect(fieldResult).toBeFalsy(); // Check if the specific field is falsy
                 });
             });
 
             // Testing invalid cases
             invalid?.forEach(iv => {
                 it(`should reject invalid ${key}: ${JSON.stringify(iv)}`, async () => {
+                    const { testSchema, contextValues } = generateTestSchema(true);
                     const testData = context ? { ...contextValues, [key]: iv } : iv;
-                    await expect(requiredSchema.validate(testData)).rejects.toThrow();
+                    await expect(testSchema.validate(testData)).rejects.toThrow();
                 });
             });
 
             // Testing transformation cases (if applicable)
             transforms?.forEach(([input, expectedOutput]) => {
                 it(`should transform ${key}: ${JSON.stringify(input)} to ${JSON.stringify(expectedOutput)}`, async () => {
+                    const { testSchema, contextValues } = generateTestSchema(false); // We don't want the schema to be rejected, since we're only testing the transformation
                     const testData = context ? { ...contextValues, [key]: input } : input;
                     const expected = context ? { ...contextValues, [key]: expectedOutput } : expectedOutput;
-                    await expect(requiredSchema.validate(testData)).resolves.toEqual(expected);
+                    await expect(testSchema.validate(testData)).resolves.toEqual(expected);
                 });
             });
         });

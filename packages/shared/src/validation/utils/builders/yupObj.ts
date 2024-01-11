@@ -1,34 +1,76 @@
 import * as yup from "yup";
+import { splitDotNotation } from "../../../utils";
+import { omit } from "../../../utils/omit";
 import { YupModel, YupModelOptions, YupMutateParams } from "../types";
 import { RelationshipType, rel } from "./rel";
 
 /**
  * Creates a yup object
- * @param fields Required and optional non-relationship fields to include in the yup object
+ * @param primFields Required and optional primitive (non-relationship) fields to include in the yup object
  * @param rels 2D array of relationship data, used to create one or more fields for each relationship
- * @param excludePairs Pairs of fields which cannot both be present in the same object
+ * @param requireOneGroups Groups of fields which exactly one field must be present
  * @param data Parameters for YupModel create and update
  */
-export const yupObj = <T extends { [key: string]: yup.AnySchema }>(
-    fields: T,
-    rels: [string, readonly RelationshipType[], "one" | "many", "opt" | "req", YupModel<YupModelOptions[]>?, (string | string[])?][],
-    excludePairs: [string, string][],
+export const yupObj = <AllFields extends { [key: string]: yup.AnySchema }>(
+    primFields: Partial<AllFields>,
+    rels: [
+        string, // Relationship name
+        readonly RelationshipType[], // Operations allowed on this relationship (e.g. "Create", "Delete")
+        "one" | "many", // If this relationship is one-to-one or one-to-many, which is used to determine if we should use an array or object
+        "opt" | "req", // If this relationship is optional or required, which is used to determine if we should use an opt() or req()
+        YupModel<YupModelOptions[]>?, // The YupModel (validation info) for this relationship
+        string[]? // Any fields which should be omitted from the relationsip's validation object. Typically used to prevent circular references
+    ][],
+    requireOneGroups: [string, string][], // NOTE: All of these fields must be marked as optional, since we can't override individual field required validations
     data: YupMutateParams,
 ) => {
+    // Find fields which should be omitted from the top level object
+    const [topFields] = splitDotNotation(data.omitFields ?? []);
     // Convert every relationship into yup fields
-    let relObjects: { [key: string]: yup.AnySchema } = {};
+    let relFields: Partial<AllFields> = {};
     rels.forEach((params) => {
-        // Skip if the relationship is in the omitRels array
-        if (data.omitRels && (typeof data.omitRels === "string" ? params[0] === data.omitRels : data.omitRels.includes(params[0]))) {
-            return;
-        }
-        relObjects = { ...relObjects, ...rel(data, ...params) };
+        // Filter out any relationship types where `${params[0]}${type}` is in topFields
+        const filteredRelTypes = params[1].filter((type) => !topFields.includes(`${params[0]}${type}`));
+        // If there are no relationship types left, skip this relationship
+        if (!filteredRelTypes.length) return;
+        // Find nested omitFields for this relationship. Can either start with `${params[0]}.` or `${params[0]}${type}.`
+        const nestedFieldStarts = [`${params[0]}.`, ...filteredRelTypes.map((type) => `${params[0]}${type}.`)];
+        const fullNestedFields = Object.keys(data.omitFields ?? []).filter((field) => nestedFieldStarts.some((start) => field.startsWith(start)));
+        const [, relNestedFields] = splitDotNotation(fullNestedFields);
+        // Add to relFields
+        relFields = {
+            ...relFields,
+            ...rel({
+                ...data,
+                omitFields: [...relNestedFields, ...(params.length === 6 && Array.isArray(params[5]) ? params[5] : [])],
+            }, ...params),
+        };
     });
-    // Combine fields and relObjects, 
-    // and add excludePairs
-    const obj = yup.object().shape({
-        ...fields,
-        ...relObjects,
-    }, excludePairs);
-    return obj;
+    // Combine fields and omit unwanted ones
+    const filteredFields = omit({
+        ...primFields,
+        ...relFields,
+    }, topFields) as AllFields;
+    // Create yup object
+    let schema = yup.object().shape(filteredFields);
+    // Create tests for each requireOneGroup
+    requireOneGroups.forEach((fields) => {
+        schema = schema.test(
+            `exclude-${fields.join("-")}`,
+            `Only one of the following fields can be present: ${fields.join(", ")}`,
+            function (value) {
+                // Count the number of fields which are present
+                const fieldCounts = fields.filter((field) => value[field] !== undefined).length;
+                // While we're here, we'll check if any of the fields were marked as required.  
+                // If so, it will always fail. So we'll give a warning
+                const anyRequired = fields.some((field) => this.schema.fields[field].tests.some((test) => test.OPTIONS.name === "required"));
+                if (anyRequired) {
+                    console.warn(`One of the following fields is marked as required, so this require-one test will always fail: ${fields.join(", ")}`);
+                }
+                // Allow exactly one
+                return fieldCounts === 1;
+            },
+        );
+    });
+    return schema;
 };

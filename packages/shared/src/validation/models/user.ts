@@ -107,19 +107,15 @@ export const userDeleteOneSchema = yup.object().shape({
     deletePublicData: req(bool),
 });
 
-/**
- * Schema for sending a password reset request
- */
+/** Schema for sending a password reset request */
 export const emailRequestPasswordChangeSchema = yup.object().shape({
     email: req(email),
 });
 
-/**
- * Schema for resetting your password
- */
+/** Schema for resetting your password */
 export const emailResetPasswordSchema = yup.object().shape({
     newPassword: req(password),
-    confirmNewPassword: yup.string().oneOf([yup.ref("newPassword"), null], "Passwords must match"),
+    confirmNewPassword: req(password).oneOf([yup.ref("newPassword")], "Passwords must match"),
 });
 
 export const profileEmailUpdateValidation: YupModel<["update"]> = {

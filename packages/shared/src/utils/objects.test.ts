@@ -1,4 +1,5 @@
-import { deepClone, getDotNotationValue, isObject, isOfType, setDotNotationValue } from "./objects";
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+import { deepClone, getDotNotationValue, isObject, isOfType, setDotNotationValue, splitDotNotation } from "./objects";
 
 describe("getDotNotationValue", () => {
     it("should retrieve values using dot notation", () => {
@@ -56,6 +57,99 @@ describe("setDotNotationValue", () => {
         expect(obj2.foo).toBe("updatedValue");
     });
 });
+
+describe("splitDotNotation", () => {
+    it("splits standard dot notation strings correctly", () => {
+        const input = ["first.second.third", "another.example.string"];
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual(["first", "another"]);
+        expect(remainders).toEqual(["second.third", "example.string"]);
+    });
+
+    it("handles empty strings", () => {
+        const input = [""];
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual([""]);
+        expect(remainders).toEqual([""]);
+    });
+
+    it("handles strings without dots", () => {
+        const input = ["first", "second"];
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual(["first", "second"]);
+        expect(remainders).toEqual(["", ""]);
+    });
+
+    it("handles strings with multiple dots", () => {
+        const input = ["first.second.third", "another.one.two.three"];
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual(["first", "another"]);
+        expect(remainders).toEqual(["second.third", "one.two.three"]);
+    });
+
+    it("handles an empty array", () => {
+        const input: string[] = [];
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual([]);
+        expect(remainders).toEqual([]);
+    });
+
+    it("handles an array with only empty strings", () => {
+        const input = ["", ""];
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual(["", ""]);
+        expect(remainders).toEqual(["", ""]);
+    });
+
+    it("handles null input", () => {
+        const input = [null, "valid.string", null];
+        // @ts-ignore: Testing runtime scenario
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual(["", "valid", ""]);
+        expect(remainders).toEqual(["", "string", ""]);
+    });
+
+    it("handles undefined input", () => {
+        const input = [undefined, "test.value", undefined];
+        // @ts-ignore: Testing runtime scenario
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual(["", "test", ""]);
+        expect(remainders).toEqual(["", "value", ""]);
+    });
+
+    it("handles mixed valid and invalid inputs", () => {
+        const input = [null, "first.second", "", undefined, "another.one"];
+        // @ts-ignore: Testing runtime scenario
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual(["", "first", "", "", "another"]);
+        expect(remainders).toEqual(["", "second", "", "", "one"]);
+    });
+
+    it("removes empty strings when removeEmpty is true", () => {
+        const input = [null, "first.second", "", undefined, "another.one"];
+        // @ts-ignore: Testing runtime scenario
+        const [fields, remainders] = splitDotNotation(input, true);
+        expect(fields).toEqual(["first", "another"]);
+        expect(remainders).toEqual(["second", "one"]);
+    });
+
+    it("includes empty strings when removeEmpty is false", () => {
+        const input = [null, "first.second", "", undefined, "another.one"];
+        // @ts-ignore: Testing runtime scenario
+        const [fields, remainders] = splitDotNotation(input, false);
+        expect(fields).toEqual(["", "first", "", "", "another"]);
+        expect(remainders).toEqual(["", "second", "", "", "one"]);
+    });
+
+    it("defaults to including empty strings when removeEmpty is not provided", () => {
+        const input = ["", "first.second", null, "another.one", undefined];
+        // @ts-ignore: Testing runtime scenario
+        const [fields, remainders] = splitDotNotation(input);
+        expect(fields).toEqual(["", "first", "", "another", ""]);
+        expect(remainders).toEqual(["", "second", "", "one", ""]);
+    });
+});
+
 
 describe("isObject", () => {
     it("should identify objects correctly", () => {

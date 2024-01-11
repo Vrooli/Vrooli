@@ -16,7 +16,7 @@ export const quizQuestionResponseValidation: YupModel<["create", "update"]> = {
     }, [
         ["quizAttempt", ["Connect"], "one", "opt"],
         ["quizQuestion", ["Connect"], "one", "opt"],
-    ], [["standardVersionConnect", "standardVersionCreate"]], d),
+    ], [], d),
     update: (d) => yupObj({
         id: req(id),
         response: opt(response),

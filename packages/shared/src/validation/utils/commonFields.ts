@@ -12,16 +12,14 @@ import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
 import { handleRegex, hexColorRegex, urlRegex } from "./regex";
 import { minVersionTest } from "./versions";
 
-
 yup.addMethod(yup.string, "removeEmptyString", function () {
-    return this.when([], (schema, { value }: any) => {
-        if (typeof value !== "string" || value === "") return schema.strip();
-        return schema;
+    return this.transform((value: unknown) => {
+        return typeof value === "string" && value.trim() !== "" ? value : undefined;
     });
 });
 
 yup.addMethod(yup.bool, "toBool", function () {
-    return this.transform((value: any) => {
+    return this.transform((value: unknown) => {
         if (typeof value === "boolean") return value;
         if (typeof value === "string") return value.trim() === "true" || value.trim() === "yes" || value.trim() === "1";
         if (typeof value === "number") return value === 1;
@@ -31,7 +29,7 @@ yup.addMethod(yup.bool, "toBool", function () {
 
 
 // db fields
-export const id = yup.string().trim().removeEmptyString().test("uuid", "Must be a valid UUID", (value) => typeof value === "string" && uuidValidate(value));
+export const id = yup.string().trim().removeEmptyString().test("uuid", "Must be a valid UUID", (value) => value === null || value === undefined || (typeof value === "string" && uuidValidate(value)));
 
 // protocol fields
 export const apiCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
@@ -81,9 +79,14 @@ export const endTime = yup.date()
         function (value) {
             const startTime = this.resolve(yup.ref("startTime"));
 
-            if (!value || !startTime) {
-                console.log("One of the times is missing");
+            if (startTime === null || startTime === undefined) {
+                console.log("Start time is missing");
                 return false;
+            }
+
+            if (value === null || value === undefined) {
+                // req() will catch this
+                return true;
             }
 
             // Ensure both values are Date instances
@@ -106,9 +109,14 @@ export const newEndTime = yup.date()
         function (value) {
             const startTime = this.resolve(yup.ref("newStartTime"));
 
-            if (!value || !startTime) {
-                console.log("One of the times is missing");
+            if (startTime === null || startTime === undefined) {
+                console.log("Start time is missing");
                 return false;
+            }
+
+            if (value === null || value === undefined) {
+                // req() will catch this
+                return true;
             }
 
             // Ensure both values are Date instances
