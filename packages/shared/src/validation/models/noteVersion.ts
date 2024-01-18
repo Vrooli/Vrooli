@@ -6,10 +6,12 @@ const text = yup.string().trim().max(65536, maxStrErr);
 
 export const notePageValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
+        id: req(id),
         pageIndex: req(intPositiveOrZero),
         text: text.defined().strict(true),
     }, [], [], d),
     update: (d) => yupObj({
+        id: req(id),
         pageIndex: opt(intPositiveOrZero),
         text: text.defined().strict(true).optional(),
     }, [], [], d),

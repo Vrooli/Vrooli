@@ -29,7 +29,9 @@ export const yupObj = <AllFields extends { [key: string]: yup.AnySchema }>(
     // Convert every relationship into yup fields
     let relFields: Partial<AllFields> = {};
     rels.forEach((params) => {
-        // Filter out any relationship types where `${params[0]}${type}` is in topFields
+        // If relationship is in topFields, skip it
+        if (topFields.includes(params[0])) return;
+        // Filter out any relationship types where params[0] or `${params[0]}${type}` is in topFields
         const filteredRelTypes = params[1].filter((type) => !topFields.includes(`${params[0]}${type}`));
         // If there are no relationship types left, skip this relationship
         if (!filteredRelTypes.length) return;
@@ -37,14 +39,14 @@ export const yupObj = <AllFields extends { [key: string]: yup.AnySchema }>(
         const nestedFieldStarts = [`${params[0]}.`, ...filteredRelTypes.map((type) => `${params[0]}${type}.`)];
         const fullNestedFields = Object.keys(data.omitFields ?? []).filter((field) => nestedFieldStarts.some((start) => field.startsWith(start)));
         const [, relNestedFields] = splitDotNotation(fullNestedFields);
+        // Create relationship
+        const relResult = rel({
+            ...data,
+            omitFields: [...relNestedFields, ...(params.length === 6 && Array.isArray(params[5]) ? params[5] : [])],
+            recurseCount: (data.recurseCount ?? 0) + 1,
+        }, ...params);
         // Add to relFields
-        relFields = {
-            ...relFields,
-            ...rel({
-                ...data,
-                omitFields: [...relNestedFields, ...(params.length === 6 && Array.isArray(params[5]) ? params[5] : [])],
-            }, ...params),
-        };
+        relFields = { ...relFields, ...relResult };
     });
     // Combine fields and omit unwanted ones
     const filteredFields = omit({

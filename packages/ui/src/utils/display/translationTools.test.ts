@@ -786,7 +786,6 @@ describe("combineErrorsWithTranslations", () => {
     });
 });
 
-
 describe("addEmptyTranslation", () => {
     const mockField = {
         value: [

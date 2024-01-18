@@ -52,11 +52,11 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
-                const { translations } = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translations = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,
-                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
+                    pages: await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest }),
                 }));
                 const translationCreates = await Promise.all(translationCreatesPromises ?? []);
                 return {
@@ -73,11 +73,11 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
             },
             update: async ({ data, ...rest }) => {
                 // Translated pages require custom logic
-                const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translations = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,
-                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
+                    pages: await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest }),
                 }));
                 const translationUpdatesPromises = translations?.update?.map(async (translation) => ({
                     where: translation.where,
@@ -86,7 +86,7 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                         pagesCreate: undefined,
                         pagesUpdate: undefined,
                         pagesDelete: undefined,
-                        ...(await shapeHelper({ relation: "pages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation.data, ...rest })),
+                        pages: await shapeHelper({ relation: "pages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation.data, ...rest }),
                     },
                 }));
                 const translationCreates = await Promise.all(translationCreatesPromises ?? []);

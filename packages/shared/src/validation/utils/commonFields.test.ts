@@ -1,7 +1,7 @@
 import * as yup from "yup";
 import { uuid } from "../../id";
 import { opt, req } from "./builders";
-import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, apiCallData, bool, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, newEndTime, newStartTime, originalStartTime, pushNotificationKeys, smartContractCallData, startTime, timezone, url } from "./commonFields";
+import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, apiCallData, bool, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, newEndTime, newStartTime, originalStartTime, pushNotificationKeys, smartContractCallData, startTime, timezone, url, versionLabel } from "./commonFields";
 
 type Case = string | number | boolean | Date | null | undefined | { [x: string]: Case } | Case[];
 type ValidatorSet = {
@@ -237,6 +237,26 @@ describe("Yup validation tests", () => {
             schema: endDate,
             valid: [new Date()],
             invalid: ["invalid-date", ""],
+        },
+        versionLabel: {
+            schema: versionLabel({ minVersion: '1.0.0' }),
+            valid: [
+                '1.0.0',
+                '1.0.1',
+                '1.1.0',
+                '2.0.0',
+            ],
+            invalid: [
+                '0.9.9',
+                '0.0.9',
+                'a.b.c',
+                '1.0.0.0', // Assuming this format is invalid
+                ''.repeat(17), // Exceeds max length of 16
+            ],
+            transforms: [
+                [' 1.0.0 ', '1.0.0'],
+                ['1.0.0', '1.0.0'],
+            ],
         },
     };
 

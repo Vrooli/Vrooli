@@ -37,7 +37,10 @@ export const useErrorPopover = ({
     // Errors as a markdown list
     const errorMessage = useMemo<string>(() => {
         // Filter out null and undefined errors
-        const filteredErrors = Object.entries(errors ?? {}).filter(([key, value]) => exists(value)) as [string, string | string[]][];
+        const filteredErrors = Object.entries(errors ?? {}).filter(([, value]) => exists(value)) as [string, string | string[]][];
+        // If there is an error of key "_form", return that error instead of a list
+        const formError = filteredErrors.find(([key]) => key === "_form");
+        if (formError) return uppercaseFirstLetter(formError[1] as string);
         // Helper to convert string to markdown list item
         const toListItem = (str: string, level: number) => { return `${"  ".repeat(level)}* ${str}`; };
         // Convert errors to markdown list

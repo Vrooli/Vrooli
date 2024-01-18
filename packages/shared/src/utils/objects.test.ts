@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { deepClone, getDotNotationValue, isObject, isOfType, setDotNotationValue, splitDotNotation } from "./objects";
+import { deepClone, getDotNotationValue, isObject, isOfType, mergeDeep, setDotNotationValue, splitDotNotation } from "./objects";
 
 describe("getDotNotationValue", () => {
     it("should retrieve values using dot notation", () => {
@@ -235,5 +235,46 @@ describe("deepClone", () => {
         expect(clonedObj.nested).not.toBe(obj.nested); // Ensure nested object is cloned
         expect(clonedObj.nested.c).not.toBe(obj.nested.c); // Ensure nested object's array is cloned
         expect(clonedObj.nested.d).not.toBe(obj.nested.d); // Ensure nested object's object is cloned
+    });
+});
+
+describe('mergeDeep', () => {
+    it('should return the source object if it is not an object', () => {
+        expect(mergeDeep(5, 10)).toBe(5);
+        expect(mergeDeep('hello', 'world')).toBe('hello');
+        expect(mergeDeep(true, false)).toBe(true);
+    });
+
+    it('should return the default object if the source is null or undefined', () => {
+        expect(mergeDeep(null, { a: 1 })).toEqual({ a: 1 });
+        expect(mergeDeep(undefined, { a: 1 })).toEqual({ a: 1 });
+    });
+
+    it('should merge properties from the default object into the source object', () => {
+        expect(mergeDeep({ a: 1 }, { b: 2 })).toEqual({ a: 1, b: 2 });
+        expect(mergeDeep({ a: 1 }, { a: 2, b: 2 })).toEqual({ a: 1, b: 2 });
+    });
+
+    it('should handle nested objects', () => {
+        expect(mergeDeep({ a: { b: 1 } }, { a: { c: 2 }, d: 3 })).toEqual({ a: { b: 1, c: 2 }, d: 3 });
+        expect(mergeDeep({ a: { b: 1 } }, { a: { b: 2, c: 2 } })).toEqual({ a: { b: 1, c: 2 } });
+    });
+
+    it('should not merge arrays', () => {
+        expect(mergeDeep([1, 2, 3], [4, 5, 6])).toEqual([1, 2, 3]);
+        expect(mergeDeep({ a: [1, 2, 3] }, { a: [4, 5, 6] })).toEqual({ a: [1, 2, 3] });
+    });
+
+    it('should handle complex nested structures', () => {
+        const source = { a: { b: 1, d: [1, 2, 3] }, e: 'test' };
+        const defaults = { a: { b: 2, c: 3, d: [4, 5, 6] }, e: 'default', f: false };
+        const expected = { a: { b: 1, c: 3, d: [1, 2, 3] }, e: 'test', f: false };
+        expect(mergeDeep(source, defaults)).toEqual(expected);
+    });
+
+    it('should handle empty objects and arrays', () => {
+        expect(mergeDeep({}, { a: 1 })).toEqual({ a: 1 });
+        expect(mergeDeep([], [1, 2, 3])).toEqual([]);
+        expect(mergeDeep({ a: {} }, { a: { b: 2 } })).toEqual({ a: { b: 2 } });
     });
 });

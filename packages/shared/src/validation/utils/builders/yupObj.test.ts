@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import * as yup from "yup";
+import { uuid } from "../../../id";
 import { opt } from "./opt";
 import { yupObj } from "./yupObj"; // Update with the actual path
 
@@ -103,7 +104,6 @@ describe("yupObj", () => {
 
     it("should handle relationship with omitted fields - test1", async () => {
         const relSchema = createDummyYupModel("dummyField");
-        console.log("creating schema for test \"should handle relationship with omitted fields - test1\"");
         const schema = yupObj(
             { testField: yup.string().required() },
             // @ts-ignore: Testing runtime scenario
@@ -140,6 +140,42 @@ describe("yupObj", () => {
         expect(schema.cast(unstripped, { stripUnknown: true })).toEqual(strippedCorrectly);
         expect(schema.cast(strippedCorrectly, { stripUnknown: true })).toEqual(strippedCorrectly);
     });
+    it("should handle relationship with omitted fields - test3", async () => {
+        const grandchildSchema = createDummyYupModel("dummyField1", "dummyField2");
+        const childSchema = {
+            create: (d) => yupObj(
+                { testField: yup.string().required() },
+                // @ts-ignore: Testing runtime scenario
+                [["grandchild", ["Create", "Update"], "one", "req", grandchildSchema, ["dummyField1"]]],
+                [],
+                d,
+            ),
+            update: (d) => yupObj(
+                { testField: yup.string().required() },
+                // @ts-ignore: Testing runtime scenario
+                [["grandchild", ["Create", "Update"], "one", "req", grandchildSchema, ["dummyField1"]]],
+                [],
+                d,
+            ),
+        };
+        const parentSchema = yupObj(
+            {},
+            // @ts-ignore: Testing runtime scenario
+            [["child", ["Create", "Update", "Delete"], "one", "req", childSchema, ["grandchild"]]], // Should exclude all grandchild fields, not just grandchildCreate, grandchildUpdate, etc.
+            [],
+            {},
+        );
+        const unstripped = { childCreate: { testField: "boop", grandchildCreate: { dummyField1: "test", dummyField2: "yeet" } } };
+        const strippedCorrectly = { childCreate: { testField: "boop" } };
+        const strippedIncorrectly = { childCreate: { testField: "boop", grandchildCreate: { dummyField1: "test" } } };
+        // Validation should pass when extra fields are provided
+        await expect(parentSchema.validate(unstripped)).resolves.toEqual(unstripped);
+        await expect(parentSchema.validate(strippedCorrectly)).resolves.toEqual(strippedCorrectly);
+        await expect(parentSchema.validate(strippedIncorrectly)).resolves.toEqual(strippedIncorrectly);
+        // Casting should strip extra fields
+        expect(parentSchema.cast(unstripped, { stripUnknown: true })).toEqual(strippedCorrectly);
+        expect(parentSchema.cast(strippedCorrectly, { stripUnknown: true })).toEqual(strippedCorrectly);
+    });
 
     it("should enforce exclusion pairs on primitive fields", async () => {
         const schema = yupObj(
@@ -155,7 +191,6 @@ describe("yupObj", () => {
         const field1Only = { field1: "test" };
         const field2Only = { field2: "test" };
         const noFields = {};
-        console.log("schema for \"should enforce...\"", schema);
         await expect(schema.validate(bothFields)).rejects.toThrow();
         await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
         await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
@@ -247,5 +282,61 @@ describe("yupObj", () => {
         await expect(schema.validate(unstripped)).resolves.toEqual(unstripped);
         await expect(schema.validate(stripped)).resolves.toEqual(stripped);
         expect(schema.cast(unstripped, { stripUnknown: true })).toEqual(stripped);
+    });
+
+    it("should treat one-to-one Connects as an ID", async () => {
+        const relSchema = createDummyYupModel("dummyField");
+        const schema = yupObj(
+            { testField: yup.string().required() },
+            // @ts-ignore: Testing runtime scenario
+            [["dummyRel", ["Create", "Connect"], "one", "opt", relSchema]],
+            [],
+            {},
+        );
+        const data = { testField: "boop", dummyRelConnect: uuid(), dummyRelCreate: { dummyField: "test" } };
+        await expect(schema.validate(data)).resolves.toEqual(data);
+        expect(schema.cast(data, { stripUnknown: true })).toEqual(data);
+    });
+
+    it("should treat one-to-many Connects as an ID array", async () => {
+        const relSchema = createDummyYupModel("dummyField");
+        const schema = yupObj(
+            { testField: yup.string().required() },
+            // @ts-ignore: Testing runtime scenario
+            [["dummyRel", ["Create", "Connect"], "many", "opt", relSchema]],
+            [],
+            {},
+        );
+        const data = { testField: "boop", dummyRelConnect: [uuid()], dummyRelCreate: [{ dummyField: "test" }] };
+        await expect(schema.validate(data)).resolves.toEqual(data);
+        expect(schema.cast(data, { stripUnknown: true })).toEqual(data);
+    });
+
+    it("should treat one-to-one Deletes and Disconnects as a boolean", async () => {
+        const relSchema = createDummyYupModel("dummyField");
+        const schema = yupObj(
+            { testField: yup.string().required() },
+            // @ts-ignore: Testing runtime scenario
+            [["dummyRel", ["Delete", "Disconnect"], "one", "opt", relSchema]],
+            [],
+            {},
+        );
+        const data = { testField: "boop", dummyRelDelete: true, dummyRelDisconnect: true };
+        await expect(schema.validate(data)).resolves.toEqual(data);
+        expect(schema.cast(data, { stripUnknown: true })).toEqual(data);
+    });
+
+    it("should treat one-to-many Deletes and Disconnects as an ID array", async () => {
+        const relSchema = createDummyYupModel("dummyField");
+        const schema = yupObj(
+            { testField: yup.string().required() },
+            // @ts-ignore: Testing runtime scenario
+            [["dummyRel", ["Delete", "Disconnect"], "many", "opt", relSchema]],
+            [],
+            {},
+        );
+        const data = { testField: "boop", dummyRelDelete: [uuid()], dummyRelDisconnect: [uuid()] };
+        await expect(schema.validate(data)).resolves.toEqual(data);
+        expect(schema.cast(data, { stripUnknown: true })).toEqual(data);
     });
 });

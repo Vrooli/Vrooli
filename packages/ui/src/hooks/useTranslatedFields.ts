@@ -14,7 +14,7 @@ export function useTranslatedFields({
     validationSchema,
 }: {
     defaultLanguage: string,
-    validationSchema?: yup.ObjectSchema<any>,
+    validationSchema?: yup.AnyObjectSchema,
 }) {
     // Language state
     const [language, setLanguage] = useState<string>(defaultLanguage);

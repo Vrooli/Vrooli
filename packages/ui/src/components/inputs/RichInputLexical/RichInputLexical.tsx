@@ -21,7 +21,7 @@ import { $isTableNode, TableCellNode, TableNode, TableRowNode } from "@lexical/t
 import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import { $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, DEPRECATED_$isGridSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode, createCommand, createEditor } from "lexical";
+import { $INTERNAL_isPointSelection, $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, $isTextNode, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, INTERNAL_PointSelection, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode, createCommand, createEditor } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
@@ -347,9 +347,17 @@ const registerCustomCommands = (editor: LexicalEditor): (() => unknown) => {
                 } else if (nodes.length > 0) {
                     const spoilerNode = $createSpoilerNode();
 
-                    const startNode = nodes[0];
+                    const startNode = nodes[0] as TextNode;
+                    if (!$isTextNode(startNode)) {
+                        console.error("Failed to find a text node for the start of the selection!");
+                        return false;
+                    }
                     console.log("got start node", startNode.getTextContent());
-                    const endNode = nodes[nodes.length - 1];
+                    const endNode = nodes[nodes.length - 1] as TextNode;
+                    if (!$isTextNode(endNode)) {
+                        console.error("Failed to find a text node for the end of the selection!");
+                        return false;
+                    }
                     console.log("got end node", endNode.getTextContent());
                     const startParent = startNode.getParent();
                     console.log("start parent at beginning", startParent?.getTextContent());
@@ -362,7 +370,7 @@ const registerCustomCommands = (editor: LexicalEditor): (() => unknown) => {
                     // Split the startNode if needed
                     if (startNode.getTextContentSize() > startOffset) {
                         const beforeText = startNode.getTextContent().substring(0, startOffset);
-                        const newNode = new TextNode(beforeText); // Assuming TextNode constructor accepts a string
+                        const newNode: TextNode = new TextNode(beforeText); // Assuming TextNode constructor accepts a string
                         console.log("new node 1", newNode.getTextContent());
                         startNode.insertBefore(newNode);
                         startNode.setTextContent(startNode.getTextContent().substring(startOffset));
@@ -381,7 +389,7 @@ const registerCustomCommands = (editor: LexicalEditor): (() => unknown) => {
                     // Split the endNode if needed
                     if (endOffset < endNode.getTextContentSize()) {
                         const afterText = endNode.getTextContent().substring(endOffset - startOffset);
-                        const newNode = new TextNode(afterText);
+                        const newNode: TextNode = new TextNode(afterText);
                         console.log("new node 2", newNode.getTextContent());
                         endNode.insertAfter(newNode);
                         endNode.setTextContent(endNode.getTextContent().substring(0, endOffset - startOffset));
@@ -670,11 +678,8 @@ const RichInputLexicalComponents = ({
     const toggleHeading = useCallback((headingSize: HeadingTagType) => {
         editor.update(() => {
             const selection = $getSelection();
-            if (
-                $isRangeSelection(selection) ||
-                DEPRECATED_$isGridSelection(selection)
-            ) {
-                $setBlocksType(selection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createParagraphNode() : $createHeadingNode(headingSize));
+            if (selection && $INTERNAL_isPointSelection(selection)) {
+                $setBlocksType(selection as INTERNAL_PointSelection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createParagraphNode() : $createHeadingNode(headingSize));
             }
         });
     }, [activeStates, editor]);

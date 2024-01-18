@@ -14,7 +14,7 @@ export const shapeDate = (
     const date = new Date(dateStr);
 
     // Check if date is Invalid Date
-    if (isNaN(date.getTime())) {
+    if (date.toString() === "Invalid Date") {
         return null;
     }
 

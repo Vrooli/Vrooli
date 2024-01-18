@@ -1,4 +1,4 @@
-import { meetsMinVersion } from "@local/shared";
+import { meetsMinVersion } from "./meetsMinVersion";
 
 /**
 * Determines mimimum version. This is either: 
@@ -8,12 +8,12 @@ import { meetsMinVersion } from "@local/shared";
 * @param versions The list of versions
 * @returns The minimum version
 */
-export const getMinimumVersion = (versions: string[]): string => {
+export const getMinVersion = (versions: string[]): string => {
     // If no versions, return 0.0.1
     if (versions.length === 0) return "0.0.1";
     // Sort using meetsMinVersion, which determines if a version is greater than or equal to another version
     versions.sort((a, b) => meetsMinVersion(a, b) ? 1 : -1);
     // Get the highest version
     const highestVersion = versions[versions.length - 1];
-    return highestVersion;
+    return highestVersion ?? "0.0.1";
 }; 

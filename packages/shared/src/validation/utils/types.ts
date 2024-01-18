@@ -7,15 +7,17 @@ export type YupMutateParams = {
      */
     omitFields?: string[] | undefined,
     minVersion?: string,
+    /** Tracks recursion to cancel early */
+    recurseCount?: number,
     env?: string | undefined, // expect "production" | "prod" | "development" | "dev"
 }
 
 export type YupModelOptions = "create" | "update" | "read";
 
 type YupModelMethods = {
-    create: (params: YupMutateParams) => yup.AnySchema;
-    update: (params: YupMutateParams) => yup.AnySchema;
-    read: (params: YupMutateParams) => yup.AnySchema;
+    create: (params: YupMutateParams) => yup.AnyObjectSchema;
+    update: (params: YupMutateParams) => yup.AnyObjectSchema;
+    read: (params: YupMutateParams) => yup.AnyObjectSchema;
 };
 
 type ElementType<T extends ReadonlyArray<unknown>> = T extends ReadonlyArray<infer ElementType> ? ElementType : never;

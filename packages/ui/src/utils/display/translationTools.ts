@@ -1,6 +1,7 @@
 import { CommonKey, ErrorKey, Session, uuid } from "@local/shared";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
+import { FormErrors } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { ObjectSchema, ValidationError } from "yup";
 
@@ -790,15 +791,20 @@ export const getFormikErrorsWithTranslations = (
  * @returns The combined errors object
  */
 export const combineErrorsWithTranslations = (
-    errors: { [key: string]: any },
-    translationErrors: { [key: string]: any },
-): { [key: string]: string | string[] } => {
-    // Combine errors objects
-    const combinedErrors = { ...errors, ...translationErrors };
-    // Filter out any errors that start with "translations"
-    const filteredErrors = Object.fromEntries(Object.entries(combinedErrors).filter(([key]) => !key.startsWith("translations")));
-    // Return filtered errors
-    return filteredErrors;
+    errors: FormErrors | null | undefined,
+    translationErrors: FormErrors | null | undefined,
+): FormErrors => {
+    // If both are null or undefined, return null
+    if (!errors && !translationErrors) {
+        return {};
+    }
+
+    // Filter out any errors from `errors` start with "translations", since these should be handled by `translationErrors`
+    const filteredErrors = !translationErrors ? errors : Object.fromEntries(
+        Object.entries((errors ?? {}) as object).filter(([key]) => !key.startsWith("translations"))
+    );
+    // Combine errors into a single object
+    return { ...filteredErrors, ...translationErrors };
 };
 
 /**

@@ -25,6 +25,7 @@ type RelOutput<FieldName extends string> = (
 /**
  * Creates the validation fields for a relationship
  * @param data Parameters for YupModel create and update
+ * @param recurseCount Used internally to prevent infinite recursion
  * @param relation The name of the relationship field
  * @param relTypes The allowed operations on the relations (e.g. create, connect)
  * @param isRequired "opt" or "req" to mark the fields as optional or required. 
@@ -51,12 +52,16 @@ export const rel = <
     model?: Model,
     directOmitFields?: OmitField | OmitField[],
 ): RelOutput<FieldName> => {
+    // Initialize result
+    const result: RelOutput<FieldName> = {};
+    if (data.recurseCount && data.recurseCount > 20) {
+        console.warn("Hit recursion limit in rel", relation, relTypes, isOneToOne, isRequired, model, directOmitFields);
+        return result;
+    }
     // Check if model is required
     if (relTypes.includes("Create") || relTypes.includes("Update")) {
         if (!model) throw new Error(`Model is required if relTypes includes "Create" or "Update": ${relation}`);
     }
-    // Initialize result
-    const result: RelOutput<FieldName> = {};
     // There are two pass to pass omitFields. Combine them into a single array
     const omitFields = Array.from(new Set([
         ...(Array.isArray(data.omitFields) ? data.omitFields : data.omitFields ? [data.omitFields] : []),
@@ -68,6 +73,7 @@ export const rel = <
             required ? req(field) : opt(field) :
             required ? reqArr(field) : optArr(field);
     };
+    const recurseCount = (data.recurseCount || 0) + 1;
     // Loop through relation types
     for (const t of relTypes) {
         // Determine if field is required. If both 'Connect' and 'Create' are allowed, both 
@@ -81,7 +87,7 @@ export const rel = <
             result[`${relation}${t}`] = wrap(id, required) as RelOutput<FieldName>[`${FieldName}Connect`];
         }
         else if (t === "Create") {
-            result[`${relation}${t}`] = wrap((model as YupModel<["create", "update"]>).create({ ...data, omitFields }), required) as RelOutput<FieldName>[`${FieldName}Create`];
+            result[`${relation}${t}`] = wrap((model as YupModel<["create", "update"]>).create({ ...data, omitFields, recurseCount }), required) as RelOutput<FieldName>[`${FieldName}Create`];
         }
         else if (t === "Delete") {
             result[`${relation}${t}`] = isOneToOne === "one" ? opt(yup.bool().oneOf([true], "Must be true")) : optArr(id);
@@ -90,7 +96,7 @@ export const rel = <
             result[`${relation}${t}`] = isOneToOne === "one" ? opt(yup.bool().oneOf([true], "Must be true")) : optArr(id);
         }
         else if (t === "Update") {
-            result[`${relation}${t}`] = wrap((model as YupModel<["create", "update"]>).update({ ...data, omitFields }), required) as RelOutput<FieldName>[`${FieldName}Update`];
+            result[`${relation}${t}`] = wrap((model as YupModel<["create", "update"]>).update({ ...data, omitFields, recurseCount }), required) as RelOutput<FieldName>[`${FieldName}Update`];
         }
     }
     return result;

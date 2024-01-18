@@ -1,36 +1,39 @@
-import { DotNotation, GqlModelType, ObjectLimit } from "@local/shared";
-import { ObjectSchema } from "yup";
+import { DotNotation, GqlModelType, ObjectLimit, YupMutateParams } from "@local/shared";
+import { AnyObjectSchema } from "yup";
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 import { PrismaType, PromiseOrValue, SessionUserToken } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { IdsCreateToConnect, InputNode, InputsById, QueryAction } from "../utils/types";
 
+type GqlObject = Record<string, any>;
+type DbObject = Record<string, any>;
+
 /** Types and flags for an object's business layer */
 export type ModelLogicType = {
     __typename: `${GqlModelType}`;
     /** GraphQL input for creating the object */
-    GqlCreate: Record<string, any> | undefined,
+    GqlCreate: GqlObject | undefined,
     /** GraphQL input for updating the object */
-    GqlUpdate: Record<string, any> | undefined,
+    GqlUpdate: GqlObject | undefined,
     /** GraphQL input for searching the object */
-    GqlSearch: Record<string, any> | undefined,
+    GqlSearch: GqlObject | undefined,
     /** GraphQL sort options for the object */
     GqlSort: string | undefined,
     /** GraphQL type returned when querying the object */
-    GqlModel: Record<string, any>,
+    GqlModel: GqlObject,
     /** GraphQL type with your permissions for the object (e.g. canUpdate, canDelete) */
-    GqlPermission: Record<string, any>,
+    GqlPermission: GqlObject,
     /** Prisma input for creating the object */
-    PrismaCreate: Record<string, any> | undefined,
+    PrismaCreate: DbObject | undefined,
     /** Prisma input for updating the object */
-    PrismaUpdate: Record<string, any> | undefined,
+    PrismaUpdate: DbObject | undefined,
     /** Prisma input for selecting the object */
-    PrismaSelect: Record<string, any>,
+    PrismaSelect: DbObject,
     /** Prisma input for filtering the object */
-    PrismaWhere: Record<string, any> | undefined,
+    PrismaWhere: DbObject | undefined,
     /** Prisma type returned when querying the object */
-    PrismaModel: Record<string, any>,
+    PrismaModel: DbObject,
     /** Flag for whether the object can be transferred to another account */
     IsTransferable?: boolean,
     /** Flag for whether the object is versioned */
@@ -137,7 +140,7 @@ export interface SupplementalConverter<
     toGraphQL: ({ ids, objects, partial, prisma, userData }: {
         ids: string[],
         languages: string[],
-        objects: ({ id: string } & { [x: string]: any })[], // TODO: fix this type
+        objects: ({ id: string } & DbObject)[],
         partial: PartialGraphQLInfo,
         prisma: PrismaType,
         userData: SessionUserToken | null,
@@ -188,11 +191,11 @@ export interface Formatter<
     /** Add join tables which are not present in GraphQL object */
     addJoinTables?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
     /** Remove join tables which are not present in GraphQL object */
-    removeJoinTables?: (data: { [x: string]: any }) => any;
+    removeJoinTables?: (data: GqlObject) => GqlObject;
     /** Add _count fields */
     addCountFields?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
     /** Remove _count fields */
-    removeCountFields?: (data: { [x: string]: any }) => any;
+    removeCountFields?: (data: GqlObject) => GqlObject;
 }
 
 type CommonSearchFields = "after" | "take" | "ids" | "searchString" | "visibility";
@@ -203,13 +206,13 @@ export type SearchStringQueryParams = {
     searchString: string,
 }
 
-export type SearchStringQuery<Where extends { [x: string]: any }> = {
+export type SearchStringQuery<Where extends DbObject> = {
     [x in keyof Where]: Where[x] extends infer R ?
     //Check array
-    R extends { [x: string]: any }[] ?
+    R extends DbObject[] ?
     ((keyof typeof SearchStringMap)[] | SearchStringQuery<Where[x]>) :
     //Check object
-    R extends { [x: string]: any } ?
+    R extends DbObject ?
     (keyof typeof SearchStringMap | SearchStringQuery<Where[x]>) :
     //Else
     SearchStringQuery<Where[x]> : never
@@ -283,7 +286,7 @@ export type Searcher<
  * is a list of fields (supporting dot notation) to omit from the substitution's permissions. This 
  * is important for preventing circular references
  */
-export type PermissionsMap<ModelSelect extends { [x: string]: any }> = {
+export type PermissionsMap<ModelSelect extends GqlObject> = {
     [x in keyof ModelSelect]: ModelSelect[x] | `${GqlModelType}` | [`${GqlModelType}`, string[]]
 }
 
@@ -354,8 +357,8 @@ export type Validator<
      * Permissions data for the object's owner
      */
     owner: (data: Model["PrismaModel"] | undefined, userId: string) => {
-        Organization?: ({ id: string } & { [x: string]: any }) | null;
-        User?: ({ id: string } & { [x: string]: any }) | null;
+        Organization?: ({ id: string } & DbObject) | null;
+        User?: ({ id: string } & DbObject) | null;
     }
     /**
      * String fields which must be checked for profanity. You don't need to 
@@ -463,8 +466,8 @@ export type Mutater<Model extends {
             prisma: PrismaType,
         }) => PromiseOrValue<(string | null)[]>,
         /** Shapes data for create mutations */
-        create?: Model["GqlCreate"] extends Record<string, any> ?
-        Model["PrismaCreate"] extends Record<string, any> ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
+        create?: Model["GqlCreate"] extends GqlObject ?
+        Model["PrismaCreate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
             data: Model["GqlCreate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap;
@@ -472,8 +475,8 @@ export type Mutater<Model extends {
             userData: SessionUserToken,
         }) => PromiseOrValue<Model["PrismaCreate"]> : never : never,
         /** Shapes data for update mutations */
-        update?: Model["GqlUpdate"] extends Record<string, any> ?
-        Model["PrismaUpdate"] extends Record<string, any> ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
+        update?: Model["GqlUpdate"] extends GqlObject ?
+        Model["PrismaUpdate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
             data: Model["GqlUpdate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap,
@@ -519,14 +522,12 @@ export type Mutater<Model extends {
     }
     /** Create and update validations. Share these with UI to make forms more reliable */
     yup: {
-        create?: (params: any) => (Model["GqlCreate"] extends Record<string, any> ? ObjectSchema<any, any, any, any> : any),
-        update?: (params: any) => (Model["GqlUpdate"] extends Record<string, any> ? ObjectSchema<any, any, any, any> : any),
+        create?: (params: YupMutateParams) => (Model["GqlCreate"] extends GqlObject ? AnyObjectSchema : never),
+        update?: (params: YupMutateParams) => (Model["GqlUpdate"] extends GqlObject ? AnyObjectSchema : never),
     }
 }
 
-/**
- * Functions for displaying an object
- */
+/** Functions for displaying an object */
 export type Displayer<
     Model extends {
         PrismaSelect: ModelLogicType["PrismaSelect"],

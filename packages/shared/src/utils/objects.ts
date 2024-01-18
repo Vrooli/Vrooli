@@ -160,3 +160,27 @@ export const deepClone = <T>(obj: T): T => {
     }
 };
 
+/**
+ * Deeply merges two objects, ensuring all properties in the reference object are present in the target object.
+ * 
+ * @param target - The target object to be merged.
+ * @param reference - The default object providing fallback values.
+ * @returns A new object with properties from both target and reference.
+ */
+export const mergeDeep = <T>(target: T, reference: T): T => {
+    if (target === null || typeof target !== 'object' || Array.isArray(target)) {
+        return target !== undefined && target !== null ? target : reference;
+    }
+
+    const result: any = { ...reference };
+
+    for (const key in target) {
+        if (typeof target[key] === 'object' && target[key] !== null && !Array.isArray(target[key])) {
+            result[key] = mergeDeep(target[key] as object, reference[key] || {});
+        } else {
+            result[key] = target[key];
+        }
+    }
+
+    return result;
+}

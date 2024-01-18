@@ -44,14 +44,18 @@ export const versionsCheck = async ({
     userData: SessionUserToken,
 }) => {
     // Filter unchanged versions from create and update data
-    const create = Create.filter(x => x.input.versionLabel).map(x => ({
-        id: x.input.id,
-        rootId: x.input.rootConnect || x.input.rootCreate?.id as string,
-        versionLabel: x.input.versionLabel,
-    }));
-    const update = Update.filter(x => x.input.versionLabel).map(x => ({
-        id: x.input.id,
-        versionLabel: x.input.versionLabel,
+    const create = Create.filter(x => x.input.versionLabel).map(({ input }) => {
+        const rootData = input.rootCreate ?? input.rootConnect;
+        const rootId = typeof rootData === "string" ? rootData : rootData?.id as string;
+        return {
+            id: input.id,
+            rootId,
+            versionLabel: input.versionLabel,
+        };
+    });
+    const update = Update.filter(x => x.input.versionLabel).map(({ input }) => ({
+        id: input.id,
+        versionLabel: input.versionLabel,
     }));
     // Find unique root ids from create data
     const createRootIds = create.map(x => x.rootId);
