@@ -1870,9 +1870,49 @@
         }
       }
     },
+    "/projectVersionDirectory/{id}": {
+      "get": {
+        "operationId": "endpointGetProjectVersionDirectory",
+        "tags": [
+          "projectVersionDirectory"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutProjectVersionDirectory",
+        "tags": [
+          "projectVersionDirectory"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
     "/projectVersionDirectories": {
       "get": {
         "operationId": "endpointGetProjectVersionDirectories",
+        "tags": [
+          "projectVersionDirectory"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/projectVersionDirectory": {
+      "post": {
+        "operationId": "endpointPostProjectVersionDirectory",
         "tags": [
           "projectVersionDirectory"
         ],
@@ -30736,6 +30776,18 @@
             "title": "Report.responsesCount",
             "type": "number"
           },
+          "status": {
+            "enum": [
+              "ClosedDeleted",
+              "ClosedFalseReport",
+              "ClosedHidden",
+              "ClosedNonIssue",
+              "ClosedSuspended",
+              "Open"
+            ],
+            "title": "Report.status",
+            "type": "string"
+          },
           "updated_at": {
             "title": "Report.updated_at",
             "type": "string"
@@ -30753,6 +30805,7 @@
           "reason",
           "responses",
           "responsesCount",
+          "status",
           "updated_at",
           "you"
         ],

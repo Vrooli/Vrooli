@@ -418,17 +418,17 @@ export const myStuffTabParams = [{
     tabType: MyStuffPageTabOption.All,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: RoutineIcon,
-    titleKey: "Routine" as CommonKey,
-    searchType: SearchType.Routine,
-    tabType: MyStuffPageTabOption.Routine,
-    where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
-}, {
     Icon: ProjectIcon,
     titleKey: "Project" as CommonKey,
     searchType: SearchType.Project,
     tabType: MyStuffPageTabOption.Project,
     where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: RoutineIcon,
+    titleKey: "Routine" as CommonKey,
+    searchType: SearchType.Routine,
+    tabType: MyStuffPageTabOption.Routine,
+    where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
 }, {
     Icon: MonthIcon,
     titleKey: "Schedule" as CommonKey,

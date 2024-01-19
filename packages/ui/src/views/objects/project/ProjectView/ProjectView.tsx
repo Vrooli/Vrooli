@@ -1,196 +1,199 @@
-import { BookmarkFor, endpointGetProjectVersion, LINKS, ProjectVersion } from "@local/shared";
-import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
+import { endpointGetProjectVersion, endpointPostProjectVersionDirectory, LINKS, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, uuid } from "@local/shared";
+import { Box, IconButton, useTheme } from "@mui/material";
+import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { SiteSearchBar } from "components/inputs/search";
+import { ObjectList } from "components/lists/ObjectList/ObjectList";
+import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
+import { useDeleter } from "hooks/useDeleter";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
-import { EditIcon, EllipsisIcon } from "icons";
-import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AddIcon, DeleteIcon, EditIcon } from "icons";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { OverviewContainer } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
+import { listToAutocomplete } from "utils/display/listTools";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
+import { deleteArrayIndex, updateArray } from "utils/shape/general";
+import { shapeProjectVersionDirectory } from "utils/shape/models/projectVersionDirectory";
 import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
     display,
+    isOpen,
     onClose,
 }: ProjectViewProps) => {
-    const session = useContext(SessionContext);
     const { palette } = useTheme();
-    const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const session = useContext(SessionContext);
+    const [, setLocation] = useLocation();
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: existing, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion>({
+    const { object: existing, isLoading, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion>({
         ...endpointGetProjectVersion,
         objectType: "ProjectVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { name, description, handle } = useMemo(() => {
-        const { description, name } = getTranslation(existing, [language]);
-        return {
-            name,
-            description,
-            handle: existing?.root?.handle,
-        };
-    }, [language, existing]);
+    const { name, description } = useMemo(() => {
+        const { name, description } = getTranslation(existing, [language]);
+        return { name, description };
+    }, [existing, language]);
 
-    // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
-        setMoreMenuAnchor(ev.currentTarget);
-        ev.preventDefault();
+    const [directories, setDirectories] = useState<ProjectVersionDirectory[]>([]);
+    useEffect(() => {
+        setDirectories(existing?.directories ?? []);
+    }, [existing?.directories]);
+
+    const onAction = useCallback((action: keyof ObjectListActions<ProjectVersionDirectory>, ...data: unknown[]) => {
+        switch (action) {
+            case "Deleted": {
+                const id = data[0] as string;
+                setDirectories(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
+                break;
+            }
+            case "Updated": {
+                const updated = data[0] as ProjectVersionDirectory;
+                setDirectories(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
+                break;
+            }
+        }
     }, []);
-    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     const actionData = useObjectActions({
         object: existing,
         objectType: "ProjectVersion",
+        onAction,
         setLocation,
         setObject: setProjectVersion,
     });
 
+    const [createDirectory, { loading: isCreating, errors: createErrors }] = useLazyFetch<ProjectVersionDirectoryCreateInput, ProjectVersionDirectory>(endpointPostProjectVersionDirectory);
+    const addNewDirectory = useCallback(async (to: any) => {
+        fetchLazyWrapper<ProjectVersionDirectoryCreateInput, ProjectVersionDirectory>({
+            fetch: createDirectory,
+            inputs: shapeProjectVersionDirectory.create({
+                //TODO
+                __typename: "ProjectVersionDirectory" as const,
+                id: uuid(),
+                isRoot: false,
+                projectVersion: {
+                    __typename: "ProjectVersion" as const,
+                    id: existing?.id ?? ""
+                },
+            }),
+            successCondition: (data) => data !== null,
+            onSuccess: (data) => {
+                setDirectories((prev) => [...prev, data]);
+            },
+        });
+    }, [createDirectory, existing?.id]);
+
+    // Search dialog to find objects to add to directory
+    const hasSelectedObject = useRef(false);
+    const [searchOpen, setSearchOpen] = useState(false);
+    const openSearch = useCallback(() => { setSearchOpen(true); }, []);
+    const closeSearch = useCallback((selectedObject?: any) => {
+        setSearchOpen(false);
+        hasSelectedObject.current = !!selectedObject;
+        if (selectedObject) {
+            addNewDirectory(selectedObject);
+        }
+    }, [addNewDirectory]);
+
+    const [searchString, setSearchString] = useState("");
+    const updateSearchString = useCallback((newString: string) => {
+        setSearchString(newString);
+    }, []);
+
+    const onDirectorySelect = useCallback((data: any) => {
+        console.log("onDirectorySelect", data);
+    }, []);
+
+    const autocompleteOptions = useMemo(() => listToAutocomplete(directories, getUserLanguages(session)), [directories, session]);
+
+    const {
+        handleDelete,
+        DeleteDialogComponent,
+    } = useDeleter({
+        object: existing,
+        objectType: "ProjectVersion",
+        onActionComplete: () => {
+            const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
+            if (hasPreviousPage) window.history.back();
+            else setLocation(LINKS.Home, { replace: true });
+        },
+    });
+
     return (
         <>
+            {DeleteDialogComponent}
+            <FindObjectDialog
+                find="List"
+                isOpen={searchOpen}
+                handleCancel={closeSearch}
+                handleComplete={closeSearch}
+            />
             <TopBar
                 display={display}
                 onClose={onClose}
-                tabTitle={handle ? `${name} (@${handle})` : name}
-            />
-            {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ObjectActionMenu
-                actionData={actionData}
-                anchorEl={moreMenuAnchor}
-                object={existing as any}
-                onClose={closeMoreMenu}
-            />
-            <OverviewContainer>
-                <Stack direction="row" mr={2}>
-                    <Tooltip title={t("MoreOptions")}>
-                        <IconButton
-                            aria-label={t("MoreOptions")}
-                            size="small"
-                            onClick={openMoreMenu}
-                            sx={{
-                                display: "block",
-                                marginLeft: "auto",
-                                marginRight: 1,
-                            }}
-                        >
-                            <EllipsisIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip>
-                    <BookmarkButton
-                        objectId={existing?.id ?? ""}
-                        bookmarkFor={BookmarkFor.Project}
-                        isBookmarked={existing?.root?.you?.isBookmarked ?? false}
-                        bookmarks={existing?.root?.bookmarks ?? 0}
-                        onChange={(isBookmarked: boolean) => { }}
-                    />
-                </Stack>
-                <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
-                    alignItems: "flex-start",
+                title={firstString(name, t("Project", { count: 1 }))}
+                options={[{
+                    Icon: DeleteIcon,
+                    label: t("Delete"),
+                    onClick: handleDelete,
+                }]}
+                below={<Box sx={{
+                    width: "min(100%, 700px)",
+                    margin: "auto",
+                    marginTop: 2,
+                    marginBottom: 2,
+                    paddingLeft: 2,
+                    paddingRight: 2,
                 }}>
-                    {/* Title */}
-                    {
-                        (isLoading && !name) ? (
-                            <TextLoading size="header" sx={{ width: "50%" }} />
-                        ) : <Title
-                            title={name}
-                            variant="header"
-                            options={permissions.canUpdate ? [{
-                                label: t("Edit"),
-                                Icon: EditIcon,
-                                onClick: () => { actionData.onActionStart("Edit"); },
-                            }] : []}
-                            sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
-                        />
-                    }
-                    {/* Handle */}
-                    {
-                        handle && <Typography
-                            variant="h6"
-                            textAlign="center"
-                            fontFamily="monospace"
-                            onClick={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}${LINKS.Project}/${handle}`);
-                                PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-                            }}
-                            sx={{
-                                color: palette.secondary.dark,
-                                cursor: "pointer",
-                                paddingBottom: 2,
-                            }}
-                        >@{handle}</Typography>
-                    }
-                    {/* Description */}
-                    {
-                        (isLoading && !description) ? (
-                            <TextLoading lines={2} size="body1" sx={{ width: "85%" }} />
-                        ) : (
-                            <MarkdownDisplay
-                                variant="body1"
-                                sx={{ color: description ? palette.background.textPrimary : palette.background.textSecondary }}
-                                content={description ?? "No description set"}
-                            />
-                        )
-                    }
-                    <Stack direction="row" spacing={2} sx={{
-                        alignItems: "center",
-                    }}>
-                        {/* Created date */}
-                        <DateDisplay
-                            loading={isLoading}
-                            showIcon={true}
-                            textBeforeDate="Created"
-                            timestamp={existing?.created_at}
-                        />
-                        <ReportsLink object={existing} />
-                    </Stack>
-                </Stack>
-            </OverviewContainer>
-            {/* View routines and standards associated with this project */}
-            <Box>
-                {/* Breadcrumbs to show directory hierarchy */}
-                {/* TODO */}
-                {/* List of items in current directory */}
-                {/* <SearchList
-                    canSearch={() => Boolean(projectVersion?.id)}
-                    display={display}
-                    dummyLength={display === "page" ? 5 : 3}
-                    handleAdd={permissions.canUpdate ? toAddNew : undefined}
-                    hideUpdateButton={true}
-                    id="directory-view-list"
-                    searchType={searchType}
-                    searchPlaceholder={placeholder}
-                    take={20}
-                    where={where}
-                /> */}
-            </Box>
-            {/* Edit button (if canUpdate) */}
-            <SideActionsButtons display={display}>
-                {permissions.canUpdate ? (
-                    <IconButton aria-label={t("UpdateProject")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
-                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
-                ) : null}
+                    <SiteSearchBar
+                        id={`${existing?.id ?? "directory-list"}-search-bar`}
+                        placeholder={"SearchProject"}
+                        loading={false}
+                        value={searchString}
+                        onChange={updateSearchString}
+                        onInputChange={onDirectorySelect}
+                        options={autocompleteOptions}
+                        sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
+                    />
+                </Box>}
+            />
+            <ListContainer
+                emptyText={t("NoResults", { ns: "error" })}
+                isEmpty={directories.length === 0 && !isLoading}
+            >
+                <ObjectList
+                    dummyItems={new Array(5).fill("ProjectVersionDirectory")}
+                    items={directories}
+                    keyPrefix="directory-list-item"
+                    loading={isLoading}
+                    onAction={onAction}
+                />
+            </ListContainer>
+            <SideActionsButtons display={display} >
+                <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
+                    <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton>
+                <IconButton aria-label={t("AddDirectory")} onClick={openSearch} sx={{ background: palette.secondary.main }}>
+                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </IconButton>
             </SideActionsButtons>
         </>
     );

@@ -111,7 +111,13 @@ export const typeDef = gql`
     }
 
     extend type Query {
+        projectVersionDirectory(input: FindByIdInput!): ProjectVersionDirectory
         projectVersionDirectories(input: ProjectVersionDirectorySearchInput!): ProjectVersionDirectorySearchResult!
+    }
+
+    extend type Mutation {
+        projectVersionDirectoryCreate(input: ProjectVersionDirectoryCreateInput!): ProjectVersionDirectory!
+        projectVersionDirectoryUpdate(input: ProjectVersionDirectoryUpdateInput!): ProjectVersionDirectory!
     }
 `;
 

@@ -358,7 +358,10 @@ export const endpoints = {
     projectVersionDirectory: async () => {
         const { projectVersionDirectory: projectVersionDirectoryPartial } = await import("./partial/projectVersionDirectory");
         return {
+            findOne: toQuery("projectVersionDirectory", "FindByIdInput", projectVersionDirectoryPartial, "full"),
             findMany: toQuery("projectVersionDirectories", "ProjectVersionDirectorySearchInput", ...(await toSearch(projectVersionDirectoryPartial))),
+            create: toMutation("projectVersionDirectoryCreate", "ProjectVersionDirectoryCreateInput", projectVersionDirectoryPartial, "full"),
+            update: toMutation("projectVersionDirectoryUpdate", "ProjectVersionDirectoryUpdateInput", projectVersionDirectoryPartial, "full"),
         };
     },
     pullRequest: async () => {

@@ -274,7 +274,6 @@ export const DirectoryListVertical = ({
             {canUpdate && <Box sx={{
                 maxWidth: "400px",
                 margin: "auto",
-                paddingTop: 5,
             }}>
                 <Button
                     fullWidth onClick={openAddDialog}
@@ -295,7 +294,13 @@ const DirectoryViewModeToggle = ({
     viewMode: ViewMode;
     onViewModeChange: (mode: ViewMode) => unknown;
 }) => (
-    <Box sx={{ marginBottom: "10px", display: "flex", gap: 1 }}>
+    <Box sx={{
+        display: "flex",
+        gap: 1,
+        width: "100%",
+        marginRight: "auto",
+        marginBottom: "10px",
+    }}>
         <Button variant={viewMode === "card" ? "contained" : "outlined"} color="primary" onClick={() => onViewModeChange("card")}>
             Card View
         </Button>
@@ -478,23 +483,31 @@ export const DirectoryList = (props: DirectoryListProps) => {
                 handleComplete={onAdd as (item: SelectOrCreateObject) => unknown}
             />
             {BulkDeleteDialogComponent}
-            <DirectoryViewModeToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
-            {title && <Box display="flex" flexDirection="row" alignItems="center">
-                <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
-                {true && <Tooltip title={t("Edit")}>
-                    <IconButton onClick={() => { setIsEditing(e => !e); }}>
-                        {isEditing ?
-                            <CloseIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} /> :
-                            <EditIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} />
-                        }
-                    </IconButton>
-                </Tooltip>}
-            </Box>}
-            {
-                viewMode === "card" ?
-                    <DirectoryListHorizontal {...childProps} /> :
-                    <DirectoryListVertical {...childProps} />
-            }
+            <Box sx={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 1,
+            }}>
+                <DirectoryViewModeToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
+                {title && <Box display="flex" flexDirection="row" alignItems="center">
+                    <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
+                    {true && <Tooltip title={t("Edit")}>
+                        <IconButton onClick={() => { setIsEditing(e => !e); }}>
+                            {isEditing ?
+                                <CloseIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} /> :
+                                <EditIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} />
+                            }
+                        </IconButton>
+                    </Tooltip>}
+                </Box>}
+                {
+                    viewMode === "card" ?
+                        <DirectoryListHorizontal {...childProps} /> :
+                        <DirectoryListVertical {...childProps} />
+                }
+            </Box>
         </>
     );
 };

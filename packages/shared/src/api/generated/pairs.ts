@@ -820,9 +820,27 @@ export const endpointPostProjectVersion = {
     tag: "projectVersion",
 } as const;
 
+export const endpointGetProjectVersionDirectory = {
+    endpoint: "/projectVersionDirectory/:id",
+    method: "GET",
+    tag: "projectVersionDirectory",
+} as const;
+
+export const endpointPutProjectVersionDirectory = {
+    endpoint: "/projectVersionDirectory/:id",
+    method: "PUT",
+    tag: "projectVersionDirectory",
+} as const;
+
 export const endpointGetProjectVersionDirectories = {
     endpoint: "/projectVersionDirectories",
     method: "GET",
+    tag: "projectVersionDirectory",
+} as const;
+
+export const endpointPostProjectVersionDirectory = {
+    endpoint: "/projectVersionDirectory",
+    method: "POST",
     tag: "projectVersionDirectory",
 } as const;
 
