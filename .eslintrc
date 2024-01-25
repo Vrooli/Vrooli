@@ -2,6 +2,8 @@
     "root": true,
     "ignorePatterns": [
         "dist/",
+        "node_modules/",
+        "coverage/",
         "server/src/auth/message_signing/",
         "ui/public/pkg/",
         "vite.config.ts",

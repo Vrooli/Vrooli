@@ -6,9 +6,9 @@ module.exports = {
         "!src/**/*.d.ts",
         "!src/mocks/**",
     ],
-    coveragePathIgnorePatterns: ["/node_modules/", "/dist/"],
+    coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
     testEnvironment: "jsdom",
-    testPathIgnorePatterns: ["/node_modules/"],
+    testPathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
     modulePaths: ["<rootDir>/src"],
     transform: {
         "^.+\\.(ts|js|tsx|jsx)$": "<rootDir>/config/jest/swcTransform.cjs",
