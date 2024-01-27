@@ -1,4 +1,7 @@
 import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { PrismaDelegate } from "../../builders/types";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
@@ -49,15 +52,18 @@ export class ModelMap {
 
     private async initializeMap() {
         const modelNames = Object.keys(GqlModelType) as (keyof typeof ModelMap.prototype.map)[];
+        const dirname = path.dirname(fileURLToPath(import.meta.url));
         for (const modelName of modelNames) {
             const modelPath = `./${lowercaseFirstLetter(modelName)}`;
             try {
                 this.map[modelName] = (await import(`./${lowercaseFirstLetter(modelName)}`))[`${modelName}Model`];
             } catch (error) {
-                // NOTE: If you can't figure out why a module isn't found, it's likely a secret circular dependency. 
-                // Try chaning all imports to be relative.
-                logger.warning(`Failed to load model ${modelName}Model at ${modelPath}`, { trace: "0202", error });
                 this.map[modelName] = {};
+                // Check if the file exists. If so, it's likely a secret circular dependency.
+                const filePathWithoutExtension = `${dirname}/${lowercaseFirstLetter(modelName)}`;
+                if (fs.existsSync(`${filePathWithoutExtension}.js`) || fs.existsSync(`${filePathWithoutExtension}.ts`)) {
+                    logger.warning(`Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, { trace: "0202", error });
+                }
             }
         }
     }
@@ -129,5 +135,9 @@ export class ModelMap {
             ModelMap.instance = new ModelMap();
         }
         await ModelMap.instance.initializeMap();
+    }
+
+    public static isInitialized() {
+        return !!ModelMap.instance;
     }
 }
