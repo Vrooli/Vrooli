@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { isRelationshipObject } from "../builders/isRelationshipObject";
+import { isRelationshipObject } from "../builders/isOfType";
 import { ModelMap } from "../models/base";
 import { SearchStringQuery, SearchStringQueryParams } from "../models/types";
 import { SearchStringMap } from "../utils/searchStringMap";

@@ -5,83 +5,36 @@ import { PreMap } from "../models/types";
 import { PrismaType, SessionUserToken } from "../types";
 import { IdsCreateToConnect } from "../utils/types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
-import { RelationshipType, RelConnect, RelCreate, RelDelete, RelDisconnect, RelUpdate } from "./types";
+import { RelationshipType } from "./types";
 
-// Array if isOneToOne is false, otherwise single
-type MaybeArray<T, IsOneToOne extends boolean> =
-    IsOneToOne extends true ? T : T[];
+type OrMany<T, IsOneToOne extends boolean> = IsOneToOne extends true ? T : T[];
+type OrBoolean<T, IsOneToOne extends boolean> = IsOneToOne extends true ? boolean : T[];
 
-// Array if isOneToOne is false, otherwise boolean
-type MaybeArrayBoolean<T, IsOneToOne extends boolean> =
-    IsOneToOne extends true ? boolean : T[];
-
-// [{ where: { id: 'id' }, data: { ... } }] if isOneToOne is false, otherwise { ... }
-type MaybeArrayUpdate<T extends RelUpdate<any, string>, IsOneToOne extends boolean> =
-    IsOneToOne extends true ? T["data"] : T[];
-
-type ShapeHelperOptionalInput<
-    IsOneToOne extends boolean,
-    RelFields extends string,
-    FieldName extends string,
-> = (
-        ({ [x in `${FieldName}Delete`]?: "Delete" extends RelFields ? MaybeArrayBoolean<string, IsOneToOne> | null | undefined : never }) &
-        ({ [x in `${FieldName}Disconnect`]?: "Disconnect" extends RelFields ? MaybeArrayBoolean<string, IsOneToOne> | null | undefined : never }) &
-        ({ [x in `${FieldName}Update`]?: "Update" extends RelFields ? MaybeArray<any, IsOneToOne> | null | undefined : never })
-    )
-
-export type ShapeHelperInput<
-    IsOneToOne extends boolean,
-    RelFields extends string,
-    FieldName extends string
-> =
-    "Connect" extends RelFields ?
-    "Create" extends RelFields ? ((
-        ({ [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> | null | undefined }) &
-        ({ [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined })
-    ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName>) : (
-        { [x in `${FieldName}Connect`]?: MaybeArray<string, IsOneToOne> | null | undefined }
-    ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName> :
-    "Create" extends RelFields ? (
-        { [x in `${FieldName}Create`]?: MaybeArray<any, IsOneToOne> | null | undefined }
-    ) & ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName> :
-    ShapeHelperOptionalInput<IsOneToOne, RelFields[number], FieldName>
-
-type ShapeHelperOptionalOutput<
-    IsOneToOne extends boolean,
-    RelFields extends string,
-    PrimaryKey extends string,
-> = {
-    delete?: "Delete" extends RelFields ? MaybeArrayBoolean<RelDelete<PrimaryKey>, IsOneToOne> | undefined : never,
-    disconnect?: "Disconnect" extends RelFields ? MaybeArrayBoolean<RelDisconnect<PrimaryKey>, IsOneToOne> | undefined : never,
-    update?: "Update" extends RelFields ? MaybeArrayUpdate<RelUpdate<any, PrimaryKey>, IsOneToOne> | undefined : never,
-}
-
-type WrapInField<T, FieldName extends string> = {
-    [x in FieldName]: T
-}
-
+// NOTE: The typing here is very relaxed, and really only validates that the Prisma 
+// mutation structure is correct.
+// Since yup validation and casting happens earlier, we don't need to 
+// worry about type-specific validation here.
 export type ShapeHelperOutput<
     IsOneToOne extends boolean,
-    RelFields extends string,
-    FieldName extends string,
     PrimaryKey extends string,
-> = WrapInField<({
-    connect?: "Connect" extends RelFields ? MaybeArray<RelConnect<PrimaryKey>, IsOneToOne> | undefined : never,
-    create?: "Create" extends RelFields ? MaybeArray<RelCreate<any>, IsOneToOne> | undefined : never,
-} & ShapeHelperOptionalOutput<IsOneToOne, RelFields, PrimaryKey>), FieldName>
+// > = {
+//     connect: OrMany<RelConnect<PrimaryKey>, IsOneToOne>,
+//     disconnect: OrBoolean<RelDisconnect<PrimaryKey>, IsOneToOne>,
+//     delete: OrBoolean<RelDelete<PrimaryKey>, IsOneToOne>,
+//     create: OrMany<RelCreate<any>, IsOneToOne>,
+//     update: OrMany<RelUpdate<any, PrimaryKey>, IsOneToOne>,
+// }
+> = any; // TODO When set as "any", server starts. I think Prisma v5 changed its query shape
 
 export type ShapeHelperProps<
-    Input extends ShapeHelperInput<IsOneToOne, Types[number], RelField>,
     IsOneToOne extends boolean,
     Types extends readonly RelationshipType[],
-    RelField extends string,
-    PrimaryKey extends string,
-    SoftDelete extends boolean,
+    SoftDelete extends boolean = false,
 > = {
     /** The data to convert */
-    data: Input,
+    data: Record<string, any>,
     /** Ids which should result in a connect instead of a create */
-    idsCreateToConnect: IdsCreateToConnect,
+    idsCreateToConnect?: IdsCreateToConnect,
     /**
      * True if relationship is one-to-one. This makes 
      * the results a single object instead of an array
@@ -110,14 +63,12 @@ export type ShapeHelperProps<
      * A map of pre-shape data for all objects in the mutation, keyed by object type. 
      */
     preMap: PreMap,
-    /** The name of the primaryKey key field. Defaults to "id" */
-    primaryKey?: PrimaryKey,
     /** The Prisma client */
     prisma: PrismaType,
-    /** The name of the relationship field */
-    relation: RelField,
     /** The allowed operations on the relations (e.g. create, connect) */
     relTypes: Types,
+    /** Name of relation */
+    relation: string,
     /**
      * If true, relationship is set to "isDelete" 
      * true instead of actually deleting the record
@@ -136,26 +87,23 @@ export type ShapeHelperProps<
 export const shapeHelper = async<
     IsOneToOne extends boolean,
     Types extends readonly RelationshipType[],
-    RelField extends string,
-    PrimaryKey extends string,
-    SoftDelete extends boolean,
-    Input extends ShapeHelperInput<IsOneToOne, Types[number], RelField>,
+    PrimaryKey extends string = "id",
+    SoftDelete extends boolean = false,
 >({
     data,
-    idsCreateToConnect,
+    idsCreateToConnect = {},
     isOneToOne,
     joinData,
     objectType,
     parentRelationshipName,
     preMap,
-    primaryKey = "id" as PrimaryKey,
     prisma,
     relation,
     relTypes,
     softDelete = false as SoftDelete,
     userData,
-}: ShapeHelperProps<Input, IsOneToOne, Types, RelField, PrimaryKey, SoftDelete>):
-    Promise<ShapeHelperOutput<IsOneToOne, Types[number], RelField, PrimaryKey>> => {
+}: ShapeHelperProps<IsOneToOne, Types, SoftDelete>):
+    Promise<ShapeHelperOutput<IsOneToOne, PrimaryKey>> => {
     // Initialize result
     let result: { [x: string]: any } = {};
     // Loop through relation types, and convert all to a Prisma-shaped array
@@ -170,38 +118,39 @@ export const shapeHelper = async<
             [...result[lowercaseFirstLetter(t)] as any, ...currShaped] :
             currShaped;
     }
+    const { idField } = (ModelMap.getLogic(["idField"], objectType, false) ?? { idField: "id" }) as unknown as { idField: PrimaryKey };
     // Now we can further shape the result
     // Creates which show up in idsCreateToConnect should be converted to connects
     if (Array.isArray(result.create) && result.create.length > 0 && Object.keys(idsCreateToConnect).length > 0) {
         const connected = result.create.map((e: { [x: string]: any }) => {
-            const id = idsCreateToConnect[e[primaryKey]] ?? idsCreateToConnect[e.id];
+            const id = idsCreateToConnect[e[idField]] ?? idsCreateToConnect[e.id];
             const isUuid = typeof id === "string" && uuidValidate(id);
-            return id ? { [isUuid ? "id" : primaryKey]: id } : null;
+            return id ? { [isUuid ? "id" : idField]: id } : null;
         }).filter((e) => e);
         if (connected.length) {
             result.connect = Array.isArray(result.connect) ? [...result.connect, ...connected] : connected;
-            result.create = result.create.filter((e: { [x: string]: any }) => !idsCreateToConnect[e[primaryKey]] && !idsCreateToConnect[e.id]);
+            result.create = result.create.filter((e: { [x: string]: any }) => !idsCreateToConnect[e[idField]] && !idsCreateToConnect[e.id]);
         }
     }
     // Connects, diconnects, and deletes must be shaped in the form of { id: '123' } (i.e. no other fields)
     if (Array.isArray(result.connect) && result.connect.length > 0) {
-        // Fallback to "id" if primaryKey is not found
+        // Fallback to "id" if idField is not found
         result.connect = result.connect.map((e: { [x: string]: any }) => {
-            if (e[primaryKey]) return { [primaryKey]: e[primaryKey] };
+            if (e[idField]) return { [idField]: e[idField] };
             return { id: e.id };
         });
     } else result.connect = undefined;
     if (Array.isArray(result.disconnect) && result.disconnect.length > 0) {
-        // Fallback to "id" if primaryKey is not found
+        // Fallback to "id" if idField is not found
         result.disconnect = result.disconnect.map((e: { [x: string]: any }) => {
-            if (e[primaryKey]) return { [primaryKey]: e[primaryKey] };
+            if (e[idField]) return { [idField]: e[idField] };
             return { id: e.id };
         });
     } else result.disconnect = undefined;
     if (Array.isArray(result.delete) && result.delete.length > 0) {
-        // Fallback to "id" if primaryKey is not found
+        // Fallback to "id" if idField is not found
         result.delete = result.delete.map((e: { [x: string]: any }) => {
-            if (e[primaryKey]) return { [primaryKey]: e[primaryKey] };
+            if (e[idField]) return { [idField]: e[idField] };
             return { id: e.id };
         });
     } else result.delete = undefined;
@@ -212,7 +161,7 @@ export const shapeHelper = async<
     else result.update = undefined;
     // Convert deletes to updates if softDelete is true
     if (softDelete && Array.isArray(result.delete) && result.delete.length > 0) {
-        const softDeletes = result.delete.map((e: any) => ({ where: { id: e[primaryKey] }, data: { isDeleted: true } }));
+        const softDeletes = result.delete.map((e: any) => ({ where: { id: e[idField] }, data: { isDeleted: true } }));
         result.update = Array.isArray(result.update) ? [...result.update, ...softDeletes] : softDeletes;
         delete result.delete;
     }
@@ -253,7 +202,7 @@ export const shapeHelper = async<
             for (const id of (result?.disconnect ?? [])) {
                 const curr = {
                     [joinData.uniqueFieldName]: {
-                        [joinData.childIdFieldName]: id[primaryKey],
+                        [joinData.childIdFieldName]: id[idField],
                         [joinData.parentIdFieldName]: joinData.parentId,
                     },
                 };
@@ -265,7 +214,7 @@ export const shapeHelper = async<
             for (const id of (result?.delete ?? [])) {
                 const curr = {
                     [joinData.uniqueFieldName]: {
-                        [joinData.childIdFieldName]: id[primaryKey],
+                        [joinData.childIdFieldName]: id[idField],
                         [joinData.parentIdFieldName]: joinData.parentId,
                     },
                 };
@@ -286,7 +235,7 @@ export const shapeHelper = async<
             //     }]
             for (const data of (result?.update ?? [])) {
                 const curr = {
-                    where: { [joinData.uniqueFieldName]: { [joinData.childIdFieldName]: data.where[primaryKey], [joinData.parentIdFieldName]: joinData.parentId } },
+                    where: { [joinData.uniqueFieldName]: { [joinData.childIdFieldName]: data.where[idField], [joinData.parentIdFieldName]: joinData.parentId } },
                     data: { [joinData.fieldName]: { update: data.data } },
                 };
                 resultWithJoin.update.push(curr);
@@ -320,18 +269,14 @@ export const shapeHelper = async<
         acc[key] = result[key];
         return acc;
     }, {} as any);
-    // If there are keys remaining, return result wrapped in the relation name
-    if (Object.keys(result).length) return { [relation]: result } as any;
-    // Otherwise, return empty object
-    return {} as any;
+    // If result is empty, return undefined
+    // NOTE: To please the type checker, we pretend that we're returning a non-undefined value
+    if (Object.keys(result).length === 0) return undefined as unknown as ShapeHelperOutput<IsOneToOne, PrimaryKey>;
+    return result as ShapeHelperOutput<IsOneToOne, PrimaryKey>;
 };
 
-/**
- * Typical relations for create inputs
- */
+/** Typical relations for create inputs */
 export const addRels = ["Create", "Connect"] as const;
 
-/**
- * Typical relations for update inputs
- */
+/** Typical relations for update inputs */
 export const updateRels = ["Connect", "Create", "Delete", "Disconnect", "Update"] as const;

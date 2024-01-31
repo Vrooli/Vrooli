@@ -419,10 +419,7 @@ describe('updateRel function tests', () => {
                 { id: "420", __connect: true, data: "boop" } // Should be Connect
             ]
         };
-        // @ts-ignore: Testing runtime scenario
-        console.log('start of create and connect operations test')
         const result = updateRel(original, updated, 'relation', ['Create', 'Connect'], 'many', mockShapeModel);
-        console.log('end of create and connect operations test')
         expect(result).toEqual({
             relationCreate: [{ id: "999", data: 'newData', shaped: "create" }],
             relationConnect: ['456', '420'],

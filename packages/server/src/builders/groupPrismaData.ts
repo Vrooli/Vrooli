@@ -1,6 +1,6 @@
 import { GqlModelType, isObject, OrArray } from "@local/shared";
 import pkg from "lodash";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipObject } from "./isOfType";
 import { PartialGraphQLInfo } from "./types";
 
 const { merge } = pkg;

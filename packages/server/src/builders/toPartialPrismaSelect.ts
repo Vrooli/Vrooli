@@ -1,7 +1,7 @@
 import { ModelMap } from "../models/base";
 import { addCountFields } from "./addCountFields";
 import { addJoinTables } from "./addJoinTables";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipObject } from "./isOfType";
 import { removeSupplementalFields } from "./removeSupplementalFields";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
 import { deconstructUnions } from "./unions";

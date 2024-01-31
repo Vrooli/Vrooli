@@ -6,6 +6,11 @@ describe('LRUCache', () => {
     beforeEach(() => {
         // Initialize a new cache before each test with a limit of 3 items
         cache = new LRUCache<string, number>(3);
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        jest.spyOn(console, "warn").mockImplementation(() => { });
+    });
+    afterAll(() => {
+        jest.restoreAllMocks();
     });
 
     test('should add items to the cache', () => {

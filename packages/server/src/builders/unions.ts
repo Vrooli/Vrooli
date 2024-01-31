@@ -1,6 +1,6 @@
 import { exists, GqlModelType, isObject } from "@local/shared";
 import { GqlRelMap, ModelLogicType } from "../models/types";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipObject } from "./isOfType";
 
 /**
  * Constructs a GraphQL object's relationship fields from database fields. It's the opposite of deconstructRelationships

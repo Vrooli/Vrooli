@@ -1,4 +1,4 @@
-import { ReportFor, ReportSortBy } from "@local/shared";
+import { ReportFor, ReportSortBy, ReportStatus } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { EndpointsReport, ReportEndpoints } from "../logic/report";
 
@@ -26,6 +26,15 @@ export const typeDef = gql`
         ResponsesDesc
     }
 
+    enum ReportStatus {
+        ClosedDeleted
+        ClosedFalseReport
+        ClosedHidden
+        ClosedNonIssue
+        ClosedSuspended
+        Open
+    }
+
     input ReportCreateInput {
         id: ID!
         createdFor: ReportFor!
@@ -50,6 +59,7 @@ export const typeDef = gql`
         reason: String!
         responses: [ReportResponse!]!
         responsesCount: Int!
+        status: ReportStatus!
         you: ReportYou!
     }
 
@@ -108,10 +118,12 @@ export const typeDef = gql`
 export const resolvers: {
     ReportFor: typeof ReportFor;
     ReportSortBy: typeof ReportSortBy;
+    ReportStatus: typeof ReportStatus;
     Query: EndpointsReport["Query"];
     Mutation: EndpointsReport["Mutation"];
 } = {
     ReportFor,
     ReportSortBy,
+    ReportStatus,
     ...ReportEndpoints,
 };

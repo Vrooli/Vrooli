@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Session, uuid } from "@local/shared";
+import { CommonKey, Session, uuid } from "@local/shared";
 import { FieldInputProps, FieldMetaProps } from "formik";
+import i18next from "i18next";
 import * as yup from "yup";
-import { TranslationObject, addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslation, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, updateTranslation, updateTranslationFields } from "./translationTools";
+import { i18nextTMock } from "../../__mocks__/i18next";
+import { TranslationObject, addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslation, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields } from "./translationTools";
 
 // Mocks for navigator.language and navigator.languages
 const mockNavigatorLanguage = (language) => {
@@ -244,9 +246,9 @@ describe("updateTranslation", () => {
     it("should handle null or undefined translations property", () => {
         const newTranslation = { id: uuid(), language: "fr", content: "Bonjour" };
         // @ts-ignore: Testing runtime scenario
-        expect(updateTranslation({ translations: null }, newTranslation)).toEqual([]);
+        expect(updateTranslation({ translations: null }, newTranslation)).toHaveLength(0);
         // @ts-ignore: Testing runtime scenario
-        expect(updateTranslation({ translations: undefined }, newTranslation)).toEqual([]);
+        expect(updateTranslation({ translations: undefined }, newTranslation)).toHaveLength(0);
     });
 
     it("should handle empty translations array", () => {
@@ -358,14 +360,14 @@ describe("getUserLanguages", () => {
     });
 
     it("should return empty array when useDefault is false and no languages are found", () => {
-        expect(getUserLanguages(null, false)).toEqual([]);
-        expect(getUserLanguages(undefined, false)).toEqual([]);
+        expect(getUserLanguages(null, false)).toHaveLength(0);
+        expect(getUserLanguages(undefined, false)).toHaveLength(0);
     });
 
     it("should handle cases where navigator does not return a language", () => {
         mockNavigatorLanguage(undefined);
         const session = createSession(undefined);
-        expect(getUserLanguages(session, false)).toEqual([]);
+        expect(getUserLanguages(session, false)).toHaveLength(0);
     });
 });
 
@@ -930,42 +932,61 @@ describe("removeTranslation", () => {
     });
 });
 
-// TODO can't get i18next mock working correctly
-// describe("translateSnackMessage", () => {
-//     beforeEach(() => {
-//         jest.resetAllMocks();
-//     });
+describe("translateSnackMessage", () => {
+    let originalI18nextMethods;
 
-//     it("should return error message with details for error keys", () => {
-//         const result = translateSnackMessage("CannotConnectToServer", {});
-//         expect(result).toEqual({ message: "Cannot connect to server", details: "The details of cannot connect to server" });
-//         expect(i18next.t).toHaveBeenCalledWith("CannotConnectToServer", expect.any(Object));
-//         expect(i18next.t).toHaveBeenCalledWith("CannotConnectToServerDetails", expect.any(Object));
-//     });
+    beforeEach(() => {
+        // Save the original i18next methods
+        originalI18nextMethods = { ...i18next };
 
-//     it("should return common message without details for common keys", () => {
-//         const result = translateSnackMessage("ChangePassword", {});
-//         expect(result).toEqual({ message: "Change password", details: undefined });
-//         expect(i18next.t).toHaveBeenCalledWith("ChangePassword", expect.any(Object));
-//     });
+        // Replace the i18next methods with mocks
+        Object.assign(i18next, { t: i18nextTMock }); // We're using a normal function instead of a mock, because the mock is inexplicably not working
 
-//     it("should handle undefined variables", () => {
-//         const result = translateSnackMessage("CannotConnectToServer", undefined);
-//         expect(result).toEqual({ message: "Cannot connect to server", details: "The details of cannot connect to server" });
-//     });
+        // Reset all mock calls
+        jest.resetAllMocks();
+    });
 
-//     it("should interpolate variables into the message", () => {
-//         mockedTranslate.mockImplementation((key, options) => {
-//             return `Message with variable ${options.variable}`;
-//         });
-//         const result = translateSnackMessage("CannotConnectToServer", { variable: "value" });
-//         expect(result.message).toBe("Message with variable value");
-//     });
+    afterEach(() => {
+        // Restore the original i18next methods after each test
+        Object.assign(i18next, originalI18nextMethods);
+    });
 
-//     it("should return default key as message if translation is missing", () => {
-//         mockedTranslate.mockImplementation((key, options) => key);
-//         const result = translateSnackMessage("qwerqwerqwer" as CommonKey, {});
-//         expect(result.message).toEqual("qwerqwerqwer");
-//         expect(result.details).toEqual(undefined);
-//     });
-// });
+    it("should return message with details if both are in i18next dictionary", () => {
+        const result = translateSnackMessage("CannotConnectToServer", {});
+        expect(result).toEqual({ message: "Cannot connect to server", details: "The details of cannot connect to server" });
+    });
+
+    it("should return message without details if only message is in i18next dictionary", () => {
+        const result = translateSnackMessage("ChangePassword", {});
+        expect(result).toEqual({ message: "Change password", details: undefined });
+    });
+
+    it("should handle undefined variables - test 1", () => {
+        const result = translateSnackMessage("CannotConnectToServer", undefined);
+        expect(result).toEqual({ message: "Cannot connect to server", details: "The details of cannot connect to server" });
+    });
+
+    it("should handle undefined variables - test 2", () => {
+        // @ts-ignore: Testing runtime scenario
+        i18next.t = (key, options) => {
+            return `Message with variable ${options.variable}`;
+        };
+        const result = translateSnackMessage("CannotConnectToServer", undefined);
+        expect(result).toEqual({ message: "Message with variable undefined", details: "Message with variable undefined" }); // Limitation of i18next, so make sure your variables are defined
+    });
+
+    it("should interpolate variables into the message", () => {
+        // @ts-ignore: Testing runtime scenario
+        i18next.t = (key, options) => {
+            return `Message with variable ${options.variable}`;
+        };
+        const result = translateSnackMessage("CannotConnectToServer", { variable: "value" });
+        expect(result.message).toBe("Message with variable value");
+    });
+
+    it("should return default key as message if translation is missing", () => {
+        const result = translateSnackMessage("qwerqwerqwer" as CommonKey, {});
+        expect(result.message).toEqual("qwerqwerqwer");
+        expect(result.details).toEqual(undefined);
+    });
+});

@@ -747,7 +747,7 @@ describe("useMessageTree Hook", () => {
         const { result } = renderHook(() => useMessageTree(case1));
         const roots = result.current.tree.roots;
 
-        expect(roots.length).toBe(1);
+        expect(roots).toHaveLength(1);
         const root = roots[0];
         const isValidStructure = verifySingleNodeStructureAndSequentialIds(root, "1");
         expect(isValidStructure).toBe(true);
@@ -758,11 +758,11 @@ describe("useMessageTree Hook", () => {
         const { result } = renderHook(() => useMessageTree(case2));
         const roots = result.current.tree.roots;
 
-        expect(roots.length).toBe(2);
+        expect(roots).toHaveLength(2);
         const firstRoot = roots[0];
         const secondRoot = roots[1];
 
-        expect(firstRoot?.children.length).toBe(0);
+        expect(firstRoot?.children).toHaveLength(0);
         const isValidStructureForSecondRoot = verifySingleNodeStructureAndSequentialIds(secondRoot, "2");
         expect(isValidStructureForSecondRoot).toBe(true);
     });
@@ -772,15 +772,15 @@ describe("useMessageTree Hook", () => {
         const { result } = renderHook(() => useMessageTree(case3));
         const roots = result.current.tree.roots;
 
-        expect(roots.length).toBe(1);
+        expect(roots).toHaveLength(1);
         const root = roots[0];
 
-        expect(root?.children?.length).toBe(1);
+        expect(root?.children).toHaveLength(1);
         const child = root?.children[0];
 
-        expect(child?.children?.length).toBe(3);
+        expect(child?.children).toHaveLength(3);
         for (const grandchild of (child?.children ?? [])) {
-            expect(grandchild.children.length).toBe(2);
+            expect(grandchild.children).toHaveLength(2);
         }
     });
 
@@ -789,10 +789,10 @@ describe("useMessageTree Hook", () => {
         const { result } = renderHook(() => useMessageTree(case4));
         const roots = result.current.tree.roots;
 
-        expect(roots.length).toBe(1);
+        expect(roots).toHaveLength(1);
         const root = roots[0];
 
-        expect(root?.children?.length).toBe(1);
+        expect(root?.children).toHaveLength(1);
     });
 });
 
@@ -942,7 +942,7 @@ describe("MessageTree Operations", () => {
 
         // Verify that the message tree is reset
         expect(result.current.tree.map.size).toBe(0);
-        expect(result.current.tree.roots.length).toBe(0);
+        expect(result.current.tree.roots).toHaveLength(0);
     });
 
     it("Clear Messages - Clearing then adding messages is the same as initializing with those messages", () => {

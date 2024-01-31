@@ -1,5 +1,5 @@
 import pkg from "lodash";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipObject } from "./isOfType";
 
 const { merge } = pkg;
 

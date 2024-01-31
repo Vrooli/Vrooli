@@ -1,6 +1,6 @@
 import { isObject } from "@local/shared";
 import { ModelMap } from "../models/base";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipObject } from "./isOfType";
 import { removeCountFields } from "./removeCountFields";
 import { removeHiddenFields } from "./removeHiddenFields";
 import { removeJoinTables } from "./removeJoinTables";
