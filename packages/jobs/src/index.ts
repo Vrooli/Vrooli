@@ -131,12 +131,12 @@ export const initializeCronJob = (
     try {
         cron.schedule(schedule, async () => {
             if (jobStatus.get(description) === true) {
-                logger.warn(`Skipped ${description} cron job as it's still running.`);
+                logger.warning(`Skipped ${description} cron job as it's still running.`);
                 return;
             }
 
             if (!limiter.canRunJob()) {
-                logger.warn(`Skipped ${description} cron job due to concurrency limit.`);
+                logger.warning(`Skipped ${description} cron job due to concurrency limit.`);
                 return;
             }
 

@@ -90,7 +90,7 @@ const updateReactionsForTable = async (tableName: string): Promise<void> => {
                 const isScoreMismatch = object.score !== totalScore;
 
                 if (isScoreMismatch || isReactionSummaryMismatch) {
-                    logger.warn(`Updating reactions for ${tableName} ${object.id}. Score mismatch: ${isScoreMismatch}, Reaction summary mismatch: ${isReactionSummaryMismatch}`, { trace: "0163" });
+                    logger.warning(`Updating reactions for ${tableName} ${object.id}. Score mismatch: ${isScoreMismatch}, Reaction summary mismatch: ${isReactionSummaryMismatch}`, { trace: "0163" });
 
                     // Construct the update data, including nested writes for reactionSummaries
                     const updateData = {

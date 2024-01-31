@@ -21,7 +21,7 @@ RUN yarn install --production
 
 # Install modclean and clean node_modules.
 # Also install prisma for database migrations.
-RUN yarn global add modclean prisma@4.14.0
+RUN yarn global add modclean prisma@5.7.1
 RUN modclean --run
 
 # Stage 1: Copy required files

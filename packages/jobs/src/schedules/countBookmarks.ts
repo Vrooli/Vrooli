@@ -11,7 +11,7 @@ const processTableInBatches = async (tableName: string): Promise<void> => {
             for (const item of batch) {
                 const actualCount = item._count.bookmarkedBy;
                 if (item.bookmarks !== actualCount) {
-                    logger.warn(`Updating ${tableName} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}.`, { trace: "0165" });
+                    logger.warning(`Updating ${tableName} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}.`, { trace: "0165" });
                     await prisma[tableName].update({
                         where: { id: item.id },
                         data: { bookmarks: actualCount },

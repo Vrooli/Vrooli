@@ -9,7 +9,8 @@
  * is not directly in the tag's name/description.
  */
 import { BatchProps, EmbeddableType, EmbeddingTables, FindManyArgs, GenericModelLogic, ModelMap, PrismaType, batch, getEmbeddings } from "@local/server";
-import { Prisma, RunStatus } from "@prisma/client";
+import { RunStatus } from "@local/shared";
+import { Prisma } from "@prisma/client";
 
 // WARNING: Setting this to true will cause the embeddings to be recalculated for all objects. 
 // This will take a long time and should only be done during development or if something is 

@@ -1,5 +1,6 @@
 import { batch, sendPaymentFailed } from "@local/server";
-import { PaymentStatus, PaymentType, Prisma } from "@prisma/client";
+import { PaymentStatus, PaymentType } from "@local/shared";
+import { Prisma } from "@prisma/client";
 
 const PENDING_TIMEOUT = 7 * 24 * 60 * 60 * 1000; // 7 days
 

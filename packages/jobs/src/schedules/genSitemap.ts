@@ -1,5 +1,4 @@
-import { logger, ModelMap, PrismaType, withPrisma } from "@local/server";
-import { UI_URL_REMOTE } from "@local/server/src/server";
+import { logger, ModelMap, PrismaType, UI_URL_REMOTE, withPrisma } from "@local/server";
 import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
 import fs from "fs";
 import zlib from "zlib";

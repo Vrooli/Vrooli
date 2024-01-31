@@ -1,6 +1,6 @@
 import { ModelMap, PrismaType, Trigger, batch, findFirstRel, logger } from "@local/server";
-import { GqlModelType, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
-import pkg, { Prisma, ReportStatus } from "@prisma/client";
+import { GqlModelType, ReportStatus, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
+import pkg, { Prisma } from "@prisma/client";
 
 // Constants for calculating when a moderation action for a report should be accepted
 // Minimum reputation sum of users who have suggested a specific moderation action
