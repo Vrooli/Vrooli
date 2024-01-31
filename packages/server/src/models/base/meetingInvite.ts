@@ -25,8 +25,8 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 message: noNull(data.message),
-                ...(await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "meetingsInvited", data, ...rest })),
-                ...(await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "invites", data, ...rest })),
+                user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "meetingsInvited", data, ...rest }),
+                meeting: await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "invites", data, ...rest }),
             }),
             update: async ({ data }) => ({
                 message: noNull(data.message),

@@ -1,5 +1,4 @@
-import { ChatSortBy, chatValidation, MaxObjects, User, uuidValidate } from "@local/shared";
-import { ChatInviteStatus } from "@prisma/client";
+import { ChatInviteStatus, ChatSortBy, chatValidation, MaxObjects, User, uuidValidate } from "@local/shared";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
@@ -71,16 +70,16 @@ export const ChatModel: ChatModelLogic = ({
                 // we must convert it to a "parentCreate", and remove the parent message from the array. Otherwise, Prisma will 
                 // throw an error about not being able to find the parent message.
                 let messages = await shapeHelper({ relation: "messages", relTypes: ["Create"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest });
-                if (Object.prototype.hasOwnProperty.call(messages, "messages") && Array.isArray(messages.messages.create)) {
+                if (messages && Object.prototype.hasOwnProperty.call(messages, "messages") && Array.isArray(messages.create)) {
                     let newMessages: unknown[] = [];
                     const parentIdsToRemove: string[] = [];
-                    for (const message of messages.messages.create) {
+                    for (const message of messages.create) {
                         if (!Object.prototype.hasOwnProperty.call(message, "parent") || !Object.prototype.hasOwnProperty.call(message.parent, "connect")) {
                             newMessages.push(message);
                             continue;
                         }
                         // Check if the parent message is in the create array
-                        const parentMessage = messages.messages.create.find((m) => m.id === message.parent.connect.id);
+                        const parentMessage = messages.create.find((m) => m.id === message.parent.connect.id);
                         // If it is, convert the parentConnect to a parentCreate
                         if (parentMessage) {
                             newMessages.push({
@@ -101,7 +100,7 @@ export const ChatModel: ChatModelLogic = ({
                     // Remove the parent messages from the create array
                     newMessages = newMessages.filter((m) => !parentIdsToRemove.includes((m as { id: string }).id));
                     // Replace the old messages with the new ones
-                    messages = { ...messages, messages: { ...messages.messages, create: newMessages } };
+                    messages = { ...messages, create: newMessages };
                 }
                 return {
                     id: data.id,
@@ -128,11 +127,19 @@ export const ChatModel: ChatModelLogic = ({
                             },
                         ],
                     },
-                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
-                    // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false,   objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
-                    ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", relation: "labels", data, ...rest })),
-                    ...messages,
-                    ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", data, ...rest }),
+                    messages,
+                    organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "chats", data, ...rest }),
+                    restrictedToRoles: await shapeHelper({
+                        relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
+                            fieldName: "role",
+                            uniqueFieldName: "chat_roles_chatid_roleid_unique",
+                            childIdFieldName: "roleId",
+                            parentIdFieldName: "chatId",
+                            parentId: data.id ?? null,
+                        }, data, ...rest,
+                    }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => ({
@@ -163,10 +170,18 @@ export const ChatModel: ChatModelLogic = ({
                     ],
                     delete: data.participantsDelete?.map((id) => ({ id })),
                 },
-                // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false,   objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Delete", "Disconnect"], parentType: "Chat", relation: "labels", data, ...rest })),
-                ...(await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Delete", "Disconnect"], parentType: "Chat", data, ...rest }),
+                messages: await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest }),
+                restrictedToRoles: await shapeHelper({
+                    relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
+                        fieldName: "role",
+                        uniqueFieldName: "chat_roles_chatid_roleid_unique",
+                        childIdFieldName: "roleId",
+                        parentIdFieldName: "chatId",
+                        parentId: data.id ?? null,
+                    }, data, ...rest,
+                }),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
             }),
         },
         trigger: {

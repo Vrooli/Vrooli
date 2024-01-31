@@ -27,8 +27,8 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
                 message: noNull(data.message),
                 willBeAdmin: noNull(data.willBeAdmin),
                 willHavePermissions: noNull(data.willHavePermissions),
-                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "memberInvites", data, ...rest })),
-                ...(await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "membershipsInvited", data, ...rest })),
+                organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "memberInvites", data, ...rest }),
+                user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "membershipsInvited", data, ...rest }),
             }),
             update: async ({ data }) => ({
                 message: noNull(data.message),

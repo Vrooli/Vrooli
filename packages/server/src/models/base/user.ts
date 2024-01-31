@@ -39,8 +39,8 @@ const updateProfile: Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>[
     isPrivateVotes: noNull(data.isPrivateVotes),
     notificationSettings: data.notificationSettings ?? null,
     // languages: TODO!!!
-    ...(await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest })),
-    ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
+    focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
+    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
 });
 
 const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
@@ -51,7 +51,7 @@ const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]
     isPrivate: noNull(data.isPrivate),
     name: noNull(data.name),
     profileImage: data.profileImage,
-    ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
+    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
 });
 
 export const UserModel: UserModelLogic = ({
@@ -94,12 +94,14 @@ export const UserModel: UserModelLogic = ({
                 name: data.name,
                 profileImage: noNull(data.profileImage),
                 invitedByUser: { connect: { id: rest.userData.id } },
-                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+                translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
             }),
             /** Update can be either a bot or your profile */
             update: async ({ data, ...rest }) => {
-                const isBot = (data as BotUpdateInput).id && (data as BotUpdateInput).id !== rest.userData.id;
-                return isBot ? await updateBot({ data: data as BotUpdateInput, ...rest }) : await updateProfile({ data: data as ProfileUpdateInput, ...rest });
+                const isBot = Boolean((data as BotUpdateInput).id) && (data as BotUpdateInput).id !== rest.userData.id;
+                return isBot ?
+                    await updateBot({ data: data as BotUpdateInput, ...rest }) :
+                    await updateProfile({ data: data as ProfileUpdateInput, ...rest });
             },
         },
         yup: userValidation,

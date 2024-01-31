@@ -1,11 +1,10 @@
 import { GqlModelType } from "@local/shared";
-import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
+import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
 
 type NodeEndNextShapeHelperProps<
-    Input extends ShapeHelperInput<false, Types[number], "suggestedNextRoutineVersions">,
     Types extends readonly RelationshipType[],
-> = Omit<ShapeHelperProps<Input, false, Types, "suggestedNextRoutineVersions", "id", false>,  "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
+> = Omit<ShapeHelperProps<false, Types, false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "relation" | "softDelete">;
 
 /**
 * Connects and disconnects suggested next routine versions from end nodes, 
@@ -13,12 +12,11 @@ type NodeEndNextShapeHelperProps<
 */
 export const nodeEndNextShapeHelper = async <
     Types extends readonly RelationshipType[],
-    Input extends ShapeHelperInput<false, Types[number], "suggestedNextRoutineVersions">,
 >({
     data,
     ...rest
-}: NodeEndNextShapeHelperProps<Input, Types>):
-    Promise<ShapeHelperOutput<false, Types[number], "suggestedNextRoutineVersions", "id">> => {
+}: NodeEndNextShapeHelperProps<Types>):
+    Promise<ShapeHelperOutput<false, "id">> => {
     return shapeHelper({
         data,
         isOneToOne: false,
@@ -31,7 +29,6 @@ export const nodeEndNextShapeHelper = async <
         },
         objectType: "RoutineVersion" as GqlModelType,
         parentRelationshipName: "suggestedNextByNode",
-        primaryKey: "id",
         relation: "suggestedNextRoutineVersions",
         ...rest,
     });

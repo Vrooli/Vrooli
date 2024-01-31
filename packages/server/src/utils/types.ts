@@ -1,21 +1,6 @@
 import { GqlModelType } from "@local/shared";
 import { PrismaCreate, PrismaSelect, PrismaUpdate } from "../builders/types";
-
-export class InputNode {
-    __typename: `${GqlModelType}`;
-    id: string;
-    action: QueryAction;
-    children: InputNode[];
-    parent: InputNode | null;
-
-    constructor(__typename: `${GqlModelType}`, id: string, action: QueryAction) {
-        this.__typename = __typename;
-        this.id = id;
-        this.action = action;
-        this.children = [];
-        this.parent = null;
-    }
-}
+import { InputNode } from "./inputNode";
 
 export type QueryAction = "Connect" | "Create" | "Delete" | "Disconnect" | "Read" | "Update";
 export type IdsByAction = { [action in QueryAction]?: string[] };
@@ -33,20 +18,20 @@ export type IdsByPlaceholder = { [placeholder: string]: string | null };
 export type IdsCreateToConnect = { [id: string]: string };
 // TODO add other types later. Reason is that this is used for cudHelper and cudInputsToMaps, which originally only supported the 3 types below. Ideally we want them to support all types, but baby steps :)
 export type CudInputData = {
-    actionType: "Delete"; //"Connect" | "Delete" | "Disconnect";
+    action: "Delete"; //"Connect" | "Delete" | "Disconnect";
     input: string;
     objectType: GqlModelType | `${GqlModelType}`;
 } | {
-    actionType: "Create";
+    action: "Create";
     input: PrismaCreate;
     objectType: GqlModelType | `${GqlModelType}`;
 } | {
-    actionType: "Update";
+    action: "Update";
     input: PrismaUpdate;
     objectType: GqlModelType | `${GqlModelType}`;
 };
 // | {
-//     actionType: "Read";
+//     action: "Read";
 //     input: PrismaSelect;
 //     objectType: GqlModelType | `${GqlModelType}`;
 // };

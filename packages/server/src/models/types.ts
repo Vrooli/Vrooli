@@ -3,8 +3,9 @@ import { AnyObjectSchema } from "yup";
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 import { PrismaType, PromiseOrValue, SessionUserToken } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
+import { InputNode } from "../utils/inputNode";
 import { SortMap } from "../utils/sortMap";
-import { IdsCreateToConnect, InputNode, InputsById, QueryAction } from "../utils/types";
+import { IdsCreateToConnect, InputsById, QueryAction } from "../utils/types";
 
 type GqlObject = Record<string, any>;
 type DbObject = Record<string, any>;

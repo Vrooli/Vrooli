@@ -6,6 +6,7 @@ import { findFirstRel } from "../../builders/findFirstRel";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
+import { labelShapeHelper } from "../../utils/shapes";
 import { ScheduleFormat } from "../formats";
 import { ScheduleModelInfo, ScheduleModelLogic } from "./types";
 
@@ -39,23 +40,20 @@ export const ScheduleModel: ScheduleModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {
-                // These relations are treated as one-to-one in the API, but not in the database.
-                const difficultOnes = {
-                    ...(await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "schedule", data, ...rest })),
-                    ...(await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "schedule", data, ...rest })),
-                    ...(await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "schedule", data, ...rest })),
-                    ...(await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "schedule", data, ...rest })),
-                };
                 return {
                     id: data.id,
                     startTime: noNull(data.startTime),
                     endTime: noNull(data.endTime),
                     timezone: data.timezone,
-                    ...(await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest })),
-                    // ...(await labelsShapeHelper({ relation: "labels", relTypes: ["Connect", "Create"], isOneToOne: false,   parentRelationshipName: "schedule", data, ...rest })),
-                    ...(await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest })),
-                    // Replace each difficult key with plural version
-                    ...Object.fromEntries(Object.entries(difficultOnes).map(([k, v]) => [`${k}s`, v])),
+                    exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
+                    labels: await labelShapeHelper({ relation: "labels", relTypes: ["Connect", "Create"], parentType: "Schedule", data, ...rest }),
+                    recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
+                    // These relations are treated as one-to-one in the API, but not in the database.
+                    // Therefore, the key is pural, but the "relation" passed to shapeHelper is singular.
+                    focusModes: await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "schedule", data, ...rest }),
+                    meetings: await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "schedule", data, ...rest }),
+                    runProjects: await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "schedule", data, ...rest }),
+                    runRoutines: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "schedule", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -63,9 +61,9 @@ export const ScheduleModel: ScheduleModelLogic = ({
                     startTime: noNull(data.startTime),
                     endTime: noNull(data.endTime),
                     timezone: noNull(data.timezone),
-                    ...(await shapeHelper({ relation: "exceptions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest })),
-                    // ...(await labelsShapeHelper({ relation: "labels", relTypes: ["Connect", "Create", "Disconnect"], isOneToOne: false,   parentRelationshipName: "schedule", data, ...rest })),
-                    ...(await shapeHelper({ relation: "recurrences", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest })),
+                    exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
+                    labels: await labelShapeHelper({ relation: "labels", relTypes: ["Connect", "Create", "Disconnect"], parentType: "Schedule", data, ...rest }),
+                    recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
                 };
             },
         },

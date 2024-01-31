@@ -25,10 +25,10 @@ export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
                     originalStartTime: data.originalStartTime,
                     newStartTime: noNull(data.newStartTime),
                     newEndTime: noNull(data.newEndTime),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Connect"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "exceptions", data, ...rest })),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Connect"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "exceptions", data, ...rest }),
                 };
             },
-            update: async ({ data, ...rest }) => {
+            update: async ({ data }) => {
                 return {
                     originalStartTime: noNull(data.originalStartTime),
                     newStartTime: noNull(data.newStartTime),

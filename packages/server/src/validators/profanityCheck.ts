@@ -1,6 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { isRelationshipArray } from "../builders/isRelationshipArray";
-import { isRelationshipObject } from "../builders/isRelationshipObject";
+import { isRelationshipArray, isRelationshipObject } from "../builders/isOfType";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { authDataWithInput } from "../utils/authDataWithInput";
@@ -111,7 +110,7 @@ export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById
     const fieldsToCheck: { [x: string]: string[] } = {};
     for (const item of inputData) {
         // Only check objects being created or updated
-        if (!["Create", "Update"].includes(item.actionType)) continue;
+        if (!["Create", "Update"].includes(item.action)) continue;
         // Only check for objects which are not private. 
         // NOTE: This means that a user could create a private object with profanity in it, and then change it to public. 
         // We'll have to rely on the reporting and reputation system to handle this.

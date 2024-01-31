@@ -1,8 +1,8 @@
-import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
+import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
 
 // Types of objects which have labels
-type LabelledObjectType = "Api" | "Chat" | "FocusMode" | "Issue" | "Meeting" | "Note" | "Project" | "Routine" | "SmartContract" | "Standard";
+type LabelledObjectType = "Api" | "Chat" | "FocusMode" | "Issue" | "Meeting" | "Note" | "Project" | "Routine" | "Schedule" | "SmartContract" | "Standard";
 
 /**
  * Maps type of a label's parent with the unique field
@@ -16,39 +16,36 @@ const parentMapper: { [key in LabelledObjectType]: string } = {
     "Note": "note_labels_labelledid_labelid_unique",
     "Project": "project_labels_labelledid_labelid_unique",
     "Routine": "routine_labels_labelledid_labelid_unique",
+    "Schedule": "schedule_labels_labelledid_labelid_unique",
     "SmartContract": "smart_contract_labels_labelledid_labelid_unique",
     "Standard": "standard_labels_labelledid_labelid_unique",
 };
 
 type LabelShapeHelperProps<
-    Input extends ShapeHelperInput<false, Types[number], FieldName>,
     Types extends readonly RelationshipType[],
-    FieldName extends string,
 > = {
     parentType: LabelledObjectType;
-    relation: FieldName;
-} & Omit<ShapeHelperProps<Input, false, Types, FieldName, "id", false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
+    relation?: string;
+} & Omit<ShapeHelperProps<false, Types, false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "relation" | "softDelete">;
 
 /**
 * Add, update, or remove label data for an object.
 */
 export const labelShapeHelper = async <
     Types extends readonly RelationshipType[],
-    Input extends ShapeHelperInput<false, Types[number], FieldName>,
-    FieldName extends string,
 >({
     data,
     parentType,
     prisma,
-    relation,
+    relation = "labels",
     ...rest
-}: LabelShapeHelperProps<Input, Types, FieldName>):
-    Promise<ShapeHelperOutput<false, Types[number], FieldName, "id">> => {
+}: LabelShapeHelperProps<Types>):
+    Promise<ShapeHelperOutput<false, "id">> => {
     // Labels get special logic because they are treated as strings in GraphQL, 
     // instead of a normal relationship object
     // If any label creates/connects, make sure they exist/not exist
     const initialCreate = Array.isArray(data[`${relation}Create` as string]) ?
-        data[`${relation}Create` as string].map((c: any) => c.id) :
+        data[`${relation}Create` as string].map((c: { id: string }) => c.id) :
         typeof data[`${relation}Create` as string] === "object" ? [data[`${relation}Create` as string].id] :
             [];
     const initialConnect = Array.isArray(data[`${relation}Connect` as string]) ?
@@ -69,10 +66,10 @@ export const labelShapeHelper = async <
     }
     // Shape disconnects and deletes
     if (Array.isArray(data[`${relation}Disconnect` as string])) {
-        data[`${relation}Disconnect` as string] = data[`${relation}Disconnect` as string].map((t: any) => typeof t === "string" ? ({ id: t }) : t);
+        data[`${relation}Disconnect` as string] = data[`${relation}Disconnect` as string].map((t: string | { id: string }) => typeof t === "string" ? ({ id: t }) : t);
     }
     if (Array.isArray(data[`${relation}Delete` as string])) {
-        data[`${relation}Delete` as string] = data[`${relation}Delete` as string].map((t: any) => typeof t === "string" ? ({ id: t }) : t);
+        data[`${relation}Delete` as string] = data[`${relation}Delete` as string].map((t: string | { id: string }) => typeof t === "string" ? ({ id: t }) : t);
     }
     return shapeHelper({
         data,
@@ -82,11 +79,10 @@ export const labelShapeHelper = async <
             uniqueFieldName: parentMapper[parentType],
             childIdFieldName: "labelId",
             parentIdFieldName: "labelledId",
-            parentId: (data as any).id ?? null,
+            parentId: data.id ?? null,
         },
         objectType: "Label",
         parentRelationshipName: "",
-        primaryKey: "id",
         prisma,
         relation,
         ...rest,

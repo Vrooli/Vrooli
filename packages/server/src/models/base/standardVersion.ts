@@ -134,7 +134,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             create: async ({ data, ...rest }) => {
                 // If jsonVariables defined, sort them. 
                 // This makes comparing standards a whole lot easier
-                const { translations } = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translations = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.create?.length) {
                     translations.create = translations.create.map((t: StandardVersionTranslationCreateInput) => {
                         if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable, rest.userData.languages);
@@ -152,15 +152,15 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest })),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest }),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest }),
                     translations,
                 };
             },
             update: async ({ data, ...rest }) => {
                 // If jsonVariables defined, sort them
-                const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translations = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.update?.length) {
                     translations.update = translations.update.map((t: { where: { id: string }, data: StandardVersionTranslationUpdateInput }) => {
                         if (t.data.jsonVariable) t.data.jsonVariable = sortify(t.data.jsonVariable, rest.userData.languages);
@@ -183,9 +183,9 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest })),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest }),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest }),
                     translations,
                 };
             },

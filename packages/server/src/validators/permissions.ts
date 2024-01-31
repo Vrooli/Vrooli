@@ -340,7 +340,7 @@ export async function permissionsCheck(
             const permissions = permissionsById[id];
             // If permissions doesn't exist, something went wrong.
             if (!permissions) {
-                throw new CustomError("0390", "InternalError", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
+                throw new CustomError("0390", "CouldNotFindPermissions", userData?.languages ?? ["en"], { action, id, __typename: authDataById?.[id]?.__typename });
             }
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {

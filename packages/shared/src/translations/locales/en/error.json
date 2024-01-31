@@ -17,6 +17,8 @@
     "CannotVerifyEmailCodeDetails": "Email verification code is invalid.",
     "CannotVerifyWallet": "Cannot verify wallet.",
     "CannotVerifyWalletDetails": "Wallet verification failed. Please try again.",
+    "CouldNotFindPermissions": "Could not find permissions.",
+    "CouldNotFindPermissionsDetails": "Could not find permissions for this object or an object linked to it.",
     "CouldNotFindTranslation": "Could not find translation.",
     "CouldNotReadObject": "Failed to read object data.",
     "CouldNotReadProfile": "Failed to read profile data.",

@@ -29,7 +29,7 @@ export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
                     duration: noNull(data.duration),
                     month: noNull(data.month),
                     endDate: noNull(data.endDate),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "recurrences", data, ...rest })),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "recurrences", data, ...rest }),
                 };
             },
             update: async ({ data }) => {

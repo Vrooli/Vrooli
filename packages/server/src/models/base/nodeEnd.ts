@@ -24,14 +24,14 @@ export const NodeEndModel: NodeEndModelLogic = ({
                 return {
                     id: data.id,
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "end", data, ...rest })),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ["Connect"], data, ...rest })),
+                    node: await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "end", data, ...rest }),
+                    suggestedNextRoutineVersions: await nodeEndNextShapeHelper({ relTypes: ["Connect"], data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
                 return {
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ["Connect", "Disconnect"], data, ...rest })),
+                    suggestedNextRoutineVersions: await nodeEndNextShapeHelper({ relTypes: ["Connect", "Disconnect"], data, ...rest }),
                 };
             },
         },

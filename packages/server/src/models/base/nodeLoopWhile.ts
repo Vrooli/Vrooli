@@ -24,13 +24,13 @@ export const NodeLoopWhileModel: NodeLoopWhileModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 condition: data.condition,
-                ...(await shapeHelper({ relation: "loop", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLoop", parentRelationshipName: "whiles", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                loop: await shapeHelper({ relation: "loop", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLoop", parentRelationshipName: "whiles", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
 
             }),
             update: async ({ data, ...rest }) => ({
                 condition: noNull(data.condition),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         yup: nodeLoopWhileValidation,

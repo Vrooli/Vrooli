@@ -53,11 +53,11 @@ export const BookmarkModel: BookmarkModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 [forMapper[data.bookmarkFor]]: { connect: { id: data.forConnect } },
-                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest })),
+                list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 id: data.id,
-                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Update"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest })),
+                list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Update"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest }),
             }),
         },
         trigger: {

@@ -1,5 +1,5 @@
-import { GqlModelType, MaxObjects, ReportFor, ReportSortBy, reportValidation } from "@local/shared";
-import { Prisma, ReportStatus } from "@prisma/client";
+import { GqlModelType, MaxObjects, ReportFor, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
+import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { CustomError } from "../../events/error";

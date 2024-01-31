@@ -67,8 +67,8 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                     translations: {
                         create: translationCreates,
                     },
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childNoteVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childNoteVersions", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -101,8 +101,8 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                         update: translationUpdates,
                         delete: translationDeletes,
                     },
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest }),
                 };
             },
         },

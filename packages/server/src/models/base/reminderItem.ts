@@ -26,7 +26,7 @@ export const ReminderItemModel: ReminderItemModelLogic = ({
                 index: data.index,
                 isComplete: noNull(data.isComplete),
                 name: data.name,
-                ...(await shapeHelper({ relation: "reminder", relTypes: ["Connect"], isOneToOne: true, objectType: "Reminder", parentRelationshipName: "reminderItems", data, ...rest })),
+                reminder: await shapeHelper({ relation: "reminder", relTypes: ["Connect"], isOneToOne: true, objectType: "Reminder", parentRelationshipName: "reminderItems", data, ...rest }),
             }),
             update: async ({ data }) => ({
                 description: noNull(data.description),

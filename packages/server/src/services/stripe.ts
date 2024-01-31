@@ -1,5 +1,4 @@
-import { HttpStatus, PaymentType } from "@local/shared";
-import { PaymentStatus } from "@prisma/client";
+import { HttpStatus, PaymentStatus, PaymentType } from "@local/shared";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { logger } from "../events/logger";
@@ -177,7 +176,7 @@ const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: Ev
     }
     // Send thank you notification
     for (const email of payment.user.emails) {
-        sendPaymentThankYou(email.emailAddress, payment.paymentType);
+        sendPaymentThankYou(email.emailAddress, payment.paymentType as PaymentType);
     }
     return handlerResult(HttpStatus.Ok, res);
 };
@@ -402,7 +401,7 @@ const handleInvoicePaymentFailed = async ({ event, prisma, res }: EventHandlerAr
     });
     // Notify user
     for (const email of payment.user?.emails ?? []) {
-        sendPaymentFailed(email.emailAddress, payment.paymentType);
+        sendPaymentFailed(email.emailAddress, payment.paymentType as PaymentType);
     }
     return handlerResult(HttpStatus.Ok, res);
 };
