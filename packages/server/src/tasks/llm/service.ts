@@ -1,4 +1,5 @@
-import OpenAI from "openai";
+import "openai/shims/node"; // NOTE: Make sure to save without formatting (use command palette for this), so that this import is above the openai import
+import OpenAI from "openai"; 
 import { logger } from "../../events/logger";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { SessionUserToken } from "../../types";

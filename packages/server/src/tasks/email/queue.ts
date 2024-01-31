@@ -1,11 +1,7 @@
-import { BUSINESS_NAME, LINKS } from "@local/shared";
-import { PaymentType } from "@prisma/client";
+import { BUSINESS_NAME, LINKS, PaymentType } from "@local/shared";
 import Bull from "bull";
 import fs from "fs";
-import { logger } from "../../events/logger.js";
-import { HOST, PORT } from "../../redisConn.js";
-import { UI_URL } from "../../server.js";
-import { emailProcess } from "./process.js";
+import winston from "winston";
 
 export type EmailProcessPayload = {
     to: string[];
@@ -14,16 +10,52 @@ export type EmailProcessPayload = {
     html?: string;
 }
 
-let welcomeTemplate = "";
-const welcomeTemplateFile = `${process.env.PROJECT_DIR}/packages/server/dist/tasks/email/templates/welcome.html`;
-if (fs.existsSync(welcomeTemplateFile)) {
-    welcomeTemplate = fs.readFileSync(welcomeTemplateFile).toString();
-} else {
-    logger.error(`Could not find welcome email template at ${welcomeTemplateFile}`);
-}
+let logger: winston.Logger;
+let HOST: string;
+let PORT: number;
+let UI_URL: string;
+let emailProcess: (job: Bull.Job<EmailProcessPayload>) => Promise<unknown>;
+let emailQueue: Bull.Queue<EmailProcessPayload>;
+let welcomeTemplate: string;
 
-const emailQueue = new Bull<EmailProcessPayload>("email", { redis: { port: PORT, host: HOST } });
-emailQueue.process(emailProcess);
+// Call this on server startup
+export async function setupEmailQueue() {
+    try {
+        const loggerModule = await import("../../events/logger.js");
+        logger = loggerModule.logger;
+
+        const redisConnModule = await import("../../redisConn.js");
+        HOST = redisConnModule.HOST;
+        PORT = redisConnModule.PORT;
+
+        const serverModule = await import("../../server.js");
+        UI_URL = serverModule.UI_URL;
+
+        const processModule = await import("./process.js");
+        emailProcess = processModule.emailProcess;
+
+        // Initialize the Bull queue
+        emailQueue = new Bull<EmailProcessPayload>("email", {
+            redis: { port: PORT, host: HOST }
+        });
+        emailQueue.process(emailProcess);
+
+        // Load templates
+        const welcomeTemplateFile = `${process.env.PROJECT_DIR}/packages/server/dist/tasks/email/templates/welcome.html`;
+        if (fs.existsSync(welcomeTemplateFile)) {
+            welcomeTemplate = fs.readFileSync(welcomeTemplateFile).toString();
+        } else {
+            logger.error(`Could not find welcome email template at ${welcomeTemplateFile}`);
+        }
+    } catch (error) {
+        const errorMessage = "Failed to setup email queue";
+        if (logger) {
+            logger.error(errorMessage, { trace: "0204", error });
+        } else {
+            console.error(errorMessage, error);
+        }
+    }
+}
 
 /** Adds an email to a task queue */
 export function sendMail(to: string[] = [], subject = "", text = "", html = "", delay = 0) {

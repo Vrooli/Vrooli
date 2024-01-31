@@ -1,9 +1,8 @@
-
 // Sets up database on server initialization
-import { init } from "../db/seeds/init.js";
-import { withPrisma } from "./withPrisma.js";
 
 export const setupDatabase = async () => {
+    const { init } = await import("../db/seeds/init.js");
+    const { withPrisma } = await import("./withPrisma.js");
     // Seed database
     const success = await withPrisma({
         process: async (prisma) => {

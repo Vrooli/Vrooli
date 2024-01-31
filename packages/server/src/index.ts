@@ -17,6 +17,7 @@ import { initializeRedis } from "./redisConn";
 import { SERVER_URL, server } from "./server";
 import { setupStripe } from "./services";
 import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
+import { setupEmailQueue, setupExportQueue, setupImportQueue, setupLlmQueue, setupPushQueue, setupSmsQueue } from "./tasks";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -38,6 +39,14 @@ const main = async () => {
 
     // Initialize singletons
     await ModelMap.init();
+
+    // Setup queues
+    await setupEmailQueue();
+    await setupExportQueue();
+    await setupImportQueue();
+    await setupLlmQueue();
+    await setupPushQueue();
+    await setupSmsQueue();
 
     // Setup databases
     // Prisma
@@ -173,6 +182,7 @@ export * from "./events";
 export * from "./models";
 export * from "./notify";
 export * from "./redisConn";
+export * from "./server";
 export * from "./tasks";
 export * from "./utils";
 export * from "./validators";
