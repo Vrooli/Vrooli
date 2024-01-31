@@ -16,7 +16,7 @@ export async function deleteOneHelper({
     // Delete object. cudHelper will check permissions and handle triggers
     const deleted = (await cudHelper({
         inputData: [{
-            actionType: "Delete",
+            action: "Delete",
             input: input.id,
             objectType: input.objectType,
         }],
@@ -42,7 +42,7 @@ export async function deleteManyHelper({
     const deleted = await cudHelper({
         // deleteMany: input.ids,
         inputData: input.objects.map(({ id, objectType }) => ({
-            actionType: "Delete",
+            action: "Delete",
             input: id,
             objectType,
         })),

@@ -26,7 +26,7 @@ export async function createManyHelper<GraphQLModel>({
     // Create objects. cudHelper will check permissions
     const created = await cudHelper({
         inputData: input.map(d => ({
-            actionType: "Create",
+            action: "Create",
             input: d,
             objectType,
         })),

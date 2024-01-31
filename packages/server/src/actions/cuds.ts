@@ -47,12 +47,12 @@ export async function cudHelper({
     const result: Array<boolean | Record<string, any>> = new Array(inputData.length).fill(false);
     // Validate and cast inputs
     for (let i = 0; i < inputData.length; i++) {
-        const { actionType, input, objectType } = inputData[i];
-        if (actionType === "Create") {
+        const { action, input, objectType } = inputData[i];
+        if (action === "Create") {
             const { mutate } = ModelMap.getLogic(["mutate"], objectType, true, "cudHelper cast create");
             const transformedInput = mutate.yup.create && mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
             inputData[i].input = transformedInput;
-        } else if (actionType === "Update") {
+        } else if (action === "Update") {
             const { mutate } = ModelMap.getLogic(["mutate"], objectType, true, "cudHelper cast update");
             const transformedInput = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
             inputData[i].input = transformedInput;
@@ -63,7 +63,6 @@ export async function cudHelper({
     const { idsByAction, idsByType, idsCreateToConnect, inputsById, inputsByType } = await cudInputsToMaps({
         inputData,
         prisma,
-        languages: userData.languages,
     });
     const preMap: PreMap = {};
     // For each type, calculate pre-shape data (if applicable). 
@@ -91,11 +90,11 @@ export async function cudHelper({
         Update: { index: number, input: PrismaUpdate }[],
         Delete: { index: number, input: string }[],
     } } = {};
-    for (const [index, { actionType, input, objectType }] of inputData.entries()) {
+    for (const [index, { action, input, objectType }] of inputData.entries()) {
         if (!topInputsByType[objectType]) {
             topInputsByType[objectType] = { Create: [], Update: [], Delete: [] };
         }
-        topInputsByType[objectType]![actionType].push({ index, input: input as any });
+        topInputsByType[objectType]![action].push({ index, input: input as any });
     }
     // Initialize data for afterMutations trigger
     const deletedIdsByType: { [key in GqlModelType]?: string[] } = {};

@@ -26,7 +26,7 @@ export async function updateManyHelper<GraphQLModel>({
     // Create objects. cudHelper will check permissions
     const updated = await cudHelper({
         inputData: input.map(d => ({
-            actionType: "Update",
+            action: "Update",
             input: d,
             objectType,
         })),
