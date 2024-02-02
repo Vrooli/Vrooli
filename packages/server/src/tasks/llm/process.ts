@@ -4,6 +4,7 @@ import { addSupplementalFields } from "../../builders/addSupplementalFields";
 import { modelToGql } from "../../builders/modelToGql";
 import { selectHelper } from "../../builders/selectHelper";
 import { chatMessage_findOne } from "../../endpoints";
+import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { io } from "../../io";
 import { withPrisma } from "../../utils/withPrisma";
@@ -13,8 +14,13 @@ import { BotSettings, getLanguageModelService } from "./service";
 /**
  * Converts db bot info to BotSettings type
  */
-const toBotSettings = (bot: { name: string, botSettings: string | undefined }): BotSettings => {
-    let result: BotSettings = { name: bot.name };
+export const toBotSettings = (bot: { name: string, botSettings: string | undefined }): BotSettings => {
+    if (!bot || typeof bot !== "object" || Array.isArray(bot)) {
+        logger.error("Invalid data passed into 'toBotSettings'", { trace: "0408", bot });
+        return { name: "" }; // Default return for invalid input
+    }
+
+    let result: BotSettings = { name: bot.name || "" };
     if (typeof bot.botSettings !== "string") return result;
     try {
         const botSettings = JSON.parse(bot.botSettings);

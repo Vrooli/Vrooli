@@ -112,10 +112,10 @@ export const shapeHelper = async<
         const curr = data[`${relation}${t}` as string];
         if (!curr) continue;
         // Shape the data
-        const currShaped = shapeRelationshipData(curr);
+        const currShaped = shapeRelationshipData(curr, [], false);
         // Add to result
         result[lowercaseFirstLetter(t)] = Array.isArray(result[lowercaseFirstLetter(t)]) ?
-            [...result[lowercaseFirstLetter(t)] as any, ...currShaped] :
+            [...result[lowercaseFirstLetter(t)], ...currShaped] :
             currShaped;
     }
     const { idField } = (ModelMap.getLogic(["idField"], objectType, false) ?? { idField: "id" }) as unknown as { idField: PrimaryKey };

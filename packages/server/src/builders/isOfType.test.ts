@@ -5,9 +5,9 @@ describe("isRelationshipObject", () => {
     const validCases = [
         { description: "an object", value: { key: "value" } },
         { description: "an empty object", value: {} },
-        // @ts-ignore: Testing runtime scenario
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         { description: "a function", value() { } },
-        // @ts-ignore: Testing runtime scenario
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         { description: "an arrow function", value: () => { } },
     ];
 
@@ -41,7 +41,7 @@ describe("isRelationshipArray", () => {
     const validCases = [
         { description: "an array of objects", value: [{ key: "value" }, {}] },
         { description: "an array with a single object", value: [{}] },
-        // @ts-ignore: Testing runtime scenario
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         { description: "an array of functions", value: [() => { }, function () { }] },
         { description: "an empty array", value: [] },
     ];

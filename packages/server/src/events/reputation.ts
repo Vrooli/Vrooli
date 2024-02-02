@@ -3,6 +3,7 @@
  */
 
 import { GqlModelType } from "@local/shared";
+import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
 import { PrismaType } from "../types";
 
@@ -37,6 +38,32 @@ export const objectReputationEvent = <T extends keyof typeof GqlModelType>(objec
     return `Public${objectType}Created` in ReputationEvent ? `Public${objectType}Created` : null;
 };
 
+/**
+ * Finds the next threshold for rewarding a reputation point,
+ * given the current vote count and the direction of the change.
+ * 
+ * Examples:
+ * - If curr is 0 and direction is 1, returns 1
+ * - If curr is 0 and direction is -1, returns -1
+ * - If curr is 10 and direction is 1, returns 20
+ * - If curr is 10 and direction is -1, returns 0
+ * - If curr is 99 and direction is 1, returns 100
+ * - If curr is 99 and direction is -1, returns 90
+ * - If curr is 100 and direction is 1, returns 200
+ * - If curr is -1 and direction is -1, returns -2
+ * - If curr is -10 and direction is -1, returns -20
+ * - If curr is -999 and direction is -1, returns -1000
+ */
+export const nextRewardThreshold = (curr: number, direction: 1 | -1) => {
+    const diffSigns = (curr < 0 && direction > 0) || (curr > 0 && direction < 0);
+    // Determine magnitude of curr (1 * 10^(digits - 1)). 
+    // NOTE: We move curr by 1 when signs are opposite because not doing so would cause 
+    // situations like nextRewardThreshold(-10, 1) to return 0 instead of -9.
+    const magnitude = Math.pow(10, (Math.abs(curr + (diffSigns ? direction : 0)) + "").length - 1);
+    return direction > 0 ?
+        Math.ceil((curr + 1) / magnitude) * magnitude :
+        Math.floor((curr - 1) / magnitude) * magnitude;
+};
 
 /**
  * Generates the reputation which should be rewarded to a user for receiving a vote. 
@@ -49,17 +76,38 @@ export const objectReputationEvent = <T extends keyof typeof GqlModelType>(objec
  * - If v0 is from -999 to -100 or 100 to 999 and v1 > v0, then the user gets 1 reputation if v1 is a multiple of 100, otherwise 0
  * - If v0 is from -999 to -100 or 100 to 999 and v1 < v0, then the user loses 1 reputation if v1 is a multiple of 100, otherwise 0
  * , and so on.
+ * @returns The amount of reputation to reward the user, or NaN if an error occurred
  */
 export const reputationDeltaVote = (v0: number, v1: number): number => {
+    if (typeof v0 !== "number" || typeof v1 !== "number") {
+        logger.error("Invalid vote count", { trace: "0101", v0, v1 });
+        return NaN;
+    }
     if (v0 === v1) return 0;
-    // Determine how many zeros follow the leading digit
-    const magnitude = v0 === 0 ? 1 : Math.floor(Math.log10(Math.abs(v0)));
-    // Use modulo to check if the new vote count is a multiple of 10^(magnitude)
-    const isMultiple = v1 % Math.pow(10, magnitude) === 0;
-    // If vote increased, give reputation if it's a multiple of 10^(magnitude)
-    if (v1 > v0) return isMultiple ? 1 : 0;
-    // Otherwise vote must have decreased. Lose reputation if it's a multiple of 10^(magnitude)
-    return isMultiple ? -1 : 0;
+
+    const pastTarget = () => direction > 0 ? curr > v1 : curr < v1;
+
+    const direction = v1 > v0 ? 1 : -1;
+    let reputationDelta = 0;
+    let curr = v0;
+    let loops = 0;
+
+    console.log("starting reputation loop. v0:", v0, " v1:", v1, ", curr:", curr);
+    do {
+        curr = nextRewardThreshold(curr, direction);
+        // If the current number is past the target, return current reputation delta
+        if (pastTarget()) {
+            console.log("past target", curr, reputationDelta);
+            return reputationDelta * direction; // Make sure it has the correct sign
+        }
+        // Otherwise, increment the reputation delta
+        reputationDelta++;
+        // Track the number of loops to prevent infinite loops
+        loops++;
+    } while (loops < 1000); // Prevent infinite loops
+
+    logger.error("Infinite loop detected in reputationDeltaVote", { trace: "0102", v0, v1, reputationDelta });
+    return reputationDelta;
 };
 
 /**
@@ -243,6 +291,7 @@ export const Reputation = () => ({
      */
     updateVote: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaVote(v0, v1);
+        if (isNaN(delta)) return;
         await updateReputationHelper(delta, prisma, userId, "ReceivedVote");
     },
     /**
@@ -254,6 +303,7 @@ export const Reputation = () => ({
      */
     updateStar: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaStar(v0, v1);
+        if (isNaN(delta)) return;
         await updateReputationHelper(delta, prisma, userId, "ReceivedStar");
     },
     /**

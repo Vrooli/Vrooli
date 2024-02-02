@@ -1,5 +1,23 @@
 import { isObject } from "@local/shared";
-import { filterFields } from "./filterFields";
+
+/**
+ * Filters excluded fields from an object
+ * @param data The object to filter
+ * @param excludes The fields to exclude
+ */
+export const filterFields = (data: object, excludes: string[]): object => {
+    if (!isObject(data)) return {};
+    // Create result object
+    const converted: object = {};
+    // Loop through object's keys
+    Object.keys(data).forEach((key) => {
+        // If key is not in excludes, add to result
+        if (!excludes.some(e => e === key)) {
+            converted[key] = data[key];
+        }
+    });
+    return converted;
+};
 
 /**
  * Helper method to shape Prisma connect, disconnect, create, update, and delete data
@@ -20,8 +38,12 @@ import { filterFields } from "./filterFields";
  * @param excludes The fields to exclude from the shape
  * @param isOneToOne Whether the data is one-to-one (i.e. a single object)
  */
-export const shapeRelationshipData = (data: any, excludes: string[] = [], isOneToOne = false): any => {
-    const shapeAsMany = (data: any): any => {
+export const shapeRelationshipData = <IsOneToOne extends boolean>(
+    data: unknown,
+    excludes: string[] = [],
+    isOneToOne: IsOneToOne = false as IsOneToOne,
+): IsOneToOne extends true ? object : object[] => {
+    const shapeAsMany = (data: unknown): object[] => {
         if (Array.isArray(data)) {
             return data.map(e => {
                 if (isObject(e)) {
@@ -37,14 +59,10 @@ export const shapeRelationshipData = (data: any, excludes: string[] = [], isOneT
         }
     };
     // Shape as if "isOneToOne" is fasel
-    let result = shapeAsMany(data);
+    const result = shapeAsMany(data);
     // Then if "isOneToOne" is true, return the first element
     if (isOneToOne) {
-        if (result.length > 0) {
-            result = result[0];
-        } else {
-            result = {};
-        }
+        return (result.length > 0 ? result[0] : {}) as IsOneToOne extends true ? object : object[];
     }
     return result;
 };

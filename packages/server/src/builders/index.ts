@@ -6,8 +6,6 @@ export * from "./addSupplementalFieldsMultiTypes";
 export * from "./combineQueries";
 export * from "./combineSupplements";
 export * from "./connectOwner";
-export * from "./existsArray";
-export * from "./filterFields";
 export * from "./findFirstRel";
 export * from "./groupPrismaData";
 export * from "./injectTypenames";
