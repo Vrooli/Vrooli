@@ -3,7 +3,7 @@ import { Job } from "bull";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
 import { modelToGql } from "../../builders/modelToGql";
 import { selectHelper } from "../../builders/selectHelper";
-import { chatMessage_findOne } from "../../endpoints";
+import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findOne";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { io } from "../../io";

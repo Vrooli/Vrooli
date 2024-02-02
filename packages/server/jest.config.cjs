@@ -6,7 +6,7 @@ module.exports = {
         "!src/mocks/**",
     ],
     coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
-    // setupFilesAfterEnv: ["./config/jest/setupTests.ts"],
+    setupFilesAfterEnv: ["./config/jest/setupTests.js"],
     testEnvironment: "jsdom",
     testPathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
     modulePaths: ["<rootDir>/src"],

@@ -5,7 +5,6 @@ import { PrismaType } from "../types";
 
 const { PrismaClient } = pkg;
 
-
 interface WithPrismaProps {
     process: (prisma: PrismaType) => Promise<void>,
     trace: string,

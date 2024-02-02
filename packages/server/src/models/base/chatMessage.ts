@@ -9,7 +9,7 @@ import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
-import { chatMessage_findMany } from "../../endpoints";
+import { chatMessage_findMany } from "../../endpoints/generated/chatMessage_findMany";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
