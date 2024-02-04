@@ -21,6 +21,10 @@ function mockFindMany<T>(records: T[], args: { where: Record<string, any>, selec
         whereKeys.every(key => {
             const condition = args.where[key];
             if (typeof condition === "object" && condition !== null) {
+                // Handle "in" condition
+                if ("in" in condition) {
+                    return condition.in.includes((record as any)[key]);
+                }
                 // Handle case-insensitive equality
                 if ("equals" in condition) {
                     const valueToCompare = (record as any)[key];
@@ -39,7 +43,7 @@ function mockFindMany<T>(records: T[], args: { where: Record<string, any>, selec
     );
 
     const results = filteredItems.map(item => constructSelectResponse(item, args.select));
-    return Promise.resolve(results) as any;
+    return Promise.resolve(results) as unknown as Promise<T[]>;
 }
 
 function mockCreate<T>(records: T[], args: { data: T }): Promise<T> {

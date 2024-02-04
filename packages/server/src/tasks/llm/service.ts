@@ -1,5 +1,5 @@
 import "openai/shims/node"; // NOTE: Make sure to save without formatting (use command palette for this), so that this import is above the openai import
-import OpenAI from "openai"; 
+import OpenAI from "openai";
 import { logger } from "../../events/logger";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { SessionUserToken } from "../../types";
@@ -53,7 +53,7 @@ export const tokenEstimationDefault = (text: string) => {
  * @param messageIds Array of message IDs
  * @returns An array of message objects
  */
-const fetchMessagesFromDatabase = async (messageIds: string[]): Promise<SimpleChatMessageData[]> => {
+export const fetchMessagesFromDatabase = async (messageIds: string[]): Promise<SimpleChatMessageData[]> => {
     let messages: SimpleChatMessageData[] = [];
 
     await withPrisma({
@@ -111,9 +111,9 @@ export interface LanguageModelService<GenerateNameType extends string, TokenName
     ): Promise<string>;
     /** @returns the context size of the model */
     getContextSize(requestedModel?: string | null): number;
-    /** @returns a list of token estimation types used by this service */
     /** @returns the estimation method for the model */
     getEstimationMethod(requestedModel?: string | null): TokenNameType;
+    /** @returns a list of token estimation types used by this service */
     getEstimationTypes(): readonly TokenNameType[];
     /** Convert a preferred model to an available one */
     getModel(requestedModel?: string | null): GenerateNameType;
