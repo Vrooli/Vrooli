@@ -11,7 +11,7 @@ export const PORT = Number(split[1]);
 
 let redisClient: RedisClientType;
 
-const createRedisClient = async () => {
+export const createRedisClient = async () => {
     const url = `redis://${HOST}:${PORT}`;
     logger.info("Creating Redis client.", { trace: "0184", url });
     const redisClient = createClient({ url });
@@ -26,10 +26,11 @@ const createRedisClient = async () => {
 };
 
 export const initializeRedis = async (): Promise<RedisClientType> => {
-    const _redisClient = redisClient ?? await createRedisClient();
-    if (!redisClient) redisClient = _redisClient;
-
-    return _redisClient;
+    // If the client was never created or was disconnected
+    if (!redisClient || !redisClient.isReady) {
+        redisClient = await createRedisClient() as RedisClientType;
+    }
+    return redisClient;
 };
 
 interface WithRedisProps {
@@ -53,7 +54,6 @@ export async function withRedis({
         success = true;
     } catch (error) {
         logger.error("Caught error in withRedis", { trace, error, ...traceObject });
-        return (error as any)?.message ?? "Failed to connect to Redis.";
     }
     return success;
 }
