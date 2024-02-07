@@ -1,7 +1,7 @@
 export class RedisClientMock {
     static instance: RedisClientMock | null = null;
     static instantiationCount = 0; // To ensure that only one instance is created
-    dataStore: { [key: string]: any } = {};
+    static dataStore: { [key: string]: any } = {};
     eventHandlers: { [event: string]: ((...args: any[]) => void)[] } = {};
     url: string;
     isReady = false;
@@ -29,36 +29,43 @@ export class RedisClientMock {
     });
 
     get = jest.fn((key: string) => {
-        return Promise.resolve(this.dataStore[key] || null);
+        return Promise.resolve(RedisClientMock.dataStore[key] || null);
     });
 
     set = jest.fn((key: string, value: any) => {
-        this.dataStore[key] = value;
+        RedisClientMock.dataStore[key] = value;
         return Promise.resolve("OK");
     });
 
     incrBy = jest.fn((key: string, increment: number) => {
-        if (!this.dataStore[key]) this.dataStore[key] = 0;
-        this.dataStore[key] += increment;
-        return Promise.resolve(this.dataStore[key]);
+        if (!RedisClientMock.dataStore[key]) RedisClientMock.dataStore[key] = 0;
+        RedisClientMock.dataStore[key] += increment;
+        return Promise.resolve(RedisClientMock.dataStore[key]);
     });
 
     incr = jest.fn((key: string) => this.incrBy(key, 1));
 
-    del = jest.fn((key: string) => {
-        const existed = key in this.dataStore;
-        delete this.dataStore[key];
-        return Promise.resolve(existed ? 1 : 0);
+    del = jest.fn((keys: string | string[]) => {
+        const keysToDelete = Array.isArray(keys) ? keys : [keys];
+        let count = 0;
+        keysToDelete.forEach(key => {
+            if (key in RedisClientMock.dataStore) {
+                delete RedisClientMock.dataStore[key];
+                count++;
+            }
+        });
+        return Promise.resolve(count);
     });
+
 
     // NOTE: Should use jest.useFakeTimers() to test this method
     expire = jest.fn((key: string, seconds: number) => {
-        if (key in this.dataStore) {
+        if (key in RedisClientMock.dataStore) {
             const milliseconds = seconds * 1000;
 
             // Schedule the deletion of the key
             setTimeout(() => {
-                delete this.dataStore[key];
+                delete RedisClientMock.dataStore[key];
             }, milliseconds);
 
             return Promise.resolve(1); // Indicate success
@@ -67,57 +74,143 @@ export class RedisClientMock {
         }
     });
 
-    hSet = jest.fn((key: string, field: string, value: any) => {
-        if (!this.dataStore[key]) this.dataStore[key] = {};
-        this.dataStore[key][field] = value;
-        return Promise.resolve(1); // Assuming successful hSet operation
+    hSet = jest.fn((key: string, fieldOrObject: any, value?: any) => {
+        if (!RedisClientMock.dataStore[key]) RedisClientMock.dataStore[key] = {};
+
+        if (typeof fieldOrObject === 'object' && value === undefined) {
+            // Assuming the entire object is passed as the second argument
+            Object.entries(fieldOrObject).forEach(([field, val]) => {
+                RedisClientMock.dataStore[key][field] = val;
+            });
+        } else if (typeof fieldOrObject === 'string') {
+            // Handle the field-value pair case
+            RedisClientMock.dataStore[key][fieldOrObject] = value;
+        }
+
+        return Promise.resolve(1);
     });
 
-    zAdd = jest.fn((key: string, score: number, member: string) => {
-        if (!this.dataStore[key]) this.dataStore[key] = new Map();
-        this.dataStore[key].set(member, score);
-        return Promise.resolve(1); // Assuming one member was added
+    // NOTE: The real zAdd would use a map or a set to store the members and their scores,
+    // but this causes issues with serialization and deserialization in the tests that I don't 
+    // feel like dealing with.
+    zAdd = jest.fn((key: string, { score, value }: { score: number, value: string }) => {
+        if (!RedisClientMock.dataStore[key]) {
+            RedisClientMock.dataStore[key] = [];
+        }
+        const list = RedisClientMock.dataStore[key];
+        if (!Array.isArray(list)) {
+            throw new Error(`Expected an array for key ${key}, but found a different type`);
+        }
+        // Add or update the member based on the value
+        const index = list.findIndex((item) => item.value === value);
+        if (index > -1) {
+            list[index].score = score; // Update existing member's score
+        } else {
+            list.push({ score, value }); // Add new member
+        }
+        return Promise.resolve(1);
     });
 
-    sAdd = jest.fn((key: string, member: any) => {
-        if (!this.dataStore[key]) this.dataStore[key] = new Set();
-        this.dataStore[key].add(member);
-        return Promise.resolve(1); // Assuming one member was added
+    sAdd = jest.fn((key: string, members: any | any[]) => {
+        // Ensure the key exists in dataStore and is an array
+        if (!RedisClientMock.dataStore[key]) {
+            RedisClientMock.dataStore[key] = [];
+        } else if (!Array.isArray(RedisClientMock.dataStore[key])) {
+            throw new Error(`Expected dataStore entry for key "${key}" to be an array`);
+        }
+
+        // Convert single member to an array for uniform handling
+        const membersArray = Array.isArray(members) ? members : [members];
+
+        // Add each member to the array if it doesn't already exist
+        membersArray.forEach(member => {
+            if (!RedisClientMock.dataStore[key].includes(member)) {
+                RedisClientMock.dataStore[key].push(member);
+            }
+        });
+
+        return Promise.resolve(membersArray.length); // Return the number of members added
+    });
+
+    sRem = jest.fn((key: string, member: any) => {
+        if (RedisClientMock.dataStore[key] && Array.isArray(RedisClientMock.dataStore[key])) {
+            const index = RedisClientMock.dataStore[key].indexOf(member);
+            if (index > -1) {
+                RedisClientMock.dataStore[key].splice(index, 1);
+                return Promise.resolve(1); // Member removed
+            }
+        }
+        return Promise.resolve(0); // Member not found
+    });
+
+    sMembers = jest.fn((key: string) => {
+        // Ensure the key exists in dataStore and is an array
+        if (!RedisClientMock.dataStore[key]) {
+            return Promise.resolve([]);
+        } else if (!Array.isArray(RedisClientMock.dataStore[key])) {
+            throw new Error(`Expected dataStore entry for key "${key}" to be an array`);
+        }
+
+        // Return a copy of the array to prevent accidental modifications
+        return Promise.resolve([...RedisClientMock.dataStore[key]]);
     });
 
     zRem = jest.fn((key: string, member: string) => {
-        if (!this.dataStore[key]) return Promise.resolve(0);
-        const removed = this.dataStore[key].delete(member);
-        return Promise.resolve(removed ? 1 : 0);
+        if (!RedisClientMock.dataStore[key] || !Array.isArray(RedisClientMock.dataStore[key])) {
+            return Promise.resolve(0);
+        }
+        const index = RedisClientMock.dataStore[key].findIndex(item => item.value === member);
+        if (index > -1) {
+            RedisClientMock.dataStore[key].splice(index, 1); // Remove the element at the found index
+            return Promise.resolve(1); // Element was removed
+        }
+        return Promise.resolve(0); // Element not found, nothing removed
     });
 
     zRange = jest.fn((key: string, start: number, stop: number) => {
-        if (!this.dataStore[key]) return Promise.resolve([]);
-        const members = Array.from(this.dataStore[key].keys());
-        return Promise.resolve(members.slice(start, stop + 1)); // +1 because stop is inclusive
+        if (!RedisClientMock.dataStore[key] || !Array.isArray(RedisClientMock.dataStore[key])) {
+            return Promise.resolve([]);
+        }
+        // Sort the array by score in ascending order
+        const sortedByScore = RedisClientMock.dataStore[key].slice().sort((a, b) => a.score - b.score);
+        // If 'stop' is -1, set it to the last index of the array
+        const endIndex = stop === -1 ? sortedByScore.length : stop + 1; // Adjust for 'stop' being inclusive
+        // Slice the array to get the specified range, ensuring 'start' and 'endIndex' are within bounds
+        const range = sortedByScore.slice(start, endIndex);
+        // Return the values (members) of the elements in the range
+        return Promise.resolve(range.map(item => item.value));
     });
 
     hGetAll = jest.fn((key: string) => {
-        if (!this.dataStore[key]) return Promise.resolve({});
-        return Promise.resolve(this.dataStore[key]);
+        if (!RedisClientMock.dataStore[key]) return Promise.resolve({});
+        return Promise.resolve(RedisClientMock.dataStore[key]);
     });
 
     // Utility methods for testing
-    __setMockData = (key: string, value: any) => {
-        this.dataStore[key] = value;
+    static __setMockData = (key: string, value: any) => {
+        RedisClientMock.dataStore[key] = value;
     };
 
-    __getMockData = (key: string) => {
-        return this.dataStore[key];
+    static __setAllMockData = (data: { [key: string]: any }) => {
+        RedisClientMock.dataStore = data;
     };
 
-    __resetMockData = () => {
-        this.dataStore = {};
+    static __getMockData = (key: string) => {
+        return RedisClientMock.dataStore[key];
+    };
+
+    static __getAllMockData = () => {
+        // Return a deep copy to prevent accidental modifications
+        return JSON.parse(JSON.stringify(this.dataStore));
+    };
+
+    static __resetMockData = () => {
+        RedisClientMock.dataStore = {};
     };
 
     static resetMock = () => {
+        RedisClientMock.dataStore = {};
         if (RedisClientMock.instance) {
-            RedisClientMock.instance.dataStore = {};
             RedisClientMock.instance.eventHandlers = {};
             RedisClientMock.instance.isReady = false;
             RedisClientMock.instance.connect.mockClear();
