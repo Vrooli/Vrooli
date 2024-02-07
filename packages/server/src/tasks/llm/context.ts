@@ -33,6 +33,12 @@ export class ChatContextManager {
     async addMessage(chatId: string, message: PreMapMessageData): Promise<void> {
         await withRedis({
             process: async (redisClient: RedisClientType) => {
+                // Make sure the message is actually new
+                if (!message.isNew) {
+                    logger.error("Tried to add an message not marked as new", { trace: "0071", message });
+                    return;
+                }
+
                 const messageData: CachedChatMessage = {
                     id: message.id,
                     translatedTokenCounts: JSON.stringify(this.calculateTokenCounts(message.translations, ...this.languageModelService.getEstimationTypes())),
@@ -57,16 +63,29 @@ export class ChatContextManager {
     async editMessage(message: PreMapMessageData): Promise<void> {
         await withRedis({
             process: async (redisClient: RedisClientType) => {
+                // Make sure the message is actually existing
+                if (message.isNew) {
+                    logger.error("Tried to edit a message marked as new", { trace: "0070", message });
+                    return;
+                }
+
                 // Find existing message data
-                const existingMessageData = await redisClient.hGetAll(`message:${message.id}`);
+                let existingData = await redisClient.hGetAll(`message:${message.id}`);
+                let shouldDeleteOldData = false;
+                if (typeof existingData !== "object" || Object.keys(existingData).length === 0) {
+                    logger.error("Failed to find existing message data", { trace: "0068", message });
+                    existingData = {};
+                    shouldDeleteOldData = true;
+                }
+                const existingMessageData = { ...existingData };
                 let existingTranslations: Record<string, Record<string, number>> = {};
                 try {
-                    if (existingMessageData) {
+                    if (existingMessageData?.translatedTokenCounts) {
                         existingTranslations = JSON.parse(existingMessageData.translatedTokenCounts);
                     }
+                } catch (error) {
+                    logger.error("Failed to parse existing translations", { trace: "0069", error, existingMessageData });
                 }
-                // eslint-disable-next-line no-empty
-                catch (error) { }
                 const messageData: CachedChatMessage = {
                     id: message.id,
                     translatedTokenCounts: JSON.stringify({
@@ -74,15 +93,24 @@ export class ChatContextManager {
                         ...this.calculateTokenCounts(message.translations, ...this.languageModelService.getEstimationTypes()),
                     }),
                 };
-                if (message.parentId && !existingMessageData.parentId) {
+                // hSet keeps existing fields if not provided, so we only need to update the fields that have changed
+                if (message.parentId && message.parentId !== existingMessageData.parentId) {
                     messageData.parentId = message.parentId;
                 }
-                if (message.userId && !existingMessageData.userId) {
+                if (message.userId && message.userId !== existingMessageData.userId) {
                     messageData.userId = message.userId;
                 }
+                // Delete invalid data if necessary and update the message data
+                if (shouldDeleteOldData) {
+                    await redisClient.del(`message:${message.id}`);
+                }
                 await redisClient.hSet(`message:${message.id}`, messageData);
-                if (!existingMessageData.parentId && message.parentId) {
-                    await redisClient.sAdd(`children:${message.parentId}`, message.id);
+                // Check if parentId has changed and handle accordingly
+                if (messageData.parentId) {
+                    if (existingMessageData.parentId) {
+                        await redisClient.sRem(`children:${existingMessageData.parentId}`, messageData.id); // Remove from old parent's children set
+                    }
+                    await redisClient.sAdd(`children:${messageData.parentId}`, messageData.id); // Add to new parent's children set
                 }
             },
             trace: "0077",
@@ -92,16 +120,31 @@ export class ChatContextManager {
     async deleteMessage(chatId: string, messageId: string): Promise<void> {
         await withRedis({
             process: async (redisClient: RedisClientType) => {
-                const messageToDelete = await redisClient.hGetAll(`message:${messageId}`);
-                const children = await redisClient.sMembers(`children:${messageId}`);
+                // Find existing data
+                let messageToDelete = await redisClient.hGetAll(`message:${messageId}`);
+                if (typeof messageToDelete !== "object" || Object.keys(messageToDelete).length === 0) {
+                    logger.error("Failed to find message data to delete", { trace: "0066", messageId });
+                    messageToDelete = {};
+                }
+                // Find children IDs of the message to delete
+                let children = await redisClient.sMembers(`children:${messageId}`);
+                if (!Array.isArray(children)) {
+                    logger.error("Failed to find children of message to delete", { trace: "0065", messageId });
+                    children = [];
+                }
 
+                // Update parent reference for each child message
                 for (const childId of children) {
-                    await redisClient.hSet(`message:${childId}`, "parent", messageToDelete.parent);
-                    if (messageToDelete.parent) {
-                        await redisClient.sAdd(`children:${messageToDelete.parent}`, childId);
+                    // Update parent reference to the parent of the message being deleted
+                    await redisClient.hSet(`message:${childId}`, "parentId", messageToDelete.parentId);
+
+                    // If the parent exists, add the child to its children set
+                    if (messageToDelete.parentId) {
+                        await redisClient.sAdd(`children:${messageToDelete.parentId}`, childId);
                     }
                 }
 
+                // Delete the message and its reference in the children set
                 await redisClient.del([`message:${messageId}`, `children:${messageId}`]);
                 await redisClient.zRem(`chat:${chatId}`, messageId);
             },
@@ -146,7 +189,17 @@ export class ChatContextManager {
             }
 
             estimationMethods.forEach(method => {
-                translatedTokenCounts[translation.language][method] = this.languageModelService.estimateTokens(translation.text, method)[1];
+                // Check if the method is valid; if not, fall back to a default method
+                const validMethod = method ?? "default";
+
+                // Ensure we only proceed if there's a method to use
+                if (validMethod) {
+                    // Safely handle the case where estimateTokens might return undefined
+                    const estimate = this.languageModelService.estimateTokens(translation.text, validMethod);
+                    const tokenCount = estimate ? estimate[1] : 0; // Fallback to 0 if estimate is undefined
+
+                    translatedTokenCounts[translation.language][validMethod] = tokenCount;
+                }
             });
         });
 
