@@ -6,7 +6,7 @@ import { RedisClientMock } from "../../__mocks__/redis";
 import { PreMapMessageData } from "../../models/base/chatMessage";
 import { initializeRedis } from "../../redisConn";
 import { ChatContextCollector, ChatContextManager } from "./context";
-import { OpenAIService } from "./service";
+import { OpenAIService } from "./services/openai";
 
 const { PrismaClient } = pkg;
 

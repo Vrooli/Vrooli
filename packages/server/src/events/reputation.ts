@@ -92,12 +92,10 @@ export const reputationDeltaVote = (v0: number, v1: number): number => {
     let curr = v0;
     let loops = 0;
 
-    console.log("starting reputation loop. v0:", v0, " v1:", v1, ", curr:", curr);
     do {
         curr = nextRewardThreshold(curr, direction);
         // If the current number is past the target, return current reputation delta
         if (pastTarget()) {
-            console.log("past target", curr, reputationDelta);
             return reputationDelta * direction; // Make sure it has the correct sign
         }
         // Otherwise, increment the reputation delta

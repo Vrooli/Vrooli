@@ -3,7 +3,8 @@ import { logger } from "../../events/logger";
 import { PreMapMessageData } from "../../models/base/chatMessage";
 import { withRedis } from "../../redisConn";
 import { withPrisma } from "../../utils/withPrisma";
-import { LanguageModelService, OpenAIService } from "./service";
+import { LanguageModelService } from "./service";
+import { OpenAIService } from "./services/openai";
 
 type CachedChatMessage = {
     id: string;

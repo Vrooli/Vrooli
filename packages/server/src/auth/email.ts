@@ -65,7 +65,7 @@ export const validatePassword = (plaintext: string, user: Pick<UserModelInfo["Pr
     // 2. Not locked out
     // If account is deleted or locked, throw error
     const accountError = statusToError(user.status);
-    if (accountError !== null) throw new CustomError("0060", accountError, languages);
+    if (accountError !== null) throw new CustomError("0050", accountError, languages);
     // Validate plaintext password against hash
     return bcrypt.compareSync(plaintext, user.password);
 };

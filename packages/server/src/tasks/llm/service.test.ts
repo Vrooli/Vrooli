@@ -1,7 +1,8 @@
 import pkg from "../../__mocks__/@prisma/client";
-import { mockPrisma } from "../../__mocks__/prismaUtils";
+import { mockPrisma, resetPrismaMockData } from "../../__mocks__/prismaUtils";
 import { ModelMap } from "../../models";
 import { fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
+import { OpenAIService } from "./services/openai";
 
 const { PrismaClient } = pkg;
 
@@ -61,6 +62,7 @@ describe("fetchMessagesFromDatabase", () => {
 
     afterEach(() => {
         PrismaClient.resetMocks();
+        resetPrismaMockData();
     });
 
     test("successfully retrieves messages from the database", async () => {
@@ -84,91 +86,98 @@ describe("fetchMessagesFromDatabase", () => {
     });
 });
 
-// // Test each implementation of LanguageModelService to ensure they comply with the interface
-// describe("LanguageModelService implementations", () => {
-//     const implementations = [
-//         { name: "OpenAIService", instance: new OpenAIService() },
-//         // add other implementations as needed
-//     ];
+// Test each implementation of LanguageModelService to ensure they comply with the interface
+describe("LanguageModelService lmServices", () => {
+    const lmServices = [
+        { name: "OpenAIService", lmService: new OpenAIService() },
+        // add other lmServices as needed
+    ];
 
-//     const respondingBotId1 = "bot_1";
-//     const respondingBotConfig1 = {
-//         name: "TestBot",
-//         model: "default_model",
-//         maxTokens: 100,
-//     };
-//     const messageContextInfo1 = [
-//         { messageId: "msg_1", tokenSize: 10, userId: "user_1", language: "en" },
-//     ];
-//     const participantsData1 = {
-//         "user_1": { botSettings: "default", id: "user_1", name: "User One" },
-//     };
-//     const userData1 = {
-//         id: "user_1",
-//         name: "User One",
-//         credits: 100,
-//         handle: "user1",
-//         hasPremium: false,
-//         languages: ["en"],
-//         profileImage: "https://example.com/image.png",
-//         updated_at: new Date().toISOString(),
-//     };
+    const respondingBotId1 = "bot_1";
+    const respondingBotConfig1 = {
+        name: "TestBot",
+        model: "default_model",
+        maxTokens: 100,
+    };
+    const messageContextInfo1 = [
+        { messageId: "msg_1", tokenSize: 10, userId: "user_1", language: "en" },
+    ];
+    const participantsData1 = {
+        "user_1": { botSettings: "default", id: "user_1", name: "User One" },
+    };
+    const userData1 = {
+        id: "user_1",
+        name: "User One",
+        credits: 100,
+        handle: "user1",
+        hasPremium: false,
+        languages: ["en"],
+        profileImage: "https://example.com/image.png",
+        updated_at: new Date().toISOString(),
+    };
 
-//     const chatId1 = "chat_1";
-//     const respondingToMessageId1 = "msg_1";
-//     const respondingToMessageContent1 = "Hello, world!";
+    const chatId1 = "chat_1";
+    const respondingToMessageId1 = "msg_1";
+    const respondingToMessageContent1 = "Hello, world!";
 
-//     implementations.forEach(({ name, instance }) => {
-//         describe(`${name} compliance with LanguageModelService interface`, () => {
-//             it("estimateTokens returns a tuple with TokenNameType and number", () => {
-//                 const [tokenType, count] = instance.estimateTokens("sample text");
-//                 expect(tokenType).toBeDefined(); // Add more specific checks as needed
-//                 expect(count).toBeDefined();
-//                 expect(typeof count).toBe("number");
-//             });
+    lmServices.forEach(({ name: lmServiceName, lmService: lmService }) => {
+        // Estimate tokens
+        it(`${lmServiceName}: estimateTokens returns a tuple with TokenNameType and number`, () => {
+            const [tokenType, count] = lmService.estimateTokens("sample text");
+            expect(tokenType).toBeDefined(); // Add more specific checks as needed
+            expect(count).toBeDefined();
+            expect(typeof count).toBe("number");
+        });
 
-//             it("generateContext returns a LanguageModelContext", async () => {
-//                 await expect(instance.generateContext(
-//                     respondingBotId1,
-//                     respondingBotConfig1,
-//                     messageContextInfo1,
-//                     participantsData1,
-//                     userData1,
-//                 )).resolves.toBeDefined();
-//             });
+        // Generate context
+        it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
+            console.log('going to generate context', lmService?.generateContext)
+            await expect(lmService.generateContext(
+                respondingBotId1,
+                respondingBotConfig1,
+                messageContextInfo1,
+                participantsData1,
+                userData1,
+            )).resolves.toBeDefined();
+        });
 
-//             it("generateResponse returns a string", async () => {
-//                 const response = await instance.generateResponse(
-//                     chatId1,
-//                     respondingToMessageId1,
-//                     respondingToMessageContent1,
-//                     respondingBotId1,
-//                     respondingBotConfig1,
-//                     userData1,
-//                 );
-//                 expect(typeof response).toBe("string");
-//             });
+        // Generate response
+        it(`${lmServiceName}: generateResponse returns a string`, async () => {
+            console.log('going to generate response', lmService?.generateResponse)
+            const response = await lmService.generateResponse(
+                chatId1,
+                respondingToMessageId1,
+                respondingToMessageContent1,
+                respondingBotId1,
+                respondingBotConfig1,
+                userData1,
+            );
+            expect(typeof response).toBe("string");
+        });
 
-//             it("getContextSize returns a number", () => {
-//                 const size = instance.getContextSize();
-//                 expect(typeof size).toBe("number");
-//             });
+        // Get context size
+        it(`${lmServiceName}: getContextSize returns a number`, () => {
+            const size = lmService.getContextSize();
+            expect(typeof size).toBe("number");
+        });
 
-//             it("getEstimationMethod returns a TokenNameType", () => {
-//                 const method = instance.getEstimationMethod();
-//                 expect(method).toBeDefined(); // Add more specific checks as needed
-//             });
+        // Get estimation method
+        it(`${lmServiceName}: getEstimationMethod returns a TokenNameType`, () => {
+            const method = lmService.getEstimationMethod();
+            expect(method).toBeDefined(); // Add more specific checks as needed
+        });
 
-//             it("getEstimationTypes returns an array of TokenNameType", () => {
-//                 const types = instance.getEstimationTypes();
-//                 expect(Array.isArray(types)).toBeTruthy();
-//                 // Optionally, check if types array contains specific expected types
-//             });
+        // Get estimation types
+        it(`${lmServiceName}: getEstimationTypes returns an array of TokenNameType`, () => {
+            const types = lmService.getEstimationTypes();
+            expect(Array.isArray(types)).toBeTruthy();
+            // Optionally, check if types array contains specific expected types
+        });
 
-//             it("getModel returns a GenerateNameType", () => {
-//                 const model = instance.getModel();
-//                 expect(model).toBeDefined(); // Add more specific checks as needed
-//             });
-//         });
-//     });
-// });
+        // Get model
+        it(`${lmServiceName}: getModel returns a GenerateNameType`, () => {
+            const model = lmService.getModel();
+            expect(model).toBeDefined(); // Add more specific checks as needed
+        });
+    });
+});
