@@ -7,7 +7,7 @@ module.exports = {
     ],
     coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
     setupFilesAfterEnv: ["./config/jest/setupTests.js"],
-    testEnvironment: "jsdom",
+    testEnvironment: "node",
     testPathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
     modulePaths: ["<rootDir>/src"],
     transform: {
