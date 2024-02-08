@@ -1,9 +1,16 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { RedisClientType } from "redis";
+import pkg from "../../__mocks__/@prisma/client";
+import { mockPrisma, resetPrismaMockData } from "../../__mocks__/prismaUtils";
 import { RedisClientMock } from "../../__mocks__/redis";
 import { PreMapMessageData } from "../../models/base/chatMessage";
-import { ChatContextManager } from "./context";
+import { initializeRedis } from "../../redisConn";
+import { ChatContextCollector, ChatContextManager } from "./context";
 import { OpenAIService } from "./service";
 
+const { PrismaClient } = pkg;
+
+jest.mock("@prisma/client");
 jest.mock("../../events/logger");
 
 // NOTE: In these tests, you'll see a lot of checks for specific Redis 
@@ -29,7 +36,7 @@ describe("ChatContextManager", () => {
             id: 'message1',
             userId: 'user1',
             parentId: 'parent1',
-            translatedTokenCounts: JSON.stringify({ en: 10 }),
+            translatedTokenCounts: JSON.stringify({ en: { "default": 10 } }),
         }
     }
     const initialChildrenData = {
@@ -472,6 +479,339 @@ describe("ChatContextManager", () => {
                 expect(tokenCounts[language]).toBeDefined();
                 expect(Object.keys(tokenCounts[language])).toContain('default'); // Assuming 'default' is a fallback method
             });
+        });
+    });
+});
+
+describe("ChatContextCollector", () => {
+    let chatContextCollector: ChatContextCollector;
+    let redis: RedisClientType;
+    let prismaMock;
+
+    const lmServices = [
+        { name: "OpenAIService", instance: new OpenAIService() },
+        // Add other implementations as needed
+    ];
+
+    // Initial Redis data setup
+    const initialChatData = {
+        "chat:chat1": [
+            { score: Date.now() - 5000, value: 'message1' },
+            { score: Date.now() - 4000, value: 'message2' },
+            { score: Date.now() - 3000, value: 'message3' },
+            { score: Date.now() - 2000, value: 'message4' },
+            { score: Date.now() - 1000, value: 'message5' },
+            { score: Date.now(), value: 'message6' },
+        ],
+        "chat:emptyChat": [],
+    };
+    const initialMessageData = {
+        'message:message1': {
+            id: 'message1',
+            userId: 'alice',
+            parentId: null,
+            content: 'This is the first message',
+            language: 'en',
+            translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
+        },
+        // Child of first message
+        'message:message2': {
+            id: 'message2',
+            userId: 'bob',
+            parentId: 'message1',
+            content: 'This is the second message',
+            language: 'en',
+            translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
+        },
+        // Also a child of first message (i.e. chat has forked)
+        'message:message3': {
+            id: 'message3',
+            userId: 'bob',
+            parentId: 'message1',
+            content: 'This is the third message',
+            language: 'en',
+            translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
+        },
+        // Child of second message
+        'message:message4': {
+            id: 'message4',
+            userId: 'alice',
+            parentId: 'message2',
+            content: 'This is the fourth message',
+            language: 'en',
+            translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
+        },
+        // Child of fourth message
+        'message:message5': {
+            id: 'message5',
+            userId: 'bob',
+            parentId: 'message4',
+            content: 'This is the fifth message',
+            language: 'en',
+            translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
+        },
+        // Child of third message
+        'message:message6': {
+            id: 'message6',
+            userId: 'bob',
+            parentId: 'message3',
+            content: 'This is the sixth message',
+            language: 'en',
+            translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
+        },
+    };
+    const initialChildrenData = {
+        'children:message1': ['message2', 'message3'],
+        'children:message2': ['message4'],
+        'children:message3': ['message6'],
+        'children:message4': ['message5'],
+    }
+    const initialData = {
+        ...JSON.parse(JSON.stringify(initialChatData)),
+        ...JSON.parse(JSON.stringify(initialMessageData)),
+        ...JSON.parse(JSON.stringify(initialChildrenData)),
+    };
+
+    lmServices.forEach(({ name: lmServiceName, instance: lmService }) => {
+        beforeEach(async () => {
+            jest.clearAllMocks();
+            RedisClientMock.resetMock();
+            redis = await initializeRedis();
+            chatContextCollector = new ChatContextCollector(lmService);
+
+            // Add mock data to the databases
+            RedisClientMock.__setAllMockData(JSON.parse(JSON.stringify(initialData)));
+            prismaMock = mockPrisma({
+                ChatMessage: [
+                    {
+                        id: 'message7',
+                        parent: { id: 'message3' },
+                        translations: [{ language: 'en', text: 'This is the seventh message' }],
+                        user: { id: 'charlie' },
+                    },
+                    {
+                        id: 'message8',
+                        parent: { id: 'message4' },
+                        translations: [{ language: 'en', text: 'This is the eighth message' }],
+                        user: { id: 'dave' },
+                    },
+                ],
+            });
+            PrismaClient.injectMocks(prismaMock);
+
+            // Mock language model service methods to simplify testing
+            jest.spyOn(lmService, 'getContextSize').mockReturnValue(350 as any); // Since we've set each message to have 100 tokens, this should be able to hold 3 messages
+            jest.spyOn(lmService, 'getEstimationMethod').mockReturnValue('default');
+        });
+
+        afterEach(() => {
+            PrismaClient.resetMocks();
+            resetPrismaMockData();
+        });
+
+        // Collect context
+        it(`${lmServiceName}: should collect the correct context for the latest message`, async () => {
+            const chatId = "chat1";
+            const model = "defaultModel";
+            const languages = ["en"];
+            const latestMessageId = "message6";
+
+            const messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessageId);
+
+            // Expect to collect context for message6, its parent (message3), and its grandparent (message1)
+            expect(messageContextInfo.length).toBe(3);
+            expect(messageContextInfo.map(info => info.messageId)).toEqual(expect.arrayContaining(["message1", "message3", "message6"]));
+            messageContextInfo.forEach(info => {
+                expect(info.tokenSize).toBe(100); // Based on initialMessageData
+            });
+        });
+        it(`${lmServiceName}: should handle cases with no latest message id provided`, async () => {
+            const chatId = "chat1";
+            const model = "defaultModel";
+            const languages = ["en"];
+
+            const messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages);
+
+            // Since the most recent message is message6, the result should be the same as the previous test
+            expect(messageContextInfo.length).toBe(3);
+            expect(messageContextInfo.map(info => info.messageId)).toEqual(expect.arrayContaining(["message1", "message3", "message6"]));
+            messageContextInfo.forEach(info => {
+                expect(info.tokenSize).toBe(100); // Based on initialMessageData
+            });
+        });
+        it(`${lmServiceName}: should limit the context collection to the context size`, async () => {
+            const chatId = "chat1";
+            const model = "defaultModel";
+            const languages = ["en"];
+            const latestMessageId = "message5"; // Starting from a deep child
+
+            let messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessageId);
+
+            // Given the context size of 350 and token count of 100 per message, expect to collect up to 3 messages
+            expect(messageContextInfo.length).toBe(3);
+
+            // Now let's lower the context size to 200 and try again
+            jest.spyOn(lmService, 'getContextSize').mockReturnValue(200 as any);
+
+            messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessageId);
+
+            // Given the context size of 200 and token count of 100 per message, expect to collect up to 2 messages
+            expect(messageContextInfo.length).toBe(2);
+        });
+        it(`${lmServiceName}: should stop early when missing messages in the chain`, async () => {
+            // Remove message2 from Redis
+            RedisClientMock.__deleteMockData(`message:message2`);
+
+            const chatId = "chat1";
+            const model = "defaultModel";
+            const languages = ["en"];
+            const latestMessageId = "message5";
+
+            const messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessageId);
+
+            // Should be able to collect message5 and its parent (message4), but not its grandparent (message2) or any other ancestors
+            expect(messageContextInfo.length).toBe(2);
+            expect(messageContextInfo.map(info => info.messageId)).toEqual(expect.arrayContaining(["message4", "message5"]));
+        });
+
+        // Latest message ID
+        it(`${lmServiceName}: should return the ID of the most recent message in a chat with messages`, async () => {
+            const latestMessageId = await chatContextCollector.getLatestMessageId(redis, "chat1");
+
+            // Expect the latest message ID to be 'message6', as per the initialMessageData
+            expect(latestMessageId).toBe('message6');
+        });
+        it(`${lmServiceName}: should return null for an empty chat`, async () => {
+            const latestMessageId = await chatContextCollector.getLatestMessageId(redis, "emptyChat");
+
+            // Expect null for an empty chat
+            expect(latestMessageId).toBeNull();
+        });
+        it(`${lmServiceName}: should return null for a non-existent chat ID`, async () => {
+            const latestMessageId = await chatContextCollector.getLatestMessageId(redis, "nonExistentChatId");
+
+            // Expect null for a non-existent chat ID
+            expect(latestMessageId).toBeNull();
+        });
+
+        // Get message details
+        it(`${lmServiceName}: should retrieve message details from Redis if available`, async () => {
+            const messageId = 'message2'; // An ID from the initial Redis mock data
+            const messageDetails = await chatContextCollector.getMessageDetails(redis, messageId);
+
+            expect(messageDetails).toEqual(expect.objectContaining({
+                id: messageId,
+                parentId: "message1", // Based on initialMessageData
+                translatedTokenCounts: expect.any(Object), // Token counts are parsed JSON
+                userId: "bob", // Based on initialMessageData
+            }));
+        });
+        it(`${lmServiceName}: should fetch message details from the database if not in Redis and store them in Redis`, async () => {
+            const messageId = 'message7'; // ID not in initial Redis mock data, but in Prisma mock
+            const messageDetails = await chatContextCollector.getMessageDetails(redis, messageId);
+
+            expect(prismaMock.chat_message.findUnique).toHaveBeenCalledWith({
+                where: { id: messageId },
+                select: expect.any(Object),
+            });
+
+            expect(messageDetails).toEqual(expect.objectContaining({
+                id: messageId,
+                parentId: 'message3', // Based on Prisma mock data
+                translatedTokenCounts: expect.any(Object), // Token counts are calculated and should be an object
+                userId: 'charlie', // Based on Prisma mock data
+            }));
+
+            // Verify Redis now contains the fetched message details
+            const redisData = await redis.hGetAll(`message:${messageId}`);
+            expect(redisData).toEqual(expect.objectContaining({
+                id: messageId,
+                parentId: 'message3',
+                translatedTokenCounts: expect.any(String), // Should be JSON stringified
+                userId: 'charlie',
+            }));
+        });
+        it(`${lmServiceName}: should throw an error if message details cannot be fetched from Redis or the database`, async () => {
+            const messageId = 'nonExistentMessage';
+            await expect(chatContextCollector.getMessageDetails(redis, messageId)).rejects.toThrow();
+        });
+
+        // Language token count
+        it("should return the token count for a preferred language if available", async () => {
+            const messageId = "message1";
+            const estimationMethod = "default";
+            const languages = ["en"];
+            const expectedTokenCount = 100;
+
+            // Mock Redis response
+            RedisClientMock.__setMockData(`message:${messageId}`, {
+                translatedTokenCounts: JSON.stringify({ en: { "default": expectedTokenCount } }),
+            });
+
+            const [tokenCount, language] = await chatContextCollector.getTokenCountForLanguages(redis, messageId, estimationMethod, languages);
+
+            expect(tokenCount).toBe(expectedTokenCount);
+            expect(language).toBe("en");
+        });
+        it("should calculate and update token count if not available in cache", async () => {
+            const messageId = "message2";
+            const estimationMethod = "default";
+            const languages = ["fr"]; // Preferred language not initially in cache
+            const expectedTokenCount = 150; // Token count after calculation
+
+            // Mock Redis to initially return empty or irrelevant data
+            RedisClientMock.__setMockData(`message:${messageId}`, {
+                translatedTokenCounts: JSON.stringify({}), // No counts initially
+            });
+
+            // Mock Prisma response for message translations
+            prismaMock.chat_message.findUnique.mockResolvedValueOnce({
+                translations: [{ language: "fr", text: "Ceci est un message" }],
+            });
+
+            // Mock token count calculation
+            jest.spyOn(ChatContextManager.prototype, "calculateTokenCounts").mockReturnValueOnce({
+                fr: { "default": expectedTokenCount },
+            });
+
+            const [tokenCount, language] = await chatContextCollector.getTokenCountForLanguages(redis, messageId, estimationMethod, languages);
+
+            expect(tokenCount).toBe(expectedTokenCount);
+            expect(language).toBe("fr");
+            expect(redis.hSet).toHaveBeenCalledWith(`message:${messageId}`, "translatedTokenCounts", expect.any(String)); // Ensure cache is updated
+        });
+        it("should use the first available language if preferred languages are not available", async () => {
+            const messageId = "message3";
+            const estimationMethod = "default";
+            const languages = ["es"]; // Preferred language not available
+            const fallbackLanguage = "en"; // First available language in cache
+            const expectedTokenCount = 120;
+
+            // Mock Redis response with only English token count available
+            RedisClientMock.__setMockData(`message:${messageId}`, {
+                translatedTokenCounts: JSON.stringify({ en: { "default": expectedTokenCount } }),
+            });
+
+            const [tokenCount, language] = await chatContextCollector.getTokenCountForLanguages(redis, messageId, estimationMethod, languages);
+
+            expect(tokenCount).toBe(expectedTokenCount);
+            expect(language).toBe(fallbackLanguage);
+        });
+        it("should return -1 if token counts cannot be found or calculated", async () => {
+            const messageId = "message4";
+            const estimationMethod = "default";
+            const languages = ["en"];
+
+            // Mock Redis with no data
+            RedisClientMock.__setMockData(`message:${messageId}`, {});
+
+            // Mock Prisma to simulate no translations available
+            prismaMock.chat_message.findUnique.mockResolvedValueOnce(null);
+
+            const [tokenCount, language] = await chatContextCollector.getTokenCountForLanguages(redis, messageId, estimationMethod, languages);
+
+            expect(tokenCount).toBe(-1);
+            expect(language).toBe("");
         });
     });
 });

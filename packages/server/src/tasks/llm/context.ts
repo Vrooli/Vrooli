@@ -18,6 +18,8 @@ export type MessageContextInfo = {
     language: string;
 };
 
+type TokenCounts = Record<string, Record<string, number>>;
+
 /**
  * ChatContextManager manages the writing and updating of chat message data in Redis.
  * This class is responsible for maintaining the integrity and structure of chat messages
@@ -180,7 +182,7 @@ export class ChatContextManager {
      * @param estimationMethods Each token estimation method to use
      * @returns An object with languages as keys and token counts for each estimation method as values
      */
-    public calculateTokenCounts(translations: { language: string, text: string }[], ...estimationMethods: string[]): Record<string, Record<string, number>> {
+    public calculateTokenCounts(translations: { language: string, text: string }[], ...estimationMethods: string[]): TokenCounts {
         const translatedTokenCounts = {};
 
         translations.forEach(translation => {
@@ -237,6 +239,11 @@ export class ChatContextCollector {
                     const [estimatedTokens, language] = await this.getTokenCountForLanguages(redisClient, currentMessageId, estimationMethod, languages);
 
                     if (estimatedTokens >= 0) {
+                        currentTokenCount += estimatedTokens;
+                        if (currentTokenCount > contextSize) {
+                            break; // Break the loop if the context size is exceeded
+                        }
+
                         messageContextInfo.push({
                             messageId: currentMessageId,
                             tokenSize: estimatedTokens,
@@ -244,7 +251,6 @@ export class ChatContextCollector {
                             language,
                         });
 
-                        currentTokenCount += estimatedTokens;
                         currentMessageId = messageDetails.parentId ?? null;
                     } else {
                         logger.warning("Failed to estimate tokens for message", { trace: "0075", messageDetails });
@@ -260,16 +266,16 @@ export class ChatContextCollector {
         return messageContextInfo;
     }
 
-    private async getLatestMessageId(redisClient: RedisClientType, chatId: string): Promise<string | null> {
+    async getLatestMessageId(redisClient: RedisClientType, chatId: string): Promise<string | null> {
         // Retrieve the last element in the sorted set (the most recent message)
         const latestMessages = await redisClient.zRange(`chat:${chatId}`, -1, -1);
         return latestMessages.length > 0 ? latestMessages[0] : null;
     }
 
-    private async getMessageDetails(redisClient: RedisClientType, messageId: string): Promise<CachedChatMessage> {
+    async getMessageDetails(redisClient: RedisClientType, messageId: string): Promise<CachedChatMessage> {
         let messageData: CachedChatMessage = await redisClient.hGetAll(`message:${messageId}`) as CachedChatMessage;
 
-        if (!messageData || Object.keys(messageData).length === 0) {
+        if (!messageData || typeof messageData !== "object" || Object.keys(messageData).length === 0) {
             // Query from Prisma if not found in Redis
             let success = false;
             await withPrisma({
@@ -342,7 +348,7 @@ export class ChatContextCollector {
      * @param languages User's preferred languages
      * @returns The token count for the message and the language used
      */
-    private async getTokenCountForLanguages(redisClient: RedisClientType, messageId: string, estimationMethod: string, languages: string[]): Promise<[number, string]> {
+    async getTokenCountForLanguages(redisClient: RedisClientType, messageId: string, estimationMethod: string, languages: string[]): Promise<[number, string]> {
         const messageData = await redisClient.hGetAll(`message:${messageId}`);
         let translatedTokenCounts = messageData ? JSON.parse(messageData.translatedTokenCounts ?? "{}") : {};
         const languagesWithDefault = languages.length === 0 ? ["en"] : languages;

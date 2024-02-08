@@ -204,6 +204,10 @@ export class RedisClientMock {
         return JSON.parse(JSON.stringify(this.dataStore));
     };
 
+    static __deleteMockData = (key: string) => {
+        delete RedisClientMock.dataStore[key];
+    }
+
     static __resetMockData = () => {
         RedisClientMock.dataStore = {};
     };

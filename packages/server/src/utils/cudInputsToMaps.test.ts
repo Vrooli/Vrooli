@@ -1,10 +1,10 @@
-import { mockPrisma } from "../__mocks__/prismaUtils";
+import { mockPrisma, resetPrismaMockData } from "../__mocks__/prismaUtils";
 import { ModelMap } from "../models";
 import { convertPlaceholders, determineModelType, fetchAndMapPlaceholder, initializeInputMaps, processConnectDisconnectOrDelete, processCreateOrUpdate, processInputObjectField, replacePlaceholdersInInputsById, replacePlaceholdersInInputsByType, replacePlaceholdersInMap, updateClosestWithId } from "./cudInputsToMaps";
 import { InputNode } from "./inputNode";
 import { IdsByAction, IdsByType, InputsByType } from "./types";
 
-jest.mock("@prisma/client");
+// jest.mock("@prisma/client");
 
 describe("fetchAndMapPlaceholder", () => {
     let prismaMock;
@@ -24,6 +24,10 @@ describe("fetchAndMapPlaceholder", () => {
         });
 
         placeholderToIdMap = {};
+    });
+
+    afterEach(() => {
+        resetPrismaMockData();
     });
 
     it("should fetch and return the correct ID for a new placeholder", async () => {
@@ -121,6 +125,10 @@ describe("replacePlaceholdersInMap", () => {
         placeholderToIdMap = {};
     });
 
+    afterEach(() => {
+        resetPrismaMockData();
+    });
+
     it("should replace placeholders with actual IDs", async () => {
         const idsMap = {
             "User": ["user|123.prof|profile"],
@@ -199,6 +207,10 @@ describe("replacePlaceholdersInInputsById", () => {
         });
 
         placeholderToIdMap = {};
+    });
+
+    afterEach(() => {
+        resetPrismaMockData();
     });
 
     it("should replace placeholders with string inputs", async () => {
@@ -281,6 +293,10 @@ describe("replacePlaceholdersInInputsByType", () => {
         });
 
         placeholderToIdMap = {};
+    });
+
+    afterEach(() => {
+        resetPrismaMockData();
     });
 
     it("should replace placeholders with string inputs", async () => {
@@ -396,6 +412,10 @@ describe("convertPlaceholders", () => {
         idsByType = JSON.parse(JSON.stringify(initialIdsByType));
         inputsById = JSON.parse(JSON.stringify(initialInputsById));
         inputsByType = JSON.parse(JSON.stringify(initialInputsByType));
+    });
+
+    afterEach(() => {
+        resetPrismaMockData();
     });
 
     it("should replace placeholders with actual IDs", async () => {

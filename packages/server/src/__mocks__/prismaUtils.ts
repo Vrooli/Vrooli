@@ -2,7 +2,24 @@ import { snakeCase, uuid } from "@local/shared";
 
 type PrismaSelect = Record<string, any>;
 
-function mockFindUnique<T>(records: T[], args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> {
+// Global data store for Prisma mock
+let globalPrismaDataStore = {};
+
+// Utility functions to manage the global data store
+const setPrismaMockData = (model: string, data) => {
+    globalPrismaDataStore[model] = data;
+};
+
+const getPrismaMockData = (model: string) => {
+    return globalPrismaDataStore[model] || [];
+};
+
+export const resetPrismaMockData = () => {
+    globalPrismaDataStore = {};
+};
+
+function mockFindUnique<T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> {
+    const records = getPrismaMockData(model);
     const whereKeys = Object.keys(args.where);
     const item = records.find(record =>
         whereKeys.every(key => (record as any)[key] === args.where[key]),
@@ -15,7 +32,8 @@ function mockFindUnique<T>(records: T[], args: { where: Record<string, any>, sel
     return Promise.resolve(result) as any;
 }
 
-function mockFindMany<T>(records: T[], args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T[]> {
+function mockFindMany<T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T[]> {
+    const records = getPrismaMockData(model);
     const whereKeys = Object.keys(args.where);
     const filteredItems = records.filter(record =>
         whereKeys.every(key => {
@@ -46,7 +64,8 @@ function mockFindMany<T>(records: T[], args: { where: Record<string, any>, selec
     return Promise.resolve(results) as unknown as Promise<T[]>;
 }
 
-function mockCreate<T>(records: T[], args: { data: T }): Promise<T> {
+function mockCreate<T>(model: string, args: { data: T }): Promise<T> {
+    const records = getPrismaMockData(model);
     const newItem = { id: uuid(), ...args.data };
     records.push(newItem);
     return Promise.resolve(newItem);
@@ -83,7 +102,8 @@ function constructSelectResponse<T>(item: T, select?: Record<string, boolean>): 
     return result as Partial<T>;
 }
 
-function mockUpdate<T>(records: T[], args: { where: Record<string, any>, data: T }): Promise<T> {
+function mockUpdate<T>(model: string, args: { where: Record<string, any>, data: T }): Promise<T> {
+    const records = getPrismaMockData(model);
     const whereKeys = Object.keys(args.where);
     const index = records.findIndex(record =>
         whereKeys.every(key => (record as any)[key] === args.where[key]),
@@ -95,7 +115,8 @@ function mockUpdate<T>(records: T[], args: { where: Record<string, any>, data: T
     return Promise.resolve(records[index]);
 }
 
-function mockUpsert<T>(records: T[], args: { where: Record<string, any>, create: T, update: T }): Promise<T> {
+function mockUpsert<T>(model: string, args: { where: Record<string, any>, create: T, update: T }): Promise<T> {
+    const records = getPrismaMockData(model);
     const existingItem = mockFindUnique(records, { where: args.where });
     return existingItem.then(item => {
         if (item) {
@@ -111,17 +132,20 @@ function mockUpsert<T>(records: T[], args: { where: Record<string, any>, create:
  * returns a mock object which can be passed in as a PrismaType
  */
 export const mockPrisma = (data: { [key in string]: any[] }) => {
-    const prismaMock = {};
-
     Object.entries(data).forEach(([modelType, records]) => {
+        setPrismaMockData(modelType, records);
+    });
+
+    const prismaMock = {};
+    Object.keys(data).forEach((modelType) => {
         const modelName = snakeCase(modelType);
 
         prismaMock[modelName] = {
-            findUnique: jest.fn((args) => mockFindUnique(records, args)),
-            findMany: jest.fn((args) => mockFindMany(records, args)),
-            create: jest.fn((args) => mockCreate(records, args)),
-            update: jest.fn((args) => mockUpdate(records, args)),
-            upsert: jest.fn((args) => mockUpsert(records, args)),
+            findUnique: jest.fn((args) => mockFindUnique(modelType, args)),
+            findMany: jest.fn((args) => mockFindMany(modelType, args)),
+            create: jest.fn((args) => mockCreate(modelType, args)),
+            update: jest.fn((args) => mockUpdate(modelType, args)),
+            upsert: jest.fn((args) => mockUpsert(modelType, args)),
             // Add other methods here as needed
         };
     });

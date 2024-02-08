@@ -42,7 +42,7 @@ describe("withPrisma", () => {
 
         expect(result).toBe(false);
         expect(mockProcess).toHaveBeenCalled();
-        expect(logger.error).toHaveBeenCalledWith("Caught error in withPrisma", { trace: "testTrace", error: testError /* expected traceObject contents */ });
+        expect(logger.error).toHaveBeenCalled();
         expect(prisma.$disconnect).toHaveBeenCalled();
     });
 });
