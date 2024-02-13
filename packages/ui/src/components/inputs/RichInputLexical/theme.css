@@ -77,22 +77,6 @@
     border-bottom: 1px solid rgba(88, 144, 255, 0.3);
 }
 
-.RichInput__code {
-    background-color: #23241f;
-    color: #f8f8f2;
-    padding: 1em;
-    font-family: Menlo, Consolas, Monaco, monospace;
-    display: block;
-    line-height: 1.53;
-    font-size: 13px;
-    margin: 0;
-    margin-top: 8px;
-    margin-bottom: 8px;
-    overflow-x: auto;
-    position: relative;
-    tab-size: 2;
-}
-
 .RichInput__table {
     border-collapse: collapse;
     border-spacing: 0;

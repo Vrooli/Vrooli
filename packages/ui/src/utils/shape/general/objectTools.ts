@@ -46,7 +46,7 @@ export const hasObjectChanged = (original: unknown, updated: unknown, fields: st
     if (updated === null || updated === undefined) return false;
     if (original === null || original === undefined) return true;
 
-    const isObject = (obj: unknown) => obj && typeof obj === 'object' && !Array.isArray(obj);
+    const isObject = (obj: unknown) => obj && typeof obj === "object" && !Array.isArray(obj);
 
     // Direct comparison for non-objects
     if (!isObject(original) || !isObject(updated)) {
@@ -54,11 +54,11 @@ export const hasObjectChanged = (original: unknown, updated: unknown, fields: st
     }
 
     const checkField = (original: any, updated: any, field: string): boolean => {
-        const [topLevelField, ...rest] = field.split('.');
+        const [topLevelField, ...rest] = field.split(".");
 
         if (rest.length > 0) {
             if (isObject(original[topLevelField]) && isObject(updated[topLevelField])) {
-                return hasObjectChanged(original[topLevelField], updated[topLevelField], [rest.join('.')]);
+                return hasObjectChanged(original[topLevelField], updated[topLevelField], [rest.join(".")]);
             }
             return false;
         } else {
@@ -81,11 +81,11 @@ export const hasObjectChanged = (original: unknown, updated: unknown, fields: st
     // Check specified fields, or all fields if none specified
     const fieldsToCheck = fields.length > 0 ? fields : Array.from(allKeys);
 
-    for (let field of fieldsToCheck) {
+    for (const field of fieldsToCheck) {
         if (checkField(original, updated, field)) {
             return true;
         }
     }
 
     return false;
-}
+};

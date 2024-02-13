@@ -1,8 +1,7 @@
-import { $isCodeNode, CODE_LANGUAGE_MAP, CodeHighlightNode, CodeNode } from "@lexical/code";
 import { HashtagNode } from "@lexical/hashtag";
 import { $isLinkNode, AutoLinkNode, LinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { $isListNode, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListItemNode, ListNode } from "@lexical/list";
-import { $convertFromMarkdownString, $convertToMarkdownString, ElementTransformer, TRANSFORMERS, TextMatchTransformer } from "@lexical/markdown";
+import { $convertToMarkdownString, ElementTransformer, HEADING, ORDERED_LIST, QUOTE, TEXT_FORMAT_TRANSFORMERS, TEXT_MATCH_TRANSFORMERS, TextMatchTransformer, UNORDERED_LIST } from "@lexical/markdown";
 import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
 import { InitialEditorStateType } from "@lexical/react/LexicalComposer";
 import { LexicalComposerContext, LexicalComposerContextType, createLexicalComposerContext, useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -18,16 +17,19 @@ import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import { $createHeadingNode, $isHeadingNode, HeadingNode, HeadingTagType, QuoteNode } from "@lexical/rich-text";
 import { $isAtNodeEnd, $setBlocksType } from "@lexical/selection";
 import { $isTableNode, TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
+import { $findMatchingParent, $getNearestNodeOfType } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import { $INTERNAL_isPointSelection, $applyNodeReplacement, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, $isTextNode, COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, DOMConversionMap, DOMConversionOutput, EditorConfig, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, INTERNAL_PointSelection, LexicalCommand, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, SerializedLexicalNode, Spread, TextFormatType, TextNode, createCommand, createEditor } from "lexical";
+import { $INTERNAL_isPointSelection, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, INTERNAL_PointSelection, LexicalEditor, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, TextNode, createEditor } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputAction, RichInputActiveStates, RichInputLexicalProps } from "../types";
+import { $convertFromMarkdownString } from "./builder";
+import { CODE_BLOCK_TRANSFORMER, CodeBlockNode, CodeBlockPlugin, TOGGLE_CODE_BLOCK_COMMAND } from "./plugins/code/CodePlugin";
+import { SPOILER_LINES_TRANSFORMER, SPOILER_TAGS_TRANSFORMER, SpoilerNode, SpoilerPlugin, TOGGLE_SPOILER_COMMAND } from "./plugins/spoiler/SpoilerPlugin";
 import "./theme.css";
 
 export const CAN_USE_DOM: boolean =
@@ -36,6 +38,7 @@ export const CAN_USE_DOM: boolean =
     typeof window.document.createElement !== "undefined";
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
 
+/** Every supported block type (e.g. lists, headers, quote) */
 const blockTypeToActionName: { [x: string]: RichInputAction } = {
     bullet: "ListBullet",
     check: "ListCheckbox",
@@ -55,6 +58,7 @@ const rootTypeToRootName = {
     table: "Table",
 };
 
+/** Maps Lexical classes to CSS classes defined in theme.css */
 const theme: EditorThemeClasses = {
     blockCursor: "RichInput__blockCursor",
     characterLimit: "RichInput__characterLimit",
@@ -147,6 +151,31 @@ const theme: EditorThemeClasses = {
     },
 };
 
+/**
+ * Initializes the Lexical editor with a specified initial state.
+ * 
+ * The initial editor state can vary in type (string, object, or function) to provide
+ * flexibility in defining the starting state of the editor. This allows for different
+ * use cases such as starting with plain text, a predefined editor state, or a dynamic
+ * state constructed at runtime.
+ * 
+ * - String: When the initial state is a string, it's assumed to be plain text or serialized
+ *   editor state content that will be parsed and set as the editor's current state.
+ * - Object: An object is assumed to be a directly usable editor state, typically derived from
+ *   `editor.parseEditorState()` or stored from a previous editor state.
+ * - Function: A function allows for dynamic state initialization, where the function receives
+ *   the editor instance and can perform various operations, like inserting nodes or setting
+ *   selection, based on custom logic.
+ * 
+ * If the initial state is `undefined`, the editor will be initialized with a single empty paragraph,
+ * which is a common default for text editors. If the initial state is `null`, the initialization is
+ * skipped, which might be used to indicate that the editor should not alter its current state.
+ * 
+ * @param editor - The Lexical editor instance to be initialized.
+ * @param  [initialEditorState] - The desired initial state of the editor,
+ * which can be a string (plain text or serialized state), an object (editor state), or a function
+ * (custom initialization logic).
+ */
 function initializeEditor(
     editor: LexicalEditor,
     initialEditorState?: InitialEditorStateType,
@@ -168,7 +197,7 @@ function initializeEditor(
                 }
             }
         }, HISTORY_MERGE_OPTIONS);
-    } else if (initialEditorState !== null) {
+    } else {
         switch (typeof initialEditorState) {
             case "string": {
                 const parsedEditorState = editor.parseEditorState(initialEditorState);
@@ -192,6 +221,33 @@ function initializeEditor(
     }
 }
 
+/**
+ * Retrieves the most relevant node from a given range selection within the Lexical editor.
+ *
+ * This function determines the most appropriate node to consider as "selected" based on
+ * the current range selection's anchor and focus points. It is particularly useful in
+ * scenarios where operations need to be performed on a single node, and there's a need
+ * to decide which node (anchor or focus) should be the target based on the selection direction
+ * and position.
+ *
+ * - If the anchor and focus of the selection are within the same node, that node is returned.
+ * - If the selection is backward (focus is before anchor), the function returns:
+ *   - The anchor node if the focus is at the end of its node, implying the selection started
+ *     from the end of the focus node and extended into the anchor node.
+ *   - The focus node otherwise, implying the main part of the selection is within the focus node.
+ * - If the selection is forward (anchor is before focus), the function returns:
+ *   - The anchor node if the anchor is at the end of its node, implying the selection started
+ *     at the end of the anchor node and extended into the focus node.
+ *   - The focus node otherwise, implying the main part of the selection is within the focus node.
+ *
+ * Note: The function assumes that the selection is a `RangeSelection` and that both the anchor
+ * and focus are within text nodes or element nodes. It does not handle other types of selections
+ * or nodes (e.g., root or line break nodes).
+ *
+ * @param {RangeSelection} selection - The current range selection from which the node is to be determined.
+ * @returns {TextNode | ElementNode} - The selected node based on the logic described above, which will
+ * either be a `TextNode` or an `ElementNode`.
+ */
 export function getSelectedNode(
     selection: RangeSelection,
 ): TextNode | ElementNode {
@@ -209,215 +265,6 @@ export function getSelectedNode(
         return $isAtNodeEnd(anchor) ? anchorNode : focusNode;
     }
 }
-
-type SerializedSpoilerNode = Spread<
-    {
-        children: any[];
-    },
-    SerializedLexicalNode
->;
-// Create a custom node for spoilers
-export class SpoilerNode extends ElementNode {
-    static getType(): string {
-        return "spoiler";
-    }
-
-    constructor(key?: NodeKey) {
-        super(key);
-    }
-
-    static clone(node: SpoilerNode): SpoilerNode {
-        return new SpoilerNode(node.__key);
-    }
-
-    toggleSpoilerVisibility = (event: Event) => {
-        const target = event.currentTarget as HTMLElement;
-        if (target.classList.contains("revealed")) {
-            target.classList.remove("revealed");
-            target.classList.add("hidden");
-        } else {
-            target.classList.remove("hidden");
-            target.classList.add("revealed");
-        }
-    };
-
-    createDOM(_config: EditorConfig): HTMLElement {
-        const element = document.createElement("span");
-        element.classList.add("spoiler", "hidden"); // Start in hidden state
-        element.setAttribute("spellcheck", "false"); // Disable spellcheck so that it doesn't block the toggle
-        element.addEventListener("click", this.toggleSpoilerVisibility);
-        return element;
-    }
-
-    updateDOM(_prevNode: SpoilerNode, span: HTMLElement, config: EditorConfig): boolean {
-        // Assuming you might want to update some styles or attributes in the future, but for now, it's a no-op
-        // Simply checks that the element is a spoiler and updates if needed
-        if (!span.classList.contains("spoiler")) {
-            span.classList.add("spoiler");
-            span.setAttribute("spellcheck", "false");
-            span.addEventListener("click", this.toggleSpoilerVisibility);
-            return true; // Indicates that the DOM was updated
-        }
-        return false; // Indicates that no updates were necessary
-    }
-
-    static importDOM(): DOMConversionMap | null {
-        return {
-            span: (node: Node) => {
-                // Check if the span has the correct class or attribute to identify it as a spoiler
-                if ((node as HTMLElement).classList.contains("spoiler")) {
-                    return {
-                        conversion: SpoilerNode.fromDOMElement,
-                        priority: 1,
-                    };
-                }
-                return null;
-            },
-        };
-    }
-
-    static fromDOMElement(element: HTMLElement): DOMConversionOutput {
-        // Creates a new SpoilerNode from the given DOM element
-        return { node: new SpoilerNode() };
-    }
-
-    isInline(): true {
-        return true;
-    }
-
-    static importJSON(serializedNode: SerializedSpoilerNode): SpoilerNode {
-        if (serializedNode.type === "spoiler" && serializedNode.version === 1) {
-            const node = new SpoilerNode();
-            serializedNode.children.forEach(childJSON => {
-                node.append(childJSON);
-            });
-            return node;
-        }
-        throw new Error("Invalid serialized spoiler node.");
-    }
-
-    exportJSON(): any {//SerializedSpoilerNode { TODO
-        const childrenJSON = this.getChildren().map(child => child.exportJSON());
-        return {
-            type: "spoiler",
-            version: 1,
-            children: childrenJSON,
-        } as any; //const;
-    }
-}
-export function $createSpoilerNode(): SpoilerNode {
-    return $applyNodeReplacement(new SpoilerNode());
-}
-// Create a command to toggle spoilers
-const SPOILER_COMMAND: LexicalCommand<void> = createCommand("FORMAT_TEXT_COMMAND");
-
-/** Register commands for custom components (i.e. spoiler) */
-const registerCustomCommands = (editor: LexicalEditor): (() => unknown) => {
-    const removeListener = mergeRegister(
-        editor.registerCommand<void>(
-            SPOILER_COMMAND,
-            () => {
-                const selection = $getSelection();
-                if (!$isRangeSelection(selection)) {
-                    return false;
-                }
-                const nodes = selection.getNodes();
-                console.log("got nodes", nodes, nodes.map(node => node.getParent()));
-                // Check if there is a spoiler node in the selection, or if the selection is a single node with a parent spoiler node
-                const isAlreadySpoiled = (nodes.length > 0 && nodes.some((node) => node instanceof SpoilerNode)) ||
-                    (nodes.length === 1 && nodes[0].getParent() instanceof SpoilerNode);
-                console.log("is already spoiled", isAlreadySpoiled);
-                if (isAlreadySpoiled) {
-                    // Remove each spoiler effect by replacing it with its children
-                    nodes.forEach((node) => {
-                        let spoilerNode = node;
-                        // If node isn't a spoiler, try the parent
-                        if (!(spoilerNode instanceof SpoilerNode)) {
-                            spoilerNode = node.getParent() as LexicalNode;
-                            if (!(spoilerNode instanceof SpoilerNode)) {
-                                return;
-                            }
-                        }
-                        const children = spoilerNode.getChildren<LexicalNode>();
-                        for (const child of children) {
-                            spoilerNode.insertBefore(child);
-                        }
-                        spoilerNode.remove();
-                    });
-                } else if (nodes.length > 0) {
-                    const spoilerNode = $createSpoilerNode();
-
-                    const startNode = nodes[0] as TextNode;
-                    if (!$isTextNode(startNode)) {
-                        console.error("Failed to find a text node for the start of the selection!");
-                        return false;
-                    }
-                    console.log("got start node", startNode.getTextContent());
-                    const endNode = nodes[nodes.length - 1] as TextNode;
-                    if (!$isTextNode(endNode)) {
-                        console.error("Failed to find a text node for the end of the selection!");
-                        return false;
-                    }
-                    console.log("got end node", endNode.getTextContent());
-                    const startParent = startNode.getParent();
-                    console.log("start parent at beginning", startParent?.getTextContent());
-                    const nodeAfterStartNode = startNode.getNextSibling();
-
-                    // Get offsets from smallest to largest
-                    const [startOffset, endOffset] = [selection.anchor.offset, selection.focus.offset].sort((a, b) => a - b);
-                    console.log("got offsets", startOffset, endOffset);
-
-                    // Split the startNode if needed
-                    if (startNode.getTextContentSize() > startOffset) {
-                        const beforeText = startNode.getTextContent().substring(0, startOffset);
-                        const newNode: TextNode = new TextNode(beforeText); // Assuming TextNode constructor accepts a string
-                        console.log("new node 1", newNode.getTextContent());
-                        startNode.insertBefore(newNode);
-                        startNode.setTextContent(startNode.getTextContent().substring(startOffset));
-                    }
-                    console.log("got start node", startNode.getTextContent());
-
-                    // If the spoiler spans multiple nodes:
-                    if (startNode !== endNode) {
-                        let currentNode = startNode.getNextSibling();
-                        while (currentNode && currentNode !== endNode) {
-                            spoilerNode.append(currentNode);
-                            currentNode = currentNode.getNextSibling();
-                        }
-                    }
-
-                    // Split the endNode if needed
-                    if (endOffset < endNode.getTextContentSize()) {
-                        const afterText = endNode.getTextContent().substring(endOffset - startOffset);
-                        const newNode: TextNode = new TextNode(afterText);
-                        console.log("new node 2", newNode.getTextContent());
-                        endNode.insertAfter(newNode);
-                        endNode.setTextContent(endNode.getTextContent().substring(0, endOffset - startOffset));
-                    }
-                    console.log("got end node", endNode.getTextContent());
-
-                    // Append the (possibly split) endNode to spoilerNode
-                    spoilerNode.append(endNode);
-
-                    // Insert the spoilerNode in the correct location
-                    console.log("insert the spoiler node", startNode.getTextContent(), spoilerNode.getTextContent());
-                    if (startParent) {
-                        startParent.insertAfter(spoilerNode);
-                    } else {
-                        // Handle cases where the startParent is not available
-                        console.error("Failed to find a parent for the startNode!");
-                    }
-
-                    // Adjust the selection to the entire spoilerNode
-                    spoilerNode.select();
-                }
-                return true;
-            },
-            COMMAND_PRIORITY_EDITOR,
-        ),
-    );
-    return removeListener;
-};
 
 // Custom transformers for syntax not supported by CommonMark (Markdown's spec)
 const UNDERLINE: TextMatchTransformer = {
@@ -441,78 +288,16 @@ const UNDERLINE: TextMatchTransformer = {
     trigger: "<u>",
     type: "text-match",
 };
-// Spoiler with ||spoiler|| syntax
-const SPOILER_LINES: TextMatchTransformer = {
-    dependencies: [],
-    export: (node, exportChildren, exportFormat) => {
-        const isSpoiler = (node as TextNode).__type === "spoiler";
-        const shouldExportChildren = node instanceof ElementNode;
-        if (isSpoiler) {
-            return `||${shouldExportChildren ? exportChildren(node as ElementNode) : (node as TextNode).__text}||`;
-        }
-        return null;
-    },
-    importRegExp: /\|\|(.*?)\|\|/,
-    regExp: /\|\|(.*?)\|\|$/,
-    replace: (textNode, match) => {
-        // Extract the matched spoiler text
-        const spoilerText = match[1];
-        console.log("SPOILER TEXT", match, textNode);
 
-        // Create a new styled text node with the matched spoiler text
-        const spoilerTextNode = new TextNode(spoilerText);
-        console.log("SPOILER TEXT NODE", spoilerTextNode);
-
-        // Create a SpoilerNode
-        const spoilerNode = $createSpoilerNode();
-        spoilerNode.append(spoilerTextNode);
-
-        // Replace the original text node with the spoiler node
-        textNode.replace(spoilerNode);
-    },
-    trigger: "||",
-    type: "text-match",
-};
-// Spoiler with <spoiler>spoiler</spoiler> syntax
-const SPOILER_TAGS: TextMatchTransformer = {
-    dependencies: [],
-    export: (node, exportChildren, exportFormat) => {
-        const isSpoiler = (node as TextNode).__type === "spoiler";
-        const shouldExportChildren = node instanceof ElementNode;
-        if (isSpoiler) {
-            return `<spoiler>${shouldExportChildren ? exportChildren(node as ElementNode) : (node as TextNode).__text}</spoiler>`;
-        }
-        return null;
-    },
-    importRegExp: /<spoiler>(.*?)<\/spoiler>/,
-    regExp: /<spoiler>(.*?)<\/spoiler>$/,
-    replace: (textNode, match) => {
-        // Extract the matched spoiler text
-        const spoilerText = match[1];
-        console.log("SPOILER TEXT", match, textNode);
-
-        // Create a new styled text node with the matched spoiler text
-        const spoilerTextNode = new TextNode(spoilerText);
-        console.log("SPOILER TEXT NODE", spoilerTextNode);
-
-        // Create a SpoilerNode
-        const spoilerNode = $createSpoilerNode();
-        spoilerNode.append(spoilerTextNode);
-
-        // Replace the original text node with the spoiler node
-        textNode.replace(spoilerNode);
-    },
-    trigger: "<spoiler>",
-    type: "text-match",
-};
 // Empty lines are converted to <br> tags
+// TODO this looks fine, but switching back and forth continually adds more newlines
 export const EMPTY_LINE_BREAKS: ElementTransformer = {
     dependencies: [ParagraphNode],
     export: () => { return null; },
     regExp: /^$/,
     replace: (textNode, nodes, _, isImport) => {
         if (isImport && nodes.length === 1) {
-            console.log(textNode);
+            // console.log(textNode);
             nodes[0].replace($createParagraphNode());
         }
     },
@@ -521,12 +306,23 @@ export const EMPTY_LINE_BREAKS: ElementTransformer = {
 
 const CUSTOM_TEXT_TRANSFORMERS: Array<TextMatchTransformer | ElementTransformer> = [
     UNDERLINE,
-    SPOILER_LINES,
-    SPOILER_TAGS,
-    EMPTY_LINE_BREAKS,
+    // EMPTY_LINE_BREAKS,
+    SPOILER_LINES_TRANSFORMER,
+    SPOILER_TAGS_TRANSFORMER,
+    CODE_BLOCK_TRANSFORMER,
 ];
 
-const ALL_TRANSFORMERS = [...TRANSFORMERS, ...CUSTOM_TEXT_TRANSFORMERS];
+const ALL_TRANSFORMERS = [
+    ...CUSTOM_TEXT_TRANSFORMERS,
+    // ...TRANSFORMERS,
+    HEADING,
+    QUOTE,
+    // // CODE,
+    UNORDERED_LIST,
+    ORDERED_LIST,
+    ...TEXT_FORMAT_TRANSFORMERS,
+    ...TEXT_MATCH_TRANSFORMERS,
+];
 
 /** Actual components of RichInputLexical. Needed so that we can use the lexical provider */
 const RichInputLexicalComponents = ({
@@ -566,7 +362,6 @@ const RichInputLexicalComponents = ({
     const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(null);
     const [isLink, setIsLink] = useState(false);
     const [isItalic, setIsItalic] = useState(false);
-    const [codeLanguage, setCodeLanguage] = useState<string>("");
     const [isEditable, setIsEditable] = useState(() => editor.isEditable());
     const $updateToolbar = useCallback(() => {
         const updatedStates = { ...defaultActiveStates };
@@ -595,7 +390,6 @@ const RichInputLexicalComponents = ({
             updatedStates.Strikethrough = selection.hasFormat("strikethrough");
             // updatedStates.Subscript = selection.hasFormat("subscript");
             // updatedStates.Superscript = selection.hasFormat("superscript");
-            // updatedStates.Code = selection.hasFormat("code");
             // Check if link
             const node = getSelectedNode(selection);
             const parent = node.getParent();
@@ -630,15 +424,6 @@ const RichInputLexicalComponents = ({
                         console.log("got block type 2", type);
                         updatedStates[blockTypeToActionName[type as keyof typeof blockTypeToActionName]] = true;
                     }
-                    if ($isCodeNode(element)) {
-                        const language =
-                            element.getLanguage() as keyof typeof CODE_LANGUAGE_MAP;
-                        console.log("got code language", language);
-                        setCodeLanguage(
-                            language ? CODE_LANGUAGE_MAP[language] || language : "",
-                        );
-                        return;
-                    }
                 }
             }
             // TODO need to find spoilers, underlines, headers, code and quote blocks, and lists
@@ -662,6 +447,7 @@ const RichInputLexicalComponents = ({
     const triggerEditorChange = useCallback(() => {
         console.log("updating editor value", value);
         editor.update(() => {
+            console.log('calling convertfrommarkdownstring in triggereditrochange')
             $convertFromMarkdownString(value, ALL_TRANSFORMERS);
         }, HISTORY_MERGE_OPTIONS);
     }, [editor, value]);
@@ -683,12 +469,6 @@ const RichInputLexicalComponents = ({
             }
         });
     }, [activeStates, editor]);
-    const toggleFormat = useCallback((formatType: TextFormatType) => {
-        editor.dispatchCommand(FORMAT_TEXT_COMMAND, formatType);
-    }, [editor]);
-    const toggleSpoiler = useCallback(() => {
-        editor.dispatchCommand(SPOILER_COMMAND, (void 0));
-    }, [editor]);
 
 
     useEffect(() => {
@@ -698,15 +478,15 @@ const RichInputLexicalComponents = ({
             const dispatch = editor.dispatchCommand;
             const actionMap = {
                 "Assistant": () => openAssistantDialog(""),
-                "Bold": () => toggleFormat("bold"),
-                "Code": () => { }, //TODO
+                "Bold": () => dispatch(FORMAT_TEXT_COMMAND, "bold"),
+                "Code": () => dispatch(TOGGLE_CODE_BLOCK_COMMAND, (void 0)),
                 "Header1": () => toggleHeading("h1"),
                 "Header2": () => toggleHeading("h2"),
                 "Header3": () => toggleHeading("h3"),
                 "Header4": () => toggleHeading("h4"),
                 "Header5": () => toggleHeading("h5"),
                 "Header6": () => toggleHeading("h6"),
-                "Italic": () => toggleFormat("italic"),
+                "Italic": () => dispatch(FORMAT_TEXT_COMMAND, "italic"),
                 "Link": () => dispatch(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
                 "ListBullet": () => dispatch(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
                 "ListCheckbox": () => dispatch(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
@@ -723,13 +503,14 @@ const RichInputLexicalComponents = ({
                     }
                     // set value without triggering onChange
                     editor.update(() => {
+                        console.log('calling convertfrommarkdownstring in sethandleaction')
                         $convertFromMarkdownString(data, ALL_TRANSFORMERS);
                     }, HISTORY_MERGE_OPTIONS);
                 },
-                "Spoiler": toggleSpoiler,
-                "Strikethrough": () => toggleFormat("strikethrough"),
+                "Spoiler": dispatch(TOGGLE_SPOILER_COMMAND, (void 0)),
+                "Strikethrough": () => dispatch(FORMAT_TEXT_COMMAND, "strikethrough"),
                 "Table": () => { }, //TODO
-                "Underline": () => toggleFormat("underline"),
+                "Underline": () => dispatch(FORMAT_TEXT_COMMAND, "underline"),
                 "Undo": () => {
                     undo();
                     triggerEditorChange();
@@ -738,7 +519,7 @@ const RichInputLexicalComponents = ({
             const actionFunction = actionMap[action];
             if (actionFunction) actionFunction();
         });
-    }, [editor, openAssistantDialog, redo, setHandleAction, toggleFormat, toggleHeading, toggleSpoiler, triggerEditorChange, undo]);
+    }, [editor, openAssistantDialog, redo, setHandleAction, toggleHeading, triggerEditorChange, undo]);
 
     return (
         <Box
@@ -797,6 +578,8 @@ const RichInputLexicalComponents = ({
             <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
             <TablePlugin />
+            <SpoilerPlugin />
+            <CodeBlockPlugin />
         </Box>
     );
 };
@@ -815,12 +598,16 @@ export const RichInputLexical = ({
     const initialConfig = useMemo(() => ({
         editable: true,
         // Will need custom transformers if we want to support custom markdown syntax (e.g. underline, spoiler)
-        editorState: () => $convertFromMarkdownString(value, ALL_TRANSFORMERS),
+        editorState: () => {
+            console.log('calling convertfrommarkdownstring in initialconfig.editorState function')
+            $convertFromMarkdownString(value, ALL_TRANSFORMERS)
+        },
         namespace: "RichInputEditor",
-        nodes: [AutoLinkNode, CodeNode, CodeHighlightNode, HashtagNode, HeadingNode, HorizontalRuleNode, LineBreakNode, LinkNode, ListNode, ListItemNode, ParagraphNode, QuoteNode, SpoilerNode, TableNode, TableCellNode, TableRowNode],
+        nodes: [AutoLinkNode, CodeBlockNode, HashtagNode, HeadingNode, HorizontalRuleNode, LineBreakNode, LinkNode, ListNode, ListItemNode, ParagraphNode, QuoteNode, SpoilerNode, TableNode, TableCellNode, TableRowNode],
         onError,
         theme,
     }), [value]);
+    console.log('got initialconfig', initialConfig.editorState);
 
 
     /** Lexical editor context, for finding and manipulating state */
@@ -832,10 +619,7 @@ export const RichInputLexical = ({
             onError,
             theme,
         } = initialConfig;
-        const context: LexicalComposerContextType = createLexicalComposerContext(
-            null,
-            theme,
-        );
+        const context = createLexicalComposerContext(null, theme);
         const newEditor = createEditor({
             editable: initialConfig.editable,
             namespace,
@@ -853,7 +637,6 @@ export const RichInputLexical = ({
         const isEditable = initialConfig.editable;
         const [editor] = composerContext;
         editor.setEditable(isEditable !== undefined ? isEditable : true);
-        registerCustomCommands(editor);
         // We only do this for init
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

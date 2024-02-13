@@ -33,7 +33,7 @@ const mockDirectory: {
 describe("initializeDirectoryList", () => {
     it("returns an empty array when directory is null", () => {
         const result = initializeDirectoryList(null, "NameAsc", mockSession) as unknown as SimpleObject[];
-        expect(result).toEqual([]);
+        expect(result).toHaveLength(0);
     });
 
     it("sorts by NameAsc correctly", () => {

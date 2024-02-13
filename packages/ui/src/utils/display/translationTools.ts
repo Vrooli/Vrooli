@@ -751,7 +751,6 @@ export const getFormikErrorsWithTranslations = (
     validationSchema: ObjectSchema<any>,
 ): { [key: string]: string | string[] } => {
     // Initialize errors object
-    console.log("getFormikErrorsWithTranslations START", field.name, field.value);
     const errors: { [key: string]: string | string[] } = {};
     if (!validationSchema || !Array.isArray(field.value)) return errors;
     // Find translation errors. Since the given errors don't have the language subtag, we need to loop through all languages
@@ -764,7 +763,6 @@ export const getFormikErrorsWithTranslations = (
         try {
             validationSchema.validateSync(translation, { abortEarly: false });
         } catch (error) {
-            console.log("getFormikErrorsWithTranslations VALIDATION ERROR", error);
             // If validation error is thrown, use inner errors to add to errors object
             if (error instanceof ValidationError) {
                 for (const innerError of error.inner) {
@@ -778,7 +776,6 @@ export const getFormikErrorsWithTranslations = (
             }
         }
     }
-    console.log("getFormikErrorsWithTranslations RESULT", errors);
     // Return errors object
     return errors;
 };
@@ -869,7 +866,6 @@ export const removeTranslation = (
 
 /**
  * Converts a snack message code into a snack message and details. 
- * For now, details are only used for some errors
  * @param key The key to convert
  * @param variables The variables to use for translation
  * @returns Object with message and details
@@ -878,11 +874,7 @@ export const translateSnackMessage = (
     key: ErrorKey | CommonKey,
     variables: { [x: string]: number | string } | undefined,
 ): { message: string, details: string | undefined } => {
-    const messageAsError = i18next.t(key as ErrorKey, { ...variables, defaultValue: key, ns: "error" }) ?? "";
-    const messageAsCommon = i18next.t(key as CommonKey, { ...variables, defaultValue: key, ns: "common" }) ?? "";
-    if (typeof messageAsError === "string" && messageAsError.length > 0 && messageAsError !== key) {
-        const details = i18next.t(`${key}Details` as ErrorKey, { ns: "error" });
-        return { message: messageAsError, details: (typeof details === "string" && details !== `${key}Details` ? details : undefined) };
-    }
-    return { message: messageAsCommon, details: undefined };
+    const message = i18next.t(key, { ...variables, defaultValue: key }) ?? key;
+    const details = i18next.t(`${key}Details`, { ...variables, defaultValue: `${key}Details` }) ?? `${key}Details`;
+    return { message, details: details !== `${key}Details` ? details : undefined };
 };
