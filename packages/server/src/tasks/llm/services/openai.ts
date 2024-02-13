@@ -1,12 +1,13 @@
-import OpenAI from "openai";
 import "openai/shims/node"; // NOTE: Make sure to save without formatting (use command palette for this), so that this import is above the openai import
+import OpenAI from "openai";
 import { logger } from "../../../events/logger";
 import { PreMapUserData } from "../../../models/base/chatMessage";
 import { SessionUserToken } from "../../../types";
 import { objectToYaml } from "../../../utils";
 import { bestTranslation } from "../../../utils/bestTranslation";
+import { LlmAction, getActionConfig } from "../config";
 import { ChatContextCollector, MessageContextInfo } from "../context";
-import { BotSettings, LanguageModelContext, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "../service";
+import { BotSettings, BotSettingsTranslation, LanguageModelContext, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "../service";
 
 type OpenAIGenerateModel = "gpt-3.5-turbo" | "gpt-4";
 type OpenAITokenModel = "default";
@@ -25,17 +26,32 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         return tokenEstimationDefault(text);
     }
 
-    getConfigObject(config: BotSettings, userData: Pick<SessionUserToken, "languages">) {
-        const translationsList = Object.entries(config?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
-        const translation = bestTranslation(translationsList, userData.languages) ?? {};
+    async getConfigObject(
+        botSettings: BotSettings,
+        userData: Pick<SessionUserToken, "languages">,
+        action: LlmAction = "Start",
+    ) {
+        const translationsList = Object.entries(botSettings?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
+        const translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation;
+
+        const name: string | undefined = botSettings.name;
+        const initMessage = translation.startingMessage?.length ?
+            translation.startingMessage :
+            name ?
+                `Hello👋, I'm ${name}. How can I help you today?` :
+                "Hello👋, how can I help you today?";
         delete (translation as { language?: string }).language;
 
+        const actionConfig = await getActionConfig(action, botSettings, userData.languages[0] ?? "en");
         const configObject = {
             ai_assistant: {
                 metadata: {
-                    name: config.name ?? "Bot"
+                    // author: config.author ?? "Vrooli", // May add this in the future to credit the bot creator
+                    name: botSettings.name ?? "Bot"
                 },
-                personality: { ...translation }
+                init_message: initMessage, //TODO only need for first message?
+                personality: { ...translation },
+                ...actionConfig,
             }
         };
 
@@ -54,8 +70,9 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
 
         // Construct the initial YAML configuration message for relevant participants
         let systemMessage = "You are a helpful assistant for an app named Vrooli. Please follow the configuration below to best suit each user's needs:\n\n";
+        const config = await this.getConfigObject(respondingBotConfig, userData);
         // Add yml for bot responding
-        systemMessage += objectToYaml(this.getConfigObject(respondingBotConfig, userData)) + "\n";
+        systemMessage += objectToYaml(config) + "\n";
         // We'll see if we need the other bot configs after testing
         // // Identify bots present in the message context, minus the one responding
         // const participantIdsInContext = new Set(messageContextInfo.filter(info => info.userId && info.userId !== respondingBotId).map(info => info.userId));

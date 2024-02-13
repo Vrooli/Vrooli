@@ -32,7 +32,7 @@ export async function setupLlmQueue() {
         llmProcess = processModule.llmProcess;
 
         // Initialize the Bull queue
-        llmQueue = new Bull<RequestBotResponsePayload>("sms", {
+        llmQueue = new Bull<RequestBotResponsePayload>("llm", {
             redis: { port: PORT, host: HOST }
         });
         llmQueue.process(llmProcess);

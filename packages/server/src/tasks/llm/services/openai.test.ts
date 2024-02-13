@@ -81,33 +81,33 @@ describe('OpenAIService', () => {
             expect(Object.keys(yamlConfig).length).toBe(1);
         });
     });
-    it('should correctly translate based on user language preference', () => {
+    it('should correctly translate based on user language preference', async () => {
         const userData = { languages: ["en"] };
-        const yamlConfig = openAIService.getConfigObject(botSettings1, userData);
+        const yamlConfig = await openAIService.getConfigObject(botSettings1, userData);
         console.log('yaml config here', yamlConfig)
 
         // Verify that the 'personality' field contains the English translation from botSettings1
         expect(yamlConfig.ai_assistant.personality).toEqual(botSettings1.translations.en);
     });
 
-    it('should handle missing translations by providing the next available language', () => {
+    it('should handle missing translations by providing the next available language', async () => {
         const userData = { languages: ["fr"] }; // Assuming 'fr' translation is not available
-        const yamlConfig = openAIService.getConfigObject(botSettings1, userData);
+        const yamlConfig = await openAIService.getConfigObject(botSettings1, userData);
 
         // Verify that the 'personality' field is the first available translation from botSettings1,
         // since 'fr' is not available.
         expect(yamlConfig.ai_assistant.personality).toEqual(botSettings1.translations.en);
     });
-    it('should handle missing name field by using a default name', () => {
+    it('should handle missing name field by using a default name', async () => {
         const userData = { languages: ["en"] };
-        const yamlConfig = openAIService.getConfigObject(botSettings3, userData); // botSettings3 lacks a 'name'
+        const yamlConfig = await openAIService.getConfigObject(botSettings3, userData); // botSettings3 lacks a 'name'
 
         // Verify that the 'metadata.name' field is a non-empty string
         expect(yamlConfig.ai_assistant.metadata.name.length).toBeGreaterThan(0);
     });
-    it('should handle multiple language translations and select based on user preference', () => {
+    it('should handle multiple language translations and select based on user preference', async () => {
         const userData = { languages: ["es"] }; // Spanish preference
-        const yamlConfig = openAIService.getConfigObject(botSettings5, userData);
+        const yamlConfig = await openAIService.getConfigObject(botSettings5, userData);
 
         // Verify that the 'personality' field contains the Spanish translation from botSettings5
         expect(yamlConfig.ai_assistant.personality).toEqual(botSettings5.translations.es);
