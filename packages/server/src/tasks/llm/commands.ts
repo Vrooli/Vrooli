@@ -189,160 +189,96 @@ export const isWhitespace = (char: string) => /^\s$/.test(char) && !isNewline(ch
 
 export const isAlphaNum = (char: string) => /^[A-Za-z0-9]$/.test(char);
 
-
-// export const handleCommandTransition = (
-//     currentChar: string,
-//     currentSection: CommandSection,
-//     buffer: string,
-//     isInQuotes: boolean,
-// ): { section: CommandSection, buffer: string, isInQuotes: boolean } => {
-//     const previousChar: string | undefined = buffer[buffer.length - 1];
-//     const firstChar: string | undefined = buffer[0];
-//     // Handle leaving quotes
-//     if (isInQuotes) {
-//         // If we encounter a non-escaped quote of the same type as the opening quote, we've
-//         // reached the end of the quoted string
-//         if (currentChar === firstChar && previousChar !== '\\') {
-//             return { section: "propName", buffer: buffer + currentChar, isInQuotes: false };
-//         }
-//         // Otherwise, keep buffering
-//         return { section: currentSection, buffer: buffer + currentChar, isInQuotes };
-//     }
-//     // Handle entering quotes
-//     if ([`'`, '"'].includes(currentChar)) {
-//         // Quotes are only allowed for property values
-//         if (currentSection === 'propValue') {
-//             // Make it the buffer start
-//             return { section: 'propValue', buffer: currentChar, isInQuotes: true };
-//         }
-//         // If encountered within a word, reset without committing the buffer
-//         if (isAlphaNum(previousChar)) {
-//             return { section: 'outside', buffer: '', isInQuotes };
-//         }
-//         // Otherwise, reset and commit buffer
-//         return { section: 'outside', buffer, isInQuotes };
-//     }
-//     // Handle entering property value
-//     if (currentChar === "=") {
-//         // If we're on a property name, an equals indicates the start of a property value
-//         if (currentSection === 'propName') {
-//             // Commit the buffer without the equals sign
-//             return { section: 'propValue', buffer, isInQuotes };
-//         }
-//         // If encountered within a word, reset without committing the buffer
-//         if (isAlphaNum(previousChar)) {
-//             return { section: 'outside', buffer: '', isInQuotes };
-//         }
-//         // Otherwise, reset and commit buffer
-//         return { section: 'outside', buffer, isInQuotes };
-//     }
-//     // Handle newline and non alpha-numeric characters, which are not valid in command,
-//     // action, or property names
-//     if (isNewline(currentChar) || !(isAlphaNum(currentChar) || isWhitespace(currentChar) || currentChar === "/")) {
-//         // If encountered within a word, reset without committing the buffer
-//         if (isAlphaNum(previousChar)) {
-//             return { section: 'outside', buffer: '', isInQuotes };
-//         }
-//         // Otherwise, reset and commit buffer
-//         return { section: 'outside', buffer, isInQuotes };
-//     }
-//     // Skip over whitespace
-//     if (isWhitespace(currentChar)) {
-//         return { section: currentSection, buffer, isInQuotes };
-//     }
-//     // Handle slash, which may indicate the start of a new command
-//     if (currentChar === "/") {
-//         // If encountered withing a word, reset without committing the buffer
-//         if (isAlphaNum(previousChar)) {
-//             return { section: 'outside', buffer: '', isInQuotes };
-//         }
-//         // Otherwise, start the command. Don't include the slash in the buffer
-//         return { section: 'command', buffer: "", isInQuotes };
-//     }
-//     // Handle valid command, action and property name characters
-//     if (isAlphaNum(currentChar)) {
-//         // If we're inside a word, keep buffering
-//         if (isAlphaNum(previousChar)) {
-//             return { section: currentSection, buffer: buffer + currentChar, isInQuotes };
-//         }
-//         // If we're in the "outside" section, ignore
-//         if (currentSection === 'outside') {
-//             return { section: currentSection, buffer: '', isInQuotes };
-//         }
-//         // If we're in a command, this may be an action or a propName.
-//         //TODO
-//     }
-//     // Otherwise, reset without committing the buffer
-//     return { section: 'outside', buffer: '', isInQuotes };
-// }
+type CommandTransitionTrack = {
+    section: CommandSection,
+    buffer: string,
+}
 
 /**
- * Handles the transition between parsing a command, action, property name, or property value.
- * @returns An object containing the new parsing section, the updated buffer, and the updated isInQuotes flag.
- * 
- * NOTE: If the parsing section changed and the buffer is not empty, it should be committed to the previous section.
+ * Handles the transition between parsing a command, action, property name, or property value. 
+ * Calls the callback when a section is completed.
+ * @returns An object containing the new parsing section and buffer
  */
 export const handleCommandTransition = ({
     curr,
-    next,
     section,
     buffer,
-    isInQuotes,
-}: {
+    callback,
+}: CommandTransitionTrack & {
     curr: string,
-    next: string,
-    section: CommandSection,
-    buffer: string,
-    isInQuotes: boolean,
-}
-): { section: CommandSection, buffer: string, isInQuotes: boolean } => {
+    callback: (section: CommandSection, text: string) => unknown,
+}): CommandTransitionTrack => {
     const previousChar = buffer[buffer.length - 1];
-
-    // Handle quotes
-    if (curr === '"' || curr === "'") {
-        if (!isInQuotes && section === "propName") {  // Entering quotes
-            return { section: 'propValue', buffer: curr, isInQuotes: true };
-        } else if (buffer[0] === curr && buffer[buffer.length - 1] !== '\\') {  // Leaving quotes
-            return { section: 'propName', buffer: buffer + curr, isInQuotes: false };
-        }
-    }
-    // Handle equals sign
-    else if (curr === '=' && (section === 'propName' || section === 'pending')) {
-        return { section: 'propValue', buffer: buffer, isInQuotes };
-    }
     // Handle slash, which may indicate the start of a new command
-    else if (curr === "/") {
-        console.log('in curr slash', previousChar, isWhitespace(previousChar));
+    if (section === "outside" && curr === "/") {
         // If encountered within a word, don't start a new command
         if (previousChar && !isWhitespace(previousChar) && !isNewline(previousChar)) {
-            return { section, buffer: buffer + curr, isInQuotes };
+            return { section, buffer: buffer + curr };
         }
         // Otherwise, start the command. Don't include the slash in the buffer
-        return { section: 'command', buffer: "", isInQuotes };
+        return { section: 'command', buffer: "" };
     }
     // Handle transition from command to pending (action/propName undecided)
     else if (section === 'command' && isWhitespace(curr)) {
-        return { section: 'pending', buffer: '', isInQuotes };
+        callback('command', buffer);
+        return { section: 'pending', buffer: '' };
     }
-    // Handle decision between action and propName based on lookahead
+    // Handle decision between action and propName
     else if (section === 'pending') {
-        if (next === '=') {  // Next character is '=', so current buffer is a propName
-            return { section: 'propName', buffer: buffer + curr, isInQuotes };
-        } else if (isWhitespace(next)) {  // Next character is whitespace, so current buffer is an action
-            return { section: 'command', buffer: '', isInQuotes };  // Return to 'command' to await next word or command
+        const isAction = isWhitespace(curr) || isNewline(curr);
+        const isPropName = curr === "=";
+        if (isAction) {
+            callback("action", buffer);
+            // There can only be one action, so switch to propName section if not a newline
+            return { section: isNewline(curr) ? "outside" : "propName", buffer: "" };
         }
+        else if (isPropName) {
+            callback("propName", buffer);
+            // Next we'll be reading the property value
+            return { section: 'propValue', buffer: "" };
+        }
+    }
+    // Handle equals sign
+    else if (section === "propName") {
+        // Commit on equals sign
+        if (curr === "=") {
+            callback("propName", buffer);
+            return { section: 'propValue', buffer: "" };
+        }
+        // Cancel on whitespace, newline, or non alpha-numeric characters
+        if (isWhitespace(curr) || isNewline(curr) || !isAlphaNum(curr)) {
+            return { section: 'outside', buffer: '' };
+        }
+    }
+    // Handle propValue
+    else if (section === "propValue") {
+        const backslashes = buffer.match(/\\*$/)?.[0].length || 0;
+        const isEscaped = backslashes % 2 !== 0;
+        const isQuote = ['"', "'"].includes(curr);
+        // Check if leaving quotes
+        if (isQuote && buffer[0] === curr && !isEscaped) {
+            callback("propValue", buffer.slice(1)); // Exclude outer quotes
+            return { section: 'propName', buffer: '' };
+        }
+        // Check if quotes are missing
+        if (!isQuote && buffer.length === 0) {
+            // This is invalid, so don't commit the buffer
+            return { section: 'outside', buffer: '' };
+        }
+        // Otherwise, continue buffering
+        return { section, buffer: buffer + curr };
     }
     // Handle newline and non alpha-numeric characters, which are not valid in command, action, or property names
     if (section !== "outside" && (isNewline(curr) || !(isAlphaNum(curr) || isWhitespace(curr) || curr === "/"))) {
         // If encountered within a word, reset without committing the buffer
         if (isAlphaNum(previousChar)) {
-            return { section: 'outside', buffer: '', isInQuotes };
+            return { section: 'outside', buffer: '' };
         }
         // Otherwise, reset and commit buffer
-        return { section: 'outside', buffer, isInQuotes };
+        return { section: 'outside', buffer };
     }
     // Continue buffering within the current section
-    return { section, buffer: buffer + curr, isInQuotes };
+    return { section, buffer: buffer + curr };
 };
 
 

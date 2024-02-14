@@ -154,372 +154,780 @@ describe('isAlphaNum', () => {
 });
 
 describe('handleCommandTransition', () => {
+    let callback;
+    beforeEach(() => {
+        callback = jest.fn();
+    });
+
     // Outside tests
-    test('keep adding to outside when not on a slash', () => {
+    test('keep adding to outside when not on a slash - space', () => {
         const buffer = "asdf";
-        // Whitespace
-        let result = handleCommandTransition({
+        const result = handleCommandTransition({
             curr: ' ',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + " ", isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + " " });
+    });
+    test('keep adding to outside when not on a slash - tab', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: '\t',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "\t", isInQuotes: false });
-        // Quotes
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "\t" });
+    });
+    test('keep adding to outside when not on a slash - single quote', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: `'`,
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + `'`, isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + `'` });
+    });
+    test('keep adding to outside when not on a slash - double quote', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: `"`,
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + `"`, isInQuotes: false });
-        // Equals sign
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + `"` });
+    });
+    test('keep adding to outside when not on a slash - equals sign', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: '=',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "=", isInQuotes: false });
-        // Alphanumeric
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "=" });
+    });
+    test('keep adding to outside when not on a slash - letter', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: 'a',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "a", isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "a" });
+    });
+    test('keep adding to outside when not on a slash - number', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: '1',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "1", isInQuotes: false });
-        // Newline
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "1" });
+    });
+    test('keep adding to outside when not on a slash - newline', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: '\n',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "\n", isInQuotes: false });
-        // Other alphabets
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "\n" });
+    });
+    test('keep adding to outside when not on a slash - other alphabets', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: '你',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "你", isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "你" });
+    });
+    test('keep adding to outside when not on a slash - emojis', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: '👋',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "👋", isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "👋" });
+    });
+    test('keep adding to outside when not on a slash - symbols', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
+            curr: '!',
+            section: 'outside',
+            buffer,
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "!" });
     });
 
     // Command tests
-    test('does not start a command when the slash is not preceeded by whitespace', () => {
-        let buffer = "asdf";
-        let result = handleCommandTransition({
+    test('does not start a command when the slash is not preceeded by whitespace - letter', () => {
+        const buffer = "asdf";
+        const result = handleCommandTransition({
             curr: '/',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "/", isInQuotes: false });
-        buffer = "!@#$";
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "/" });
+    });
+    test('does not start a command when the slash is not preceeded by whitespace - number', () => {
+        const buffer = "1234";
+        const result = handleCommandTransition({
             curr: '/',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "/", isInQuotes: false });
-        buffer = "🙌💃";
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "/" });
+    });
+    test('does not start a command when the slash is not preceeded by whitespace - symbol', () => {
+        const buffer = "!@#$";
+        const result = handleCommandTransition({
             curr: '/',
-            next: ' ',
             section: 'outside',
             buffer,
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: buffer + "/", isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "/" });
+    });
+    test('does not start a command when the slash is not preceeded by whitespace - emoji', () => {
+        const buffer = "🙌💃";
+        const result = handleCommandTransition({
+            curr: '/',
+            section: 'outside',
+            buffer,
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: buffer + "/" });
     });
     test('starts a command when buffer is empty', () => {
         const result = handleCommandTransition({
             curr: '/',
-            next: ' ',
             section: 'outside',
             buffer: '',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'command', buffer: "", isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'command', buffer: "" });
     });
     test('starts a command after a newline', () => {
-        console.log('testing start command after newline')
         const result = handleCommandTransition({
             curr: '/',
-            next: ' ',
             section: 'outside',
             buffer: 'asdf\n',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'command', buffer: "", isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'command', buffer: "" });
     });
-    test('starts a command after whitespace', () => {
-        let result = handleCommandTransition({
+    test('starts a command after whitespace - space', () => {
+        const result = handleCommandTransition({
             curr: '/',
-            next: ' ',
             section: 'outside',
             buffer: 'asdf ',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'command', buffer: "", isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'command', buffer: "" });
+    });
+    test('starts a command after whitespace - tab', () => {
+        const result = handleCommandTransition({
             curr: '/',
-            next: ' ',
             section: 'outside',
             buffer: 'asdf\t',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'command', buffer: "", isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'command', buffer: "" });
     });
-    test('adds alphanumeric to command buffer', () => {
-        let result = handleCommandTransition({
+    test('adds letter to command buffer', () => {
+        const buffer = "test"
+        const result = handleCommandTransition({
             curr: 'a',
-            next: ' ',
             section: 'command',
-            buffer: 'test',
-            isInQuotes: false,
+            buffer,
+            callback,
         });
-        expect(result).toEqual({ section: 'command', buffer: 'testa', isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'command', buffer: buffer + 'a' });
+    });
+    test('adds number to command buffer', () => {
+        const buffer = "test"
+        const result = handleCommandTransition({
             curr: '1',
-            next: ' ',
             section: 'command',
-            buffer: 'test',
-            isInQuotes: false,
+            buffer,
+            callback,
         });
-        expect(result).toEqual({ section: 'command', buffer: 'test1', isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'command', buffer: buffer + "1" });
     });
     test('resets to outside on newline', () => {
         const result = handleCommandTransition({
             curr: '\n',
-            next: ' ',
             section: 'command',
             buffer: 'test',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: '', isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
     });
-    test('resets to outside on symbols/other alphabets', () => {
-        let result = handleCommandTransition({
+    test('resets to outside on other alphabets', () => {
+        const result = handleCommandTransition({
             curr: '你',
-            next: ' ',
             section: 'command',
             buffer: 'test',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: '', isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('resets to outside on emojis', () => {
+        const result = handleCommandTransition({
             curr: '👋',
-            next: ' ',
             section: 'command',
             buffer: 'test',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: '', isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('resets to outside on symbols', () => {
+        const result = handleCommandTransition({
             curr: '!',
-            next: ' ',
             section: 'command',
             buffer: 'test',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: '', isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
     });
 
     // Pending (when we're not sure if it's an action or a property yet) tests
-    test('starts pending when we encounter the first space after a command', () => {
-        let result = handleCommandTransition({
+    test('starts pending when we encounter the first space after a command - space', () => {
+        const result = handleCommandTransition({
             curr: ' ',
-            next: ' ',
-            section: 'command',
-            buffer: '/test',
-            isInQuotes: false,
-        });
-        expect(result).toEqual({ section: 'pending', buffer: '', isInQuotes: false });
-        result = handleCommandTransition({
-            curr: '\t',
-            next: ' ',
             section: 'command',
             buffer: 'test',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'pending', buffer: '', isInQuotes: false });
+        expect(callback).toHaveBeenCalledWith('command', 'test');
+        expect(result).toEqual({ section: 'pending', buffer: '' });
+    });
+    test('starts pending when we encounter the first space after a command - tab', () => {
+        const result = handleCommandTransition({
+            curr: '\t',
+            section: 'command',
+            buffer: 'test',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('command', 'test');
+        expect(result).toEqual({ section: 'pending', buffer: '' });
     });
     test('does not start pending for newline', () => {
         const result = handleCommandTransition({
             curr: '\n',
-            next: ' ',
             section: 'command',
             buffer: 'test',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: "", isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: "" });
     });
-    test('does not start pending for symbols/other alphabets', () => {
-        let result = handleCommandTransition({
+    test('does not start pending for other alphabets', () => {
+        const result = handleCommandTransition({
             curr: '你',
-            next: ' ',
             section: 'command',
             buffer: 'test',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: "", isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: "" });
+    });
+    test('does not start pending for emojis', () => {
+        const result = handleCommandTransition({
             curr: '👋',
-            next: ' ',
             section: 'command',
             buffer: 'test',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: "", isInQuotes: false });
-        result = handleCommandTransition({
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: "" });
+    });
+    test('does not start pending for symbols', () => {
+        const result = handleCommandTransition({
             curr: '!',
-            next: ' ',
             section: 'command',
             buffer: 'test',
-            isInQuotes: false,
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: "", isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: "" });
     });
-
-    test('parses action when next character is whitespace', () => {
+    test('cancels pending on other alphabets', () => {
         const result = handleCommandTransition({
-            curr: 'action',
-            next: ' ',
+            curr: '你',
             section: 'pending',
-            buffer: '',
-            isInQuotes: false,
+            buffer: 'test',
+            callback,
         });
-        expect(result).toEqual({ section: 'command', buffer: '', isInQuotes: false });  // Assuming it should reset to command
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: "" });
     });
-
-    test('parses property name when next character is equals sign', () => {
+    test('cancels pending on emojis', () => {
         const result = handleCommandTransition({
-            curr: 'propName',
-            next: '=',
+            curr: '👋',
             section: 'pending',
-            buffer: '',
-            isInQuotes: false,
+            buffer: 'test',
+            callback,
         });
-        expect(result).toEqual({ section: 'propName', buffer: 'propName', isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: "" });
+    });
+    test('cancels pending on symbols', () => {
+        const result = handleCommandTransition({
+            curr: '!',
+            section: 'pending',
+            buffer: 'test',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: "" });
     });
 
-    test('resets on newline outside of quotes', () => {
+    // Action tests
+    test('commits pending buffer to action on whitespace - space', () => {
+        const result = handleCommandTransition({
+            curr: ' ',
+            section: 'pending',
+            buffer: 'create',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('action', 'create');
+        expect(result).toEqual({ section: 'propName', buffer: '' });
+    });
+    test('commits pending buffer to action on whitespace - tab', () => {
+        const result = handleCommandTransition({
+            curr: '\t',
+            section: 'pending',
+            buffer: 'create',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('action', 'create');
+        expect(result).toEqual({ section: 'propName', buffer: '' });
+    });
+    test('commits pending buffer to action on newline', () => {
         const result = handleCommandTransition({
             curr: '\n',
-            next: ' ',
-            section: 'command',
-            buffer: '/test',
-            isInQuotes: false,
+            section: 'pending',
+            buffer: 'create',
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: '', isInQuotes: false });
+        expect(callback).toHaveBeenCalledWith('action', 'create');
+        expect(result).toEqual({ section: 'outside', buffer: '' });
     });
 
-    test('enters propValue section when equals sign is encountered', () => {
+    // Property name tests
+    test('commits pending buffer to property name on equals sign', () => {
         const result = handleCommandTransition({
             curr: '=',
-            next: ' ',
+            section: 'pending',
+            buffer: 'name',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('propName', 'name');
+        expect(result).toEqual({ section: 'propValue', buffer: '' });
+    });
+    test('commits property name buffer to property name on equals sign', () => {
+        const result = handleCommandTransition({
+            curr: '=',
             section: 'propName',
-            buffer: 'key',
-            isInQuotes: false,
+            buffer: 'name',
+            callback,
         });
-        expect(result).toEqual({ section: 'propValue', buffer: 'key', isInQuotes: false });
+        expect(callback).toHaveBeenCalledWith('propName', 'name');
+        expect(result).toEqual({ section: 'propValue', buffer: '' });
     });
-
-    test('handles entering quotes for property value', () => {
+    test('cancels property name buffer on whitespace - space', () => {
         const result = handleCommandTransition({
-            curr: '"',
-            next: 'value',
-            section: 'propValue',
-            buffer: '',
-            isInQuotes: false,
+            curr: ' ',
+            section: 'propName',
+            buffer: 'name',
+            callback,
         });
-        expect(result).toEqual({ section: 'propValue', buffer: '"', isInQuotes: true });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
     });
-
-    test('handles exiting quotes for property value', () => {
+    test('cancels property name buffer on whitespace - tab', () => {
         const result = handleCommandTransition({
-            curr: '"',
-            next: ' ',
-            section: 'propValue',
-            buffer: '"value',
-            isInQuotes: true,
+            curr: '\t',
+            section: 'propName',
+            buffer: 'name',
+            callback,
         });
-        expect(result).toEqual({ section: 'propName', buffer: '"value"', isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
     });
-
-    test('ignores command when preceded by non-whitespace character', () => {
+    test('cancels property name buffer on newline', () => {
+        const result = handleCommandTransition({
+            curr: '\n',
+            section: 'propName',
+            buffer: 'name',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property name buffer on other alphabets', () => {
+        const result = handleCommandTransition({
+            curr: '你',
+            section: 'propName',
+            buffer: 'name',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property name buffer on emojis', () => {
+        const result = handleCommandTransition({
+            curr: '👋',
+            section: 'propName',
+            buffer: 'name',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property name buffer on symbols', () => {
+        const result = handleCommandTransition({
+            curr: '!',
+            section: 'propName',
+            buffer: 'name',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property name buffer on slash', () => {
         const result = handleCommandTransition({
             curr: '/',
-            next: ' ',
-            section: 'outside',
-            buffer: 'text',
-            isInQuotes: false,
+            section: 'propName',
+            buffer: 'name',
+            callback,
         });
-        expect(result).toEqual({ section: 'outside', buffer: '', isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
     });
 
-    test('transitions from pending to propName or command based on nextChar', () => {
-        const propNameResult = handleCommandTransition({
-            curr: 'name',
-            next: '=',
-            section: 'pending',
+    // Property value tests
+    test('starts property value on single quote', () => {
+        const result = handleCommandTransition({
+            curr: "'",
+            section: 'propValue', // Should already be marked as propValue because of the equals sign
             buffer: '',
-            isInQuotes: false,
+            callback,
         });
-        expect(propNameResult).toEqual({ section: 'propName', buffer: 'name', isInQuotes: false });
-
-        const actionResult = handleCommandTransition({
-            curr: 'action',
-            next: ' ',
-            section: 'pending',
+        expect(callback).not.toHaveBeenCalled();
+        // Includes the quote in the buffer
+        expect(result).toEqual({ section: 'propValue', buffer: `'` });
+    });
+    test('starts property value on double quote', () => {
+        const result = handleCommandTransition({
+            curr: '"',
+            section: 'propValue', // Should already be marked as propValue because of the equals sign
             buffer: '',
-            isInQuotes: false,
+            callback,
         });
-        expect(actionResult).toEqual({ section: 'command', buffer: '', isInQuotes: false });
+        expect(callback).not.toHaveBeenCalled();
+        // Includes the quote in the buffer
+        expect(result).toEqual({ section: 'propValue', buffer: `"` });
+    });
+    test('cancels property value if whitespace before quote - space', () => {
+        const result = handleCommandTransition({
+            curr: ' ',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if whitespace before quote - tab', () => {
+        const result = handleCommandTransition({
+            curr: '\t',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if newline before quote', () => {
+        const result = handleCommandTransition({
+            curr: '\n',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if other alphabets before quote', () => {
+        const result = handleCommandTransition({
+            curr: '你',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if emojis before quote', () => {
+        const result = handleCommandTransition({
+            curr: '👋',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if symbols before quote', () => {
+        const result = handleCommandTransition({
+            curr: '!',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if slash before quote', () => {
+        const result = handleCommandTransition({
+            curr: '/',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('continues property value if already in quotes - letter with single quote start', () => {
+        const result = handleCommandTransition({
+            curr: 'a',
+            section: 'propValue',
+            buffer: "'",
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: "'a" });
+    });
+    test('continues property value if already in quotes - letter with double quote start', () => {
+        const result = handleCommandTransition({
+            curr: 'a',
+            section: 'propValue',
+            buffer: '"',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: '"a' });
+    });
+    test('continues property value if already in quotes - letter with single quote start and other text in buffer', () => {
+        const result = handleCommandTransition({
+            curr: 'a',
+            section: 'propValue',
+            buffer: "'test",
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: "'testa" });
+    });
+    test('continues property value if already in quotes - other language', () => {
+        const result = handleCommandTransition({
+            curr: '你',
+            section: 'propValue',
+            buffer: "'test",
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: "'test你" });
+    });
+    test('continues property value if already in quotes - emoji', () => {
+        const result = handleCommandTransition({
+            curr: '👋',
+            section: 'propValue',
+            buffer: "'test",
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: "'test👋" });
+    });
+    test('continues property value if already in quotes - symbol', () => {
+        const result = handleCommandTransition({
+            curr: '!',
+            section: 'propValue',
+            buffer: "'test",
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: "'test!" });
+    });
+    test('continues property value if already in quotes - slash', () => {
+        const result = handleCommandTransition({
+            curr: '/',
+            section: 'propValue',
+            buffer: "'test",
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: "'test/" });
+    });
+    test('continues property value if already in quotes - newline', () => {
+        const result = handleCommandTransition({
+            curr: '\n',
+            section: 'propValue',
+            buffer: "'test",
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: "'test\n" });
+    });
+    test('continues property value if already in quotes - space', () => {
+        const result = handleCommandTransition({
+            curr: ' ',
+            section: 'propValue',
+            buffer: '"test',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: '"test ' });
+    });
+    test('continues property value if already in quotes - tab', () => {
+        const result = handleCommandTransition({
+            curr: '\t',
+            section: 'propValue',
+            buffer: '"test',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: '"test\t' });
+    });
+    test('continues property value when curr is a different quote type than the starting quote - double with single start', () => {
+        const result = handleCommandTransition({
+            curr: '"',
+            section: 'propValue',
+            buffer: "'",
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: "'\"" });
+    });
+    test('continues property value when curr is a different quote type than the starting quote - single with double start', () => {
+        const result = handleCommandTransition({
+            curr: "'",
+            section: 'propValue',
+            buffer: '"',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: '"\'' });
+    });
+    test('continues property value for escaped characters - curr is escape character, buffer is quote', () => {
+        const result = handleCommandTransition({
+            curr: '\\',
+            section: 'propValue',
+            buffer: "'",
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: `'\\` });
+    });
+    test('continues property value for escaped characters - curr is single quote, buffer is double quote and escape character', () => {
+        const result = handleCommandTransition({
+            curr: `"`,
+            section: 'propValue',
+            buffer: `"\\`,
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: `"\\"` });
+    });
+    test('continues property value for escaped characters - curr is single quote, buffer is single quote and escape character', () => {
+        const result = handleCommandTransition({
+            curr: `'`,
+            section: 'propValue',
+            buffer: `'\\`,
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: `'\\'` });
+    });
+    test('completes property value for an even number of escape characters', () => {
+        const result = handleCommandTransition({
+            curr: `'`,
+            section: 'propValue',
+            buffer: `'\\\\`,
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('propValue', `\\\\`);
+        expect(result).toEqual({ section: 'propName', buffer: '' });
+    });
+    test('continues property value for an odd number of escape characters', () => {
+        const result = handleCommandTransition({
+            curr: `'`,
+            section: 'propValue',
+            buffer: `'\\\\\\`,
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: `'\\\\\\'` });
+    });
+    test('commits property value on closing quote - single quote', () => {
+        const result = handleCommandTransition({
+            curr: "'",
+            section: 'propValue',
+            buffer: "'test",
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('propValue', "test");
+        expect(result).toEqual({ section: 'propName', buffer: '' });
+    });
+    test('commits property value on closing quote - double quote', () => {
+        const result = handleCommandTransition({
+            curr: '"',
+            section: 'propValue',
+            buffer: '"test',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('propValue', 'test');
+        expect(result).toEqual({ section: 'propName', buffer: '' });
     });
 });
 
