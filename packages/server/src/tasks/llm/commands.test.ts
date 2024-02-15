@@ -1,72 +1,4 @@
-import { handleCommandTransition, isAlphaNum, isNewline, isWhitespace, parsePropertyValue } from './commands';
-
-describe('parsePropertyValue', () => {
-    // Test for numbers
-    test('parses integers correctly', () => {
-        const input = "123 ";
-        const { value, endIndex } = parsePropertyValue(input, 0);
-        expect(value).toBe(123);
-        expect(endIndex).toBe(3);
-    });
-    test('parses negative integers correctly', () => {
-        const input = "-456 ";
-        const { value, endIndex } = parsePropertyValue(input, 0);
-        expect(value).toBe(-456);
-        expect(endIndex).toBe(4);
-    });
-    test('parses floats correctly', () => {
-        const input = "123.456";
-        const { value, endIndex } = parsePropertyValue(input, 0);
-        expect(value).toBe(123.456);
-        expect(endIndex).toBe(7);
-    });
-
-    // Test for quoted strings
-    test('parses single-quoted strings correctly', () => {
-        const input = "'hello world'";
-        const { value, endIndex } = parsePropertyValue(input, 0);
-        expect(value).toBe("hello world");
-        expect(endIndex).toBe(13);
-    });
-    test('parses double-quoted strings correctly', () => {
-        const input = '"hello world" ';
-        const { value, endIndex } = parsePropertyValue(input, 0);
-        expect(value).toBe("hello world");
-        expect(endIndex).toBe(13);
-    });
-
-    // Test for special characters in strings
-    test('handles escaped quotes within strings', () => {
-        const input = "'hello \\'world\\'' ";
-        const { value, endIndex } = parsePropertyValue(input, 0);
-        expect(value).toBe("hello 'world'");
-        expect(endIndex).toBe(17);
-    });
-    test('handles newlines within quoted strings', () => {
-        const input = "'hello\nworld' ";
-        const { value, endIndex } = parsePropertyValue(input, 0);
-        expect(value).toBe("hello\nworld");
-        expect(endIndex).toBe(13);
-    });
-
-    // Test for null
-    test('parses null correctly', () => {
-        const input = "null ";
-        const { value, endIndex } = parsePropertyValue(input, 0);
-        expect(value).toBeNull();
-        expect(endIndex).toBe(4);
-    });
-
-    // Test for handling unexpected formats
-    test('ignores content after space in unquoted values', () => {
-        const input = "unquoted value";
-        const { value, endIndex } = parsePropertyValue(input, 0);
-        expect(value).toBe("unquoted");
-        expect(endIndex).toBe(8);
-    });
-
-    // Add more tests as needed for other edge cases and scenarios...
-});
+import { extractCommands, handleCommandTransition, isAlphaNum, isNewline, isWhitespace } from './commands';
 
 describe('isNewline', () => {
     test('recognizes newline character', () => {
@@ -669,6 +601,126 @@ describe('handleCommandTransition', () => {
         // Includes the quote in the buffer
         expect(result).toEqual({ section: 'propValue', buffer: `"` });
     });
+    test('continues property value if buffer + curr might be a number - test 1', () => {
+        const result = handleCommandTransition({
+            curr: '1',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: '1' });
+    });
+    test('continues property value if buffer + curr might be a number - test 2', () => {
+        const result = handleCommandTransition({
+            curr: '1',
+            section: 'propValue',
+            buffer: '-',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: '-1' });
+    });
+    test('continues property value if buffer + curr might be a number - test 3', () => {
+        const result = handleCommandTransition({
+            curr: '.',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: '.' });
+    });
+    test('continues property value if buffer + curr might be a number - test 4', () => {
+        const result = handleCommandTransition({
+            curr: '.',
+            section: 'propValue',
+            buffer: '3',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: '3.' });
+    });
+    test('cancels property value if buffer + curr is an invalid number - test 1', () => {
+        const result = handleCommandTransition({
+            curr: '-',
+            section: 'propValue',
+            buffer: '-',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if buffer + curr is an invalid number - test 2', () => {
+        const result = handleCommandTransition({
+            curr: '-',
+            section: 'propValue',
+            buffer: '1',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if buffer + curr is an invalid number - test 3', () => {
+        const result = handleCommandTransition({
+            curr: '.',
+            section: 'propValue',
+            buffer: '3.',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if buffer + curr is an invalid number - test 4', () => {
+        const result = handleCommandTransition({
+            curr: '.',
+            section: 'propValue',
+            buffer: '1.2',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('continues property value if buffer + curr might be null - test 1', () => {
+        const result = handleCommandTransition({
+            curr: 'n',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: 'n' });
+    });
+    test('continues property value if buffer + curr might be null - test 2', () => {
+        const result = handleCommandTransition({
+            curr: 'l',
+            section: 'propValue',
+            buffer: 'nul',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'propValue', buffer: 'null' });
+    });
+    test('cancels property value if buffer + curr is not null', () => {
+        const result = handleCommandTransition({
+            curr: 'l',
+            section: 'propValue',
+            buffer: 'null',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels property value if letter before quote', () => {
+        const result = handleCommandTransition({
+            curr: 'a',
+            section: 'propValue',
+            buffer: '',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
     test('cancels property value if whitespace before quote - space', () => {
         const result = handleCommandTransition({
             curr: ' ',
@@ -929,181 +981,286 @@ describe('handleCommandTransition', () => {
         expect(callback).toHaveBeenCalledWith('propValue', 'test');
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
+    test('commits number property value on space - test 1', () => {
+        const result = handleCommandTransition({
+            curr: ' ',
+            section: 'propValue',
+            buffer: '123',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('propValue', 123);
+        expect(result).toEqual({ section: 'propName', buffer: '' });
+    });
+    test('commits number property value on space - test 2', () => {
+        const result = handleCommandTransition({
+            curr: ' ',
+            section: 'propValue',
+            buffer: '-123',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('propValue', -123);
+        expect(result).toEqual({ section: 'propName', buffer: '' });
+    });
+    test('commits number property value on space - test 3', () => {
+        const result = handleCommandTransition({
+            curr: ' ',
+            section: 'propValue',
+            buffer: '-1.23',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('propValue', -1.23);
+        expect(result).toEqual({ section: 'propName', buffer: '' });
+    });
+    test('commits number property value on tab', () => {
+        const result = handleCommandTransition({
+            curr: '\t',
+            section: 'propValue',
+            buffer: '-1.23',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('propValue', -1.23);
+        expect(result).toEqual({ section: 'propName', buffer: '' });
+    });
+    test('commits number property value on newline', () => {
+        const result = handleCommandTransition({
+            curr: '\n',
+            section: 'propValue',
+            buffer: '-1.23',
+            callback,
+        });
+        expect(callback).toHaveBeenCalledWith('propValue', -1.23);
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels number property value on letter', () => {
+        const result = handleCommandTransition({
+            curr: 'a',
+            section: 'propValue',
+            buffer: '-1.23',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels number property value on other alphabet', () => {
+        const result = handleCommandTransition({
+            curr: '你',
+            section: 'propValue',
+            buffer: '-1.23',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels number property value on emoji', () => {
+        const result = handleCommandTransition({
+            curr: '👋',
+            section: 'propValue',
+            buffer: '-1.23',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
+    test('cancels number property value on symbol', () => {
+        const result = handleCommandTransition({
+            curr: '!',
+            section: 'propValue',
+            buffer: '-1.23',
+            callback,
+        });
+        expect(callback).not.toHaveBeenCalled();
+        expect(result).toEqual({ section: 'outside', buffer: '' });
+    });
 });
 
+describe('extractCommands', () => {
+    test('ignores non-command slashes - test1', () => {
+        const input = "a/command";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test2', () => {
+        const input = "1/3";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test3', () => {
+        const input = "/boop.";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test4', () => {
+        const input = "/boop!";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test5', () => {
+        const input = "/boop你";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test6', () => {
+        const input = "/boop👋";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test7', () => {
+        const input = "/boop/";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test8', () => {
+        const input = "/boop\\";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test9', () => {
+        const input = "/boop=";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test10', () => {
+        const input = "/boop-";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test11', () => {
+        const input = "/boop.";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('ignores non-command slashes - test12', () => {
+        const input = "//boop";
+        const expected = [];
+        expect(extractCommands(input)).toEqual(expected);
+    });
 
+    test('extracts simple command without action or properties - test 1', () => {
+        const input = "/command";
+        const expected = [{
+            command: "command",
+            action: null,
+            properties: {},
+            start: 0,
+            end: input.length - 1,
+        }];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('extracts simple command without action or properties - test 2', () => {
+        const input = "  /command";
+        const expected = [{
+            command: "command",
+            action: null,
+            properties: {},
+            start: 2,
+            end: input.length - 1,
+        }];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('extracts simple command without action or properties - test 3', () => {
+        const input = "/command  ";
+        const expected = [{
+            command: "command",
+            action: null,
+            properties: {},
+            start: 0,
+            end: input.length - 3,
+        }];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('extracts simple command without action or properties - test 4', () => {
+        const input = "\n/command";
+        const expected = [{
+            command: "command",
+            action: null,
+            properties: {},
+            start: 1,
+            end: input.length - 1,
+        }];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('extracts simple command without action or properties - test 5', () => {
+        const input = "/command\n";
+        const expected = [{
+            command: "command",
+            action: null,
+            properties: {},
+            start: 0,
+            end: input.length - 2,
+        }];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    test('extracts simple command without action or properties - test 6', () => {
+        const input = "/command\t";
+        const expected = [{
+            command: "command",
+            action: null,
+            properties: {},
+            start: 0,
+            end: input.length - 2,
+        }];
+        expect(extractCommands(input)).toEqual(expected);
+    });
 
-// describe('handleCommandActionTransition', () => {
-//     // Test the transition from command to action
-//     test('should transition from command to action on space', () => {
-//         const result = handleCommandActionTransition(' ', 'command', '');
-//         expect(result).toEqual({ newSection: 'action', newBuffer: '' });
-//     });
+    test('extracts command with action - test1', () => {
+        const input = "/command action";
+        const expected = [{
+            command: "command",
+            action: "action",
+            properties: {},
+            start: 0,
+            end: input.length - 1,
+        }];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    //TODO more
 
-//     // Test the transition from action to property name
-//     test('should transition from action to property name on space', () => {
-//         const result = handleCommandActionTransition(' ', 'action', 'create');
-//         expect(result).toEqual({ newSection: 'propName', newBuffer: '' });
-//     });
+    test('handles command with mixed properties - test 1', () => {
+        const input = "/command prop1=123 prop2='value' prop3=null";
+        const expected = [{
+            command: "command",
+            action: null,
+            properties: { prop1: 123, prop2: 'value', prop3: null },
+            start: 0,
+            end: input.length - 1,
+        }];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    //TODO more
 
-//     // Test the transition from action to property name on newline
-//     test('should transition from action to property name on newline', () => {
-//         const result = handleCommandActionTransition('\n', 'action', 'create');
-//         expect(result).toEqual({ newSection: 'propName', newBuffer: '' });
-//     });
+    test('handles newline properly - test 1', () => {
+        const input = "/command1\n/command2";
+        const expected = [
+            { command: "command1", action: null, properties: {}, start: 0, end: 9 },
+            { command: "command2", action: null, properties: {}, start: 10, end: 19 }
+        ];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    //TODO more
 
-//     // Test reset to command on newline
-//     test('should reset to command on newline', () => {
-//         const result = handleCommandActionTransition('\n', 'command', 'note');
-//         expect(result).toEqual({ newSection: 'command', newBuffer: '' });
-//     });
+    test('handles escaped quotes in property values - test 1', () => {
+        const input = "/command prop='value with \\'escaped quotes\\''";
+        const expected = [{
+            command: "command",
+            action: null,
+            properties: { prop: "value with 'escaped quotes'" },
+            start: 0,
+            end: input.length - 1,
+        }];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    //TODO more
 
-//     // Test ignoring non-whitespace characters before slash
-//     test('should ignore non-whitespace characters before slash', () => {
-//         const result = handleCommandActionTransition('/', 'command', 'a');
-//         expect(result).toEqual({ newSection: 'command', newBuffer: 'a/' });
-//     });
+    test('handles complex scenario with multiple commands and properties - test 1', () => {
+        const input = "/cmd1 prop1=123 /cmd2 action2 prop2='text' prop3=4.56\n/cmd3 prop4=null";
+        const expected = [
+            { command: "cmd1", action: null, properties: { prop1: 123 }, start: 0, end: 13 },
+            { command: "cmd2", action: "action2", properties: { prop2: 'text', prop3: 4.56 }, start: 14, end: 44 },
+            { command: "cmd3", action: null, properties: { prop4: null }, start: 45, end: 62 }
+        ];
+        expect(extractCommands(input)).toEqual(expected);
+    });
+    //TODO more
 
-//     // Test maintaining current buffer and section when no transition is required
-//     test('should maintain current buffer and section', () => {
-//         const result = handleCommandActionTransition('x', 'command', '/');
-//         expect(result).toEqual({ newSection: 'command', newBuffer: '/x' });
-//     });
-// });
-
-
-
-// describe('extractCommands', () => {
-//     test('parses a basic command with no action or properties', () => {
-//         const input = "/viewDashboard";
-//         const expected: LlmCommand[] = [{ command: "viewDashboard", action: null, properties: null }];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('parses a command with an action', () => {
-//         const input = "/bot create";
-//         const expected: LlmCommand[] = [{ command: "bot", action: "create", properties: null }];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('parses a command with properties of various types', () => {
-//         const input = `/setTimer time=10 unit='minutes' other1=null other2='420' other3="double_quotes"`;
-//         const expected: LlmCommand[] = [{
-//             command: "setTimer",
-//             action: null,
-//             properties: { time: 10, unit: "minutes", other1: null, other2: "420", other3: "double_quotes" },
-//         }];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('parses a command with an action and properties', () => {
-//         const input = "/bot create name='Elon' occupation='CEO'";
-//         const expected: LlmCommand[] = [{
-//             command: "bot",
-//             action: "create",
-//             properties: { name: "Elon", occupation: "CEO" },
-//         }];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('parses multiple commands in a single string', () => {
-//         const input = "/start /stop reason='Finished tasks'";
-//         const expected: LlmCommand[] = [
-//             { command: "start", action: null, properties: null },
-//             { command: "stop", action: null, properties: { reason: "Finished tasks" } },
-//         ];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('handles edge cases with unexpected formats', () => {
-//         const input = "/weirdFormat 123 /anotherCommand prop=123";
-//         const expected: LlmCommand[] = [
-//             { command: "weirdFormat", action: null, properties: null },
-//             { command: "anotherCommand", action: null, properties: { prop: 123 } },
-//         ];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('handles input with no commands', () => {
-//         const input = "Just some regular text without any commands.";
-//         const expected: LlmCommand[] = [];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('parses commands correctly within a larger text', () => {
-//         const input = "Please execute /start and then /stop after 5 minutes.";
-//         const expected: LlmCommand[] = [
-//             { command: "start", action: "and", properties: null },
-//             { command: "stop", action: "after", properties: null },
-//         ];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('parses commands correctly with text between them', () => {
-//         const input = "/start The system should then /pause '5m' before /stop";
-//         const expected: LlmCommand[] = [
-//             { command: "start", action: "The", properties: null },
-//             { command: "pause", action: null, properties: null },
-//             { command: "stop", action: null, properties: null },
-//         ];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('ignores malformed commands', () => {
-//         const input = "/ This is not a valid command /start and this /invalidCommand 'with' improper =format";
-//         const expected: LlmCommand[] = [
-//             { command: "start", action: "and", properties: null },
-//             { command: "invalidCommand", action: null, properties: null },
-//         ];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('works with positive, negative, 0, and decimal numbers', () => {
-//         const input = "/testa create prop1=123 prop2=-456 prop3=0 prop4=3.14 /testb prop5=-3.14";
-//         const expected: LlmCommand[] = [
-//             { command: "testa", action: "create", properties: { prop1: 123, prop2: -456, prop3: 0, prop4: 3.14 } },
-//             { command: "testb", action: null, properties: { prop5: -3.14 } },
-//         ];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('works with non-ascii characters', () => {
-//         const input = "boop /test create prop1='你好' prop2='👋' chicken";
-//         const expected: LlmCommand[] = [
-//             { command: "test", action: "create", properties: { prop1: "你好", prop2: "👋" } },
-//         ];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('handles newlines correctly', () => {
-//         const input = "/test create\nprop1=123\nprop2='456' /testb\nboop /testc hello prop3=789\nprop4='abc'";
-//         const expected: LlmCommand[] = [
-//             { command: "test", action: "create", properties: null },
-//             { command: "testb", action: null, properties: null },
-//             { command: "testc", action: "hello", properties: { prop3: 789 } },
-//         ];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     test('handles invalid input', () => {
-//         // @ts-ignore: Testing runtime scenario
-//         expect(extractCommands(null)).toEqual([]);
-//         // @ts-ignore: Testing runtime scenario
-//         expect(extractCommands(undefined)).toEqual([]);
-//         // @ts-ignore: Testing runtime scenario
-//         expect(extractCommands(123)).toEqual([]);
-//         // @ts-ignore: Testing runtime scenario
-//         expect(extractCommands({})).toEqual([]);
-//         // @ts-ignore: Testing runtime scenario
-//         expect(extractCommands([])).toEqual([]);
-//     });
-
-//     test('handles slashes within quoted strings', () => {
-//         const input = `/test prop1='/' prop2='\\' prop3="/"`;
-//         const expected: LlmCommand[] = [{ command: "test", action: null, properties: { prop1: "/", prop2: "\\", prop3: "/" } }];
-//         expect(extractCommands(input)).toEqual(expected);
-//     });
-
-//     //TODO ignores asdf/asdf (i.e. command with test before and no whitespace)
-// });
-
+    // TODO tests that include non-command text, performance with long inputs, etc.
+});
