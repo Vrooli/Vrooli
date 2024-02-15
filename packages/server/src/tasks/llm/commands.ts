@@ -50,12 +50,19 @@ export const handleCommandTransition = ({
             return { section, buffer: buffer + curr };
         }
         // Otherwise, start the command. Don't include the slash in the buffer
-        return { section: 'command', buffer: "" };
+        return { section: "command", buffer: "" };
     }
-    // Handle transition from command to pending (action/propName undecided)
-    else if (section === 'command' && isWhitespace(curr)) {
-        callback('command', buffer);
-        return { section: 'pending', buffer: '' };
+    // Handle commands
+    else if (section === "command") {
+        // If we run into another slash, the command is invalid
+        if (curr === "/") {
+            return { section: "outside", buffer: "" };
+        }
+        // Handle transition from command to pending (action/propName undecided)
+        if (isWhitespace(curr)) {
+            callback("command", buffer);
+            return { section: "pending", buffer: "" };
+        }
     }
     // Handle decision between action and propName
     else if (section === 'pending') {
@@ -166,6 +173,7 @@ export const extractCommands = (inputString: string): LlmCommand[] => {
         console.log('pushing new command', currentIndex)
         commands.push({
             ...currentCommand,
+            action: (currentCommand.action && currentCommand.action.length) ? currentCommand.action : null,
             end: currentIndex,
             // Convert properties array to object
             properties: currentCommand.properties.reduce((obj, item, index) => {
